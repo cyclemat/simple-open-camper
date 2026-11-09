@@ -1,0 +1,18 @@
+# Bauen (PlatformIO / ESP-IDF erzeugt das selbst)
+.pio/
+.dummy/
+managed_components/
+dependencies.lock
+sdkconfig.waveshare-7b
+sdkconfig.*.old
+src/generated/
+web/build/
+
+# Editor / Werkzeuge
+.vscode/
+__pycache__/
+*.pyc
+
+# Logs und Reste
+*.log
+a-*.d

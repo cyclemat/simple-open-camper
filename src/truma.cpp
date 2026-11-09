@@ -1,0 +1,563 @@
+#include "truma.h"
+#include "i18n/i18n.h"
+#include "app.h"
+#include "victron.h"
+#include "mopeka.h"
+#include "truma_inetx.h"
+#include "settings.h"
+#include "sat_proto.h"
+
+#include <Arduino.h>
+#include <atomic>
+#include <stdarg.h>
+#include <NimBLEDevice.h>
+#include <Preferences.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
+
+static const char *UUID_SERVICE = "22bfa601-6afe-4cc5-b3ff-3e140baedeb6";
+static const char *UUID_MEASUREMENT = "22bfa610-6afe-4cc5-b3ff-3e140baedeb6";  // lesen
+static const char *UUID_PASSWORD = "22bfa619-6afe-4cc5-b3ff-3e140baedeb6";     // lesen, 5 Byte
+static const char *UUID_STORE_NV = "22bfa617-6afe-4cc5-b3ff-3e140baedeb6";     // schreiben: Ausloeser
+static const uint16_t MANUFACTURER_ID = 0x5000;
+static const uint16_t VICTRON_MANUFACTURER_ID = 0x02E1;
+static const uint8_t TRIGGER_INIT = 0x03, TRIGGER_GO = 0x02;
+static const uint32_t MEASURE_WAIT_MS = 3000;
+static const uint32_t WAIT_FOR_ADV_MS = 6 * 60 * 1000;  // der Sensor sendet nur alle paar Minuten
+
+struct Sensor {
+  std::string mac;
+  uint8_t type = 0;
+  std::string name;
+  // letzte Messung
+  bool has = false;
+  int percent = 0, grams = 0, battery = 0, temp = 0, quality = 0;
+  uint32_t when_ms = 0;   // millis() der Messung (0 = vor dem Neustart)
+  time_t when_epoch = 0;  // Uhrzeit der Messung, falls bekannt
+  // Ablauf
+  bool due = true, busy = false;
+  uint32_t due_since = 0, next_ms = 0;
+  char status[64] = "Warte auf erste Messung …";
+};
+
+static SemaphoreHandle_t s_mtx;
+static std::vector<Sensor> s_sensors;
+static uint16_t s_interval_min = 10;
+static std::atomic<uint32_t> s_ver{1};
+static Preferences s_prefs;
+
+static std::vector<TrumaFound> s_found;
+static volatile bool s_setup_scan = false;
+static uint32_t s_setup_until = 0;
+static volatile int s_adv_hit = -1;
+static volatile uint8_t s_adv_type = 0;
+static bool s_ble_ready = false;
+static bool s_scan_passive = false;   // laufender Scan ist der passive (Messen/Victron)
+
+enum CmdType : uint8_t { CMD_MEASURE = 1, CMD_SCAN, CMD_RELOAD };
+struct Cmd { CmdType t; char mac[18]; };
+static QueueHandle_t s_cmd;
+
+struct Lock {
+  Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
+  ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
+};
+
+static std::string lower(std::string s) {
+  for (auto &c : s) c = tolower(c);
+  return s;
+}
+
+// ---------------------------------------------------------------- Speicher
+struct __attribute__((packed)) StoredReading {
+  uint8_t percent;
+  uint16_t grams_div100;
+  uint8_t battery;
+  int8_t temp;
+  uint8_t quality;
+  uint32_t epoch;
+};
+
+static void save_config() {
+  Lock l;
+  s_prefs.begin("truma", false);
+  s_prefs.putUChar("n", s_sensors.size());
+  s_prefs.putUShort("iv", s_interval_min);
+  for (size_t i = 0; i < TRUMA_MAX_SENSORS; i++) {
+    char k[4];
+    if (i < s_sensors.size()) {
+      snprintf(k, sizeof(k), "m%u", (unsigned)i); s_prefs.putString(k, s_sensors[i].mac.c_str());
+      snprintf(k, sizeof(k), "t%u", (unsigned)i); s_prefs.putUChar(k, s_sensors[i].type);
+      snprintf(k, sizeof(k), "a%u", (unsigned)i); s_prefs.putString(k, s_sensors[i].name.c_str());
+    }
+  }
+  s_prefs.end();
+}
+
+static void save_reading(size_t i) {
+  Lock l;
+  if (i >= s_sensors.size()) return;
+  const Sensor &s = s_sensors[i];
+  StoredReading r = {(uint8_t)s.percent, (uint16_t)(s.grams / 100), (uint8_t)s.battery, (int8_t)s.temp,
+                     (uint8_t)s.quality, (uint32_t)s.when_epoch};
+  char k[4];
+  snprintf(k, sizeof(k), "r%u", (unsigned)i);
+  s_prefs.begin("truma", false);
+  s_prefs.putBytes(k, &r, sizeof(r));
+  s_prefs.end();
+}
+
+static void load_config() {
+  Lock l;
+  s_sensors.clear();
+  s_prefs.begin("truma", true);
+  int n = s_prefs.getUChar("n", 0);
+  s_interval_min = s_prefs.getUShort("iv", 10);
+  for (int i = 0; i < n && i < TRUMA_MAX_SENSORS; i++) {
+    char k[4];
+    Sensor s;
+    snprintf(k, sizeof(k), "m%d", i); s.mac = s_prefs.getString(k, "").c_str();
+    snprintf(k, sizeof(k), "t%d", i); s.type = s_prefs.getUChar(k, 0);
+    snprintf(k, sizeof(k), "a%d", i); s.name = s_prefs.getString(k, "Gasflasche").c_str();
+    snprintf(k, sizeof(k), "r%d", i);
+    StoredReading r;
+    if (s_prefs.getBytes(k, &r, sizeof(r)) == sizeof(r)) {
+      s.has = true;
+      s.percent = r.percent; s.grams = r.grams_div100 * 100; s.battery = r.battery;
+      s.temp = r.temp; s.quality = r.quality; s.when_epoch = r.epoch; s.when_ms = 0;
+    }
+    if (!s.mac.empty()) s_sensors.push_back(s);
+  }
+  s_prefs.end();
+  if (s_interval_min < 2) s_interval_min = 10;
+}
+
+// ---------------------------------------------------------------- Protokoll
+static void rc4(const uint8_t *key, size_t klen, const uint8_t *in, uint8_t *out, size_t len) {
+  uint8_t S[256];
+  for (int i = 0; i < 256; i++) S[i] = i;
+  uint8_t j = 0;
+  for (int i = 0; i < 256; i++) {
+    j = j + S[i] + key[i % klen];
+    uint8_t t = S[i]; S[i] = S[j]; S[j] = t;
+  }
+  uint8_t a = 0, b = 0;
+  for (size_t n = 0; n < len; n++) {
+    a++;
+    b += S[a];
+    uint8_t t = S[a]; S[a] = S[b]; S[b] = t;
+    out[n] = in[n] ^ S[(uint8_t)(S[a] + S[b])];
+  }
+}
+
+static void set_status(size_t i, const char *fmt, ...) {
+  Lock l;
+  if (i >= s_sensors.size()) return;
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(s_sensors[i].status, sizeof(s_sensors[i].status), fmt, ap);
+  va_end(ap);
+  s_ver++;
+}
+
+static bool measure(size_t i) {
+  std::string mac;
+  uint8_t type;
+  {
+    Lock l;
+    if (i >= s_sensors.size()) return false;
+    mac = s_sensors[i].mac;
+    type = s_sensors[i].type;
+    s_sensors[i].busy = true;
+  }
+  set_status(i, "Verbinde …");
+  NimBLEClient *c = NimBLEDevice::createClient();
+  bool ok = false;
+  uint8_t dec[16] = {0};
+  size_t dlen = 0;
+  c->setConnectTimeout(8000);
+  if (!c->connect(NimBLEAddress(mac, type), true)) {
+    set_status(i, "Verbindung fehlgeschlagen – ist die App verbunden?");
+  } else {
+    NimBLERemoteService *svc = c->getService(NimBLEUUID(UUID_SERVICE));
+    NimBLERemoteCharacteristic *ch_pw = svc ? svc->getCharacteristic(NimBLEUUID(UUID_PASSWORD)) : nullptr;
+    NimBLERemoteCharacteristic *ch_nv = svc ? svc->getCharacteristic(NimBLEUUID(UUID_STORE_NV)) : nullptr;
+    NimBLERemoteCharacteristic *ch_ms = svc ? svc->getCharacteristic(NimBLEUUID(UUID_MEASUREMENT)) : nullptr;
+    if (!ch_pw || !ch_ms) {
+      set_status(i, "Unbekanntes Gerät (Dienst fehlt)");
+    } else {
+      NimBLEAttValue pw = ch_pw->readValue();
+      if (pw.size() != 5) {
+        set_status(i, "Passwort nicht lesbar");
+      } else {
+        uint8_t key[5];
+        const char *truma = "TRUMA";
+        for (int k = 0; k < 5; k++) key[k] = pw.data()[k] ^ (uint8_t)truma[k];
+        set_status(i, "Messung läuft …");
+        if (ch_nv) {
+          uint8_t v = TRIGGER_INIT;
+          ch_nv->writeValue(&v, 1, false);
+          delay(400);
+          v = TRIGGER_GO;
+          ch_nv->writeValue(&v, 1, false);
+          delay(400);
+        }
+        delay(MEASURE_WAIT_MS);
+        NimBLEAttValue raw = ch_ms->readValue();
+        dlen = raw.size() < sizeof(dec) ? raw.size() : sizeof(dec);
+        if (dlen >= 5) {
+          rc4(key, 5, raw.data(), dec, dlen);
+          ok = dec[0] <= 100;
+          if (!ok) set_status(i, "Unplausibler Messwert");
+        } else {
+          set_status(i, "Kein Messwert erhalten");
+        }
+      }
+    }
+    c->disconnect();
+  }
+  NimBLEDevice::deleteClient(c);
+
+  Lock l;
+  if (i >= s_sensors.size()) return false;
+  Sensor &s = s_sensors[i];
+  s.busy = false;
+  if (ok) {
+    s.has = true;
+    s.percent = dec[0];
+    s.grams = (dec[1] | (dec[2] << 8)) * 100;
+    s.battery = dec[3];
+    s.temp = (int8_t)dec[4];  // vermutlich vorzeichenbehaftet; bei Minusgraden pruefen
+    s.quality = dlen > 6 ? (dec[6] >> 6) & 0x03 : 0;
+    s.when_ms = millis();
+    s.when_epoch = time(nullptr) > 1700000000 ? time(nullptr) : 0;
+    snprintf(s.status, sizeof(s.status), "OK");
+    log_i("Truma %s: %d %%, %d g, Akku %d %%", s.mac.c_str(), s.percent, s.grams, s.battery);
+  }
+  s_ver++;
+  if (ok) save_reading(i);
+  return ok;
+}
+
+// ---------------------------------------------------------------- Scannen
+class ScanCB : public NimBLEScanCallbacks {
+  void onResult(const NimBLEAdvertisedDevice *dev) override {
+    // Nur die in den Einstellungen gewaehlten Protokolle auswerten
+    if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
+    bool truma = false;
+    std::string mac = lower(dev->getAddress().toString());
+    if (dev->haveManufacturerData()) {
+      std::string md = dev->getManufacturerData();
+      uint16_t mid = md.size() >= 2 ? ((uint8_t)md[0] | ((uint8_t)md[1] << 8)) : 0;
+      if (mid == SAT_ADV_COMPANY) {   // Satellit sendet Werte per Bluetooth
+        if (ble_proto_on(BLE_P_SAT)) panelsat_on_adv(mac, (const uint8_t *)md.data(), md.size(), dev->getRSSI());
+        return;
+      }
+      if (mid == VICTRON_MANUFACTURER_ID) {
+        if (ble_proto_on(BLE_P_VICTRON))
+          victron_on_adv(mac, (const uint8_t *)md.data(), md.size(), dev->getRSSI(), dev->haveName() ? dev->getName() : "");
+        return;
+      }
+      if (ble_proto_on(BLE_P_MOPEKA) && mopeka_on_adv(mac, (const uint8_t *)md.data(), md.size(), dev->getRSSI())) return;
+      truma = mid == MANUFACTURER_ID;
+    }
+    if (!ble_proto_on(BLE_P_TRUMA)) return;
+    if (!truma && dev->isAdvertisingService(NimBLEUUID(UUID_SERVICE))) truma = true;
+    Lock l;
+    if (s_setup_scan && truma) {
+      bool known = false;
+      for (auto &f : s_found)
+        if (f.mac == mac) { f.rssi = dev->getRSSI(); known = true; }
+      if (!known) {
+        TrumaFound f;
+        f.mac = mac;
+        f.addr_type = dev->getAddress().getType();
+        f.rssi = dev->getRSSI();
+        for (auto &s : s_sensors) f.configured |= s.mac == mac;
+        s_found.push_back(f);
+        s_ver++;
+      }
+    }
+    for (size_t i = 0; i < s_sensors.size(); i++)
+      if (s_sensors[i].due && s_sensors[i].mac == mac && dev->isConnectable()) {
+        s_adv_hit = i;
+        s_adv_type = dev->getAddress().getType();
+      }
+  }
+};
+static ScanCB s_scan_cb;
+
+#ifndef BLE_DEVICE_NAME
+#define BLE_DEVICE_NAME "simply-open-camper"
+#endif
+
+static void ble_init() {
+  if (s_ble_ready) return;
+  NimBLEDevice::init(BLE_DEVICE_NAME);
+  if (inetx_enabled()) inetx_ble_setup();
+  NimBLEScan *sc = NimBLEDevice::getScan();
+  sc->setScanCallbacks(&s_scan_cb, true);  // Duplikate: jede Aussendung zaehlt
+  sc->setMaxResults(0);                     // nichts speichern, nur Rueckrufe
+  s_ble_ready = true;
+}
+
+static void scan_start(bool setup) {
+  ble_init();
+  NimBLEScan *sc = NimBLEDevice::getScan();
+  if (sc->isScanning()) sc->stop();
+  // Passiv mit geringer Last, damit WLAN und Display ungestoert bleiben; beim Einrichten aktiv.
+  // Victron sendet laufend neue Werte – dafuer etwas haeufiger hinhoeren (ca. 30 % statt 12 %).
+  // Mopeka sendet etwa jede Sekunde ein Paket, ein Treffer pro Minute genuegt – dafuer reicht die geringe Last.
+  bool vic = victron_has_devices();
+  sc->setActiveScan(setup);
+  sc->setInterval(setup ? 100 : (vic ? 160 : 320));
+  sc->setWindow(setup ? 90 : (vic ? 48 : 40));
+  sc->start(0, false, true);
+}
+
+static void scan_stop() {
+  if (!s_ble_ready) return;
+  NimBLEScan *sc = NimBLEDevice::getScan();
+  if (sc->isScanning()) sc->stop();
+}
+
+// ---------------------------------------------------------------- Ablauf
+static void worker(void *) {
+  for (;;) {
+    Cmd cmd;
+    if (xQueueReceive(s_cmd, &cmd, pdMS_TO_TICKS(200)) == pdTRUE) {
+      Lock l;
+      if (cmd.t == CMD_MEASURE) {
+        for (auto &s : s_sensors)
+          if (!cmd.mac[0] || s.mac == cmd.mac) {
+            s.due = true;
+            s.due_since = millis();
+            snprintf(s.status, sizeof(s.status), "Warte auf Sensor …");
+          }
+        s_ver++;
+      } else if (cmd.t == CMD_SCAN) {
+        s_found.clear();
+        s_setup_scan = true;
+        s_setup_until = millis() + 180000;  // der Sensor sendet nur alle paar Minuten
+        s_ver++;
+      }
+    }
+    uint32_t now = millis();
+    bool any_due = false;
+    {
+      Lock l;
+      for (auto &s : s_sensors) {
+        if (!s.due && (int32_t)(now - s.next_ms) >= 0) {
+          s.due = true;
+          s.due_since = now;
+        }
+        if (s.due && now - s.due_since > WAIT_FOR_ADV_MS) {
+          // Sensor hat sich nicht gemeldet: in ein paar Minuten erneut
+          s.due = false;
+          s.next_ms = now + 3 * 60 * 1000;
+          snprintf(s.status, sizeof(s.status), "Nicht gefunden – außer Reichweite?");
+          s_ver++;
+        }
+        any_due |= s.due;
+      }
+      if (s_setup_scan && (int32_t)(now - s_setup_until) >= 0) {
+        s_setup_scan = false;
+        s_ver++;
+      }
+    }
+    // Einrichten hat Vorrang (aktiv, kurz); sonst passiv lauschen, solange eine Messung faellig ist
+    // oder Victron-Geraete eingerichtet sind
+    bool scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
+    bool p_truma = ble_proto_on(BLE_P_TRUMA), p_vic = ble_proto_on(BLE_P_VICTRON), p_mop = ble_proto_on(BLE_P_MOPEKA);
+    bool want_active = (p_truma && s_setup_scan) || (p_vic && victron_discovery_running()) ||
+                       (p_mop && mopeka_discovery_running());
+    bool want_passive = (p_truma && any_due) || (p_vic && victron_has_devices()) || (p_mop && mopeka_has_devices()) ||
+                        ble_proto_on(BLE_P_SAT);
+    if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) {
+      inetx_scan_wanted(want_passive, want_active);
+      // iNet X gefunden: Verbindung hier im Scan-Task aufbauen, solange der Scan pausiert
+      if (inetx_want_connect()) {
+        scan_stop();
+        inetx_connect_now();
+      }
+    }
+    if (want_active) {
+      if (!scanning || s_scan_passive) {
+        scan_start(true);
+        s_scan_passive = false;
+      }
+    } else if (want_passive) {
+      if (!scanning || !s_scan_passive) {
+        scan_start(false);
+        s_scan_passive = true;
+      }
+    } else if (scanning) {
+      scan_stop();
+    }
+    int hit = s_adv_hit;
+    if (hit >= 0 && !s_setup_scan) {
+      s_adv_hit = -1;
+      {
+        Lock l;
+        if (hit < (int)s_sensors.size()) s_sensors[hit].type = s_adv_type;
+      }
+      scan_stop();
+      bool ok = measure(hit);
+      Lock l;
+      if (hit < (int)s_sensors.size()) {
+        s_sensors[hit].due = false;
+        s_sensors[hit].next_ms = millis() + (ok ? s_interval_min * 60UL * 1000 : 60UL * 1000);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------- oeffentliche API
+void truma_ble_init() { ble_init(); }
+
+void truma_begin() {
+  s_mtx = xSemaphoreCreateRecursiveMutex();
+  s_cmd = xQueueCreate(6, sizeof(Cmd));
+  load_config();
+  uint32_t now = millis();
+  for (auto &s : s_sensors) {
+    s.due = false;
+    s.next_ms = now + 20000;  // erst nach dem Start von WLAN und Display messen
+  }
+  // Auf Kern 0 neben WLAN; Bluetooth wird erst initialisiert, wenn ein Sensor eingerichtet ist
+  xTaskCreatePinnedToCore(worker, "truma", 6144, nullptr, 3, nullptr, 0);
+}
+
+uint32_t truma_version() { return s_ver; }
+
+static TrumaInfo info_of(const Sensor &s) {
+  TrumaInfo t;
+  t.key = TRUMA_KEY_PREFIX + s.mac;
+  t.mac = s.mac;
+  t.name = s.name;
+  t.has_reading = s.has;
+  t.percent = s.percent;
+  t.kg = s.grams / 1000.0f;
+  t.battery = s.battery;
+  t.temperature = s.temp;
+  t.quality = s.quality;
+  if (s.has) {
+    if (s.when_ms) t.age_s = (millis() - s.when_ms) / 1000;
+    else if (s.when_epoch && time(nullptr) > 1700000000) t.age_s = time(nullptr) - s.when_epoch;
+  }
+  t.busy = s.busy || s.due;
+  t.status = s.status;
+  return t;
+}
+
+std::vector<TrumaInfo> truma_list() {
+  std::vector<TrumaInfo> out;
+  Lock l;
+  for (auto &s : s_sensors) out.push_back(info_of(s));
+  return out;
+}
+
+bool truma_get(const std::string &key, TrumaInfo &out) {
+  if (!truma_is_key(key)) return false;
+  std::string mac = key.substr(strlen(TRUMA_KEY_PREFIX));
+  Lock l;
+  for (auto &s : s_sensors)
+    if (s.mac == mac) {
+      out = info_of(s);
+      return true;
+    }
+  return false;
+}
+
+void truma_measure(const std::string &mac) {
+  Cmd c;
+  memset(&c, 0, sizeof(c));
+  c.t = CMD_MEASURE;
+  strncpy(c.mac, mac.c_str(), sizeof(c.mac) - 1);
+  xQueueSend(s_cmd, &c, 0);
+}
+
+void truma_scan_start() {
+  Cmd c;
+  memset(&c, 0, sizeof(c));
+  c.t = CMD_SCAN;
+  xQueueSend(s_cmd, &c, 0);
+}
+
+bool truma_scan_running() { return s_setup_scan; }
+
+std::vector<TrumaFound> truma_scan_results() {
+  Lock l;
+  std::vector<TrumaFound> out = s_found;
+  for (auto &f : out) {
+    f.configured = false;
+    for (auto &s : s_sensors) f.configured |= s.mac == f.mac;
+  }
+  return out;
+}
+
+std::string truma_add(const std::string &mac_in, uint8_t addr_type, const std::string &name) {
+  std::string mac = lower(mac_in);
+  if (mac.size() != 17) return "Ungültige Bluetooth-Adresse";
+  {
+    Lock l;
+    for (auto &s : s_sensors)
+      if (s.mac == mac) return "Dieser Sensor ist schon eingerichtet";
+    if (s_sensors.size() >= TRUMA_MAX_SENSORS) return "Es sind höchstens zwei Gasflaschen möglich";
+    Sensor s;
+    s.mac = mac;
+    s.type = addr_type;
+    s.name = name.empty() ? tr("Gasflasche ") + std::to_string(s_sensors.size() + 1) : name.substr(0, 32);
+    s.due = true;
+    s.due_since = millis();
+    snprintf(s.status, sizeof(s.status), "Warte auf Sensor …");
+    s_sensors.push_back(s);
+    s_ver++;
+  }
+  save_config();
+  return "";
+}
+
+void truma_remove(const std::string &mac) {
+  {
+    Lock l;
+    for (size_t i = 0; i < s_sensors.size(); i++)
+      if (s_sensors[i].mac == mac) {
+        s_sensors.erase(s_sensors.begin() + i);
+        break;
+      }
+    s_ver++;
+  }
+  // gespeicherte Messwerte neu ordnen
+  s_prefs.begin("truma", false);
+  s_prefs.remove("r0");
+  s_prefs.remove("r1");
+  s_prefs.end();
+  save_config();
+  for (size_t i = 0; i < s_sensors.size(); i++) save_reading(i);
+}
+
+void truma_rename(const std::string &mac, const std::string &name) {
+  {
+    Lock l;
+    for (auto &s : s_sensors)
+      if (s.mac == mac && !name.empty()) s.name = name.substr(0, 32);
+    s_ver++;
+  }
+  save_config();
+}
+
+void truma_set_interval(uint16_t minutes) {
+  {
+    Lock l;
+    s_interval_min = minutes < 2 ? 2 : (minutes > 240 ? 240 : minutes);
+    uint32_t now = millis();
+    for (auto &s : s_sensors)
+      if (!s.due) s.next_ms = now + s_interval_min * 60UL * 1000;
+    s_ver++;
+  }
+  save_config();
+}
+
+uint16_t truma_interval() { return s_interval_min; }

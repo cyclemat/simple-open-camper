@@ -1,0 +1,300 @@
+{
+ "tile_icon_count": 26,
+ "icons": [
+  {
+   "id": "bulb",
+   "cp": 57344,
+   "tile": true
+  },
+  {
+   "id": "filament",
+   "cp": 57345,
+   "tile": true
+  },
+  {
+   "id": "pendant",
+   "cp": 57346,
+   "tile": true
+  },
+  {
+   "id": "lamp",
+   "cp": 57347,
+   "tile": true
+  },
+  {
+   "id": "strip",
+   "cp": 57348,
+   "tile": true
+  },
+  {
+   "id": "sparkle",
+   "cp": 57349,
+   "tile": true
+  },
+  {
+   "id": "plug",
+   "cp": 57350,
+   "tile": true
+  },
+  {
+   "id": "toggle",
+   "cp": 57351,
+   "tile": true
+  },
+  {
+   "id": "fan",
+   "cp": 57352,
+   "tile": true
+  },
+  {
+   "id": "tv",
+   "cp": 57353,
+   "tile": true
+  },
+  {
+   "id": "speaker",
+   "cp": 57354,
+   "tile": true
+  },
+  {
+   "id": "heater",
+   "cp": 57355,
+   "tile": true
+  },
+  {
+   "id": "coffee",
+   "cp": 57356,
+   "tile": true
+  },
+  {
+   "id": "washer",
+   "cp": 57357,
+   "tile": true
+  },
+  {
+   "id": "plant",
+   "cp": 57358,
+   "tile": true
+  },
+  {
+   "id": "garden",
+   "cp": 57359,
+   "tile": true
+  },
+  {
+   "id": "garage",
+   "cp": 57360,
+   "tile": true
+  },
+  {
+   "id": "door",
+   "cp": 57361,
+   "tile": true
+  },
+  {
+   "id": "bed",
+   "cp": 57362,
+   "tile": true
+  },
+  {
+   "id": "couch",
+   "cp": 57363,
+   "tile": true
+  },
+  {
+   "id": "desk",
+   "cp": 57364,
+   "tile": true
+  },
+  {
+   "id": "kitchen",
+   "cp": 57365,
+   "tile": true
+  },
+  {
+   "id": "bath",
+   "cp": 57366,
+   "tile": true
+  },
+  {
+   "id": "star",
+   "cp": 57367,
+   "tile": true
+  },
+  {
+   "id": "moon",
+   "cp": 57368,
+   "tile": true
+  },
+  {
+   "id": "lightning",
+   "cp": 57369,
+   "tile": true
+  },
+  {
+   "id": "sun",
+   "cp": 57370,
+   "tile": false
+  },
+  {
+   "id": "sun_dim",
+   "cp": 57371,
+   "tile": false
+  },
+  {
+   "id": "thermo",
+   "cp": 57372,
+   "tile": false
+  },
+  {
+   "id": "palette",
+   "cp": 57373,
+   "tile": false
+  },
+  {
+   "id": "power",
+   "cp": 57374,
+   "tile": false
+  },
+  {
+   "id": "gear",
+   "cp": 57375,
+   "tile": false
+  },
+  {
+   "id": "wifi",
+   "cp": 57376,
+   "tile": false
+  },
+  {
+   "id": "wifi_off",
+   "cp": 57377,
+   "tile": false
+  },
+  {
+   "id": "link",
+   "cp": 57378,
+   "tile": false
+  },
+  {
+   "id": "link_off",
+   "cp": 57379,
+   "tile": false
+  },
+  {
+   "id": "pencil",
+   "cp": 57380,
+   "tile": false
+  },
+  {
+   "id": "close",
+   "cp": 57381,
+   "tile": false
+  },
+  {
+   "id": "check",
+   "cp": 57382,
+   "tile": false
+  },
+  {
+   "id": "left",
+   "cp": 57383,
+   "tile": false
+  },
+  {
+   "id": "right",
+   "cp": 57384,
+   "tile": false
+  },
+  {
+   "id": "info",
+   "cp": 57385,
+   "tile": false
+  },
+  {
+   "id": "grid",
+   "cp": 57386,
+   "tile": false
+  },
+  {
+   "id": "eye",
+   "cp": 57387,
+   "tile": false
+  },
+  {
+   "id": "eye_off",
+   "cp": 57388,
+   "tile": false
+  },
+  {
+   "id": "lock",
+   "cp": 57389,
+   "tile": false
+  },
+  {
+   "id": "warning",
+   "cp": 57390,
+   "tile": false
+  },
+  {
+   "id": "refresh",
+   "cp": 57391,
+   "tile": false
+  },
+  {
+   "id": "monitor",
+   "cp": 57392,
+   "tile": false
+  },
+  {
+   "id": "list",
+   "cp": 57393,
+   "tile": false
+  },
+  {
+   "id": "house",
+   "cp": 57394,
+   "tile": false
+  },
+  {
+   "id": "wand",
+   "cp": 57395,
+   "tile": false
+  },
+  {
+   "id": "battery",
+   "cp": 57396,
+   "tile": false
+  },
+  {
+   "id": "plus",
+   "cp": 57397,
+   "tile": false
+  },
+  {
+   "id": "gas",
+   "cp": 57398,
+   "tile": false
+  },
+  {
+   "id": "bluetooth",
+   "cp": 57399,
+   "tile": false
+  },
+  {
+   "id": "clock",
+   "cp": 57400,
+   "tile": false
+  },
+  {
+   "id": "flame",
+   "cp": 57401,
+   "tile": false
+  },
+  {
+   "id": "search",
+   "cp": 57402,
+   "tile": false
+  }
+ ]
+}
