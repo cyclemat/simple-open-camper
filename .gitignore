@@ -3,6 +3,7 @@
 .dummy/
 managed_components/
 dependencies.lock
+/CMakeLists.txt
 sdkconfig.waveshare-7b
 sdkconfig.*.old
 src/generated/
