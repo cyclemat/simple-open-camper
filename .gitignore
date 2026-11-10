@@ -1,10 +1,11 @@
-# Bauen (PlatformIO / ESP-IDF erzeugt das selbst)
+﻿# Bauen (PlatformIO / ESP-IDF erzeugt das selbst)
 .pio/
 .dummy/
 managed_components/
 dependencies.lock
 /CMakeLists.txt
 sdkconfig.waveshare-7b
+sdkconfig.check-all
 sdkconfig.*.old
 src/generated/
 web/build/
