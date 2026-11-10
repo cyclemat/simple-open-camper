@@ -272,6 +272,76 @@ Pull requests with new or improved translations are very welcome!
 
 ---
 
+## 🛰️ Satellites
+
+A satellite is a cheap **ESP32 (esp32dev, e.g. ESP32-WROOM)** that you place anywhere in the vehicle – at the gas
+locker, under the bed next to the fresh water tank, in the utility compartment. It reads Bluetooth devices and its own
+sensors and sends the values to the panel. This saves memory and radio time on the panel (Bluetooth and Wi-Fi share
+one antenna there) and bridges distances Bluetooth alone cannot cover.
+
+**What a satellite reads and switches**
+
+| Type | Capacity | Notes |
+|---|---|---|
+| ⛽ Truma LevelControl, 🛢️ Mopeka, ☀️ Victron | via Bluetooth | same modules as in the panel |
+| 💧 Tank probes | up to 4 tanks, up to 5 probes each | rods of different lengths, each with its own percentage step |
+| 🌡️ DS18B20 | up to 8 sensors on one GPIO | 1-Wire, search sensors with a button, offset per sensor |
+| 📈 Analog | up to 4 inputs (GPIO 32–39) | two points to convert mV into the value |
+| 📐 MPU-6050 (GY-521) | tilt, lengthwise and crosswise | zero point via button, smoothing see below |
+| 🔌 Switches | up to 8 outputs (relays) | active low selectable, state after boot: off / on / last |
+| 🔘 Inputs | up to 8 contacts or buttons | pull-up and invert selectable |
+
+**Three ways to the panel** – each can be enabled on the satellite:
+
+- **Bluetooth** straight to the panel, no Wi-Fi needed. Encrypted (AES-CTR) with one shared password for all
+  satellites. The panel adopts satellites with a matching password automatically.
+- **MQTT** via the broker, with **Home Assistant discovery** – so the values also show up in Home Assistant.
+  Topics: `panelsat/<id>/sensor/<point>`, switch with `panelsat/<id>/switch/<point>/set` (`ON` / `OFF` / `TOGGLE`).
+- **UDP** (port 47811) as broadcast or to a fixed panel IP.
+
+The panel needs `satellites = 1` under `[features]` in `platformio.ini` (default).
+
+### Setup
+
+1. Flash the firmware: `pio run -d satellite -t upload` (the satellite is a separate PlatformIO project in the
+   `satellite/` folder; in VS Code it is the second folder "Satellit" in the workspace).
+2. Without Wi-Fi access the satellite opens the Wi-Fi **"SOC-Satellite-…"** (password `panelsat`).
+   Connect and open **http://192.168.4.1/**.
+3. In the web UI set up Wi-Fi, the way to the panel and the Bluetooth password, then add Bluetooth devices and assign
+   the GPIOs. The web UI shows what each pin can do and warns about boot pins (0, 2, 5, 12, 15) and double use.
+
+### 💧 Tank probes
+
+Several stainless steel rods of different lengths in the tank plus a shared ground rod. When water touches a probe it
+conducts to ground; the highest step with contact is shown (e.g. 20 / 40 / 60 / 80 / 100 %).
+
+- **One GPIO per probe** – the simplest way. The ground rod goes to GND or to its own GPIO.
+  For modules with a transistor there is "contact = high".
+- **Resistor ladder on one analog pin** – all probes on one pin through resistors. In the web UI you enter the
+  measured voltage for each step; the satellite picks the closest one.
+- **Against corrosion** the probes are only powered briefly while measuring (own interval, default 60 s) and are
+  unpowered otherwise. Each probe is read three times, the majority wins.
+- If a higher probe is wet and a lower one dry, the satellite reports the value as **implausible** – usually a dirty
+  rod or a wiring fault.
+
+### 📐 Calming the tilt reading (MPU-6050)
+
+Something always moves in a camper: people walking around, wind pushing. To keep the value from jumping, the
+satellite smooths in several stages – all adjustable in the web UI:
+
+| Stage | Default | Effect |
+|---|---|---|
+| Low-pass in the sensor | 5 Hz | filters vibration inside the MPU-6050 already |
+| Median | last 5 values | single outliers are dropped |
+| Time filter | 2 s | moving average (0 = off) |
+| Dead band | 0.2° | smaller changes are not reported |
+| Only when still | from 3 °/s | while the sensor rotates (gyro), the last value is held until 1 s of rest |
+
+Set the **zero point** with a button while the vehicle is level. Axes can be swapped and inverted if the board is
+mounted the other way round.
+
+---
+
 ## ⚠ Known limitations
 
 | Problem | What to adjust |

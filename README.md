@@ -276,6 +276,76 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 
 ---
 
+## 🛰️ Satelliten
+
+Ein Satellit ist ein günstiger **ESP32 (esp32dev, z. B. ESP32-WROOM)**, den du irgendwo im Fahrzeug verbaust – am
+Gaskasten, unter dem Bett beim Frischwassertank, im Technikfach. Er liest Bluetooth-Geräte und eigene Sensoren und
+schickt die Werte ans Panel. Das spart im Panel Arbeitsspeicher und Funkzeit (Bluetooth und WLAN teilen sich dort
+eine Antenne) und überbrückt Strecken, die Bluetooth allein nicht schafft.
+
+**Was ein Satellit liest und schaltet**
+
+| Art | Umfang | Hinweise |
+|---|---|---|
+| ⛽ Truma LevelControl, 🛢️ Mopeka, ☀️ Victron | per Bluetooth | dieselben Module wie im Panel |
+| 💧 Tanksonden | bis 4 Tanks, je bis 5 Sonden | Stangen verschiedener Länge, jede mit eigener Prozentstufe |
+| 🌡️ DS18B20 | bis 8 Fühler an einem GPIO | 1-Wire, Fühler per Knopf suchen, Korrektur je Fühler |
+| 📈 Analog | bis 4 Eingänge (GPIO 32–39) | zwei Punkte zum Umrechnen von mV in den Wert |
+| 📐 MPU-6050 (GY-521) | Neigung längs und quer | Nullpunkt per Knopf, Beruhigung siehe unten |
+| 🔌 Schalter | bis 8 Ausgänge (Relais) | aktiv Low wählbar, Zustand nach dem Start: aus / an / wie zuletzt |
+| 🔘 Eingänge | bis 8 Kontakte oder Taster | Pull-up und Umkehren wählbar |
+
+**Drei Wege zum Panel** – am Satelliten einzeln einschaltbar:
+
+- **Bluetooth** direkt ans Panel, ohne WLAN. Verschlüsselt (AES-CTR) mit einem gemeinsamen Passwort für alle
+  Satelliten. Das Panel nimmt Satelliten mit passendem Passwort automatisch auf.
+- **MQTT** über den Broker, mit **Home-Assistant-Discovery** – die Werte erscheinen also auch in Home Assistant.
+  Topics: `panelsat/<id>/sensor/<punkt>`, schalten mit `panelsat/<id>/switch/<punkt>/set` (`ON` / `OFF` / `TOGGLE`).
+- **UDP** (Port 47811) als Broadcast oder an eine feste Panel-IP.
+
+Im Panel muss dafür `satellites = 1` unter `[features]` in der `platformio.ini` stehen (Standard).
+
+### Einrichten
+
+1. Firmware aufspielen: `pio run -d satellite -t upload` (der Satellit ist ein eigenes PlatformIO-Projekt im Ordner
+   `satellite/`, in VS Code im Arbeitsbereich als zweiter Ordner „Satellit“).
+2. Ohne WLAN-Zugang öffnet der Satellit das WLAN **„SOC-Satellite-…“** (Passwort `panelsat`).
+   Verbinden und **http://192.168.4.1/** öffnen.
+3. Im Web-IF WLAN, Weg zum Panel und Bluetooth-Passwort einstellen, dann die Bluetooth-Geräte und die GPIOs belegen.
+   Das Web-IF zeigt zu jedem Pin, was er kann, warnt bei Startpins (0, 2, 5, 12, 15) und bei doppelter Belegung.
+
+### 💧 Tanksonden
+
+Mehrere Edelstahl-Stangen verschiedener Länge im Tank plus eine gemeinsame Masse-Stange. Steht Wasser an einer Sonde,
+leitet es zur Masse; angezeigt wird die höchste Stufe mit Kontakt (z. B. 20 / 40 / 60 / 80 / 100 %).
+
+- **Je Sonde ein GPIO** – am einfachsten. Die Masse-Stange kommt an GND oder an einen eigenen GPIO.
+  Für Module mit Transistor gibt es „Kontakt = High“.
+- **Widerstandsleiter an einem Analog-Pin** – alle Sonden über Widerstände an einem Pin. Im Web-IF trägst du je Stufe
+  die gemessene Spannung ein, der Satellit wählt die nächstliegende.
+- **Gegen Korrosion** bekommen die Sonden nur beim Messen kurz Strom (eigenes Intervall, Standard 60 s) und sind
+  sonst stromlos. Jede Sonde wird dreimal gelesen, es zählt die Mehrheit.
+- Ist eine höhere Sonde nass und eine niedrigere trocken, meldet der Satellit den Wert als **unplausibel** – meist
+  eine verschmutzte Stange oder ein Kabelfehler.
+
+### 📐 Neigung beruhigen (MPU-6050)
+
+Im Camper wackelt immer etwas: Jemand läuft herum, der Wind drückt. Damit der Wert nicht springt, glättet der
+Satellit in mehreren Stufen – alles im Web-IF einstellbar:
+
+| Stufe | Standard | Wirkung |
+|---|---|---|
+| Tiefpass im Sensor | 5 Hz | filtert Vibrationen schon im MPU-6050 |
+| Median | letzte 5 Werte | einzelne Ausreißer fallen weg |
+| Zeitfilter | 2 s | gleitender Mittelwert (0 = aus) |
+| Totband | 0,2° | kleinere Änderungen werden nicht gemeldet |
+| Nur bei Stillstand | ab 3 °/s | dreht sich der Sensor (Gyro), bleibt der letzte Wert stehen, bis 1 s Ruhe ist |
+
+Den **Nullpunkt** setzt du per Knopf, wenn das Fahrzeug gerade steht. Achsen tauschen und umkehren geht ebenfalls,
+falls die Platine anders herum eingebaut ist.
+
+---
+
 ## ⚠ Bekannte Einschränkungen
 
 | Problem | Stellschraube |
