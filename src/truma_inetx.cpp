@@ -9,6 +9,7 @@
 // Rahmen: [0-1] Ziel, [2-3] Quelle, [4-5] Laenge-7, [6] Steuerung, [7-15] 0, [16] Untertyp, [17] Korrelation, [18..] CBOR
 // Ablauf nach dem Verbinden: anmelden (Adresse holen), Themen abonnieren, Identitaet schreiben, Parameter abfragen.
 #include "truma_inetx.h"
+#include "hymer.h"
 #include "i18n/i18n.h"
 
 #if !WITH_TRUMA_INETX
@@ -870,8 +871,16 @@ void inetx_forget() {
     s_owner.clear();
   }
   if (s_client && s_client->isConnected()) s_client->disconnect();
-  // Nur das iNet X koppelt sich; die anderen Sensoren (Truma LevelControl, Victron, Mopeka) brauchen kein Bonding
-  NimBLEDevice::deleteAllBonds();
+  // Nur die Kopplung mit diesem iNet X loeschen – Hymer Connect ist ggf. ebenfalls gekoppelt
+  bool found = false;
+  for (int i = NimBLEDevice::getNumBonds() - 1; i >= 0; i--) {
+    NimBLEAddress a = NimBLEDevice::getBondedAddress(i);
+    if (!id.empty() && a.toString() == id) {
+      NimBLEDevice::deleteBond(a);
+      found = true;
+    }
+  }
+  if (!found && !hymer_paired()) NimBLEDevice::deleteAllBonds();   // alte Kopplung ohne gemerkte Adresse
   s_prefs.begin("inetx", false);
   s_prefs.putBool("paired", false);
   s_prefs.remove("peer");

@@ -14,6 +14,7 @@
 #include "../panelsat.h"
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
+#include "../hymer.h"
 #include "../alde.h"
 #include "../power.h"
 #include "../backup.h"
@@ -987,7 +988,20 @@ static void build_mopeka(const Layout &lay) {
 static std::vector<std::pair<std::string, lv_obj_t *>> s_heat_vals;
 static uint32_t s_heat_sig = 0;
 
-static uint32_t heat_structure_sig() { return inetx_paired() * 2 + inetx_pairing() + 7; }
+static uint32_t heat_structure_sig() {
+  return inetx_paired() * 2 + inetx_pairing() + 7 + hymer_paired() * 16 + hymer_pairing() * 32;
+}
+
+// ---- Hymer Connect (SCU per Bluetooth)
+static lv_obj_t *s_hymer_val = nullptr;
+static void hymer_pair_cb(lv_event_t *) {
+  hymer_pair_start();
+  ui_toast("Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.");
+}
+static void hymer_forget_cb(lv_event_t *) {
+  ui_confirm("Kopplung lösen?", "Das Panel trennt sich von der Hymer-SCU. Zum erneuten Verbinden musst du neu koppeln.", "Lösen", true,
+             [] { hymer_forget(); });
+}
 
 static void heat_row_cb(lv_event_t *e) {
   const char *key = (const char *)lv_event_get_user_data(e);
@@ -1035,12 +1049,31 @@ static void build_heat() {
   lv_obj_set_width(h, lv_pct(100));
 }
 
+static void build_hymer() {
+  s_hymer_val = nullptr;
+  if (!hymer_enabled() || !ble_proto_on(BLE_P_HYMER)) return;
+  subheading("Hymer Connect");
+  lv_obj_t *g = group();
+  s_hymer_val = ui_row(g, "SCU (Bluetooth)", hymer_status().c_str(), nullptr, nullptr);
+  lv_obj_t *row = button_row();
+  if (hymer_pairing()) ui_button(row, ICON_BLUETOOTH, "Kopplung läuft …", false, nullptr, nullptr);
+  else ui_button(row, ICON_BLUETOOTH, hymer_paired() ? "Hymer neu koppeln" : "Hymer koppeln", !hymer_paired(), hymer_pair_cb, nullptr);
+  if (hymer_paired()) ui_button(row, ICON_CLOSE, "Kopplung lösen", false, hymer_forget_cb, nullptr);
+  lv_obj_t *h = ui_label(s_content,
+                         "Erst hier „Koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken. Die Werte (Licht, "
+                         "Batterie, Tanks, Schalter) stehen danach im Editor wie die eines Satelliten namens „Hymer“.",
+                         F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+}
+
 void ui_settings_tick_heat() {
   if (!s_scr || s_sec != SEC_GAS || ui_input_is_open()) return;
   if (heat_structure_sig() != s_heat_sig) {
     show_section(SEC_GAS);
     return;
   }
+  if (s_hymer_val) lv_label_set_text(s_hymer_val, hymer_status().c_str());
   for (auto &kv : s_heat_vals) {
     TrumaHeatInfo h;
     if (ui_heat_get(kv.first, h)) lv_label_set_text(kv.second, h.status.c_str());
@@ -1054,6 +1087,7 @@ static void proto_cb(lv_event_t *e) {
   bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
   ble_proto_set(p, on);
   if (p == BLE_P_INETX && !on) inetx_disconnect();
+  if (p == BLE_P_HYMER && !on) hymer_disconnect();
   lv_async_call(proto_rebuild, nullptr);   // die Seite enthaelt den Schalter selbst
 }
 static void proto_switch(const char *title, const char *hint, uint8_t p) {
@@ -1205,10 +1239,12 @@ static void build_gas() {
   proto_switch("Truma LevelControl", "Gasflaschen, bis zu zwei", BLE_P_TRUMA);
   proto_switch("Mopeka", "Gas- und Tanksensoren, bis zu vier", BLE_P_MOPEKA);
   if (inetx_enabled()) proto_switch("Truma iNet X", "Heizung, Boiler und Klima über das Bedienteil", BLE_P_INETX);
+  if (hymer_enabled()) proto_switch("Hymer Connect", "Licht, Batterie, Tanks und Schalter über die SCU im Fahrzeug", BLE_P_HYMER);
   Layout lay = layout_get();
   if (ble_proto_on(BLE_P_TRUMA)) build_truma_lc(lay);
   if (ble_proto_on(BLE_P_MOPEKA)) build_mopeka(lay);
   build_heat();
+  build_hymer();
 }
 
 void ui_settings_tick_gas() {

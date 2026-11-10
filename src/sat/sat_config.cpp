@@ -1,4 +1,5 @@
 #include "sat_config.h"
+#include "../hymer.h"
 #include <Preferences.h>
 #include "esp_mac.h"
 #include "../sat_proto.h"
@@ -31,8 +32,8 @@ void sat_config_load() {
   g_sat.base = p.getString("base", SAT_DEFAULT_BASE);
   g_sat.ha = p.getBool("ha", true);
   g_sat.ha_prefix = p.getString("hapre", "homeassistant");
-  // iNet X gibt es im Satelliten (noch) nicht
-  g_sat.ble = p.getUChar("ble", BLE_P_DEFAULT) & (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON);
+  // iNet X gibt es im Satelliten (noch) nicht; Hymer nur mit WITH_HYMER
+  g_sat.ble = p.getUChar("ble", BLE_P_DEFAULT) & (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON | (WITH_HYMER ? BLE_P_HYMER : 0));
   g_sat.modes = p.getUChar("modes", SAT_M_MQTT);
   g_sat.udp_target = p.getString("udpip", "");
   g_sat.ble_pw = p.getString("bpw", SAT_DEFAULT_PASSWORD);

@@ -20,8 +20,10 @@
 #include "mopeka.h"
 #include "truma_cpplus.h"
 #include "truma_inetx.h"
+#include "hymer.h"
 #include "alde.h"
 #include "sdcard.h"
+#include "splash.h"
 
 static void apply_settings_event(Settings *st) {
   Settings old = settings_copy();
@@ -32,8 +34,10 @@ static void apply_settings_event(Settings *st) {
                  old.ap_channel != st->ap_channel || old.hostname != st->hostname;
   mqtt_changed |= old.mqtt_auto != st->mqtt_auto;
   bool inetx_off = (old.ble_protos & BLE_P_INETX) && !(st->ble_protos & BLE_P_INETX);
+  bool hymer_off = (old.ble_protos & BLE_P_HYMER) && !(st->ble_protos & BLE_P_HYMER);
   settings_apply(*st);
   if (inetx_off) inetx_disconnect();
+  if (hymer_off) hymer_disconnect();
   if (restart) {
     // Betriebsart/Panel-WLAN wirken erst nach Neustart; Antwort an den Browser ist bereits raus
     delay(800);
@@ -89,6 +93,11 @@ void setup() {
   if (!board_init()) {
     log_e("Display-Initialisierung fehlgeschlagen");
   }
+  // Startbild (splash.jpg im Projektordner): gleich zeigen, waehrend der Rest startet; verschwindet nach 3 s
+  if (splash_show()) {
+    lv_timer_handler();
+    board_set_backlight(g_settings.brightness);
+  }
   log_i("Akkuspannung: %.2f V", board_battery_voltage());
   sd_begin();          // braucht den IO-Expander (CS) aus board_init
   bg_migrate();        // Hintergruende auf die SD-Karte verschieben bzw. alte Rohbilder entfernen
@@ -99,6 +108,7 @@ void setup() {
   victron_begin();     // Victron-Geraete (Instant Readout) – vor truma_begin, das den BLE-Scan betreibt
   mopeka_begin();      // Mopeka-Tanksensoren – ebenfalls vor truma_begin
   inetx_begin();       // Truma iNet X (Bluetooth) – nur mit WITH_TRUMA_INETX, sonst leer
+  hymer_begin();       // Hymer Connect (Bluetooth zur SCU) – nur mit WITH_HYMER, sonst leer
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)

@@ -22,6 +22,7 @@ enum BleProto : uint8_t {
   BLE_P_VICTRON = 0x04,  // Victron Instant Readout
   BLE_P_INETX = 0x08,    // Truma iNet X (Heizung)
   BLE_P_SAT = 0x10,      // Satelliten, die ihre Werte per Bluetooth senden
+  BLE_P_HYMER = 0x20,    // Hymer Connect (SCU im Fahrzeug, gekoppelt)
 };
 #define BLE_P_DEFAULT (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON)
 

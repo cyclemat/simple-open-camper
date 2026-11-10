@@ -62,6 +62,7 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <label class="ck"><input type="checkbox" id="pTruma">Truma LevelControl</label>
 <label class="ck"><input type="checkbox" id="pMopeka">Mopeka</label>
 <label class="ck"><input type="checkbox" id="pVictron">Victron (Instant Readout)</label>
+<label class="ck" id="pHymerL" style="display:none"><input type="checkbox" id="pHymer">Hymer Connect (SCU im Fahrzeug)</label>
 <div class="row" style="margin-top:10px"><button class="p" id="bSave" style="flex:none">Speichern</button></div>
 </div>
 
@@ -88,6 +89,12 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row" style="margin-top:8px"><button id="bViScan" style="flex:none">Geräte suchen</button></div>
 <div id="viFound"></div></div>
 
+<div class="card" id="hyCard" style="display:none"><h2>Hymer Connect</h2>
+<p class="hint">Liest Licht, Batterie, Tanks und Schalter direkt von der SCU im Hymer (bzw. Bürstner, Dethleffs, Eriba, LMC …) – ohne Cloud. Koppeln: hier „Koppeln“ drücken, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). Die Werte gehen wie die anderen Anschlüsse ans Panel.</p>
+<p class="hint" id="hyStatus"></p>
+<div id="hyList"></div>
+<div class="row" style="margin-top:8px"><button id="bHyPair" style="flex:none">Koppeln</button><button class="d" id="bHyForget" style="flex:none">Kopplung lösen</button></div></div>
+
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button><button id="bReboot" style="flex:none">Neu starten</button></div>
@@ -107,7 +114,7 @@ function fill(){
  $('#mMqtt').checked=S.modes.mqtt;$('#mUdp').checked=S.modes.udp;$('#mBle').checked=S.modes.ble;
  $('#qHost').value=S.mqtt.host;$('#qPort').value=S.mqtt.port;$('#qUser').value=S.mqtt.user;$('#qBase').value=S.mqtt.base;
  $('#qHa').value=S.mqtt.ha_prefix;$('#qHaOn').checked=S.mqtt.ha;$('#qPass').placeholder=S.mqtt.has_pass?'unverändert':'kein Passwort';
- $('#uIp').value=S.udp_target;$('#bPw').value=S.ble_pw;$('#pTruma').checked=S.ble.truma;$('#pMopeka').checked=S.ble.mopeka;$('#pVictron').checked=S.ble.victron;
+ $('#uIp').value=S.udp_target;$('#bPw').value=S.ble_pw;$('#pTruma').checked=S.ble.truma;$('#pMopeka').checked=S.ble.mopeka;$('#pVictron').checked=S.ble.victron;if('hymer' in S.ble){$('#pHymerL').style.display='';$('#pHymer').checked=S.ble.hymer}
  $('#trInt').value=S.truma.interval;boxes();
 }
 function boxes(){$('#mqttBox').style.display=$('#mMqtt').checked?'':'none';$('#udpBox').style.display=$('#mUdp').checked?'':'none';$('#bleBox').style.display=$('#mBle').checked?'':'none'}
@@ -136,6 +143,10 @@ function render(){
   <button class="d" data-mor="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Sensor eingerichtet.</p>';
  $('#bMoScan').disabled=M.scanning||M.sensors.length>=M.max;$('#bMoScan').textContent=M.scanning?'Suche läuft … (Taste am Sensor drücken)':'Sensoren suchen';
  $('#moFound').innerHTML=M.scanning||M.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(M.found.length?M.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.model)} <span class="mono">${f.mac}</span><div class="v">Signal ${sig(f.rssi)}${f.button?', Taste gedrückt':''}${f.configured?', eingerichtet':''}</div></div><button data-moa="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):'';
+ const H=S.hymer;$('#hyCard').style.display=H&&S.ble.hymer?'':'none';
+ if(H){$('#hyStatus').textContent=(H.connected?'Verbunden':H.paired?'Gekoppelt':'Nicht gekoppelt')+' – '+H.status;
+  $('#hyList').innerHTML=H.values.length?H.values.map(x=>`<div class="dev"><div class="t">${esc(x.name)}<div class="v">${x.on!=null?(x.on?(x.switch||x.onoff?'An':'zu'):(x.switch||x.onoff?'Aus':'offen')):x.value!=null?num(x.value,x.unit==='%'?0:2,x.unit):'–'}</div></div>${x.switch?`<button data-hys="${x.id}" data-on="${x.on?0:1}">${x.on?'Aus':'An'}</button>`:''}</div>`).join(''):'<p class="hint">Noch keine Werte.</p>';
+  $('#bHyPair').disabled=H.pairing;$('#bHyPair').textContent=H.pairing?'Kopplung läuft … (CONNECTION drücken)':H.paired?'Neu koppeln':'Koppeln';$('#bHyForget').style.display=H.paired?'':'none'}
  const V=S.victron;
  $('#viList').innerHTML=V.devices.length?V.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-vin="${x.mac}" maxlength="32">
   <div class="v">${esc(x.kind_text)} · ${x.has?[x.pv!=null?num(x.pv,0,'W'):'',x.soc!=null?num(x.soc,0,'%'):'',num(x.v,2,'V'),num(x.i,1,'A'),x.state_text||''].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
@@ -252,7 +263,7 @@ $('#bSave').onclick=()=>{
  const d={name:$('#cName').value.trim(),id:$('#cId').value.trim(),wifi:{ssid:$('#cSsid').value.trim()},
   mqtt:{host:$('#qHost').value.trim(),port:+$('#qPort').value||1883,user:$('#qUser').value.trim(),base:$('#qBase').value.trim(),ha:$('#qHaOn').checked,ha_prefix:$('#qHa').value.trim()},
   modes:{mqtt:$('#mMqtt').checked,udp:$('#mUdp').checked,ble:$('#mBle').checked},udp_target:$('#uIp').value.trim(),ble_pw:$('#bPw').value.trim(),
-  ble:{truma:$('#pTruma').checked,mopeka:$('#pMopeka').checked,victron:$('#pVictron').checked}};
+  ble:{truma:$('#pTruma').checked,mopeka:$('#pMopeka').checked,victron:$('#pVictron').checked,...('hymer' in S.ble?{hymer:$('#pHymer').checked}:{})}};
  if($('#cWpass').value)d.wifi.pass=$('#cWpass').value;if($('#qPass').value)d.mqtt.pass=$('#qPass').value;
  post('/api/config',d).then(r=>{toast(r.restart?'Gespeichert – der Satellit startet neu und verbindet sich mit dem WLAN.':'Gespeichert.');$('#cWpass').value='';$('#qPass').value='';loaded=false;setTimeout(load,r.restart?8000:500)}).catch(e=>toast(e.message,true));
 };
@@ -261,6 +272,8 @@ $('#trInt').onchange=e=>act('/api/truma',{interval:+e.target.value},'Gespeichert
 $('#bTrScan').onclick=()=>act('/api/truma',{scan:true},'Suche gestartet (bis zu 3 Minuten).');
 $('#bTrMeasure').onclick=()=>act('/api/truma',{measure:''},'Messung gestartet.');
 $('#bMoScan').onclick=()=>act('/api/mopeka',{scan:true},'Suche gestartet – Taste am Sensor drücken.');
+$('#bHyPair').onclick=()=>act('/api/hymer',{pair:true},'Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken.');
+$('#bHyForget').onclick=()=>{if(confirm('Kopplung mit der SCU lösen?'))act('/api/hymer',{forget:true})};
 $('#bViScan').onclick=()=>act('/api/victron',{scan:true},'Suche gestartet.');
 document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
  if(d.trn)act('/api/truma',{rename:{mac:d.trn,name:t.value}},'Name gespeichert.');
@@ -274,6 +287,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.tra){const f=S.truma.found[+d.tra];const n=prompt('Name, z. B. „Flasche links“','Gasflasche '+(S.truma.sensors.length+1));if(n!=null)act('/api/truma',{add:{mac:f.mac,addr_type:f.addr_type,name:n}},'Eingerichtet.')}
  if(d.mor&&confirm('Sensor entfernen?'))act('/api/mopeka',{remove:d.mor});
  if(d.moa){const f=S.mopeka.found[+d.moa];const n=prompt('Name, z. B. „Flasche links“','Gasflasche '+(S.mopeka.sensors.length+1));if(n!=null)act('/api/mopeka',{add:{mac:f.mac,name:n,tank:0}},'Eingerichtet – Flaschentyp wählen.')}
+ if(d.hys)act('/api/hymer',{switch:d.hys,on:d.on==='1'});
  if(d.vir&&confirm('Gerät entfernen?'))act('/api/victron',{remove:d.vir});
  if(d.vik){const k=prompt('Schlüssel (32 Zeichen)');if(k)act('/api/victron',{key:{mac:d.vik,key:k.replace(/[\s:-]/g,'')}},'Schlüssel gespeichert.')}
  if(d.via){const f=S.victron.found[+d.via];const k=prompt('Schlüssel (32 Zeichen) für '+(f.name||f.mac));if(k){const n=prompt('Name',f.name||'Victron');act('/api/victron',{add:{mac:f.mac,key:k.replace(/[\s:-]/g,''),name:n||''}},'Eingerichtet.')}}

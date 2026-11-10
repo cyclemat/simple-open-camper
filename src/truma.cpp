@@ -4,6 +4,7 @@
 #include "victron.h"
 #include "mopeka.h"
 #include "truma_inetx.h"
+#include "hymer.h"
 #include "settings.h"
 #include "sat_proto.h"
 
@@ -245,6 +246,7 @@ class ScanCB : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice *dev) override {
     // Nur die in den Einstellungen gewaehlten Protokolle auswerten
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
+    if (hymer_enabled() && ble_proto_on(BLE_P_HYMER) && hymer_on_adv(dev)) return;
     bool truma = false;
     std::string mac = lower(dev->getAddress().toString());
     if (dev->haveManufacturerData()) {
@@ -296,6 +298,7 @@ static void ble_init() {
   if (s_ble_ready) return;
   NimBLEDevice::init(BLE_DEVICE_NAME);
   if (inetx_enabled()) inetx_ble_setup();
+  if (hymer_enabled()) hymer_ble_setup();
   NimBLEScan *sc = NimBLEDevice::getScan();
   sc->setScanCallbacks(&s_scan_cb, true);  // Duplikate: jede Aussendung zaehlt
   sc->setMaxResults(0);                     // nichts speichern, nur Rueckrufe
@@ -380,6 +383,14 @@ static void worker(void *) {
       if (inetx_want_connect()) {
         scan_stop();
         inetx_connect_now();
+      }
+    }
+    if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) {
+      hymer_scan_wanted(want_passive, want_active);
+      // SCU gefunden: Verbindung (Kopplung, Dienste) hier aufbauen, solange der Scan pausiert; TLS laeuft im Hymer-Task
+      if (hymer_want_connect()) {
+        scan_stop();
+        hymer_connect_now();
       }
     }
     if (want_active) {

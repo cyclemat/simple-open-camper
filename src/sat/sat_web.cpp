@@ -8,6 +8,7 @@
 #include "../truma.h"
 #include "../mopeka.h"
 #include "../victron.h"
+#include "../hymer.h"
 
 #include <ArduinoJson.h>
 #include <DNSServer.h>
@@ -80,6 +81,25 @@ static void h_state() {
   b["truma"] = (g_sat.ble & BLE_P_TRUMA) != 0;
   b["mopeka"] = (g_sat.ble & BLE_P_MOPEKA) != 0;
   b["victron"] = (g_sat.ble & BLE_P_VICTRON) != 0;
+  if (hymer_enabled()) {
+    b["hymer"] = (g_sat.ble & BLE_P_HYMER) != 0;
+    JsonObject hy = d["hymer"].to<JsonObject>();
+    hy["paired"] = hymer_paired();
+    hy["pairing"] = hymer_pairing();
+    hy["connected"] = hymer_connected();
+    hy["status"] = hymer_status();
+    JsonArray hv = hy["values"].to<JsonArray>();
+    for (auto &p : hymer_points()) {
+      JsonObject o = hv.add<JsonObject>();
+      o["id"] = p.id;
+      o["name"] = p.name;
+      if (p.kind == SP_SWITCH || p.kind == SP_INPUT) o["on"] = p.on;
+      else if (!isnan(p.value)) o["value"] = roundf(p.value * 100) / 100;
+      o["unit"] = p.unit;
+      o["switch"] = p.kind == SP_SWITCH;
+      o["onoff"] = p.cls == SC_ONOFF;
+    }
+  }
   d["cmd_count"] = sat_cmd_count();
   sat_io_state_json(d["io"].to<JsonObject>());
 
@@ -239,8 +259,11 @@ static void h_config() {
     set_bit("truma", BLE_P_TRUMA);
     set_bit("mopeka", BLE_P_MOPEKA);
     set_bit("victron", BLE_P_VICTRON);
+    if (hymer_enabled()) set_bit("hymer", BLE_P_HYMER);
   }
+  bool hymer_off = !(g_sat.ble & BLE_P_HYMER);
   sat_config_save();
+  if (hymer_off) hymer_disconnect();
   if (wifi_changed || id_changed) {
     // WLAN bzw. Topics aendern sich: sauber neu starten
     s_restart_at = millis() + 1500;
@@ -317,6 +340,23 @@ static void h_victron() {
   send_ok();
 }
 
+// Hymer Connect: {"pair":true} | {"forget":true} | {"switch":"switch112","on":true}
+static void h_hymer() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (!hymer_enabled()) return send_err("Hymer ist in dieser Firmware nicht eingebaut.");
+  if (d["pair"] | false) hymer_pair_start();
+  if (d["forget"] | false) hymer_forget();
+  if (d["switch"].is<const char *>()) {
+    SatPointKind k;
+    uint8_t idx;
+    if (!sat_point_parse(d["switch"].as<const char *>(), k, idx) || k != SP_SWITCH ||
+        !sat_io_switch(idx, d["on"].is<bool>() ? (d["on"].as<bool>() ? 1 : 0) : 2))
+      return send_err("Schalten ging nicht – Hymer verbunden?");
+  }
+  send_ok();
+}
+
 // ---------------------------------------------------------------- eigene Anschluesse (GPIO)
 static void h_io_get() {
   JsonDocument d;
@@ -370,6 +410,7 @@ void sat_web_begin() {
   s_srv.on("/api/truma", HTTP_POST, h_truma);
   s_srv.on("/api/mopeka", HTTP_POST, h_mopeka);
   s_srv.on("/api/victron", HTTP_POST, h_victron);
+  s_srv.on("/api/hymer", HTTP_POST, h_hymer);
   s_srv.on("/api/io", HTTP_GET, h_io_get);
   s_srv.on("/api/io", HTTP_POST, h_io_set);
   s_srv.on("/api/io/action", HTTP_POST, h_io_action);

@@ -79,7 +79,9 @@ bool panelsat_on_adv(const std::string &sender, const uint8_t *md, size_t len, i
 enum SatPointKind : uint8_t { SP_NONE = 0, SP_TANK = 1, SP_TEMP = 2, SP_ANALOG = 3, SP_TILT = 4, SP_INPUT = 5, SP_SWITCH = 6 };
 enum SatClass : uint8_t {
   SC_NONE = 0, SC_TEMP = 1, SC_HUMIDITY = 2, SC_LEVEL = 3, SC_VOLTAGE = 4, SC_PRESSURE = 5, SC_CURRENT = 6, SC_TILT = 7,
-  SC_BINARY = 8, SC_COUNT = 9
+  SC_BINARY = 8,
+  SC_ONOFF = 9,     // Zustand an/aus (z. B. Landstrom), angezeigt als "An"/"Aus" statt "zu"/"offen"
+  SC_COUNT = 10
 };
 
 struct SatPoint {

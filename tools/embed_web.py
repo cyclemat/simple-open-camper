@@ -26,3 +26,31 @@ if old != out:
     with open(dst, "w") as f:
         f.write(out)
 print("Editor eingebettet: %d Bytes (gzip: %d)" % (len(raw), len(data)))
+
+# ------------------------------------------------------------------ Startbild
+# Beim Start 3 Sekunden gezeigt (src/splash.cpp). Eigene splash.jpg im Projektordner hat Vorrang, sonst das
+# Standardbild assets/splash.jpg. Ohne beide bleibt nur ein leerer Schalter (SPLASH_JPG_LEN 0) – kein Platzbedarf.
+splash = os.path.join(root, "splash.jpg")
+if not os.path.exists(splash):
+    splash = os.path.join(root, "assets", "splash.jpg")
+sdst = os.path.join(root, "src", "generated", "splash_jpg.h")
+head = "// Automatisch erzeugt von tools/embed_web.py aus splash.jpg bzw. assets/splash.jpg - nicht bearbeiten.\n#pragma once\n#include <stdint.h>\n#include <stddef.h>\n\n"
+if os.path.exists(splash):
+    with open(splash, "rb") as f:
+        jpg = f.read()
+    if jpg[:2] != b"\xff\xd8":
+        print("WARNUNG: splash.jpg ist kein JPEG – Startbild weggelassen")
+        jpg = b""
+    elif b"\xff\xc2" in jpg:
+        print("WARNUNG: splash.jpg ist 'progressive' gespeichert – das kann der Decoder nicht. Bitte als 'baseline' speichern.")
+if os.path.exists(splash) and jpg:
+    rows = [", ".join("0x%02x" % b for b in jpg[i:i + 20]) for i in range(0, len(jpg), 20)]
+    sout = (head + "#define SPLASH_JPG_LEN %d\n" % len(jpg) +
+            "static const uint8_t SPLASH_JPG[] = {\n    " + ",\n    ".join(rows) + "\n};\n")
+    print("Startbild eingebettet: %s, %d Bytes" % (os.path.relpath(splash, root), len(jpg)))
+else:
+    sout = head + "#define SPLASH_JPG_LEN 0\n"
+sold = open(sdst).read() if os.path.exists(sdst) else ""
+if sold != sout:
+    with open(sdst, "w") as f:
+        f.write(sout)

@@ -1,5 +1,6 @@
 #include "panelsat.h"
 #include "sat_proto.h"
+#include "hymer.h"
 
 #if WITH_SATELLITES
 #include <Arduino.h>
@@ -134,6 +135,7 @@ static std::string dev_key(const std::string &sat, SatType t, const std::string 
 }
 
 static std::string point_default_name(SatPointKind k, int idx) {
+  if (const char *hn = hymer_point_name(idx)) return tr(hn);   // Hymer-Wert eines Satelliten
   char b[48];
   switch (k) {
     case SP_TANK: snprintf(b, sizeof(b), tr("Tank %d"), idx); break;
@@ -484,7 +486,7 @@ std::string panelsat_sat_of(const std::string &key) {
   return x ? (x->sat.empty() ? std::string("?") : x->sat) : "";
 }
 
-std::string panelsat_via_text(const std::string &key) {
+static std::string sat_via_text_raw(const std::string &key) {
   Lock l;
   const Dev *x = dev_of_key(key);
   if (!x) return "";
@@ -522,7 +524,7 @@ static SatPoint point_of(const Dev &x) {
   return p;
 }
 
-std::vector<SatPoint> panelsat_point_list() {
+static std::vector<SatPoint> sat_point_list_raw() {
   std::vector<SatPoint> r;
   Lock l;
   for (auto &e : s_devs)
@@ -530,7 +532,7 @@ std::vector<SatPoint> panelsat_point_list() {
   return r;
 }
 
-bool panelsat_point_get(const std::string &key, SatPoint &out) {
+static bool sat_point_get_raw(const std::string &key, SatPoint &out) {
   if (!panelsat_is_point_key(key)) return false;
   Lock l;
   const Dev *x = dev_of_key(key);
@@ -565,7 +567,7 @@ static bool udp_send_to(const std::string &ip, const uint8_t *md, size_t len) {
   return ok;
 }
 
-bool panelsat_switch(const std::string &key, bool on, std::string *err) {
+static bool sat_switch_raw(const std::string &key, bool on, std::string *err) {
   static uint16_t counter = (uint16_t)esp_random();
   std::string sat, pid, ip, ble;
   uint8_t key16[16];
@@ -660,7 +662,7 @@ std::vector<SatNode> panelsat_nodes() {
   return r;
 }
 
-uint32_t panelsat_version() { return s_ver; }
+static uint32_t sat_version_raw() { return s_ver; }
 
 void panelsat_begin() {
   if (!s_mtx) s_mtx = xSemaphoreCreateRecursiveMutex();
@@ -671,7 +673,7 @@ void panelsat_begin() {
 #else   // ---------------------------------------------------------------- ausgebaut
 
 void panelsat_begin() {}
-uint32_t panelsat_version() { return 0; }
+static uint32_t sat_version_raw() { return 0; }
 std::vector<std::string> panelsat_topics() { return {}; }
 bool panelsat_handle(const std::string &, const char *, size_t) { return false; }
 std::vector<SatNode> panelsat_nodes() { return {}; }
@@ -682,14 +684,66 @@ std::vector<TrumaInfo> panelsat_truma_list() { return {}; }
 std::vector<MopekaInfo> panelsat_mopeka_list() { return {}; }
 std::vector<VictronInfo> panelsat_victron_list() { return {}; }
 std::string panelsat_sat_of(const std::string &) { return ""; }
-std::string panelsat_via_text(const std::string &) { return ""; }
+static std::string sat_via_text_raw(const std::string &) { return ""; }
 bool panelsat_measure(const std::string &) { return false; }
 void panelsat_forget(const std::string &) {}
 bool panelsat_on_adv(const std::string &, const uint8_t *, size_t, int) { return false; }
 std::string panelsat_password() { return ""; }
 void panelsat_set_password(const std::string &) {}
-std::vector<SatPoint> panelsat_point_list() { return {}; }
-bool panelsat_point_get(const std::string &, SatPoint &) { return false; }
-bool panelsat_switch(const std::string &, bool, std::string *) { return false; }
+static std::vector<SatPoint> sat_point_list_raw() { return {}; }
+static bool sat_point_get_raw(const std::string &, SatPoint &) { return false; }
+static bool sat_switch_raw(const std::string &, bool, std::string *) { return false; }
 
 #endif
+
+// ---------------------------------------------------------------- Hymer Connect direkt am Panel
+// Die Werte der SCU erscheinen wie die Anschluesse eines Satelliten namens "Hymer": Schluessel "satio:Hymer/<punkt>".
+#include "settings.h"
+#include "i18n/i18n.h"
+
+static const std::string &hy_prefix() {
+  static const std::string p = std::string(SATIO_KEY_PREFIX) + HYMER_SAT_ID + "/";
+  return p;
+}
+static bool hy_key(const std::string &k) { return hymer_enabled() && k.rfind(hy_prefix(), 0) == 0; }
+static bool hy_on() { return hymer_enabled() && ble_proto_on(BLE_P_HYMER); }
+static SatPoint hy_local(SatPoint p) {
+  p.sat = HYMER_SAT_ID;
+  p.key = hy_prefix() + p.id;
+  return p;
+}
+
+uint32_t panelsat_version() { return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0); }
+
+std::vector<SatPoint> panelsat_point_list() {
+  std::vector<SatPoint> r = sat_point_list_raw();
+  if (hy_on())
+    for (auto &p : hymer_points()) r.push_back(hy_local(p));
+  return r;
+}
+
+bool panelsat_point_get(const std::string &key, SatPoint &out) {
+  if (!hy_key(key)) return sat_point_get_raw(key, out);
+  if (!hy_on()) return false;
+  for (auto &p : hymer_points())
+    if (hy_prefix() + p.id == key) {
+      out = hy_local(p);
+      return true;
+    }
+  return false;
+}
+
+bool panelsat_switch(const std::string &key, bool on, std::string *err) {
+  if (!hy_key(key)) return sat_switch_raw(key, on, err);
+  SatPointKind k;
+  uint8_t idx;
+  if (hy_on() && sat_point_parse(key.substr(hy_prefix().size()), k, idx) && k == SP_SWITCH && hymer_switch(idx, on ? 1 : 0))
+    return true;
+  if (err) *err = tr("Hymer ist gerade nicht verbunden.");
+  return false;
+}
+
+std::string panelsat_via_text(const std::string &key) {
+  if (hy_key(key)) return tr("Hymer Connect (Bluetooth)");
+  return sat_via_text_raw(key);
+}

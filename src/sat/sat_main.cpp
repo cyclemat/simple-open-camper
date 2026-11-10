@@ -6,6 +6,7 @@
 #include <ESPmDNS.h>
 #include <WiFi.h>
 #include "sat_config.h"
+#include "../hymer.h"
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_web.h"
@@ -73,6 +74,7 @@ void setup() {
   log_i("PanelSat %s (%s) startet", SAT_FW_VERSION, g_sat.id.c_str());
   victron_begin();
   mopeka_begin();
+  hymer_begin();       // Hymer Connect (nur mit WITH_HYMER, sonst leer)
   // Bluetooth gleich starten, wenn der Satellit Werbepakete senden soll (sonst erst mit dem ersten Sensor)
   if (g_sat.modes & SAT_M_BLE) truma_ble_init();
   truma_begin();

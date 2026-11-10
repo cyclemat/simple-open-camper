@@ -161,8 +161,8 @@ void sat_from_json(JsonObjectConst o, VictronInfo &v) {
 
 // ---------------------------------------------------------------- eigene Anschluesse ("Punkte")
 static const char *const KIND_NAMES[] = {"", "tank", "temp", "analog", "tilt", "input", "switch"};
-static const char *const CLASS_NAMES[SC_COUNT] = {"", "temperature", "humidity", "level", "voltage", "pressure", "current", "tilt", "binary"};
-static const char *const CLASS_UNITS[SC_COUNT] = {"", "\xC2\xB0" "C", "%", "%", "V", "bar", "A", "\xC2\xB0", ""};
+static const char *const CLASS_NAMES[SC_COUNT] = {"", "temperature", "humidity", "level", "voltage", "pressure", "current", "tilt", "binary", "onoff"};
+static const char *const CLASS_UNITS[SC_COUNT] = {"", "\xC2\xB0" "C", "%", "%", "V", "bar", "A", "\xC2\xB0", "", ""};
 
 const char *sat_kind_name(SatPointKind k) { return k <= SP_SWITCH ? KIND_NAMES[k] : ""; }
 const char *sat_class_name(uint8_t cls) { return cls < SC_COUNT ? CLASS_NAMES[cls] : ""; }
@@ -182,7 +182,7 @@ bool sat_point_parse(const std::string &id, SatPointKind &k, uint8_t &idx) {
     size_t n = strlen(KIND_NAMES[i]);
     if (id.size() > n && id.compare(0, n, KIND_NAMES[i]) == 0 && isdigit((unsigned char)id[n])) {
       int v = atoi(id.c_str() + n);
-      if (v < 1 || v > 32) return false;
+      if (v < 1 || v > 254) return false;   // ab 100: Hymer-Werte (hymer.h)
       k = (SatPointKind)i;
       idx = (uint8_t)v;
       return true;

@@ -136,6 +136,7 @@ python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
 | `[features]` | `wled = 1` | WLED über MQTT |
 | | `cerbo = 1` | Victron Cerbo GX über MQTT |
 | | `lang = de` | Sprache der Panel-Oberfläche: `de`, `en`, `es`, `fr` |
+| | `hymer = 1` | Hymer Connect über Bluetooth (an/aus dann in den Einstellungen; Satellit: `[sat] hymer`) |
 | `[truma]` | `cpplus = 0` | Truma CP Plus über LIN (Transceiver nötig) |
 | | `lin_uart`, `lin_rx`, `lin_tx`, `lin_en` | LIN-Anschluss fürs CP Plus (Standard UART2) |
 | | `inetx = 1` | Truma iNet X über Bluetooth (an/aus dann in den Einstellungen) |
@@ -267,6 +268,23 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 - Das Panel fragt den Kessel alle 500 ms ab und sendet nur bei Änderungen – Einstellungen am Alde-Bedienteil
   bleiben gültig.
 - Compact 3020 HE: nach bisherigem Stand lässt sich nur lesen, nicht steuern – nicht unterstützt.
+
+### 🚐 Hymer Connect
+
+- Für Fahrzeuge der Erwin Hymer Group mit **HYMER Connect** (Hymer, Bürstner, Dethleffs, Eriba, LMC, Carado …):
+  Licht, Hauptschalter, Wasserpumpe, Batterie, Lithium-BMS, Frisch-/Abwasser, Solar, Landstrom, Außentemperatur –
+  direkt per Bluetooth von der SCU, **ohne Cloud**.
+- Am Panel unter **Einstellungen → Gas/Heizung** „Hymer Connect“ einschalten, **Hymer koppeln** tippen und dann am
+  Bedienteil im Fahrzeug **CONNECTION** drücken (3 Minuten Zeit). Am Satelliten geht das genauso in der Weboberfläche.
+- Die Werte erscheinen im Editor wie die Anschlüsse eines Satelliten namens **„Hymer“** und lassen sich aufs Panel
+  ziehen; Lichter und Schalter sind per Tippen schaltbar.
+- Noch **nicht an einer echten SCU getestet** – Rückmeldungen sehr willkommen.
+
+### 🖼️ Startbild
+
+Beim Start zeigt das Panel 3 Sekunden lang ein Startbild und gibt den Speicher danach wieder frei. Standard ist das
+Banner (`assets/splash.jpg`); eine eigene **`splash.jpg`** im Projektordner hat beim Bauen Vorrang. Das Bild als JPEG „baseline“ speichern (nicht „progressive“), am besten 1024×600 –
+größere Bilder werden um 1/2, 1/4 oder 1/8 verkleinert.
 
 ### 🌈 WLED
 
@@ -420,6 +438,7 @@ es wurde kein Quellcode kopiert. Vielen Dank an die Autorinnen und Autoren!
 | Alde (`src/alde.cpp`) | [daviddootson/alde_3030_plus](https://github.com/daviddootson/alde_3030_plus) | MIT | Bus-Aufbau, Steuer- und Infoblock, roter Bus (Glykol/Warmwasser) |
 | | [holdestmade/esphome-alde-3020](https://github.com/holdestmade/esphome-alde-3020) | MIT | 3020-Besonderheiten, Prüfsummen-Erkennung, Zeitverhalten |
 | | [darenshaw/truma-inet-x-to-alde-3020](https://github.com/darenshaw/truma-inet-x-to-alde-3020), [inetbox.py Issue #28](https://github.com/danielfett/inetbox.py/issues/28) | GPL-3.0 / – | Hinweise zu Modellen und Grenzen (3020 HE) |
+| Hymer Connect (`src/hymer.cpp`, `src/hymer_tls.cpp`) | [Facetti/hymer-connect-ha-ble](https://github.com/Facetti/hymer-connect-ha-ble), [BetaHydri/hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) | MIT | GATT-Dienste, TLS-Profil, PIA-Rahmen, Sensor-Karten; die sieben Abo-Nachrichten sind wörtlich übernommen |
 | WLED (`src/wled.cpp`) | [WLED – MQTT-Schnittstelle](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics und Befehle |
 | Cerbo GX (`src/cerbo.cpp`) | [victronenergy/dbus-flashmq](https://github.com/victronenergy/dbus-flashmq), [dbus-API im Victron-Wiki](https://github.com/victronenergy/venus/wiki/dbus) | siehe Projekt | Topics, Keepalive, Pfade der Werte |
 

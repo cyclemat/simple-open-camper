@@ -632,7 +632,7 @@ function sioText(d) {
       }
       break;
     case 'tilt': if (v != null) { r.value = vnum(v, 1, '°').replace(' °', '°'); r.accent = Math.abs(v) >= 3 ? '#F3A43B' : '#5BD38A'; } break;
-    case 'input': r.value = T(st.on ? 'zu' : 'offen'); r.accent = st.on ? '#5BD38A' : '#9AA5B1'; break;
+    case 'input': r.value = T(st.class === 'onoff' ? (st.on ? 'An' : 'Aus') : (st.on ? 'zu' : 'offen')); r.accent = st.on ? '#5BD38A' : '#9AA5B1'; break;
     case 'switch': r.value = T(st.on ? 'An' : 'Aus'); r.accent = st.on ? '#F3A43B' : '#9AA5B1'; if (!r.sub) r.sub = T('Tippen zum Schalten'); break;
   }
   if (r.value === '–') r.stale = true;
@@ -1833,7 +1833,7 @@ async function openSettings(tab = 'net') {
       if (!g) html = '<p class="hint">Lade …</p>';
       else {
         const ble = draft.ble || {};
-        html = bleHTML(ble, [['truma', 'Truma LevelControl (Gasflaschen)'], ['mopeka', 'Mopeka (Gas- und Tanksensoren)'], ['inetx', 'Truma iNet X (Heizung)']])
+        html = bleHTML(ble, [['truma', 'Truma LevelControl (Gasflaschen)'], ['mopeka', 'Mopeka (Gas- und Tanksensoren)'], ['inetx', 'Truma iNet X (Heizung)'], ['hymer', 'Hymer Connect (Licht, Batterie, Tanks über die SCU)']])
           + (ble.truma === false ? '' : `<h3 style="font-size:13px;margin:0 0 6px">Truma LevelControl</h3><p class="hint" style="margin-top:0">Direkt per Bluetooth – bis zu zwei Flaschen. Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.</p>
           ${g.sensors.length ? g.sensors.map(x => `<div class="gasrow">
               <label class="field" style="margin:0"><span>Name</span><input data-gname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>

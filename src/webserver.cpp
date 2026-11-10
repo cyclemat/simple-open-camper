@@ -14,6 +14,7 @@
 #include "power.h"
 #include "truma_cpplus.h"
 #include "truma_inetx.h"
+#include "hymer.h"
 #include "alde.h"
 #include "i18n/i18n.h"
 #include "backup.h"
@@ -620,6 +621,7 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   ble["mopeka"] = (st.ble_protos & BLE_P_MOPEKA) != 0;
   ble["victron"] = (st.ble_protos & BLE_P_VICTRON) != 0;
   if (inetx_enabled()) ble["inetx"] = (st.ble_protos & BLE_P_INETX) != 0;
+  if (hymer_enabled()) ble["hymer"] = (st.ble_protos & BLE_P_HYMER) != 0;
   if (panelsat_enabled()) ble["sat"] = (st.ble_protos & BLE_P_SAT) != 0;
   d["mqtt"]["host"] = st.mqtt_host;
   d["mqtt"]["port"] = st.mqtt_port;
@@ -662,6 +664,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     set_proto("mopeka", BLE_P_MOPEKA);
     set_proto("victron", BLE_P_VICTRON);
     set_proto("inetx", BLE_P_INETX);
+    set_proto("hymer", BLE_P_HYMER);
     set_proto("sat", BLE_P_SAT);
   }
   JsonObject m = d["mqtt"];

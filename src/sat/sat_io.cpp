@@ -1,4 +1,5 @@
 #include "sat_io.h"
+#include "../hymer.h"
 #include <Preferences.h>
 #include <Wire.h>
 #include <math.h>
@@ -812,16 +813,25 @@ void sat_io_begin() {
   apply_pins();
 }
 
-uint32_t sat_io_version() { return s_ver; }
+uint32_t sat_io_version() { return s_ver + hymer_version() * 101; }
 uint32_t sat_io_last_switch_ms() { return s_sw_ms; }
 
 bool sat_io_has_switches() {
+  if (hymer_has_switches()) return true;
   for (auto &s : s_cfg.sw)
     if (s.pin >= 0) return true;
   return false;
 }
 
 bool sat_io_switch(uint8_t idx, uint8_t val) {
+  if (hymer_is_idx(idx)) {   // Licht/Schalter im Hymer (per Bluetooth an der SCU)
+    if (!hymer_switch(idx, val)) return false;
+    Lock l;
+    s_nonce = esp_random();
+    s_sw_ms = millis();
+    s_ver++;
+    return true;
+  }
   if (idx < 1 || idx > SAT_IO_SWITCHES) return false;
   int i = idx - 1;
   {
@@ -941,6 +951,11 @@ std::vector<SatPoint> sat_io_points() {
     p.value = s_sw[i] ? 1 : 0;
     p.nonce = s_nonce;
     p.age_s = 0;
+  }
+  // Hymer Connect (Bluetooth zur SCU): Werte und Lichter als eigene Punkte ab Nummer HYMER_IDX_BASE
+  for (auto &p : hymer_points()) {
+    if (p.kind == SP_SWITCH) p.nonce = s_nonce;
+    r.push_back(p);
   }
   return r;
 }

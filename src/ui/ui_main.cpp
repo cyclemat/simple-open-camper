@@ -291,6 +291,12 @@ static SioText sio_text(const SatPoint &p, bool small) {
       }
       break;
     case SP_INPUT:
+      if (p.cls == SC_ONOFF) {   // Zustand statt Kontakt, z. B. Landstrom (Hymer)
+        r.icon = ICON_LIGHTNING;
+        r.value = p.on ? tr("An") : tr("Aus");
+        r.accent = p.on ? C_GREEN : C_TEXT2;
+        break;
+      }
       r.icon = ICON_DOOR;
       r.value = p.on ? tr("zu") : tr("offen");
       r.accent = p.on ? C_GREEN : C_TEXT2;
@@ -925,8 +931,9 @@ void ui_loop() {
       ui_vic_update();
       ui_settings_tick_victron();
     }
-    if (panelsat_version() != s_seen_sat) {   // Satelliten (MQTT/UDP/Bluetooth)
+    if (panelsat_version() != s_seen_sat) {   // Satelliten (MQTT/UDP/Bluetooth), Hymer Connect
       s_seen_sat = panelsat_version();
+      ui_settings_tick_heat();                 // Status/Kopplung von Hymer Connect
       tiles_update(false);
       ui_gas_update();
       ui_vic_update();
