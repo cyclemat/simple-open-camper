@@ -2,7 +2,7 @@
   <img src="assets/banner.png" alt="Simply Open Camper (S.O.C.) – touch panel for your camper" width="100%">
 </p>
 
-<h1 align="center">🚐 Simply Open Camper</h1>
+<h1 align="center"><img src="assets/van-right.svg" height="36" alt=""> Simply Open Camper <img src="assets/van-left.svg" height="36" alt=""></h1>
 <h3 align="center">S.O.C. – touch panel for your camper: Zigbee2MQTT, gas, water, heating and on-board systems – local, no cloud, no Home Assistant</h3>
 
 <p align="center">
@@ -39,6 +39,16 @@ If you own one of them and want to help: feedback, logs and ideas are very welco
 A wall panel with a 7-inch touch screen (1024 × 600) that controls lights and switches from **Zigbee2MQTT directly
 over MQTT** – no Home Assistant in between. It also reads gas bottles, tanks, Victron devices and the heating system
 of your motorhome. You build the layout in the browser editor served by the panel itself.
+
+> 💡 **How it started:** I run Home Assistant in my own caravan – but just for lights and a few readings, that
+> system draws too much power in the long run. I was looking for something more frugal. That is how the panel
+> began, as a **light controller for the SMHUB Nano**: a screen on the wall that switches the Zigbee lights directly.
+>
+> The idea to take it further came from my
+> [Truma LevelControl integration for Home Assistant](https://github.com/cyclemat/HAOS-Truma-Levelcontrol-Integration):
+> if the panel can read the gas level over Bluetooth by itself, there is no need for Home Assistant for that.
+> Then came tanks, Victron, the Truma heater, Alde and satellites – step by step it grew into a control panel
+> for the whole camper. Hence the new name: the "Zigbee-Panel" became **Simply Open Camper**.
 
 - 🏠 Everything runs **locally** on the panel – no cloud, no account
 - 📶 Own Wi-Fi possible (router mode) – no home network needed, ideal for motorhomes
