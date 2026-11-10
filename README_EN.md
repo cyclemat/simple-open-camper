@@ -274,10 +274,21 @@ Pull requests with new or improved translations are very welcome!
 
 ## 🛰️ Satellites
 
-A satellite is a cheap **ESP32 (esp32dev, e.g. ESP32-WROOM)** that you place anywhere in the vehicle – at the gas
+A satellite is a cheap **ESP32** that you place anywhere in the vehicle – at the gas
 locker, under the bed next to the fresh water tank, in the utility compartment. It reads Bluetooth devices and its own
 sensors and sends the values to the panel. This saves memory and radio time on the panel (Bluetooth and Wi-Fi share
 one antenna there) and bridges distances Bluetooth alone cannot cover.
+
+**Supported chips** – one environment per chip in the PlatformIO menu:
+
+| Environment | Chip / board | Analog (ADC1) | I²C (default) | Notes |
+|---|---|---|---|---|
+| `satellite` | ESP32 (WROOM, esp32dev) | GPIO 32–39 | 21 / 22 | most pins, GPIO 34–39 input only |
+| `satellite-c3` | ESP32-C3 (Super Mini, DevKitM-1) | GPIO 0–4 | 8 / 9 | small, 13 free pins, log over USB |
+| `satellite-s3` | ESP32-S3 (DevKitC-1) | GPIO 1–10 | 8 / 9 | log over the "UART" port |
+| `satellite-c6` | ESP32-C6 (DevKitC-1, Super Mini) | GPIO 0–6 | 23 / 22 | log over USB |
+
+All need at least 4 MB flash. The web UI only lists the pins that the chip actually has free.
 
 **What a satellite reads and switches**
 
@@ -286,7 +297,7 @@ one antenna there) and bridges distances Bluetooth alone cannot cover.
 | ⛽ Truma LevelControl, 🛢️ Mopeka, ☀️ Victron | via Bluetooth | same modules as in the panel |
 | 💧 Tank probes | up to 4 tanks, up to 5 probes each | rods of different lengths, each with its own percentage step |
 | 🌡️ DS18B20 | up to 8 sensors on one GPIO | 1-Wire, search sensors with a button, offset per sensor |
-| 📈 Analog | up to 4 inputs (GPIO 32–39) | two points to convert mV into the value |
+| 📈 Analog | up to 4 inputs (ADC1, see above) | two points to convert mV into the value |
 | 📐 MPU-6050 (GY-521) | tilt, lengthwise and crosswise | zero point via button, smoothing see below |
 | 🔌 Switches | up to 8 outputs (relays) | active low selectable, state after boot: off / on / last |
 | 🔘 Inputs | up to 8 contacts or buttons | pull-up and invert selectable |
@@ -303,12 +314,14 @@ The panel needs `satellites = 1` under `[features]` in `platformio.ini` (default
 
 ### Setup
 
-1. Flash the firmware: `pio run -d satellite -t upload` (the satellite is a separate PlatformIO project in the
-   `satellite/` folder; in VS Code it is the second folder "Satellit" in the workspace).
+1. Flash the firmware: pick the matching environment in the PlatformIO menu (`satellite`, `satellite-c3` …) and
+   click **Upload** – or `pio run -e satellite-c3 -t upload`. Internally the satellite is a separate PlatformIO
+   project in the `satellite/` folder with its own package folder; the entries in the panel menu just hand over.
+   That way panel and satellite don't keep reinstalling each other's framework.
 2. Without Wi-Fi access the satellite opens the Wi-Fi **"SOC-Satellite-…"** (password `panelsat`).
    Connect and open **http://192.168.4.1/**.
 3. In the web UI set up Wi-Fi, the way to the panel and the Bluetooth password, then add Bluetooth devices and assign
-   the GPIOs. The web UI shows what each pin can do and warns about boot pins (0, 2, 5, 12, 15) and double use.
+   the GPIOs. The web UI shows what each pin can do and warns about boot pins, boot button, LED and double use.
 
 ### 💧 Tank probes
 

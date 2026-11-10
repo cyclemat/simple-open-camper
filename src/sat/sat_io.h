@@ -4,7 +4,8 @@
 //               oder alle Sonden ueber eine Widerstandsleiter an einem Analog-Pin. Abfrage im eigenen Intervall,
 //               die Sonden werden nur zum Messen kurz bestromt (gegen Korrosion).
 //   DS18B20     1-Wire-Bus an einem GPIO, bis zu 8 Fuehler
-//   Analog      bis zu 4 Analogeingaenge (nur ADC1: GPIO 32–39), zwei Punkte zum Umrechnen (mV -> Wert)
+//   Analog      bis zu 4 Analogeingaenge (nur ADC1, z. B. ESP32: GPIO 32–39, C3: 0–4), zwei Punkte zum Umrechnen
+//   Die Pinliste haengt vom Chip ab (ESP32, ESP32-C3, -S3, -C6), siehe PINS in sat_io.cpp.
 //   MPU-6050    GY-521 an I2C: Neigung laengs und quer, Nullpunkt per Knopf
 //   Schalter    bis zu 8 Ausgaenge (Relais), schaltbar per MQTT, UDP, Bluetooth und Weboberflaeche
 //   Eingaenge   bis zu 8 Kontakte/Taster
@@ -37,4 +38,5 @@ void sat_io_config_json(JsonObject o);     // Einstellungen fuer die Weboberflae
 String sat_io_set_config(JsonObjectConst o);   // pruefen, speichern, anwenden; "" = ok, sonst Fehlertext
 void sat_io_state_json(JsonObject o);      // Live-Werte und Rohwerte fuer die Weboberflaeche
 String sat_io_action(JsonObjectConst o);   // Knoepfe: Nullpunkt, Fuehler suchen, Tanks messen, schalten
-void sat_io_pins_json(JsonArray a);        // GPIOs des ESP32 mit Faehigkeiten und Hinweisen
+void sat_io_pins_json(JsonArray a);        // GPIOs des Chips mit Faehigkeiten und Hinweisen
+const char *sat_io_chip();                 // "ESP32", "ESP32-C3", "ESP32-S3", "ESP32-C6"

@@ -8,12 +8,96 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
-// ---------------------------------------------------------------- GPIOs des ESP32 (esp32dev)
+// ---------------------------------------------------------------- GPIOs je Chip
+// Nur Pins, die am Modul herausgefuehrt und frei sind (ohne Flash/PSRAM/USB). adc = ADC1 (ADC2 geht nicht mit WLAN).
 struct PinInfo {
   uint8_t pin;
   bool out, adc, pull;
   const char *note;
 };
+#define SAT_PIN_MAX 48   // hoechste GPIO-Nummer aller unterstuetzten Chips
+#if defined(CONFIG_IDF_TARGET_ESP32C3)
+// ESP32-C3 (Super Mini, DevKitM-1). GPIO 11–17 Flash, 18/19 USB.
+static const char *CHIP_NAME = "ESP32-C3";
+static const PinInfo PINS[] = {
+    {0, true, true, true, nullptr},
+    {1, true, true, true, nullptr},
+    {2, true, true, true, "Startpin – beim Start nicht auf Masse ziehen"},
+    {3, true, true, true, nullptr},
+    {4, true, true, true, nullptr},
+    {5, true, false, true, nullptr},
+    {6, true, false, true, nullptr},
+    {7, true, false, true, nullptr},
+    {8, true, false, true, "Startpin, beim Super Mini die LED – beim Start nicht auf Masse ziehen"},
+    {9, true, false, true, "Boot-Taste – beim Start nicht auf Masse ziehen"},
+    {10, true, false, true, nullptr},
+    {20, true, false, true, "UART0 RX (Log läuft über USB, daher frei)"},
+    {21, true, false, true, "UART0 TX (Log läuft über USB, daher frei)"},
+};
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+// ESP32-S3 (DevKitC-1). GPIO 19/20 USB, 26–32 Flash, 33–37 bei Octal-PSRAM (N8R8, N16R8) belegt.
+static const char *CHIP_NAME = "ESP32-S3";
+static const PinInfo PINS[] = {
+    {0, true, false, true, "Boot-Taste – beim Start nicht auf Masse ziehen"},
+    {1, true, true, true, nullptr},
+    {2, true, true, true, nullptr},
+    {3, true, true, true, "Startpin (JTAG-Auswahl)"},
+    {4, true, true, true, nullptr},
+    {5, true, true, true, nullptr},
+    {6, true, true, true, nullptr},
+    {7, true, true, true, nullptr},
+    {8, true, true, true, nullptr},
+    {9, true, true, true, nullptr},
+    {10, true, true, true, nullptr},
+    {11, true, false, true, nullptr},
+    {12, true, false, true, nullptr},
+    {13, true, false, true, nullptr},
+    {14, true, false, true, nullptr},
+    {15, true, false, true, nullptr},
+    {16, true, false, true, nullptr},
+    {17, true, false, true, nullptr},
+    {18, true, false, true, nullptr},
+    {21, true, false, true, nullptr},
+    {38, true, false, true, "beim DevKitC-1 v1.1 die RGB-LED"},
+    {39, true, false, true, "JTAG (MTCK)"},
+    {40, true, false, true, "JTAG (MTDO)"},
+    {41, true, false, true, "JTAG (MTDI)"},
+    {42, true, false, true, "JTAG (MTMS)"},
+    {43, true, false, true, "UART0 TX – hier läuft das Log"},
+    {44, true, false, true, "UART0 RX – hier läuft das Log"},
+    {45, true, false, true, "Startpin – beim Start nicht High ziehen"},
+    {46, true, false, true, "Startpin – beim Start nicht High ziehen"},
+    {47, true, false, true, nullptr},
+    {48, true, false, true, "beim DevKitC-1 v1.0 die RGB-LED"},
+};
+#elif defined(CONFIG_IDF_TARGET_ESP32C6)
+// ESP32-C6 (DevKitC-1, Super Mini). GPIO 10/11 nicht am Modul, 12/13 USB, 24–30 Flash.
+static const char *CHIP_NAME = "ESP32-C6";
+static const PinInfo PINS[] = {
+    {0, true, true, true, nullptr},
+    {1, true, true, true, nullptr},
+    {2, true, true, true, nullptr},
+    {3, true, true, true, nullptr},
+    {4, true, true, true, "Startpin"},
+    {5, true, true, true, "Startpin"},
+    {6, true, true, true, nullptr},
+    {7, true, false, true, nullptr},
+    {8, true, false, true, "Startpin, beim DevKitC-1 die RGB-LED – beim Start nicht auf Masse ziehen"},
+    {9, true, false, true, "Boot-Taste – beim Start nicht auf Masse ziehen"},
+    {14, true, false, true, nullptr},
+    {15, true, false, true, "Startpin"},
+    {16, true, false, true, "UART0 TX (Log läuft über USB, daher frei)"},
+    {17, true, false, true, "UART0 RX (Log läuft über USB, daher frei)"},
+    {18, true, false, true, nullptr},
+    {19, true, false, true, nullptr},
+    {20, true, false, true, nullptr},
+    {21, true, false, true, nullptr},
+    {22, true, false, true, nullptr},
+    {23, true, false, true, nullptr},
+};
+#else
+// ESP32 klassisch (esp32dev, WROOM). GPIO 6–11 Flash.
+static const char *CHIP_NAME = "ESP32";
 static const PinInfo PINS[] = {
     {0, true, false, true, "Boot-Taste – beim Start nicht auf Masse ziehen"},
     {2, true, false, true, "Startpin, bei manchen Boards die LED"},
@@ -40,10 +124,18 @@ static const PinInfo PINS[] = {
     {36, false, true, false, "nur Eingang, kein interner Pull-up (VP)"},
     {39, false, true, false, "nur Eingang, kein interner Pull-up (VN)"},
 };
+#endif
 static const PinInfo *pin_info(int pin) {
   for (auto &p : PINS)
     if (p.pin == pin) return &p;
   return nullptr;
+}
+// "GPIO 32–39" bzw. "GPIO 0, 1, 2, 3, 4" – fuer Fehlermeldungen
+static String adc_pins_text() {
+  String s;
+  for (auto &p : PINS)
+    if (p.adc) s += (s.isEmpty() ? "GPIO " : ", ") + String(p.pin);
+  return s;
 }
 
 // ---------------------------------------------------------------- Einstellungen
@@ -92,7 +184,7 @@ struct InCfg {
 };
 struct MpuCfg {
   bool on = false;
-  int8_t sda = 21, scl = 22;
+  int8_t sda = SDA, scl = SCL;   // Standard-I2C-Pins des Boards (esp32dev 21/22, C3 und S3 8/9)
   uint8_t addr = 0x68;
   bool swap = false, inv_x = false, inv_y = false;
   float zx = 0, zy = 0;
@@ -565,7 +657,7 @@ static void cfg_to_json(JsonObject o) {
 
 static int8_t pin_of(JsonVariantConst v) {
   int p = v | -1;
-  return p < 0 || p > 39 ? -1 : (int8_t)p;
+  return p < 0 || p > SAT_PIN_MAX ? -1 : (int8_t)p;
 }
 
 static void cfg_from_json(JsonObjectConst o, IoCfg &c) {
@@ -641,13 +733,13 @@ static void cfg_from_json(JsonObjectConst o, IoCfg &c) {
 
 // Jeder GPIO nur einmal, passende Faehigkeiten
 static String validate(const IoCfg &c) {
-  String used[40];
+  String used[SAT_PIN_MAX + 1];
   String err;
   auto use = [&](int pin, const String &what, bool out, bool adc) {
     if (pin < 0 || !err.isEmpty()) return;
     const PinInfo *pi = pin_info(pin);
     if (!pi) {
-      err = "GPIO " + String(pin) + " (" + what + ") ist am ESP32 nicht nutzbar";
+      err = "GPIO " + String(pin) + " (" + what + ") ist am " + CHIP_NAME + " nicht nutzbar";
       return;
     }
     if (out && !pi->out) {
@@ -655,7 +747,7 @@ static String validate(const IoCfg &c) {
       return;
     }
     if (adc && !pi->adc) {
-      err = what + ": GPIO " + String(pin) + " hat keinen nutzbaren Analogeingang (nur GPIO 32–39)";
+      err = what + ": GPIO " + String(pin) + " hat keinen nutzbaren Analogeingang (nur " + adc_pins_text() + ")";
       return;
     }
     if (!used[pin].isEmpty()) {
@@ -1081,6 +1173,8 @@ String sat_io_action(JsonObjectConst o) {
   }
   return "";
 }
+
+const char *sat_io_chip() { return CHIP_NAME; }
 
 void sat_io_pins_json(JsonArray a) {
   for (auto &p : PINS) {

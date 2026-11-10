@@ -437,6 +437,7 @@ static std::string info_json() {
   JsonDocument d;
   d["name"] = g_sat.name.c_str();
   d["fw"] = SAT_FW_VERSION;
+  d["chip"] = sat_io_chip();
   d["ip"] = WiFi.localIP().toString().c_str();
   d["rssi"] = WiFi.isConnected() ? WiFi.RSSI() : 0;
   d["uptime"] = millis() / 1000;

@@ -121,7 +121,7 @@ function render(){
  if(S.modes.ble)c.push(['ok','Bluetooth: '+S.adv_count+' Gerät(e)']);
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#bleName').textContent='Per Bluetooth heißt dieser Satellit „'+S.ble_name+'“. Das Panel nimmt ihn automatisch auf, wenn das Passwort passt.';
- $('#fwInfo').textContent='Version '+S.fw+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
+ $('#fwInfo').textContent='Version '+S.fw+(S.chip?' ('+S.chip+')':'')+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
  if(document.activeElement&&document.activeElement.closest('.card')&&document.activeElement.closest('#trList,#moList,#viList'))return;
  const T=S.truma;
  $('#trList').innerHTML=T.sensors.length?T.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-trn="${x.mac}" maxlength="32">
@@ -167,7 +167,7 @@ function ioRender(){const C=IO;$('#ioInt').value=C.interval;$('#ioTInt').value=C
   if(t.mode==1){
    h+=`<div class="row">${fld('Masse-Stange an GPIO (optional)',pinSel(b+'.gnd',t.gnd,'out',1))}${fld('Kontakt bedeutet',sel(b+'.inv',t.inv?1:0,[[0,'Low – Sonde gegen Masse'],[1,'High – Modul mit Ausgang']]))}</div>`;
    h+=P5.map(p=>`<div class="pr"><span class="lbl">Sonde ${p+1}</span>${fld('GPIO',pinSel(`${b}.pins.${p}`,t.pins[p],'in',1))}${fld('Stufe in %',nin(`${b}.pct.${p}`,t.pct[p],'min="0" max="100"'),'flex:.5')}</div>`).join('');
-   h+='<p class="hint">Gemeinsame Stange an GND (oder an den Masse-GPIO). GPIO 34–39 brauchen einen externen Pull-up (z. B. 47 kΩ an 3,3 V).</p>';
+   {const np=PINS.filter(p=>!p.pull).map(p=>p.pin);h+='<p class="hint">Gemeinsame Stange an GND (oder an den Masse-GPIO).'+(np.length?` GPIO ${np.join(', ')} brauchen einen externen Pull-up (z. B. 47 kΩ an 3,3 V).`:'')+'</p>'}
   }else{
    h+=`<div class="row">${fld('Analog-Pin',pinSel(b+'.apin',t.apin,'adc',1))}${fld('Spannung ohne Kontakt (mV)',nin(b+'.mv_empty',t.mv_empty,'min="0" max="3300"'))}<button class="s" style="flex:none;align-self:center" data-cap="${b}.mv_empty|tank:${i}">übernehmen</button></div>`;
    h+=P5.map(p=>`<div class="pr"><span class="lbl">Sonde ${p+1}</span>${fld('Stufe in %',nin(`${b}.pct.${p}`,t.pct[p],'min="0" max="100"'),'flex:.5')}${fld('Spannung (mV)',nin(`${b}.mv.${p}`,t.mv[p],'min="0" max="3300"'))}<button class="s" style="flex:none;margin-bottom:10px" data-cap="${b}.mv.${p}|tank:${i}">übernehmen</button></div>`).join('');
@@ -181,7 +181,7 @@ function ioRender(){const C=IO;$('#ioInt').value=C.interval;$('#ioTInt').value=C
  C.ds.forEach((d,i)=>{if(!d.addr)return;h+=`<div class="io"><div class="ioh"><b>Temperatur ${i+1}</b><span class="live" id="ld${i}"></span><button class="d s" data-iodel="ds:${i}">Entfernen</button></div>
   <div class="row">${fld('Name',inp(`ds.${i}.name`,d.name,'maxlength="32" placeholder="z. B. Innen"'))}${fld('Korrektur (°C)',nin(`ds.${i}.off`,d.off,'step="0.1" min="-10" max="10"'),'flex:.5')}</div><div class="v mono live">${d.addr}</div></div>`});
  // Analog
- h+='<h2 class="sec">Analogsensoren</h2><p class="hint">Nur GPIO 32–39 (die anderen Analogeingänge sind bei WLAN nicht nutzbar), 0–3,1 V. Umrechnung über zwei Punkte.</p>';
+ h+='<h2 class="sec">Analogsensoren</h2><p class="hint">Nur GPIO '+PINS.filter(p=>p.adc).map(p=>p.pin).join(', ')+' (die anderen Analogeingänge sind bei WLAN nicht nutzbar), 0–3,1 V. Umrechnung über zwei Punkte.</p>';
  C.analog.forEach((a,i)=>{if(a.pin<0)return;const b=`analog.${i}`;
   h+=`<div class="io"><div class="ioh"><b>Analog ${i+1}</b><span class="live" id="la${i}"></span><button class="d s" data-iodel="analog:${i}">Entfernen</button></div>
   <div class="row">${fld('Name',inp(b+'.name',a.name,'maxlength="32"'))}${fld('GPIO',pinSel(b+'.pin',a.pin,'adc'))}</div>

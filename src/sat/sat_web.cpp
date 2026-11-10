@@ -47,6 +47,7 @@ static void h_state() {
   d["id"] = g_sat.id;
   d["name"] = g_sat.name;
   d["fw"] = SAT_FW_VERSION;
+  d["chip"] = sat_io_chip();
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
   JsonObject w = d["wifi"].to<JsonObject>();

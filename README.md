@@ -278,10 +278,21 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 
 ## 🛰️ Satelliten
 
-Ein Satellit ist ein günstiger **ESP32 (esp32dev, z. B. ESP32-WROOM)**, den du irgendwo im Fahrzeug verbaust – am
+Ein Satellit ist ein günstiger **ESP32**, den du irgendwo im Fahrzeug verbaust – am
 Gaskasten, unter dem Bett beim Frischwassertank, im Technikfach. Er liest Bluetooth-Geräte und eigene Sensoren und
 schickt die Werte ans Panel. Das spart im Panel Arbeitsspeicher und Funkzeit (Bluetooth und WLAN teilen sich dort
 eine Antenne) und überbrückt Strecken, die Bluetooth allein nicht schafft.
+
+**Unterstützte Chips** – je Chip eine eigene Umgebung im PlatformIO-Menü:
+
+| Umgebung | Chip / Board | Analog (ADC1) | I²C (Standard) | Hinweise |
+|---|---|---|---|---|
+| `satellite` | ESP32 (WROOM, esp32dev) | GPIO 32–39 | 21 / 22 | die meisten Pins, GPIO 34–39 nur Eingang |
+| `satellite-c3` | ESP32-C3 (Super Mini, DevKitM-1) | GPIO 0–4 | 8 / 9 | klein, 13 freie Pins, Log über USB |
+| `satellite-s3` | ESP32-S3 (DevKitC-1) | GPIO 1–10 | 8 / 9 | Log über die Buchse „UART“ |
+| `satellite-c6` | ESP32-C6 (DevKitC-1, Super Mini) | GPIO 0–6 | 23 / 22 | Log über USB |
+
+Alle brauchen mindestens 4 MB Flash. Das Web-IF zeigt nur die Pins, die der jeweilige Chip frei hat.
 
 **Was ein Satellit liest und schaltet**
 
@@ -290,7 +301,7 @@ eine Antenne) und überbrückt Strecken, die Bluetooth allein nicht schafft.
 | ⛽ Truma LevelControl, 🛢️ Mopeka, ☀️ Victron | per Bluetooth | dieselben Module wie im Panel |
 | 💧 Tanksonden | bis 4 Tanks, je bis 5 Sonden | Stangen verschiedener Länge, jede mit eigener Prozentstufe |
 | 🌡️ DS18B20 | bis 8 Fühler an einem GPIO | 1-Wire, Fühler per Knopf suchen, Korrektur je Fühler |
-| 📈 Analog | bis 4 Eingänge (GPIO 32–39) | zwei Punkte zum Umrechnen von mV in den Wert |
+| 📈 Analog | bis 4 Eingänge (ADC1, siehe oben) | zwei Punkte zum Umrechnen von mV in den Wert |
 | 📐 MPU-6050 (GY-521) | Neigung längs und quer | Nullpunkt per Knopf, Beruhigung siehe unten |
 | 🔌 Schalter | bis 8 Ausgänge (Relais) | aktiv Low wählbar, Zustand nach dem Start: aus / an / wie zuletzt |
 | 🔘 Eingänge | bis 8 Kontakte oder Taster | Pull-up und Umkehren wählbar |
@@ -307,12 +318,14 @@ Im Panel muss dafür `satellites = 1` unter `[features]` in der `platformio.ini`
 
 ### Einrichten
 
-1. Firmware aufspielen: `pio run -d satellite -t upload` (der Satellit ist ein eigenes PlatformIO-Projekt im Ordner
-   `satellite/`, in VS Code im Arbeitsbereich als zweiter Ordner „Satellit“).
+1. Firmware aufspielen: im PlatformIO-Menü die passende Umgebung wählen (`satellite`, `satellite-c3` …) und
+   **Upload** klicken – oder `pio run -e satellite-c3 -t upload`. Der Satellit ist intern ein eigenes
+   PlatformIO-Projekt im Ordner `satellite/` mit eigenem Paketordner; die Einträge im Panel-Menü reichen nur
+   weiter. So installieren sich Panel und Satellit nicht gegenseitig das Framework neu.
 2. Ohne WLAN-Zugang öffnet der Satellit das WLAN **„SOC-Satellite-…“** (Passwort `panelsat`).
    Verbinden und **http://192.168.4.1/** öffnen.
 3. Im Web-IF WLAN, Weg zum Panel und Bluetooth-Passwort einstellen, dann die Bluetooth-Geräte und die GPIOs belegen.
-   Das Web-IF zeigt zu jedem Pin, was er kann, warnt bei Startpins (0, 2, 5, 12, 15) und bei doppelter Belegung.
+   Das Web-IF zeigt zu jedem Pin, was er kann, warnt bei Startpins, Boot-Taste und LED und bei doppelter Belegung.
 
 ### 💧 Tanksonden
 
