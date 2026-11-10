@@ -21,9 +21,9 @@ out = (
     "static const uint8_t EDITOR_HTML_GZ[] = {\n    " + body + "\n};\n"
     "static const size_t EDITOR_HTML_GZ_LEN = sizeof(EDITOR_HTML_GZ);\n"
 )
-old = open(dst).read() if os.path.exists(dst) else ""
+old = open(dst, encoding="utf-8", errors="replace").read() if os.path.exists(dst) else ""
 if old != out:
-    with open(dst, "w") as f:
+    with open(dst, "w", encoding="utf-8") as f:
         f.write(out)
 print("Editor eingebettet: %d Bytes (gzip: %d)" % (len(raw), len(data)))
 
@@ -50,7 +50,7 @@ if os.path.exists(splash) and jpg:
     print("Startbild eingebettet: %s, %d Bytes" % (os.path.relpath(splash, root), len(jpg)))
 else:
     sout = head + "#define SPLASH_JPG_LEN 0\n"
-sold = open(sdst).read() if os.path.exists(sdst) else ""
+sold = open(sdst, encoding="utf-8", errors="replace").read() if os.path.exists(sdst) else ""
 if sold != sout:
-    with open(sdst, "w") as f:
+    with open(sdst, "w", encoding="utf-8") as f:
         f.write(sout)
