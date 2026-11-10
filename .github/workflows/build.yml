@@ -1,0 +1,99 @@
+# Simply Open Camper – Firmware auf GitHub bauen
+# Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel, Satelliten und Display-Test.
+# Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf (Actions -> Lauf -> unten "Artifacts").
+#   Panel per Web-Editor aktualisieren: firmware.bin unter Info -> Firmware aktualisieren
+#   Per USB: bootloader.bin @0x0, partitions.bin @0x8000, firmware.bin @0x10000 (esptool)
+# Pakete und Framework liegen im Cache; der erste Lauf dauert laenger (Framework-Neubau wegen custom_sdkconfig).
+name: Firmware bauen
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', 'assets/banner.png']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Panel
+            dir: .
+            envs: waveshare-7b check-all
+            artifact: panel-waveshare-7b
+            out: .pio/build/waveshare-7b
+          - name: Satelliten
+            dir: satellite
+            envs: esp32 esp32-c3 esp32-s3 esp32-c6
+            artifact: satelliten
+            out: satellite/.pio/build
+          - name: Display-Test
+            dir: display-testing
+            envs: waveshare-7b-display-testing
+            artifact: panel-display-testing
+            out: display-testing/.pio/build/waveshare-7b-display-testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: PlatformIO installieren
+        run: pip install --upgrade platformio
+
+      - name: Cache (Plattform, Pakete, Framework)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ${{ matrix.dir }}/.pio
+          key: pio-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-${{ github.sha }}
+          restore-keys: |
+            pio-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-
+            pio-${{ matrix.artifact }}-
+
+      - name: Bauen
+        env:
+          PANEL_UPLOAD_NOWAIT: '1'
+        run: |
+          for e in ${{ matrix.envs }}; do
+            echo "::group::$e"
+            pio run -d "${{ matrix.dir }}" -e "$e"
+            echo "::endgroup::"
+          done
+
+      - name: Groesse der Firmware
+        run: |
+          for f in $(find "${{ matrix.out }}" -name firmware.bin 2>/dev/null); do
+            echo "$f: $(stat -c %s "$f") Bytes"
+          done
+
+      - name: Firmware einsammeln
+        run: |
+          mkdir -p dist
+          if [ "${{ matrix.name }}" = "Satelliten" ]; then
+            for e in ${{ matrix.envs }}; do
+              mkdir -p "dist/$e"
+              cp "${{ matrix.out }}/$e/"{firmware,bootloader,partitions}.bin "dist/$e/" 2>/dev/null || true
+            done
+          else
+            cp "${{ matrix.out }}/"{firmware,bootloader,partitions}.bin dist/ 2>/dev/null || true
+          fi
+          ls -lR dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          retention-days: 30
