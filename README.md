@@ -1,4 +1,6 @@
-<p align="center"><strong>🇩🇪 Deutsch</strong> · <a href="README_EN.md">🇬🇧 English</a></p>
+<p align="center">
+  <img src="assets/banner.png" alt="Simply Open Camper (S.O.C.) – Touch-Panel für den Camper" width="100%">
+</p>
 
 <h1 align="center">🚐 Simply Open Camper</h1>
 <h3 align="center">S.O.C. – Touch-Panel für den Camper: Zigbee2MQTT, Gas, Wasser, Heizung und Bordtechnik – lokal, ohne Cloud, ohne Home Assistant</h3>
@@ -8,7 +10,14 @@
   <img src="https://img.shields.io/badge/Display-1024%C3%97600%20Touch-blue" alt="Display">
   <img src="https://img.shields.io/badge/Framework-Arduino%20%2F%20ESP--IDF%205-orange" alt="Framework">
   <img src="https://img.shields.io/badge/Verbindung-MQTT%20%7C%20Bluetooth%20LE%20%7C%20LIN-blueviolet" alt="Verbindung">
-  <img src="https://img.shields.io/badge/Status-Beta-yellow" alt="Status">
+  <img src="https://img.shields.io/badge/Satelliten-ESP32-0075A9" alt="Satelliten">
+  <img src="https://img.shields.io/badge/Cloud-keine-brightgreen" alt="Ohne Cloud">
+  <img src="https://img.shields.io/badge/Lizenz-GPL--3.0-blue" alt="Lizenz GPL-3.0">
+  <img src="https://img.shields.io/badge/Status-Beta%20%2F%20Testing-yellow" alt="Status">
+</p>
+
+<p align="center">
+  <strong>🇩🇪 Deutsch</strong> · <a href="README_EN.md">🇬🇧 English</a>
 </p>
 
 > **Licht, Gas, Heizung und Batterie auf einem Bildschirm – direkt per MQTT, Bluetooth und LIN-Bus.**
