@@ -988,9 +988,7 @@ static void build_mopeka(const Layout &lay) {
 static std::vector<std::pair<std::string, lv_obj_t *>> s_heat_vals;
 static uint32_t s_heat_sig = 0;
 
-static uint32_t heat_structure_sig() {
-  return inetx_paired() * 2 + inetx_pairing() + 7 + hymer_paired() * 16 + hymer_pairing() * 32;
-}
+static uint32_t heat_structure_sig() { return inetx_paired() * 2 + inetx_pairing() + 7; }
 
 // ---- Hymer Connect (SCU per Bluetooth)
 static lv_obj_t *s_hymer_val = nullptr;
@@ -1049,22 +1047,27 @@ static void build_heat() {
   lv_obj_set_width(h, lv_pct(100));
 }
 
-static void build_hymer() {
-  s_hymer_val = nullptr;
-  if (!hymer_enabled() || !ble_proto_on(BLE_P_HYMER)) return;
-  subheading("Hymer Connect");
-  lv_obj_t *g = group();
-  s_hymer_val = ui_row(g, "SCU (Bluetooth)", hymer_status().c_str(), nullptr, nullptr);
-  lv_obj_t *row = button_row();
-  if (hymer_pairing()) ui_button(row, ICON_BLUETOOTH, "Kopplung läuft …", false, nullptr, nullptr);
-  else ui_button(row, ICON_BLUETOOTH, hymer_paired() ? "Hymer neu koppeln" : "Hymer koppeln", !hymer_paired(), hymer_pair_cb, nullptr);
-  if (hymer_paired()) ui_button(row, ICON_CLOSE, "Kopplung lösen", false, hymer_forget_cb, nullptr);
-  lv_obj_t *h = ui_label(s_content,
-                         "Erst hier „Koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken. Die Werte (Licht, "
-                         "Batterie, Tanks, Schalter) stehen danach im Editor wie die eines Satelliten namens „Hymer“.",
-                         F_SMALL, C_TEXT2);
-  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
-  lv_obj_set_width(h, lv_pct(100));
+static std::vector<std::pair<uint8_t, lv_obj_t *>> s_hymer_rows;   // Punktnummer -> Wert-Label
+static uint32_t s_hymer_sig = 0;
+
+static std::string hymer_value_text(const SatPoint &p) {
+  if (p.kind == SP_SWITCH || (p.kind == SP_INPUT && p.cls == SC_ONOFF)) return tr(p.on ? "An" : "Aus");
+  if (p.kind == SP_INPUT) return tr(p.on ? "zu" : "offen");
+  if (isnan(p.value)) return "–";
+  char b[32];
+  float a = fabsf(p.value);
+  snprintf(b, sizeof(b), "%.*f %s", p.unit == "%" || a >= 100 ? 0 : a >= 10 ? 1 : 2, p.value, p.unit.c_str());
+  std::string r = b;
+  for (auto &c : r)
+    if (c == '.') c = ',';
+  return r;
+}
+
+// Aufbau der Seite aendert sich (Kopplung, neue Werte): dann neu zeichnen, sonst nur Texte
+static uint32_t hymer_structure_sig() {
+  uint32_t sig = 3 + ble_proto_on(BLE_P_HYMER) * 2 + hymer_paired() * 4 + hymer_pairing() * 8;
+  for (auto &p : hymer_points()) sig = sig * 31 + p.idx;
+  return sig;
 }
 
 void ui_settings_tick_heat() {
@@ -1073,7 +1076,6 @@ void ui_settings_tick_heat() {
     show_section(SEC_GAS);
     return;
   }
-  if (s_hymer_val) lv_label_set_text(s_hymer_val, hymer_status().c_str());
   for (auto &kv : s_heat_vals) {
     TrumaHeatInfo h;
     if (ui_heat_get(kv.first, h)) lv_label_set_text(kv.second, h.status.c_str());
@@ -1233,18 +1235,71 @@ static void build_truma_lc(const Layout &lay) {
   }
 }
 
+static void hymer_switch_cb(lv_event_t *e) {
+  uint8_t idx = (uint8_t)(intptr_t)lv_event_get_user_data(e);
+  if (!hymer_switch(idx, 2)) ui_toast("Hymer ist gerade nicht verbunden.");
+}
+
+static void build_hymer() {
+  s_hymer_val = nullptr;
+  s_hymer_rows.clear();
+  s_hymer_sig = hymer_structure_sig();
+  heading("Hymer Connect", "Licht, Batterie, Tanks und Schalter direkt von der SCU im Fahrzeug (Hymer, Bürstner, Dethleffs, "
+                           "Eriba, LMC …) – per Bluetooth, ohne Cloud.");
+  proto_switch("Hymer Connect", "SCU im Fahrzeug suchen und verbinden", BLE_P_HYMER);
+  if (!ble_proto_on(BLE_P_HYMER)) return;
+  subheading("Verbindung");
+  lv_obj_t *g = group();
+  s_hymer_val = ui_row(g, "SCU (Bluetooth)", hymer_status().c_str(), nullptr, nullptr);
+  lv_obj_t *row = button_row();
+  if (hymer_pairing()) ui_button(row, ICON_BLUETOOTH, "Kopplung läuft …", false, nullptr, nullptr);
+  else ui_button(row, ICON_BLUETOOTH, hymer_paired() ? "Neu koppeln" : "Hymer koppeln", !hymer_paired(), hymer_pair_cb, nullptr);
+  if (hymer_paired()) ui_button(row, ICON_CLOSE, "Kopplung lösen", false, hymer_forget_cb, nullptr);
+  lv_obj_t *h = ui_label(s_content,
+                         "Erst hier „Hymer koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). "
+                         "Die Werte stehen danach im Editor wie die eines Satelliten namens „Hymer“ und lassen sich aufs "
+                         "Panel ziehen.",
+                         F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+  auto pts = hymer_points();
+  if (pts.empty()) return;
+  subheading("Werte");
+  lv_obj_t *vg = group();
+  for (auto &p : pts) {
+    bool sw = p.kind == SP_SWITCH;
+    lv_obj_t *v = ui_row(vg, p.name.c_str(), hymer_value_text(p).c_str(), sw ? hymer_switch_cb : nullptr,
+                         (void *)(intptr_t)p.idx);
+    s_hymer_rows.push_back({p.idx, v});
+  }
+  lv_obj_t *h2 = ui_label(s_content, "Schalter und Lichter: Zeile antippen zum Umschalten.", F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h2, lv_pct(100));
+}
+
+void ui_settings_tick_hymer() {
+  if (!s_scr || s_sec != SEC_HYMER || ui_input_is_open()) return;
+  if (hymer_structure_sig() != s_hymer_sig) {
+    show_section(SEC_HYMER);
+    return;
+  }
+  if (s_hymer_val) lv_label_set_text(s_hymer_val, hymer_status().c_str());
+  auto pts = hymer_points();
+  for (auto &r : s_hymer_rows)
+    for (auto &p : pts)
+      if (p.idx == r.first) lv_label_set_text(r.second, hymer_value_text(p).c_str());
+}
+
 static void build_gas() {
   heading("Gas und Heizung", "Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
                              "wird nicht gesucht und belastet Funk und WLAN nicht.");
   proto_switch("Truma LevelControl", "Gasflaschen, bis zu zwei", BLE_P_TRUMA);
   proto_switch("Mopeka", "Gas- und Tanksensoren, bis zu vier", BLE_P_MOPEKA);
   if (inetx_enabled()) proto_switch("Truma iNet X", "Heizung, Boiler und Klima über das Bedienteil", BLE_P_INETX);
-  if (hymer_enabled()) proto_switch("Hymer Connect", "Licht, Batterie, Tanks und Schalter über die SCU im Fahrzeug", BLE_P_HYMER);
   Layout lay = layout_get();
   if (ble_proto_on(BLE_P_TRUMA)) build_truma_lc(lay);
   if (ble_proto_on(BLE_P_MOPEKA)) build_mopeka(lay);
   build_heat();
-  build_hymer();
 }
 
 void ui_settings_tick_gas() {
@@ -1628,8 +1683,8 @@ static void build_backup() {
 }
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_LOCK, ICON_INFO};
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Sicherung", "Info"};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_HOUSE, ICON_LOCK, ICON_INFO};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Hymer", "Sicherung", "Info"};
 
 static void show_section(int sec) {
   s_sec = sec;
@@ -1652,6 +1707,7 @@ static void show_section(int sec) {
     case SEC_DEVICES: build_devices(); break;
     case SEC_GAS: build_gas(); break;
     case SEC_VICTRON: build_victron(); break;
+    case SEC_HYMER: build_hymer(); break;
     case SEC_BACKUP: build_backup(); break;
     default: build_info(); break;
   }
@@ -1680,7 +1736,7 @@ void ui_settings_open(int section) {
   lv_obj_set_style_border_width(nav, 1, 0);
   lv_obj_set_style_border_color(nav, C_LINE, 0);
   lv_obj_set_style_pad_all(nav, 12, 0);
-  lv_obj_set_style_pad_row(nav, 6, 0);
+  lv_obj_set_style_pad_row(nav, 4, 0);
   lv_obj_set_flex_flow(nav, LV_FLEX_FLOW_COLUMN);
 
   lv_obj_t *back = lv_obj_create(nav);
@@ -1704,7 +1760,7 @@ void ui_settings_open(int section) {
     lv_obj_t *it = lv_obj_create(nav);
     ui_plain(it);
     lv_obj_add_flag(it, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(it, lv_pct(100), 54);
+    lv_obj_set_size(it, lv_pct(100), 50);   // 9 Punkte muessen in 600 px passen
     lv_obj_set_style_radius(it, 12, 0);
     lv_obj_set_style_bg_color(it, C_FIELD, 0);
     lv_obj_set_style_border_side(it, LV_BORDER_SIDE_LEFT, 0);
@@ -1715,6 +1771,7 @@ void ui_settings_open(int section) {
     lv_obj_align(tx, LV_ALIGN_LEFT_MID, 52, 0);
     lv_obj_add_event_cb(it, nav_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     s_nav_items[i] = it;
+    if (i == SEC_HYMER && !hymer_enabled()) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);   // nicht eingebaut
   }
 
   s_content = lv_obj_create(s_scr);

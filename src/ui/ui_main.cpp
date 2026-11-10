@@ -933,7 +933,7 @@ void ui_loop() {
     }
     if (panelsat_version() != s_seen_sat) {   // Satelliten (MQTT/UDP/Bluetooth), Hymer Connect
       s_seen_sat = panelsat_version();
-      ui_settings_tick_heat();                 // Status/Kopplung von Hymer Connect
+      ui_settings_tick_hymer();                // Status, Kopplung und Werte von Hymer Connect
       tiles_update(false);
       ui_gas_update();
       ui_vic_update();

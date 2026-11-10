@@ -11,7 +11,7 @@
 #include "../truma_heat.h"
 struct Layout;
 
-enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_BACKUP, SEC_INFO, SEC_COUNT };
+enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_HYMER, SEC_BACKUP, SEC_INFO, SEC_COUNT };
 
 // ui_main.cpp
 void ui_main_rebuild();
@@ -31,6 +31,7 @@ void ui_settings_tick();                 // 1x pro Sekunde
 void ui_settings_refresh();
 void ui_settings_tick_gas();             // neue Werte/Scanergebnisse der Truma-Gasflaschen
 void ui_settings_tick_mopeka();          // neue Werte/Suchergebnisse der Mopeka-Sensoren
+void ui_settings_tick_hymer();           // Hymer Connect: Status, Kopplung, Werte
 void ui_settings_tick_heat();            // Truma-Heizung: Zustand und Kopplung
 void ui_settings_tick_victron();
 void ui_settings_tick_sat();              // Satelliten: neue Werte/Geraete         // neue Werte/Suchergebnisse der Victron-Geraete
