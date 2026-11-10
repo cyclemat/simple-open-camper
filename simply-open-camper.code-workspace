@@ -7,6 +7,10 @@
 		{
 			"name": "Satellit",
 			"path": "satellite"
+		},
+		{
+			"name": "Display-Tests",
+			"path": "display-testing"
 		}
 	],
 	"settings": {}

@@ -129,7 +129,7 @@
 {"Hoch", "High"},  // src/truma_cpplus.cpp:458
 {"Boost", "Boost"},  // src/truma_cpplus.cpp:459
 {"Keine Verbindung zum CP Plus (LIN)", "No connection to the CP Plus (LIN)"},  // src/truma_cpplus.cpp:490
-{"Warte auf Anmeldung – am CP Plus „PR SET“ → Init ausführen", "Waiting for registration – run “PR SET” → Init on the CP Plus"},  // src/truma_cpplus.cpp:491
+{"Warte auf Anmeldung – am CP Plus „PR SET“ > Init ausführen", "Waiting for registration – run “PR SET” > Init on the CP Plus"},  // src/truma_cpplus.cpp:491
 {"Warte auf Status …", "Waiting for status …"},  // src/truma_cpplus.cpp:492
 {"Störung, Code %d", "Fault, code %d"},  // src/truma_cpplus.cpp:495
 {"Nicht gekoppelt", "Not paired"},  // src/truma_inetx.cpp:103
@@ -369,7 +369,7 @@
 {"Name", "Name"},  // src/ui/ui_settings.cpp:289
 {"Passwort", "Password"},  // src/ui/ui_settings.cpp:290
 {"Kanal", "Channel"},  // src/ui/ui_settings.cpp:291
-{"Am SMHUB Nano unter Einstellungen → WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "On the SMHUB Nano, choose this network under Settings → Wi-Fi (2.4 GHz). The editor is then reachable at http://192.168.4.1/ if your phone is connected too."},  // src/ui/ui_settings.cpp:293
+{"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "On the SMHUB Nano, choose this network under Settings > Wi-Fi (2.4 GHz). The editor is then reachable at http://192.168.4.1/ if your phone is connected too."},  // src/ui/ui_settings.cpp:293
 {"Heim-WLAN", "Home Wi-Fi"},  // src/ui/ui_settings.cpp:300
 {"Netzwerke suchen", "Search networks"},  // src/ui/ui_settings.cpp:310
 {"Verborgenes Netz", "Hidden network"},  // src/ui/ui_settings.cpp:311
@@ -480,7 +480,7 @@
 {"iNet X neu koppeln", "Pair iNet X again"},  // src/ui/ui_settings.cpp:1026
 {"iNet X koppeln", "Pair iNet X"},  // src/ui/ui_settings.cpp:1026
 {"Kopplung lösen", "Unpair"},  // src/ui/ui_settings.cpp:1027
-{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ → Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: After connecting, run “PR SET” → Init once on the CP Plus so it registers the panel as an iNet Box."},  // src/ui/ui_settings.cpp:1030
+{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: After connecting, run “PR SET” > Init once on the CP Plus so it registers the panel as an iNet Box."},  // src/ui/ui_settings.cpp:1030
 {"Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ", "Alde: LIN wire to the yellow RJ12 socket (pin 4, ground pin 2). Model, pins and baud rate are set in platformio.ini under [alde]."},  // src/ui/ui_settings.cpp:1031
 {"iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.", "iNet X: First tap “Pair” here, then open “Add device” on the control panel. The iNet X remembers at most four devices."},  // src/ui/ui_settings.cpp:1032
 {"%s · %u Gerät(e) · %s", "%s · %u device(s) · %s"},  // src/ui/ui_settings.cpp:1094
@@ -517,12 +517,12 @@
 {"Heizung, Boiler und Klima über das Bedienteil", "Heating, boiler and air conditioning via the control panel"},  // src/ui/ui_settings.cpp:1207
 {"Dieses Gerät ist schon eingerichtet.", "This device is already set up."},  // src/ui/ui_settings.cpp:1260
 {"Schlüssel für ", "Key for"},  // src/ui/ui_settings.cpp:1264
-{"32 Zeichen aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.", "32 characters from VictronConnect: Settings → Product info → Instant Readout → Show details."},  // src/ui/ui_settings.cpp:1265
+{"32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "32 characters from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:1265
 {"Eingerichtet. Die Werte erscheinen in wenigen Sekunden.", "Set up. The values appear within a few seconds."},  // src/ui/ui_settings.cpp:1269
 {"Es sind schon sechs Victron-Geräte eingerichtet.", "Six Victron devices are already set up."},  // src/ui/ui_settings.cpp:1276
 {"Suche läuft. Victron-Geräte erscheinen meist nach wenigen Sekunden.", "Searching. Victron devices usually appear within a few seconds."},  // src/ui/ui_settings.cpp:1280
 {"Adresse des Cerbo GX", "Cerbo GX address"},  // src/ui/ui_settings.cpp:1289
-{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen → Dienste → MQTT einschalten.", "IP address or name, e.g. 192.168.1.50. Empty = Cerbo GX off. On the GX: Settings → Services → enable MQTT."},  // src/ui/ui_settings.cpp:1290
+{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen > Dienste > MQTT einschalten.", "IP address or name, e.g. 192.168.1.50. Empty = Cerbo GX off. On the GX: Settings > Services > enable MQTT."},  // src/ui/ui_settings.cpp:1290
 {"Cerbo GX ausgeschaltet.", "Cerbo GX turned off."},  // src/ui/ui_settings.cpp:1299
 {"Gespeichert, verbinde …", "Saved, connecting …"},  // src/ui/ui_settings.cpp:1299
 {"Passwort des Cerbo GX", "Cerbo GX password"},  // src/ui/ui_settings.cpp:1307
@@ -530,8 +530,8 @@
 {"Gespeichert, verbinde neu …", "Saved, reconnecting …"},  // src/ui/ui_settings.cpp:1315
 {"Cerbo GX (MQTT)", "Cerbo GX (MQTT)"},  // src/ui/ui_settings.cpp:1328
 {"Adresse", "Address"},  // src/ui/ui_settings.cpp:1331
-{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen → Dienste → MQTT einschalten und hier die IP-Adresse eintragen. Die Kacheln setzt du danach im Editor.", "Solar, grid, charger, battery and DC system from the Cerbo GX (Venus OS). On the GX enable Settings → Services → MQTT and enter its IP address here. Then place the tiles in the editor."},  // src/ui/ui_settings.cpp:1340
-{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.", "SmartSolar, SmartShunt, BMV and Orion over Bluetooth (“Instant Readout”). The panel only listens – VictronConnect and a GX are not disturbed. For each device you need the key from VictronConnect: Settings → Product info → Instant Readout → Show details."},  // src/ui/ui_settings.cpp:1351
+{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen > Dienste > MQTT einschalten und hier die IP-Adresse eintragen. Die Kacheln setzt du danach im Editor.", "Solar, grid, charger, battery and DC system from the Cerbo GX (Venus OS). On the GX enable Settings > Services > MQTT and enter its IP address here. Then place the tiles in the editor."},  // src/ui/ui_settings.cpp:1340
+{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "SmartSolar, SmartShunt, BMV and Orion over Bluetooth (“Instant Readout”). The panel only listens – VictronConnect and a GX are not disturbed. For each device you need the key from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:1351
 {"Bluetooth (Instant Readout)", "Bluetooth (Instant Readout)"},  // src/ui/ui_settings.cpp:1356
 {"Victron auswerten", "Read Victron"},  // src/ui/ui_settings.cpp:1358
 {"Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", "Off = the panel does not scan or listen for Victron devices"},  // src/ui/ui_settings.cpp:1358

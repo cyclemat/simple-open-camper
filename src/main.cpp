@@ -24,6 +24,7 @@
 #include "alde.h"
 #include "sdcard.h"
 #include "splash.h"
+#include "debug_cmd.h"
 
 static void apply_settings_event(Settings *st) {
   Settings old = settings_copy();
@@ -119,6 +120,7 @@ void setup() {
 }
 
 void loop() {
+  debug_poll();       // Befehle ueber die serielle Schnittstelle (debug, reboot, help)
   uint32_t wait = lv_timer_handler();
   handle_events();
   net_loop();

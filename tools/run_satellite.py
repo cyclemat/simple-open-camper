@@ -14,7 +14,9 @@ targets = [str(t) for t in COMMAND_LINE_TARGETS]
 if any(t.startswith("__") for t in targets):
     env.Exit(0)  # noqa: F821
 
-proj = os.path.join(env.subst("$PROJECT_DIR"), "satellite")  # noqa: F821
+# custom_sub_dir: Unterprojekt (Standard satellite/, z. B. auch display-testing/), custom_sat_env: Umgebung darin
+sub = env.GetProjectOption("custom_sub_dir", "satellite")  # noqa: F821
+proj = os.path.join(env.subst("$PROJECT_DIR"), sub)  # noqa: F821
 sat_env = env.GetProjectOption("custom_sat_env", "esp32")  # noqa: F821
 cmd = [sys.executable, "-m", "platformio", "run", "-d", proj, "-e", sat_env]
 for t in targets:
@@ -24,6 +26,6 @@ port = env.subst("$UPLOAD_PORT")  # noqa: F821
 if port:
     cmd += ["--upload-port", port]
 
-print("Satellit: " + " ".join(cmd[2:]))
+print("Unterprojekt %s: %s" % (sub, " ".join(cmd[2:])))
 sys.stdout.flush()
 env.Exit(subprocess.call(cmd))  # noqa: F821

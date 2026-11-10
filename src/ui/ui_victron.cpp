@@ -213,7 +213,7 @@ static void v_key_cb(lv_event_t *) {
   std::string mac = s_v->mac;
   InputOptions o;
   o.title = "Schlüssel ändern";
-  o.hint = "32 Zeichen aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.";
+  o.hint = "32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.";
   o.max_len = 47;
   o.on_ok = [mac](const std::string &t, bool) {
     std::string err = victron_set_key(mac, t);

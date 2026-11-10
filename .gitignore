@@ -4,6 +4,9 @@
 managed_components/
 dependencies.lock
 /CMakeLists.txt
+# Unterprojekt fuer Display-Tests: von PlatformIO/ESP-IDF erzeugt
+display-testing/CMakeLists.txt
+display-testing/sdkconfig.*
 sdkconfig.waveshare-7b
 sdkconfig.check-all
 sdkconfig.*.old

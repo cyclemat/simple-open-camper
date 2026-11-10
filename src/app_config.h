@@ -7,8 +7,11 @@
 // ---------- Display (Waveshare ESP32-S3-Touch-LCD-7B) ----------
 #define LCD_H_RES 1024
 #define LCD_V_RES 600
-// 30 MHz ist das Maximum fuer dieses Panel; bei Flackern/Bilddrift auf 21 oder 18 MHz senken
+// 30 MHz ist das Maximum fuer dieses Panel; bei Flackern/Bilddrift auf 21 oder 18 MHz senken.
+// Die Werte mit #ifndef lassen sich per -D ueberschreiben (Display-Tests: display-testing/platformio.ini)
+#ifndef LCD_PCLK_HZ
 #define LCD_PCLK_HZ (30 * 1000 * 1000)
+#endif
 #define LCD_HSYNC_PULSE 162
 #define LCD_HSYNC_BACK  152
 #define LCD_HSYNC_FRONT 48
@@ -17,9 +20,14 @@
 #define LCD_VSYNC_FRONT 3
 #define LCD_PCLK_ACTIVE_NEG 1
 // Bounce-Buffer (Pixel). 0 = aus. 10 Zeilen ist der Espressif-Standard.
-#define LCD_BOUNCE_BUFFER_PX (LCD_H_RES * 10)
+#ifndef LCD_BOUNCE_LINES
+#define LCD_BOUNCE_LINES 10
+#endif
+#define LCD_BOUNCE_BUFFER_PX (LCD_H_RES * LCD_BOUNCE_LINES)
 // LVGL-Zeichenpuffer in Zeilen (liegt bevorzugt im internen RAM)
+#ifndef LVGL_BUF_LINES
 #define LVGL_BUF_LINES 20   // 40 KB intern; mehr kostet RAM, der WLAN/TCP fehlt
+#endif
 
 #define PIN_LCD_HSYNC 46
 #define PIN_LCD_VSYNC 3

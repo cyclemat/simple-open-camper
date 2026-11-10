@@ -291,7 +291,7 @@ static void build_wifi() {
     ui_row(g, "Passwort", g_settings.ap_pass.c_str(), ap_edit_cb, (void *)(intptr_t)1);
     ui_row(g, "Kanal", ch, ap_edit_cb, (void *)(intptr_t)2);
     lv_obj_t *h = ui_label(s_content,
-                           "Am SMHUB Nano unter Einstellungen → WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann "
+                           "Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann "
                            "unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.",
                            F_SMALL, C_TEXT2);
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
@@ -1039,7 +1039,7 @@ static void build_heat() {
     if (inetx_paired()) ui_button(row, ICON_CLOSE, "Kopplung lösen", false, inetx_forget_cb, nullptr);
   }
   std::string hint;
-  if (cpplus_enabled()) hint += tr("CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ → Init ausführen, damit es das Panel als iNet Box anmeldet. ");
+  if (cpplus_enabled()) hint += tr("CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ");
   if (alde_enabled()) hint += tr("Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ");
   if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) hint += "iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.";
   lv_obj_t *h = ui_label(s_content, hint.c_str(), F_SMALL, C_TEXT2);
@@ -1353,7 +1353,7 @@ static void vic_found_cb(lv_event_t *e) {
   }
   InputOptions o;
   o.title = tr("Schlüssel für ") + (f.name.empty() ? std::string(victron_kind_text(victron_kind_of_record(f.record))) : f.name);
-  o.hint = "32 Zeichen aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.";
+  o.hint = "32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.";
   o.max_len = 47;
   o.on_ok = [f](const std::string &key, bool) {
     std::string err = victron_add(f.mac, key, f.name);
@@ -1379,7 +1379,7 @@ static void gx_host_cb(lv_event_t *) {
   InputOptions o;
   o.title = "Adresse des Cerbo GX";
   o.hint = "IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. "
-           "Am GX: Einstellungen → Dienste → MQTT einschalten.";
+           "Am GX: Einstellungen > Dienste > MQTT einschalten.";
   o.initial = cerbo_config().host;
   o.max_len = 64;
   o.on_ok = [](const std::string &t, bool) {
@@ -1429,7 +1429,7 @@ static void build_cerbo() {
       s_gx_vals.push_back(ui_row(g, ui_vic_label(lay, list[i]).c_str(), ui_vic_summary(list[i]).c_str(), gx_row_cb, (void *)(intptr_t)i));
   } else {
     lv_obj_t *h = ui_label(g, "Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). "
-                              "Am GX unter Einstellungen → Dienste → MQTT einschalten und hier die IP-Adresse eintragen. "
+                              "Am GX unter Einstellungen > Dienste > MQTT einschalten und hier die IP-Adresse eintragen. "
                               "Die Kacheln setzt du danach im Editor.", F_SMALL, C_TEXT2);
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
@@ -1441,7 +1441,7 @@ static void build_victron() {
   heading("Victron",
           "SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – "
           "VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: "
-          "Einstellungen → Produktinfo → Instant Readout → Details anzeigen.");
+          "Einstellungen > Produktinfo > Instant Readout > Details anzeigen.");
   if (cerbo_enabled()) {
     build_cerbo();
     subheading("Bluetooth (Instant Readout)");

@@ -488,7 +488,7 @@ bool cpplus_get(TrumaHeatInfo &o) {
   char b[64];
   if (!s_running) o.status = "LIN-Pins nicht eingestellt";
   else if (!o.connected) o.status = "Keine Verbindung zum CP Plus (LIN)";
-  else if (!inited) o.status = "Warte auf Anmeldung – am CP Plus „PR SET“ → Init ausführen";
+  else if (!inited) o.status = "Warte auf Anmeldung – am CP Plus „PR SET“ > Init ausführen";
   else if (!has) o.status = "Warte auf Status …";
   else if (!note.empty()) o.status = note;
   else if (pending) o.status = "Befehl wird übertragen …";

@@ -3,7 +3,8 @@
 import gzip, os
 try:
     Import("env")  # noqa: F821  (nur innerhalb von PlatformIO vorhanden)
-    root = env.subst("$PROJECT_DIR")  # noqa: F821
+    # Wurzel = Ordner ueber src/ – stimmt auch fuer Unterprojekte mit src_dir = ../src (display-testing/)
+    root = os.path.dirname(env.subst("$PROJECT_SRC_DIR"))  # noqa: F821
 except NameError:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
