@@ -47,7 +47,11 @@
 #define LV_DISP_ROT_MAX_BUF (10 * 1024)
 
 /*====================  Logging / Asserts  ====================*/
+#if defined(SAT_DISPLAY) && SAT_DISPLAY
+#define LV_USE_LOG 0   // Satellit mit Display: Flash sparen
+#else
 #define LV_USE_LOG 1
+#endif
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_LOG_PRINTF 1
 #define LV_USE_ASSERT_NULL 1

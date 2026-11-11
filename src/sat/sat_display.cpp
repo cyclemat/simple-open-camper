@@ -11,6 +11,7 @@
 #include <LovyanGFX.hpp>
 #include <lvgl.h>
 #include "esp_heap_caps.h"
+#include <Preferences.h>
 #include "sat_config.h"
 #include "sat_io.h"
 #include "../truma.h"
@@ -112,8 +113,16 @@ static lv_disp_drv_t s_disp_drv;
 static lv_indev_drv_t s_indev_drv;
 static uint32_t s_last_touch = 0;
 static bool s_dim = false;
-static const uint32_t DIM_MS = 120000;
-static const uint8_t BRIGHT = 200, DIMMED = 12;
+static const uint8_t DIMMED = 12;
+// Einstellungen (Weboberflaeche, NVS "satdisp")
+static int s_per = 4;            // Kacheln pro Seite: 4 (2x2) oder 2 (gross)
+static uint8_t s_bright = 200;   // Helligkeit 20..255
+static uint16_t s_dim_min = 2;   // nach so vielen Minuten ohne Beruehrung dimmen, 0 = nie
+struct TileCfg {
+  std::string k, n;   // Schluessel ("p:tank1", "t:<mac>", "m:<mac>", "v:<mac>"), eigener Name
+  bool on = true;
+};
+static std::vector<TileCfg> s_cfg;
 
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *a, lv_color_t *px) {
   uint32_t w = a->x2 - a->x1 + 1, h = a->y2 - a->y1 + 1;
@@ -131,7 +140,7 @@ static void touch_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
     s_last_touch = millis();
     if (s_dim) {   // erste Beruehrung weckt nur (nicht an LVGL weitergeben)
       s_dim = false;
-      s_lcd.setBrightness(BRIGHT);
+      s_lcd.setBrightness(s_bright);
       data->state = LV_INDEV_STATE_RELEASED;
       return;
     }
@@ -145,21 +154,18 @@ static void touch_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
 
 // ---------------------------------------------------------------- Inhalt
 struct Item {
-  std::string name, value, icon;
+  std::string key, name, value, icon;
   lv_color_t accent;
   int sw = -1;     // Schalter: Punktnummer (idx) fuer sat_io_switch, sonst -1
   bool on = false;
 };
 
-static const int COLS = 2, ROWS = 2, PER_PAGE = COLS * ROWS;
-static const int TOP = 30, GAP = 8, DOTS_H = 16;
-static const int TILE_W = (W - GAP * (COLS + 1)) / COLS;
-static const int TILE_H = (H - TOP - DOTS_H - GAP * ROWS) / ROWS;
+static const int MAX_TILES = 4, TOP = 30, GAP = 8, DOTS_H = 16;
 
 struct Tile {
   lv_obj_t *box, *icon, *name, *value;
 };
-static Tile s_tiles[PER_PAGE];
+static Tile s_tiles[MAX_TILES];
 static lv_obj_t *s_title, *s_net, *s_dots;
 static std::vector<Item> s_items;
 static int s_page = 0;
@@ -193,11 +199,12 @@ static const char *point_icon(const SatPoint &p) {
   }
 }
 
-static void collect() {
+static void collect_raw(std::vector<Item> &s_items) {
   s_items.clear();
   // Eigene Anschluesse (Tanks, Temperatur, Analog, Eingaenge, Schalter) und Hymer-Punkte
   for (auto &p : sat_io_points()) {
     Item it;
+    it.key = "p:" + p.id;
     it.name = p.name;
     it.icon = point_icon(p);
     it.accent = p.ok ? C_BLUE : C_TEXT3;
@@ -220,6 +227,7 @@ static void collect() {
   }
   for (auto &t : truma_list()) {
     Item it;
+    it.key = "t:" + t.mac;
     it.name = t.name.empty() ? "Gasflasche" : t.name;
     it.icon = ICON_GAS;
     if (t.has_reading) {
@@ -233,6 +241,7 @@ static void collect() {
   }
   for (auto &m : mopeka_list()) {
     Item it;
+    it.key = "m:" + m.mac;
     it.name = m.name.empty() ? "Mopeka" : m.name;
     it.icon = m.medium == MOP_PROPANE ? ICON_GAS : ICON_BATH;
     if (m.has) {
@@ -246,6 +255,7 @@ static void collect() {
   }
   for (auto &v : victron_list()) {
     Item it;
+    it.key = "v:" + v.mac;
     it.name = v.name.empty() ? "Victron" : v.name;
     it.accent = v.has ? C_BLUE : C_TEXT3;
     switch (v.kind) {
@@ -270,11 +280,32 @@ static void collect() {
   }
 }
 
-static int pages() { return s_items.empty() ? 1 : (int)((s_items.size() + PER_PAGE - 1) / PER_PAGE); }
+// Anzeige-Liste: Reihenfolge, Auswahl und Namen aus den Einstellungen; neue Geraete hinten (sichtbar)
+static void collect() {
+  std::vector<Item> raw;
+  collect_raw(raw);
+  s_items.clear();
+  std::vector<bool> used(raw.size(), false);
+  for (auto &c : s_cfg)
+    for (size_t i = 0; i < raw.size(); i++)
+      if (!used[i] && raw[i].key == c.k) {
+        used[i] = true;
+        if (c.on) {
+          Item it = raw[i];
+          if (!c.n.empty()) it.name = c.n;
+          s_items.push_back(it);
+        }
+        break;
+      }
+  for (size_t i = 0; i < raw.size(); i++)
+    if (!used[i]) s_items.push_back(raw[i]);
+}
+
+static int pages() { return s_items.empty() ? 1 : (int)((s_items.size() + s_per - 1) / s_per); }
 
 static void tile_cb(lv_event_t *e) {
   int slot = (int)(intptr_t)lv_event_get_user_data(e);
-  size_t k = s_page * PER_PAGE + slot;
+  size_t k = s_page * s_per + slot;
   if (k < s_items.size() && s_items[k].sw >= 0) {
     sat_io_switch((uint8_t)s_items[k].sw, 2);   // umschalten
     s_next_ms = 0;                               // gleich auffrischen
@@ -305,13 +336,10 @@ static void build() {
   lv_obj_set_style_text_color(s_net, C_TEXT2, 0);
   lv_obj_align(s_net, LV_ALIGN_TOP_RIGHT, -GAP - 2, 7);
 
-  for (int i = 0; i < PER_PAGE; i++) {
+  for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
-    int col = i % COLS, row = i / COLS;
     t.box = lv_obj_create(scr);
     lv_obj_remove_style_all(t.box);
-    lv_obj_set_size(t.box, TILE_W, TILE_H);
-    lv_obj_set_pos(t.box, GAP + col * (TILE_W + GAP), TOP + row * (TILE_H + GAP));
     lv_obj_set_style_radius(t.box, 14, 0);
     lv_obj_set_style_bg_opa(t.box, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(t.box, C_TILE, 0);
@@ -328,19 +356,31 @@ static void build() {
     lv_obj_set_pos(t.icon, 10, 8);
     t.name = lv_label_create(t.box);
     lv_obj_set_style_text_font(t.name, &font_ui_16, 0);
-    lv_obj_set_width(t.name, TILE_W - 50);
     lv_label_set_long_mode(t.name, LV_LABEL_LONG_DOT);
     lv_obj_set_pos(t.name, 42, 11);
     t.value = lv_label_create(t.box);
     lv_obj_set_style_text_font(t.value, &font_ui_20, 0);
-    lv_obj_set_width(t.value, TILE_W - 20);
     lv_label_set_long_mode(t.value, LV_LABEL_LONG_DOT);
-    lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, -10);
   }
   s_dots = lv_label_create(scr);
   lv_obj_set_style_text_font(s_dots, &font_ui_16, 0);
   lv_obj_set_style_text_color(s_dots, C_TEXT3, 0);
   lv_obj_align(s_dots, LV_ALIGN_BOTTOM_MID, 0, -1);
+}
+
+// Groesse und Lage der Kacheln: 4 pro Seite (2x2) oder 2 grosse (volle Breite)
+static void relayout() {
+  int cols = s_per == 2 ? 1 : 2, rows = 2;
+  int tw = (W - GAP * (cols + 1)) / cols, th = (H - TOP - DOTS_H - GAP * rows) / rows;
+  for (int i = 0; i < MAX_TILES; i++) {
+    Tile &t = s_tiles[i];
+    int col = i % cols, row = (i / cols) % rows;
+    lv_obj_set_size(t.box, tw, th);
+    lv_obj_set_pos(t.box, GAP + col * (tw + GAP), TOP + row * (th + GAP));
+    lv_obj_set_width(t.name, tw - 50);
+    lv_obj_set_width(t.value, tw - 20);
+    lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+  }
 }
 
 static void set_text(lv_obj_t *l, const std::string &s) {
@@ -356,9 +396,13 @@ static void refresh() {
                     : (WiFi.getMode() & WIFI_AP) ? std::string("Einrichtung 192.168.4.1")
                                                  : std::string("kein WLAN");
   set_text(s_net, net);
-  for (int i = 0; i < PER_PAGE; i++) {
+  for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
-    size_t k = s_page * PER_PAGE + i;
+    size_t k = s_page * s_per + i;
+    if (i >= s_per) {   // bei 2 grossen Kacheln die uebrigen verstecken
+      lv_obj_add_flag(t.box, LV_OBJ_FLAG_HIDDEN);
+      continue;
+    }
     if (k >= s_items.size()) {
       if (s_items.empty() && i == 0) {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
@@ -390,7 +434,93 @@ static void refresh() {
     for (int p = 0; p < pages(); p++) dots += p == s_page ? " • " : " · ";   // Zeichen aus der Panel-Schrift
   set_text(s_dots, dots);
 }
+static void load_cfg() {
+  Preferences p;
+  p.begin("satdisp", true);
+  String js = p.getString("cfg", "");
+  p.end();
+  if (js.isEmpty()) return;
+  JsonDocument d;
+  if (deserializeJson(d, js)) return;
+  s_per = (d["p"] | 4) == 2 ? 2 : 4;
+  s_bright = constrain((int)(d["b"] | 200), 20, 255);
+  s_dim_min = d["d"] | 2;
+  s_cfg.clear();
+  for (JsonObject t : d["t"].as<JsonArray>()) s_cfg.push_back({t["k"] | "", t["n"] | "", (bool)(t["o"] | 1)});
+}
+
+static void save_cfg() {
+  JsonDocument d;
+  d["p"] = s_per;
+  d["b"] = s_bright;
+  d["d"] = s_dim_min;
+  JsonArray a = d["t"].to<JsonArray>();
+  for (auto &c : s_cfg) {
+    JsonObject t = a.add<JsonObject>();
+    t["k"] = c.k;
+    if (!c.n.empty()) t["n"] = c.n;
+    t["o"] = c.on ? 1 : 0;
+  }
+  String js;
+  serializeJson(d, js);
+  Preferences p;
+  p.begin("satdisp", false);
+  p.putString("cfg", js);
+  p.end();
+}
 }  // namespace
+
+bool sat_display_present() { return true; }
+
+void sat_display_json(JsonObject o) {
+  o["per"] = s_per;
+  o["bright"] = s_bright;
+  o["dim"] = s_dim_min;
+  // alle bekannten Kacheln: erst in der eingestellten Reihenfolge, dann neue
+  std::vector<Item> raw;
+  collect_raw(raw);
+  std::vector<bool> used(raw.size(), false);
+  JsonArray a = o["tiles"].to<JsonArray>();
+  auto add = [&](const Item &it, const TileCfg *c) {
+    JsonObject t = a.add<JsonObject>();
+    t["k"] = it.key;
+    t["name"] = it.name;
+    t["value"] = it.value;
+    t["n"] = c ? c->n : "";
+    t["on"] = c ? c->on : true;
+  };
+  for (auto &c : s_cfg)
+    for (size_t i = 0; i < raw.size(); i++)
+      if (!used[i] && raw[i].key == c.k) {
+        used[i] = true;
+        add(raw[i], &c);
+        break;
+      }
+  for (size_t i = 0; i < raw.size(); i++)
+    if (!used[i]) add(raw[i], nullptr);
+}
+
+bool sat_display_apply(JsonObjectConst c) {
+  if (c["per"].is<int>()) s_per = c["per"].as<int>() == 2 ? 2 : 4;
+  if (c["bright"].is<int>()) s_bright = constrain(c["bright"].as<int>(), 20, 255);
+  if (c["dim"].is<int>()) s_dim_min = constrain(c["dim"].as<int>(), 0, 600);
+  if (c["tiles"].is<JsonArrayConst>()) {
+    s_cfg.clear();
+    for (JsonObjectConst t : c["tiles"].as<JsonArrayConst>()) {
+      const char *k = t["k"] | "";
+      if (!*k) continue;
+      s_cfg.push_back({k, t["n"] | "", t["on"] | true});
+    }
+  }
+  save_cfg();
+  relayout();
+  s_page = 0;
+  s_dim = false;
+  s_lcd.setBrightness(s_bright);
+  s_last_touch = millis();
+  s_next_ms = 0;   // gleich neu zeichnen
+  return true;
+}
 
 void sat_display_begin() {
   for (int p : {4, 16, 17}) {   // RGB-LED aus (Low = an)
@@ -399,7 +529,8 @@ void sat_display_begin() {
   }
   s_lcd.init();
   s_lcd.setRotation(SAT_DISPLAY_ROTATION);
-  s_lcd.setBrightness(BRIGHT);
+  load_cfg();
+  s_lcd.setBrightness(s_bright);
 
   lv_init();
   lv_color_t *buf = (lv_color_t *)heap_caps_malloc(W * BUF_LINES * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
@@ -417,13 +548,14 @@ void sat_display_begin() {
 
   s_last_touch = millis();
   build();
+  relayout();
   refresh();
 }
 
 void sat_display_loop() {
   lv_timer_handler();
   uint32_t now = millis();
-  if (!s_dim && now - s_last_touch > DIM_MS) {
+  if (!s_dim && s_dim_min && now - s_last_touch > s_dim_min * 60000UL) {
     s_dim = true;
     s_lcd.setBrightness(DIMMED);
   }
@@ -435,4 +567,7 @@ void sat_display_loop() {
 #else
 void sat_display_begin() {}
 void sat_display_loop() {}
+bool sat_display_present() { return false; }
+void sat_display_json(JsonObject) {}
+bool sat_display_apply(JsonObjectConst) { return false; }
 #endif

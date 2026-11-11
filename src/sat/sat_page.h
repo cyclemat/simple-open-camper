@@ -95,6 +95,16 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div id="hyList"></div>
 <div class="row" style="margin-top:8px"><button id="bHyPair" style="flex:none">Koppeln</button><button class="d" id="bHyForget" style="flex:none">Kopplung lösen</button></div></div>
 
+<div class="card" id="dpCard" style="display:none"><h2>Display</h2>
+<p class="hint">Welche Werte das Display zeigt, in welcher Reihenfolge und unter welchem Namen. Neue Geräte erscheinen automatisch hinten.</p>
+<div id="dpList"></div>
+<div class="row" style="margin-top:10px">
+<label class="f"><span>Kacheln pro Seite</span><select id="dpPer"><option value="4">4 (2 × 2)</option><option value="2">2 (groß)</option></select></label>
+<label class="f"><span>Helligkeit</span><input type="range" id="dpBright" min="20" max="255"></label>
+<label class="f"><span>Dimmen nach</span><select id="dpDim"><option value="1">1 Minute</option><option value="2">2 Minuten</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="0">nie</option></select></label>
+</div>
+<div class="row" style="margin-top:8px"><button id="bDpSave" style="flex:none">Speichern</button></div></div>
+
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button><button id="bReboot" style="flex:none">Neu starten</button></div>
@@ -295,5 +305,16 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
  try{const r=await fetch('/api/update',{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
-load();ioLoad();setInterval(load,3000);
+let DP=null;
+async function dpLoad(){try{const r=await fetch('/api/display');if(!r.ok)return;DP=await r.json();dpRender()}catch(e){}}
+function dpRender(){if(!DP)return;$('#dpCard').style.display='';
+ $('#dpList').innerHTML=DP.tiles.length?DP.tiles.map((t,i)=>`<div class="dev"><label class="ck" style="flex:none;margin:0"><input type="checkbox" data-dpon="${i}" ${t.on?'checked':''}></label><div class="t" style="flex:1"><input data-dpn="${i}" value="${esc(t.n)}" placeholder="${esc(t.name)}" style="width:100%"><div class="v">${esc(t.value||'')}</div></div><button data-dpup="${i}" ${i?'':'disabled'} style="flex:none">▲</button><button data-dpdn="${i}" ${i<DP.tiles.length-1?'':'disabled'} style="flex:none">▼</button></div>`).join(''):'<p class="hint">Noch keine Werte – erst Geräte oder Anschlüsse einrichten.</p>';
+ $('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim}
+$('#dpList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,T=DP.tiles;
+ if(d.dpup){const i=+d.dpup;[T[i-1],T[i]]=[T[i],T[i-1]];dpRender()}
+ if(d.dpdn){const i=+d.dpdn;[T[i+1],T[i]]=[T[i],T[i+1]];dpRender()}});
+$('#dpList').addEventListener('change',e=>{const d=e.target.dataset;if(d.dpon)DP.tiles[+d.dpon].on=e.target.checked});
+$('#dpList').addEventListener('input',e=>{const d=e.target.dataset;if(d.dpn)DP.tiles[+d.dpn].n=e.target.value});
+$('#bDpSave').onclick=()=>post('/api/display',{tiles:DP.tiles.map(t=>({k:t.k,on:t.on,n:t.n||''})),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true));
+load();ioLoad();dpLoad();setInterval(load,3000);
 </script></body></html>)HTML";

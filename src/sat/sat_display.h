@@ -1,9 +1,13 @@
 // Satellit mit eigener Anzeige – z. B. ESP32-2432S028R ("Cheap Yellow Display": 2,8" 320x240 ILI9341, resistiver
-// Touch XPT2046). Zeigt alle Werte des Satelliten als Liste (eigene Sensoren/Schalter, Truma, Mopeka, Victron, Hymer);
-// Schalter per Antippen, Blaettern ueber die Pfeile oben/unten. Kein Bildspeicher (Board ohne PSRAM): es wird direkt
-// gezeichnet, und nur Zeilen, die sich geaendert haben.
-// Nur mit -DSAT_DISPLAY=1 (Umgebung esp32-cyd in satellite/platformio.ini), sonst leer.
+// Touch XPT2046). Zeigt die Werte des Satelliten als Kacheln im Stil des Panels (eigene Sensoren/Schalter, Truma,
+// Mopeka, Victron); Schalter per Antippen, Blaettern per Wischen. Welche Kacheln in welcher Reihenfolge, wie viele
+// pro Seite, Helligkeit und Dimmen stellt man in der Weboberflaeche des Satelliten ein (Karte "Display", NVS "satdisp").
+// Kein Bildspeicher (Board ohne PSRAM). Nur mit -DSAT_DISPLAY=1 (Umgebung esp32-cyd), sonst leer.
 #pragma once
+#include <ArduinoJson.h>
 
 void sat_display_begin();
 void sat_display_loop();
+bool sat_display_present();                    // true = Firmware mit Display
+void sat_display_json(JsonObject o);           // Weboberflaeche: alle Kacheln (Schluessel, Name, Wert) und Einstellungen
+bool sat_display_apply(JsonObjectConst c);     // Weboberflaeche: Einstellungen uebernehmen und speichern

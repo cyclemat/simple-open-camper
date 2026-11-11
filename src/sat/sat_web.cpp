@@ -4,6 +4,7 @@
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_page.h"
+#include "sat_display.h"
 #include "../sat_proto.h"
 #include "../truma.h"
 #include "../mopeka.h"
@@ -51,6 +52,7 @@ static void h_state() {
   d["chip"] = sat_io_chip();
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
+  d["display"] = sat_display_present();
   JsonObject w = d["wifi"].to<JsonObject>();
   w["ssid"] = g_sat.wifi_ssid;
   w["connected"] = WiFi.isConnected();
@@ -358,6 +360,20 @@ static void h_hymer() {
 }
 
 // ---------------------------------------------------------------- eigene Anschluesse (GPIO)
+// Display (nur Firmware mit Anzeige): Kacheln, Reihenfolge, Namen, Helligkeit
+static void h_display_get() {
+  JsonDocument d;
+  sat_display_json(d.to<JsonObject>());
+  send_json(d);
+}
+
+static void h_display_set() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (!sat_display_apply(d.as<JsonObjectConst>())) return send_err("Diese Firmware hat kein Display");
+  send_ok();
+}
+
 static void h_io_get() {
   JsonDocument d;
   sat_io_config_json(d["config"].to<JsonObject>());
@@ -412,6 +428,10 @@ void sat_web_begin() {
   s_srv.on("/api/victron", HTTP_POST, h_victron);
   s_srv.on("/api/hymer", HTTP_POST, h_hymer);
   s_srv.on("/api/io", HTTP_GET, h_io_get);
+  if (sat_display_present()) {
+    s_srv.on("/api/display", HTTP_GET, h_display_get);
+    s_srv.on("/api/display", HTTP_POST, h_display_set);
+  }
   s_srv.on("/api/io", HTTP_POST, h_io_set);
   s_srv.on("/api/io/action", HTTP_POST, h_io_action);
   s_srv.on("/api/reboot", HTTP_POST, [] {
