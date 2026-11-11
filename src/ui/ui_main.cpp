@@ -575,7 +575,7 @@ enum OnboardMode { OB_NONE = 0, OB_WIFI, OB_MQTT, OB_ROUTER_WAIT, OB_EMPTY_ALL, 
 
 static int onboard_mode() {
   if (net_mode() != NET_AP && net_mode() != NET_OFF && g_settings.wifi_ssid.isEmpty()) return OB_WIFI;
-  if (!settings_mqtt_configured()) return OB_MQTT;
+  if (g_settings.mqtt_on && !settings_mqtt_configured()) return OB_MQTT;
   size_t total = 0;
   for (auto &p : s_lay.pages) total += p.tiles.size();
   if (total == 0 && settings_mqtt_auto_active() && !z2m_connected()) return OB_ROUTER_WAIT;

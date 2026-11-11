@@ -47,6 +47,7 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_GRID: return ICON_PLUG;
     case VIC_CHARGER: return ICON_LIGHTNING;
     case VIC_DCSYS: return ICON_BULB;
+    case VIC_INVERTER: return ICON_POWER;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -116,6 +117,15 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (big && !isnan(v.bat_i)) t.sub += "  ·  " + ui_num(v.bat_i, 1, "A");
       break;
     }
+    case VIC_INVERTER: {   // Cerbo GX: Wechselrichter-Ausgang
+      bool on = v.state == 9 || v.state == 10 || (!isnan(v.ac_w) && v.ac_w > 5);
+      t.value = watt(v.ac_w);
+      t.accent = on ? C_AMBER : C_TEXT2;
+      t.sub = tr(victron_state_text(v.state));
+      if (!small) t.sub += "  ·  " + ui_num(v.ac_v, 0, "V");
+      if (big && !isnan(v.ac_i)) t.sub += "  ·  " + ui_num(v.ac_i, 1, "A");
+      break;
+    }
     case VIC_DCSYS:   // Cerbo GX: DC-Verbraucher; per Bluetooth: SmartShunt als DC-Energiezaehler
       t.value = watt(v.power_w);
       t.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
@@ -146,6 +156,7 @@ std::string ui_vic_summary(const VictronInfo &v) {
     case VIC_GRID: return v.ac_connected == 0 ? std::string(tr("nicht verbunden")) : ui_num(v.ac_w, 0, "W") + ", " + ui_num(v.ac_v, 0, "V");
     case VIC_CHARGER: return ui_num(v.power_w, 0, "W") + ", " + tr(victron_state_text(v.state));
     case VIC_DCSYS: return ui_num(v.power_w, 0, "W") + ", " + ui_num(v.bat_i, 1, "A");
+    case VIC_INVERTER: return ui_num(v.ac_w, 0, "W") + ", " + tr(victron_state_text(v.state));
     default: return v.status;
   }
 }
@@ -265,6 +276,11 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 6;
     }
+    case VIC_INVERTER: {
+      static const char *a[] = {"Zustand", "Leistung", "Spannung", "Strom", "Batteriespannung", "Verbindung"};
+      memcpy(t, a, sizeof(a));
+      return 6;
+    }
     case VIC_DCSYS: {
       if (!v.gx) {   // SmartShunt als DC-Energiezaehler per Bluetooth
         static const char *b[] = {"Art", "Leistung", "Strom", "Spannung", "Empfang"};
@@ -374,6 +390,14 @@ void ui_vic_update() {
       val[2] = ui_num(v.power_w, 0, "W");
       val[3] = ui_num(v.bat_v, 2, "V");
       val[4] = ui_num(v.bat_i, 1, "A");
+      val[5] = reception(v);
+      break;
+    case VIC_INVERTER:
+      val[0] = tr(victron_state_text(v.state));
+      val[1] = ui_num(v.ac_w, 0, "W");
+      val[2] = ui_num(v.ac_v, 0, "V");
+      val[3] = ui_num(v.ac_i, 1, "A");
+      val[4] = ui_num(v.bat_v, 2, "V");
       val[5] = reception(v);
       break;
     case VIC_DCSYS:

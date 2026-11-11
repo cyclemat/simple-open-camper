@@ -430,7 +430,7 @@ class ScanCB : public NimBLEScanCallbacks {
 static ScanCB s_scan_cb;
 
 #ifndef BLE_DEVICE_NAME
-#define BLE_DEVICE_NAME "simply-open-camper"
+#define BLE_DEVICE_NAME "SOC-Panel"
 #endif
 
 static void ble_init() {

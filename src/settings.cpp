@@ -47,6 +47,7 @@ void settings_load() {
   prefs.begin("panel", true);
   g_settings.net_mode = prefs.getUChar("net_mode", NET_STA);
   g_settings.web_mode = prefs.getUChar("web_mode", 0) ? 1 : 0;
+  g_settings.mqtt_on = prefs.getBool("mqtt_on", true);
   g_settings.ap_ssid = prefs.getString("ap_ssid", "");
   g_settings.ap_pass = prefs.getString("ap_pass", "");
   g_settings.ap_channel = prefs.getUChar("ap_ch", 13);
@@ -68,15 +69,24 @@ void settings_load() {
   g_settings.ble_protos = prefs.getUChar("ble", BLE_P_DEFAULT);
   s_ble = g_settings.ble_protos;
   prefs.end();
-  if (g_settings.hostname.isEmpty()) g_settings.hostname = DEFAULT_HOSTNAME;
+  // Leer oder noch ein alter Standardname ("zigbee-panel..." aus der Zeit vor der Umbenennung, "simply-open-camper"):
+  // auf den neuen Standard umstellen. Selbst vergebene Namen bleiben.
+  bool fresh = false;   // etwas wurde neu belegt oder umgestellt: am Ende speichern
+  {
+    String h = g_settings.hostname;
+    h.toLowerCase();
+    if (h.isEmpty() || h.startsWith("zigbee") || h == "simply-open-camper") {
+      if (g_settings.hostname != DEFAULT_HOSTNAME) fresh = true;
+      g_settings.hostname = DEFAULT_HOSTNAME;
+    }
+  }
   if (g_settings.mqtt_base.isEmpty()) g_settings.mqtt_base = DEFAULT_MQTT_BASE;
   if (g_settings.net_mode > NET_OFF) g_settings.net_mode = NET_STA;
   if (g_settings.saver > SAVER_DUEL) g_settings.saver = SAVER_BLACK;
   if (g_settings.ap_channel < 1 || g_settings.ap_channel > 13) g_settings.ap_channel = 13;
-  bool fresh = false;
   if (g_settings.ap_ssid.isEmpty()) {
     char b[32];
-    snprintf(b, sizeof(b), "Simply-Open-Camper-%04X", (unsigned)(ESP.getEfuseMac() >> 32) & 0xFFFF);
+    snprintf(b, sizeof(b), "SOC-Panel-%04X", (unsigned)(ESP.getEfuseMac() >> 32) & 0xFFFF);
     g_settings.ap_ssid = b;
     fresh = true;
   }
@@ -97,6 +107,7 @@ void settings_save() {
   prefs.begin("panel", false);
   prefs.putUChar("net_mode", g_settings.net_mode);
   prefs.putUChar("web_mode", g_settings.web_mode);
+  prefs.putBool("mqtt_on", g_settings.mqtt_on);
   prefs.putString("ap_ssid", g_settings.ap_ssid);
   prefs.putString("ap_pass", g_settings.ap_pass);
   prefs.putUChar("ap_ch", g_settings.ap_channel);

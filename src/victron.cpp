@@ -507,6 +507,7 @@ const char *victron_kind_text(VicKind k) {
     case VIC_GRID: return "Netz";
     case VIC_CHARGER: return "Ladegerät";
     case VIC_DCSYS: return "DC-System";
+    case VIC_INVERTER: return "Wechselrichter";
     default: return "Victron-Gerät";
   }
 }

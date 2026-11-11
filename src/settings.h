@@ -34,6 +34,7 @@ struct Settings {
   uint8_t web_mode = 0;        // Webinterface: 0 immer an, 1 nur bei Bedarf (Knopf am Panel, aus nach 15 min ohne Zugriff)
   String ap_ssid, ap_pass;     // Panel-WLAN (Router/Kombi)
   uint8_t ap_channel = 13;
+  bool mqtt_on = true;         // MQTT ganz aus: kein Client, keine Verbindungsversuche (Zigbee2MQTT faellt weg)
   bool mqtt_auto = true;       // Broker im Panel-WLAN automatisch suchen (Router/Kombi)
   String wifi_ssid, wifi_pass;
   String hostname;
