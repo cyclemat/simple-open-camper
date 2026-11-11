@@ -49,10 +49,12 @@ static std::vector<Req> s_out;   // gedrosselt versenden
 static uint32_t s_last_send = 0, s_last_pend = 0;
 static bool s_g2_dirty = false;
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static const int CT_MIN_MIRED = 154;   // 6500 K
 static const int CT_MAX_MIRED = 370;   // 2700 K

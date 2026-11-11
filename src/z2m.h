@@ -48,6 +48,8 @@ void z2m_set_color_hs(const std::string &key, float hue, float sat);
 // Benennt das Geraet in Zigbee2MQTT um; liefert Fehlermeldung oder "" bei Erfolg (asynchron bestaetigt)
 std::string z2m_rename(const std::string &ieee, const std::string &new_name);
 void z2m_refresh_states();
+// Geraeteliste von Zigbee2MQTT neu holen (sonst gilt der Zwischenspeicher in LittleFS) – Editor/Knopf
+void z2m_reload_devices();
 // Fuer weitere Geraetearten am selben Broker (Shelly)
 void z2m_publish(const std::string &topic, const std::string &payload);
 std::string z2m_client_id();

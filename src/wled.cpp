@@ -43,10 +43,12 @@ static std::vector<WDev> s_devs;
 static std::atomic<uint32_t> s_dev_ver{1}, s_state_ver{1};
 static uint32_t s_last_pend = 0;
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static WDev *find_dev(const std::string &id) {
   for (auto &d : s_devs)

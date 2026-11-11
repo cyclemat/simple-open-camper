@@ -85,9 +85,14 @@ bool hymer_switch(uint8_t, uint8_t) { return false; }
 void hymer_pair_start() {}
 bool hymer_pairing() { return false; }
 bool hymer_paired() { return false; }
+bool hymer_mobile_registered() { return false; }
 bool hymer_connected() { return false; }
 void hymer_forget() {}
 void hymer_disconnect() {}
+void hymer_print_debug() {}
+void hymer_pair_with(const std::string &) {}
+void hymer_browse() {}
+std::vector<HymerCand> hymer_candidates() { return {}; }
 std::string hymer_status() { return ""; }
 void hymer_ble_setup() {}
 bool hymer_on_adv(const NimBLEAdvertisedDevice *) { return false; }
@@ -99,9 +104,11 @@ void hymer_connect_now() {}
 #include <Arduino.h>
 #include <atomic>
 #include <map>
+#include <algorithm>
 #include <NimBLEDevice.h>
 #include <Preferences.h>
 #include "esp_heap_caps.h"
+#include "hymer_cloud.h"
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -116,6 +123,8 @@ static const char *UUID_NUS_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";   // Pa
 static const char *UUID_NUS_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";   // SCU -> Panel (Notify, SIU: Indicate)
 static const char *UUID_POWER = "fff40001-13c9-42f3-9d46-e1d1aa2a7232";
 static const char *UUID_POWER_CTRL = "fff40003-13c9-42f3-9d46-e1d1aa2a7232";
+static const char *UUID_BOND_STATE = "fff40004-13c9-42f3-9d46-e1d1aa2a7232";   // Challenge -> Echo + Bonding-Status
+static int s_bond_state = -1;
 static const char *PIA_VERSION = "v0.32.0";
 static const uint32_t PAIR_MS = 3 * 60 * 1000;
 static const uint32_t TLS_TIMEOUT_MS = 25000;
@@ -137,10 +146,12 @@ static const char *const SUBSCRIBE[] = {
 };
 
 static SemaphoreHandle_t s_mtx;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 static std::atomic<uint32_t> s_ver{1};
 static Preferences s_prefs;
 
@@ -153,11 +164,26 @@ static uint32_t s_last_rx_ms = 0;
 // Kopplung und Verbindung
 static bool s_paired = false;
 static std::string s_peer_id;           // Identitaetsadresse der gekoppelten SCU
+static std::string s_peer_adv;          // Adresse, unter der sie wirbt (kann von der Identitaet abweichen)
 static volatile bool s_pairing = false;
 static uint32_t s_pair_until = 0;
 static std::string s_cand;              // SCU aus dem letzten Werbepaket
 static uint8_t s_cand_type = 0;
 static int s_cand_rssi = -127;
+static uint8_t s_cand_score = 0;        // 2 = sicher Hymer (Power-Dienst oder Name), 1 = nur Nordic UART
+static uint32_t s_strong_ms = 0;        // zuletzt ein sicheres Hymer-Geraet gesehen
+// Gesehene Kandidaten fuer den seriellen Befehl "hymer" (erst bei Bedarf im PSRAM angelegt)
+struct HymerSeen {
+  char mac[18];
+  char name[18];
+  int8_t rssi;
+  uint8_t score, type;
+  uint32_t ms;
+};
+static const int N_SEEN = 8;
+static HymerSeen *s_seen = nullptr;
+static std::string s_target;            // beim Koppeln im Panel ausgewaehltes Geraet (leer = automatisch)
+static uint32_t s_browse_until = 0;     // Geraeteliste offen: bis dahin aktiv suchen
 static uint32_t s_cand_ms = 0;
 static std::map<std::string, uint32_t> s_block;   // Adressen, die gerade nicht klappen -> bis wann meiden
 static uint32_t s_next_try_ms = 0, s_backoff_ms = 15000;
@@ -168,7 +194,9 @@ static volatile bool s_connected = false, s_ready = false;
 static volatile bool s_up = false;      // neue Verbindung: Task startet TLS
 static char s_status[80] = "Nicht gekoppelt";
 static StreamBufferHandle_t s_sb = nullptr;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct WriteReq { uint8_t i; uint8_t on; };
+}  // namespace
 static QueueHandle_t s_wq;
 static bool s_task_started = false;
 
@@ -352,7 +380,40 @@ static void extract(const uint8_t *d, size_t n, int depth) {
     if (f.wt == 2 && f.n > 2) extract(f.p, f.n, depth + 1);
 }
 
+// ---- Anmeldung als Mobilgeraet (PairMobileRequest/Response), Felder nach der HA-Integration
+static volatile bool s_pm_wait = false, s_pm_got = false;
+static std::string s_pm_rt;      // Refresh-Token aus der Antwort der SCU
+static int s_pm_status = -1;     // Response.status
+
+// Sucht Response (Feld 1 id, 2 status, 9 mobilePair) -> PairMobileResponse (1 access, 2 refresh, 3 confirmationRequired)
+static void pm_scan(const uint8_t *d, size_t n, int depth) {
+  if (depth > 4 || s_pm_got) return;
+  std::vector<PbField> fs;
+  pb_parse(d, n, fs);
+  for (auto &f : fs) {
+    if (f.wt == 0 && f.fn == 2 && depth == 1) s_pm_status = (int)f.v;
+    if (f.wt != 2) continue;
+    if (f.fn == 9) {
+      std::vector<PbField> in;
+      pb_parse(f.p, f.n, in);
+      for (auto &g : in)
+        if (g.fn == 2 && g.wt == 2 && g.n > 20) {
+          s_pm_rt.assign((const char *)g.p, g.n);
+          s_pm_got = true;
+        }
+      if (s_pm_got) return;
+    }
+    pm_scan(f.p, f.n, depth + 1);
+  }
+}
+
 static void handle_payload(const uint8_t *d, size_t n) {
+  if (s_pm_wait) {
+    char hex[3 * 40 + 1] = "";
+    for (size_t i = 0; i < n && i < 40; i++) snprintf(hex + 3 * i, 4, "%02x ", d[i]);
+    log_i("Hymer: Nachricht beim Anmelden (%u Byte): %s", (unsigned)n, hex);
+    pm_scan(d, n, 0);
+  }
   std::vector<PbField> top;
   pb_parse(d, n, top);
   for (auto &f : top)
@@ -438,6 +499,7 @@ static void on_notify(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) 
   if (s_sb && xStreamBufferSend(s_sb, d, n, 0) != n) log_w("Hymer: Empfangspuffer voll");
 }
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 class ClientCB : public NimBLEClientCallbacks {
   void onDisconnect(NimBLEClient *, int reason) override {
     s_connected = false;
@@ -445,6 +507,7 @@ class ClientCB : public NimBLEClientCallbacks {
     log_i("Hymer: getrennt (%d)", reason);
   }
 };
+}  // namespace
 static ClientCB s_ccb;
 
 static bool write_scu(const std::vector<uint8_t> &d) {
@@ -477,23 +540,93 @@ static bool pump(uint32_t wait_ms) {
   return ok;
 }
 
+// Huelle wie in der HA-Integration: BleProtocol 1 { Request 1 id, 2 Version, 3 Zeit, 8 user { <feld> Inhalt } }
+static std::vector<uint8_t> user_request(uint32_t topic, const std::vector<uint8_t> &body) {
+  time_t now = time(nullptr);
+  std::vector<uint8_t> user, rq, p;
+  pb_bytes(user, topic, body);
+  pb_uint(rq, 1, 2 + esp_random() % 1000000);
+  pb_str(rq, 2, PIA_VERSION);
+  pb_uint(rq, 3, now > 1700000000 ? (uint64_t)now : 1767225600ULL);
+  pb_bytes(rq, 8, user);
+  pb_bytes(p, 1, rq);
+  return p;
+}
+
+// Panel bei der SCU als "Mobilgeraet" anmelden: QR-Code-Text + Bestaetigungs-Token (hymer_cloud.cpp)
+static bool pair_mobile() {
+  std::string qr = hymer_cloud_qr(), conf = hymer_cloud_conf();
+  if (qr.empty() || conf.empty()) return false;
+  std::vector<uint8_t> pm;
+  pb_str(pm, 1, qr.c_str());
+  pb_str(pm, 2, conf.c_str());
+  pb_str(pm, 3, "Simply Open Camper");
+  pb_uint(pm, 4, 1);   // waitForConfirmation
+  s_pm_got = false;
+  s_pm_rt.clear();
+  s_pm_status = -1;
+  s_pm_wait = true;
+  set_status("Melde Panel bei der SCU an – ggf. am Bedienteil bestätigen …");
+  log_i("Hymer: sende Anmeldung (QR %u Zeichen, Token %u Zeichen)", (unsigned)qr.size(), (unsigned)conf.size());
+  if (!send_pia(user_request(4, pm))) {
+    s_pm_wait = false;
+    set_status("Anmeldung nicht gesendet");
+    return false;
+  }
+  uint32_t until = millis() + 120000;
+  while (!s_pm_got && s_connected && (int32_t)(millis() - until) < 0)
+    if (!pump(100)) break;
+  s_pm_wait = false;
+  if (!s_pm_got) {
+    log_w("Hymer: keine Anmelde-Antwort der SCU (Status %d)", s_pm_status);
+    set_status(s_pm_status > 0 ? "SCU lehnt die Anmeldung ab – QR-Code/Token prüfen" : "SCU hat die Anmeldung nicht bestätigt");
+    return false;
+  }
+  std::vector<uint8_t> ok;
+  pb_uint(ok, 1, 1);
+  send_pia(user_request(6, ok));   // PairMobileConfirmation success
+  Preferences p;
+  p.begin("hymer", false);
+  p.putBool("mob", true);
+  p.putString("mrt", s_pm_rt.c_str());
+  p.end();
+  log_i("Hymer: Panel bei der SCU angemeldet (Token %u Zeichen)", (unsigned)s_pm_rt.size());
+  return true;
+}
+
+static bool mobile_registered() {
+  Preferences p;
+  p.begin("hymer", true);
+  bool m = p.getBool("mob", false);
+  p.end();
+  return m;
+}
+
 static bool session() {
   set_status("TLS-Verbindung …");
   s_acc.clear();
   xStreamBufferReset(s_sb);
   std::vector<uint8_t> out;
-  if (!s_tls.start(out) || !write_scu(out)) return false;
+  // RSA/Zertifikat brauchen einige KB – im PSRAM statt im knappen internen RAM
+  hymer_mbedtls_psram(true);
+  bool started = s_tls.start(out) && write_scu(out);
   uint32_t until = millis() + TLS_TIMEOUT_MS;
-  while (!s_tls.ready()) {
+  while (started && !s_tls.ready()) {
     if (!s_connected || (int32_t)(millis() - until) > 0) {
       if (s_connected) set_status("SCU antwortet nicht – CONNECTION gedrückt?");
-      return false;
+      started = false;
+      break;
     }
     if (!pump(100)) {
       set_status(s_tls.err().c_str());
-      return false;
+      started = false;
+      break;
     }
   }
+  hymer_mbedtls_psram(false);
+  if (!started) return false;
+  // Einmalig: als Mobilgeraet anmelden (wie die Hymer-App beim ersten Koppeln)
+  if (!mobile_registered() && !hymer_cloud_conf().empty()) pair_mobile();
   set_status("Abonniere Werte …");
   for (auto b64 : SUBSCRIBE) {
     std::vector<uint8_t> p(strlen(b64));
@@ -596,46 +729,93 @@ void hymer_ble_setup() {
   NimBLEDevice::setMTU(247);
 }
 
-static bool looks_like_scu(const NimBLEAdvertisedDevice *dev) {
+// 0 = kein Hymer-Geraet, 1 = nur Nordic UART (benutzen viele Geraete!), 2 = Power-Dienst oder Hymer-Name
+static uint8_t scu_score(const NimBLEAdvertisedDevice *dev) {
+  uint8_t sc = 0;
   for (int i = 0; i < (int)dev->getServiceUUIDCount(); i++) {
     std::string u = dev->getServiceUUID(i).toString();
-    if (u == UUID_NUS || u == UUID_POWER) return true;
+    if (u == UUID_POWER) return 2;
+    if (u == UUID_NUS) sc = 1;
   }
   if (dev->haveName()) {
     std::string n;
     for (char c : dev->getName()) n += tolower((unsigned char)c);
     if (n.find("hymer") != std::string::npos || n.find("scu") != std::string::npos || n.find("siu") != std::string::npos)
-      return true;
+      return 2;
   }
-  return false;
+  return sc;
+}
+
+static void remember_seen(const NimBLEAdvertisedDevice *dev, const std::string &mac, uint8_t score) {
+  if (!s_seen) s_seen = (HymerSeen *)heap_caps_calloc(N_SEEN, sizeof(HymerSeen), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!s_seen) return;
+  int slot = 0;
+  for (int i = 0; i < N_SEEN; i++) {
+    if (!strcmp(s_seen[i].mac, mac.c_str())) { slot = i; break; }
+    if (s_seen[i].ms < s_seen[slot].ms) slot = i;   // sonst den aeltesten ersetzen
+  }
+  HymerSeen &e = s_seen[slot];
+  strncpy(e.mac, mac.c_str(), sizeof(e.mac) - 1);
+  if (dev->haveName()) strncpy(e.name, dev->getName().c_str(), sizeof(e.name) - 1);
+  e.rssi = dev->getRSSI();
+  e.score = score;
+  e.type = dev->getAddress().getType();
+  e.ms = millis() | 1;
 }
 
 bool hymer_on_adv(const NimBLEAdvertisedDevice *dev) {
   std::string mac = dev->getAddress().toString();
-  bool mine = s_paired && mac == s_peer_id;
-  if (!mine && !looks_like_scu(dev)) return false;
+  bool mine = s_paired && (mac == s_peer_id || mac == s_peer_adv);
+  uint8_t score = scu_score(dev);
+  if (!mine && !score) return false;
   Lock l;
+  remember_seen(dev, mac, mine ? 2 : score);
+  if (score == 2) s_strong_ms = millis() | 1;
   auto b = s_block.find(mac);
   if (b != s_block.end() && (int32_t)(millis() - b->second) < 0) return true;
   if (!s_pairing && !s_paired) return true;
-  // Gekoppelt: bevorzugt die eigene SCU; beim Koppeln die mit dem staerksten Signal
-  bool fresh = millis() - s_cand_ms > 5000;
-  if (s_cand.empty() || mine || fresh || (s_pairing && dev->getRSSI() > s_cand_rssi && s_cand != s_peer_id)) {
+  // Gekoppelt: nur die eigene SCU (andere Geraete mit Nordic UART nicht anfassen)
+  if (s_paired && !s_pairing) {
+    if (!mine) return true;
     s_cand = mac;
     s_cand_type = dev->getAddress().getType();
     s_cand_rssi = dev->getRSSI();
+    s_cand_score = 2;
+    s_cand_ms = millis();
+    return true;
+  }
+  // Koppeln: ein sicheres Hymer-Geraet schlaegt reine UART-Geraete; reine UART-Geraete nur, wenn seit 30 s
+  // kein sicheres zu sehen war. Unter gleich sicheren das staerkste Signal.
+  if (!s_target.empty()) {   // im Panel ausgewaehltes Geraet: nur dieses
+    if (mac != s_target) return true;
+    s_cand = mac;
+    s_cand_type = dev->getAddress().getType();
+    s_cand_rssi = dev->getRSSI();
+    s_cand_score = score;
+    s_cand_ms = millis();
+    return true;
+  }
+  if (score < 2 && s_strong_ms && millis() - s_strong_ms < 30000) return true;
+  bool fresh = millis() - s_cand_ms > 5000;
+  if (s_cand.empty() || fresh || score > s_cand_score || (score == s_cand_score && dev->getRSSI() > s_cand_rssi)) {
+    s_cand = mac;
+    s_cand_type = dev->getAddress().getType();
+    s_cand_rssi = dev->getRSSI();
+    s_cand_score = score;
     s_cand_ms = millis();
   }
   return true;
 }
 
 void hymer_scan_wanted(bool &passive, bool &active) {
-  ensure_task();   // wird nur aufgerufen, wenn Hymer in den Einstellungen eingeschaltet ist
+  // Task und Puffer erst, wenn gekoppelt wird bzw. eine Kopplung besteht (Suche/Liste brauchen ihn nicht)
+  if (s_paired || s_pairing) ensure_task();
   if (s_pairing && (int32_t)(millis() - s_pair_until) >= 0) {
     s_pairing = false;
     set_status(s_paired ? "Getrennt – suche SCU …" : "Nicht gekoppelt");
   }
-  if (s_pairing) active = true;
+  // Aktiv (mit Scan-Antwort = Geraetename) beim Koppeln und solange die Geraeteliste im Panel offen ist
+  if (s_pairing || (int32_t)(millis() - s_browse_until) < 0) active = true;
   else if (s_paired && !s_connected) passive = true;
 }
 
@@ -670,19 +850,64 @@ void hymer_connect_now() {
       Lock l;
       s_block[mac] = millis() + block_ms;
     }
-    s_next_try_ms = millis() + s_backoff_ms;
-    if (s_backoff_ms < 60000) s_backoff_ms *= 2;
+    // Beim Koppeln gleich wieder versuchen (das Zeitfenster an der SCU ist kurz)
+    s_next_try_ms = millis() + (pairing ? 1000 : s_backoff_ms);
+    if (!pairing && s_backoff_ms < 60000) s_backoff_ms *= 2;
     set_status(why);
   };
-  if (!s_client->connect(NimBLEAddress(mac, type), true)) return fail("Verbindung fehlgeschlagen", 20000);
-  // SCU erkennen (Power-Dienst), Nordic UART suchen
-  NimBLERemoteService *pw = s_client->getService(NimBLEUUID(UUID_POWER));
-  NimBLERemoteService *nus = s_client->getService(NimBLEUUID(UUID_NUS));
-  if (!nus) return fail("Kein Hymer-Gerät (Dienst fehlt)", 10 * 60 * 1000);
-  if (!pw && !s_paired && !pairing) return fail("Kein Hymer-Gerät", 10 * 60 * 1000);
+  if (!s_client->connect(NimBLEAddress(mac, type), true))
+    return fail("Verbindung fehlgeschlagen", pairing ? 2000 : 20000);
+  // Alle Dienste auf einmal holen (die Suche nach einer einzelnen UUID klappt nicht bei jedem Geraet) und loggen
+  NimBLERemoteService *pw = nullptr, *nus = nullptr;
+  auto find_services = [&]() {
+    pw = nus = nullptr;
+    for (auto *sv : s_client->getServices(true)) {
+      std::string u = sv->getUUID().toString();
+      log_i("Hymer %s: Dienst %s", mac.c_str(), u.c_str());
+      if (u == UUID_POWER) pw = sv;
+      if (u == UUID_NUS) nus = sv;
+    }
+  };
   // Ohne Kopplung ignoriert die SCU den TLS-Aufbau; beim ersten Mal muss CONNECTION gedrueckt sein
-  if (!s_client->secureConnection())
-    return fail(pairing ? "Kopplung abgelehnt – an der SCU „CONNECTION“ drücken" : "Verschlüsselung fehlgeschlagen – neu koppeln?", 20000);
+  auto secure = [&]() { return s_client->secureConnection(); };
+  const char *sec_why =
+      pairing ? "Kopplung abgelehnt – an der SCU „CONNECTION“ drücken" : "Verschlüsselung fehlgeschlagen – neu koppeln?";
+  find_services();
+  if (!s_client->isConnected()) return fail("Verbindung abgebrochen", 3000);
+  bool secured = false;
+  if (!nus) {
+    // Manche Geraete zeigen den UART-Dienst erst nach der Kopplung
+    log_i("Hymer %s: kein UART-Dienst sichtbar – erst koppeln, dann neu suchen", mac.c_str());
+    if (!secure()) return fail(sec_why, pairing ? 2000 : 20000);
+    secured = true;
+    find_services();
+    if (!nus) {
+      bool up = s_client->isConnected();
+      return fail(up ? "Kein Hymer-Gerät (Dienst fehlt)" : "Verbindung abgebrochen", up ? 60000 : 3000);
+    }
+  }
+  if (!pw && !s_paired && !pairing) return fail("Kein Hymer-Gerät", 10 * 60 * 1000);
+  // Bonding-Status wie in der Vorlage vor dem Koppeln abfragen: 4 Zufallsbytes schreiben, Antwort = Echo + Status-Byte
+  if (pw && !secured) {
+    NimBLERemoteCharacteristic *bs = pw->getCharacteristic(NimBLEUUID(UUID_BOND_STATE));
+    if (bs) {
+      uint32_t r = esp_random();
+      uint8_t ch[4];
+      memcpy(ch, &r, 4);
+      if (bs->writeValue(ch, 4, true)) {
+        NimBLEAttValue v = bs->readValue();
+        log_i("Hymer %s: Bonding-Status %d (Antwort %u Byte, Echo %s)", mac.c_str(), v.size() > 4 ? v.data()[4] : -1,
+              (unsigned)v.size(), v.size() >= 4 && !memcmp(v.data(), ch, 4) ? "ok" : "falsch");
+        s_bond_state = v.size() > 4 ? v.data()[4] : -1;
+      } else {
+        log_i("Hymer %s: Bonding-Status nicht schreibbar", mac.c_str());
+      }
+    } else {
+      log_i("Hymer %s: kein Bonding-Status-Kanal", mac.c_str());
+    }
+    if (!s_client->isConnected()) return fail("Verbindung abgebrochen", 3000);
+  }
+  if (!secured && !secure()) return fail(sec_why, pairing ? 2000 : 20000);
   s_ch_rx = nus->getCharacteristic(NimBLEUUID(UUID_NUS_RX));
   s_ch_tx = nus->getCharacteristic(NimBLEUUID(UUID_NUS_TX));
   if (!s_ch_rx || !s_ch_tx) return fail("Kein Hymer-Gerät (UART fehlt)", 10 * 60 * 1000);
@@ -702,12 +927,14 @@ void hymer_connect_now() {
       s_paired = true;
       s_pairing = false;
       s_peer_id = id;
+      s_peer_adv = mac;
     }
     s_prefs.begin("hymer", false);
     s_prefs.putBool("paired", true);
     s_prefs.putString("peer", id.c_str());
+    s_prefs.putString("peer_adv", mac.c_str());
     s_prefs.end();
-    log_i("Hymer gekoppelt: %s", id.c_str());
+    log_i("Hymer gekoppelt: %s (wirbt als %s, Power-Dienst %s)", id.c_str(), mac.c_str(), pw ? "ja" : "nein");
   }
   s_up = true;
 }
@@ -719,6 +946,7 @@ void hymer_begin() {
   s_prefs.begin("hymer", false);
   s_paired = s_prefs.getBool("paired", false);
   s_peer_id = s_prefs.getString("peer", "").c_str();
+  s_peer_adv = s_prefs.getString("peer_adv", "").c_str();
   s_prefs.end();
   strncpy(s_status, s_paired ? "Suche SCU …" : "Nicht gekoppelt", sizeof(s_status) - 1);
   log_i("Hymer: %s", s_paired ? "gekoppelt" : "nicht gekoppelt");
@@ -784,6 +1012,7 @@ void hymer_pair_start() {
     s_block.clear();
     s_cand.clear();
     s_cand_rssi = -127;
+    s_target.clear();
   }
   s_next_try_ms = 0;
   s_backoff_ms = 15000;
@@ -791,14 +1020,62 @@ void hymer_pair_start() {
   set_status("Kopplung läuft – an der SCU „CONNECTION“ drücken");
 }
 
+void hymer_pair_with(const std::string &mac) {
+  hymer_pair_start();
+  Lock l;
+  s_target = mac;
+}
+
+void hymer_browse() { s_browse_until = millis() + 15000; }
+
+std::vector<HymerCand> hymer_candidates() {
+  std::vector<HymerCand> v;
+  Lock l;
+  if (!s_seen) return v;
+  for (int i = 0; i < N_SEEN; i++) {
+    const HymerSeen &e = s_seen[i];
+    if (!e.ms || millis() - e.ms > 60000) continue;
+    v.push_back({e.mac, e.name, e.rssi, e.score});
+  }
+  std::sort(v.begin(), v.end(), [](const HymerCand &a, const HymerCand &b) {
+    return a.score != b.score ? a.score > b.score : a.mac < b.mac;
+  });
+  return v;
+}
+
 bool hymer_pairing() { return s_pairing; }
 bool hymer_paired() { return s_paired; }
+bool hymer_mobile_registered() { return mobile_registered(); }
 bool hymer_connected() { return s_ready; }
 
 std::string hymer_status() {
   if (!s_mtx) return "";
   Lock l;
   return s_status;
+}
+
+void hymer_print_debug() {
+  Lock l;
+  log_printf("Hymer: %s\n", s_status);
+  log_printf("  gekoppelt: %s  Identitaet %s  wirbt als %s\n", s_paired ? "ja" : "nein",
+             s_peer_id.empty() ? "-" : s_peer_id.c_str(), s_peer_adv.empty() ? "-" : s_peer_adv.c_str());
+  log_printf("  Kopplung laeuft: %s, verbunden: %s, TLS/Werte: %s\n", s_pairing ? "ja" : "nein",
+             s_connected ? "ja" : "nein", s_ready ? "ja" : "nein");
+  log_printf("  Ziel beim Koppeln: %s, letzter Bonding-Status der SCU: %d\n", s_target.empty() ? "automatisch" : s_target.c_str(),
+             s_bond_state);
+  log_printf("  Gesehene Kandidaten (2 = sicher Hymer, 1 = nur Nordic UART):\n");
+  if (!s_seen) {
+    log_printf("    (noch keine)\n");
+    return;
+  }
+  for (int i = 0; i < N_SEEN; i++) {
+    const HymerSeen &e = s_seen[i];
+    if (!e.ms) continue;
+    auto b = s_block.find(e.mac);
+    long blk = b != s_block.end() ? (long)(int32_t)(b->second - millis()) : 0;
+    log_printf("    %s typ %u  %4d dBm  Wertung %u  vor %lus  \"%s\"%s\n", e.mac, e.type, e.rssi, e.score,
+               (unsigned long)((millis() - e.ms) / 1000), e.name, blk > 0 ? "  (gesperrt)" : "");
+  }
 }
 
 void hymer_disconnect() {
@@ -808,24 +1085,30 @@ void hymer_disconnect() {
 }
 
 void hymer_forget() {
-  std::string id;
+  std::string id, adv;
   {
     Lock l;
     id = s_peer_id;
+    adv = s_peer_adv;
     s_paired = false;
     s_pairing = false;
     s_peer_id.clear();
+    s_peer_adv.clear();
     for (size_t i = 0; i < N_DEFS; i++) s_has[i] = false;
   }
   if (s_client && s_client->isConnected()) s_client->disconnect();
   // Nur die Kopplung mit der SCU loeschen (das iNet X ist ebenfalls gekoppelt)
   for (int i = NimBLEDevice::getNumBonds() - 1; i >= 0; i--) {
     NimBLEAddress a = NimBLEDevice::getBondedAddress(i);
-    if (!id.empty() && a.toString() == id) NimBLEDevice::deleteBond(a);
+    std::string s = a.toString();
+    if ((!id.empty() && s == id) || (!adv.empty() && s == adv)) NimBLEDevice::deleteBond(a);
   }
   s_prefs.begin("hymer", false);
   s_prefs.putBool("paired", false);
   s_prefs.remove("peer");
+  s_prefs.remove("peer_adv");
+  s_prefs.remove("mob");   // Anmeldung bei der SCU gehoert zur Kopplung
+  s_prefs.remove("mrt");
   s_prefs.end();
   set_status("Nicht gekoppelt");
   s_ver++;

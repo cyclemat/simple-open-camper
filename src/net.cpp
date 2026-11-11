@@ -101,6 +101,19 @@ static void on_ntp_sync(struct timeval *) {
 void net_begin() {
   s_mode = g_settings.net_mode;
   s_last_ok = millis();
+  if (s_mode == NET_OFF) {
+    // Nur den TCP/IP-Stack (Webserver/UDP brauchen ihn), aber keinen WLAN-Treiber: der kostet den meisten internen RAM
+    Network.begin();
+    time_t rtc;
+    if (!net_time_valid() && board_rtc_read(rtc)) {
+      struct timeval tv = {rtc, 0};
+      settimeofday(&tv, nullptr);
+      s_time_src = "Uhrenchip";
+    }
+    snprintf(s_status, sizeof(s_status), "WLAN ausgeschaltet");
+    log_i("WLAN ausgeschaltet");
+    return;
+  }
   WiFi.onEvent(on_wifi_event);
   WiFi.persistent(false);
   WiFi.setHostname(g_settings.hostname.c_str());
@@ -125,7 +138,7 @@ void net_begin() {
 uint8_t net_mode() { return s_mode; }
 
 void net_reconnect() {
-  if (s_mode == NET_AP) return;
+  if (s_mode == NET_AP || s_mode == NET_OFF) return;
   s_scan_paused_sta = false;
   WiFi.setAutoReconnect(true);
   WiFi.disconnect(false, false);
@@ -143,6 +156,7 @@ static void scan_try();
 static void scan_resume_sta();
 
 void net_loop() {
+  if (s_mode == NET_OFF) return;
   if (s_dns_on) s_dns.processNextRequest();
   if (s_scan_req) scan_try();
   // Nach der Suche wieder verbinden – auch wenn niemand die Ergebnisse abholt (Seite verlassen)
@@ -193,7 +207,7 @@ void net_loop() {
   s_was_connected = now;
 }
 
-bool net_connected() { return s_mode != NET_AP && s_got_ip && WiFi.status() == WL_CONNECTED; }
+bool net_connected() { return s_mode != NET_AP && s_mode != NET_OFF && s_got_ip && WiFi.status() == WL_CONNECTED; }
 String net_ip() { return net_connected() ? WiFi.localIP().toString() : String(""); }
 String net_ssid() { return net_connected() ? WiFi.SSID() : g_settings.wifi_ssid; }
 int net_rssi() { return net_connected() ? WiFi.RSSI() : 0; }

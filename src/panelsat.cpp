@@ -1,6 +1,8 @@
 #include "panelsat.h"
 #include "sat_proto.h"
 #include "hymer.h"
+#include "net.h"
+#include "settings.h"
 
 #if WITH_SATELLITES
 #include <Arduino.h>
@@ -46,10 +48,12 @@ struct Node {
 };
 
 static SemaphoreHandle_t s_mtx = nullptr;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static std::map<std::string, Dev> s_devs;    // "truma/<mac>" ...
 static std::map<std::string, Node> s_nodes;  // Kennung -> Satellit
@@ -667,7 +671,8 @@ static uint32_t sat_version_raw() { return s_ver; }
 void panelsat_begin() {
   if (!s_mtx) s_mtx = xSemaphoreCreateRecursiveMutex();
   load_config();
-  xTaskCreatePinnedToCore(udp_task, "panelsat", 4096, nullptr, 2, nullptr, 0);
+  // UDP nur mit WLAN (ohne WLAN kommt nichts an); gemessen < 2 KB Stack gebraucht
+  if (net_mode() != NET_OFF) xTaskCreatePinnedToCore(udp_task, "panelsat", 3072, nullptr, 2, nullptr, 0);
 }
 
 #else   // ---------------------------------------------------------------- ausgebaut

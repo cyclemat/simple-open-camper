@@ -573,6 +573,37 @@ function bleHTML(ble, items) {
     <p class="hint">Was aus ist, sucht das Panel nicht – das schont Funk und WLAN.</p></div>`;
 }
 
+// Hymer Connect: einmalige Anmeldung (Hymer-Konto, QR-Code, App-Kennung) im Reiter "Gas"
+let hyForm = {user: '', pass: '', brand: '', qr: '', basic: '', bmode: ''};
+const HY_BRANDS = [['hymer', 'Hymer'], ['buerstner', 'Bürstner'], ['dethleffs', 'Dethleffs'], ['eriba', 'Eriba'], ['lmc', 'LMC'],
+  ['niesmann-bischoff', 'Niesmann+Bischoff'], ['sunlight', 'Sunlight'], ['carado', 'Carado'], ['laika', 'Laika'], ['freeontour', 'Freeontour']];
+function hymHTML(h) {
+  if (!h || !h.enabled) return '';
+  const user = hyForm.user || h.user || '', brand = hyForm.brand || h.brand || 'hymer';
+  const busy = h.cloud_state === 1;
+  const bmode = hyForm.bmode || (h.has_basic ? 'own' : 'default');
+  const cs = h.cloud_text ? `<p class="hint" style="margin:8px 0 0;${h.cloud_state === 3 ? 'color:var(--danger)' : ''}">${esc(h.cloud_text)}</p>` : '';
+  return `<h3 style="font-size:13px;margin:16px 0 6px">Hymer Connect</h3>
+    <p class="hint" style="margin-top:0">SCU: ${esc(h.status || '–')}${h.registered ? ' · Panel beim Fahrzeug angemeldet' : ''}${h.has_token ? ' · Token vorhanden' : ''}</p>
+    <p class="hint">Beim ersten Koppeln meldet sich das Panel wie die Hymer-App beim Fahrzeug an. Dafür braucht es einmalig dein Hymer-Konto,
+      und den Text des QR-Codes aus den Fahrzeugunterlagen (mit dem Handy scannen, Text kopieren – beginnt meist mit „eyJ“).
+      Das Passwort speichert das Panel nicht. Dafür braucht das Panel Internet${h.online ? '' : ' – <b>gerade ist es offline</b>'}.</p>
+    <label class="field"><span>E-Mail des Hymer-Kontos</span><input data-hy="user" type="email" autocomplete="username" value="${esc(user)}" maxlength="96"></label>
+    <label class="field"><span>Passwort</span><input data-hy="pass" type="password" autocomplete="current-password" value="${esc(hyForm.pass)}" maxlength="96"></label>
+    <label class="field"><span>Marke</span><select data-hy="brand">${HY_BRANDS.map(([k, l]) => `<option value="${k}" ${k === brand ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="field"><span>Text aus dem QR-Code${h.has_qr ? ' (gespeichert – leer lassen, um ihn zu behalten)' : ''}</span><textarea data-hy="qr" rows="3" maxlength="2000" style="width:100%;font-family:monospace;font-size:12px">${esc(hyForm.qr)}</textarea></label>
+    <label class="field"><span>App-Kennung der Hymer-App</span><select data-hy="bmode">
+      <option value="default" ${bmode === 'default' ? 'selected' : ''}>Standard (Wert aus der HA-Integration)</option>
+      <option value="own" ${bmode === 'own' ? 'selected' : ''}>Eigene</option></select></label>
+    ${bmode === 'own' ? `<label class="field"><span>Eigene App-Kennung „Authorization: Basic …“${h.has_basic ? ' (gespeichert – leer lassen, um sie zu behalten)' : ''}</span><input data-hy="basic" value="${esc(hyForm.basic)}" maxlength="400" style="font-family:monospace;font-size:12px"></label>`
+      : '<p class="hint" style="margin-top:0">Nur auf „Eigene“ umstellen, wenn die Anmeldung trotz richtiger E-Mail und Passwort mit 401 scheitert.</p>'}
+    <div class="row" style="margin-top:10px">
+      <button class="btn small primary" id="bHyLogin" style="flex:none" ${busy ? 'disabled' : ''}>${icon('lock', 16)}${busy ? 'Anmeldung läuft …' : 'Anmelden und Token holen'}</button>
+      ${h.has_token || h.has_qr || h.has_basic ? '<button class="btn small danger" id="bHyForget" style="flex:none">Anmeldedaten löschen</button>' : ''}
+    </div>${cs}
+    <p class="hint">Danach am Panel unter Einstellungen → Hymer die SCU antippen und am Bedienteil „CONNECTION“ drücken.</p>`;
+}
+
 // Mopeka-Abschnitt im Reiter "Gas" der Einstellungen
 function mopHTML(m) {
   if (!m) return '';
@@ -1688,6 +1719,13 @@ async function openSettings(tab = 'net') {
   loadHeat();
   const heatTimer = setInterval(() => { if (!body.isConnected) clearInterval(heatTimer); else if (tab === 'gas') loadHeat(); }, 3000);
   const heatAct = data => (S.demo ? Promise.resolve() : post('/api/heat', data)).then(loadHeat).catch(er => toast(er.message, 'error'));
+  let hymData = null;
+  const loadHym = async () => {
+    try { hymData = S.demo ? null : await api('/api/hymer'); } catch (e) { hymData = null; }
+    if (tab === 'gas' && body.isConnected && !body.contains(document.activeElement)) render();
+  };
+  loadHym();
+  const hymTimer = setInterval(() => { if (!body.isConnected) clearInterval(hymTimer); else if (tab === 'gas') loadHym(); }, 3000);
   let mopData = null;
   const loadMop = async () => {
     try { mopData = S.demo ? S.demoMopeka : await api('/api/mopeka'); } catch (e) { mopData = null; }
@@ -1853,7 +1891,7 @@ async function openSettings(tab = 'net') {
                 <button class="btn small" data-gadd="${i}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
               : '<p class="hint">Noch nichts gefunden. Der Sensor sendet nur alle paar Minuten.</p>'}` : ''}
           <p class="hint">Häufigeres Messen kostet die Batterie des Sensors mehr.</p>`)
-          + (ble.mopeka === false ? '' : mopHTML(mopData)) + heatHTML(heatData);
+          + (ble.mopeka === false ? '' : mopHTML(mopData)) + heatHTML(heatData) + (ble.hymer === false ? '' : hymHTML(hymData));
       }
     } else if (tab === 'vic') {
       const v = vicData;
@@ -1913,6 +1951,7 @@ async function openSettings(tab = 'net') {
         <div class="progress" id="otaProg" hidden><span></span></div>
         <div class="row" style="margin-top:12px"><button class="btn small" id="bOta">${icon('upload', 16)}Installieren</button>
         <button class="btn small" id="bRefresh">${icon('refresh', 16)}Zustände neu abfragen</button>
+        <button class="btn small" id="bDevReload">${icon('refresh', 16)}Geräteliste neu laden</button>
         <button class="btn small danger" id="bReboot">${icon('power', 16)}Neu starten</button></div>`;
     }
     body.innerHTML = `<div class="tabs" style="margin:-6px -20px 16px">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? 'act' : ''}">${l}</button>`).join('')}</div>` + html;
@@ -1925,6 +1964,7 @@ async function openSettings(tab = 'net') {
     if (tb) { tab = tb.dataset.tab; render(); return; }
     const md = e.target.closest('[data-mode]');
     if (md) { draft.net.mode = +md.dataset.mode; render(); return; }
+    if (e.target.closest('#bDevReload')) { if (!S.demo) post('/api/refresh', {devices: true}).then(() => toast('Geräteliste wird von Zigbee2MQTT geholt – dauert einige Sekunden.')).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bRefresh')) { if (!S.demo) post('/api/refresh', {}).then(() => toast('Zustände werden neu abgefragt.')).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bReboot')) { confirmDlg('Panel neu starten?', 'Das dauert etwa zehn Sekunden.', 'Neu starten').then(ok => { if (ok && !S.demo) post('/api/reboot', {}).then(() => toast('Panel startet neu …')).catch(() => {}); }); return; }
     if (e.target.closest('#bOta')) { runOta(); return; }
@@ -1971,6 +2011,17 @@ async function openSettings(tab = 'net') {
     if (e.target.closest('#bGasScan')) { gasPost({scan: true}).then(() => { toast('Suche gestartet. Bitte etwas Geduld.'); loadGas(); }).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bCpClock')) { heatAct({src: 'cpplus', clock: true}).then(() => toast('Die Uhrzeit geht beim nächsten Abruf ans CP Plus.')); return; }
     if (e.target.closest('#bIxPair')) { heatAct({src: 'inetx', pair: true}).then(() => toast('Jetzt am iNet X „Gerät hinzufügen“ öffnen.')); return; }
+    if (e.target.closest('#bHyLogin')) {
+      const f = {...hyForm, user: hyForm.user || (hymData || {}).user || '', brand: hyForm.brand || (hymData || {}).brand || 'hymer',
+        own_basic: (hyForm.bmode || ((hymData || {}).has_basic ? 'own' : 'default')) === 'own'};
+      post('/api/hymer', {login: f}).then(() => { hyForm.pass = ''; toast('Anmeldung läuft …'); loadHym(); }).catch(er => toast(er.message, 'error'));
+      return;
+    }
+    if (e.target.closest('#bHyForget')) {
+      confirmDlg('Anmeldedaten löschen?', 'QR-Code-Text, Token und App-Kennung werden vom Panel gelöscht. Die Bluetooth-Kopplung bleibt.', 'Löschen', true)
+        .then(ok => ok && post('/api/hymer', {forget_cloud: true}).then(() => { hyForm = {user: '', pass: '', brand: '', qr: '', basic: '', bmode: ''}; loadHym(); }));
+      return;
+    }
     if (e.target.closest('#bIxForget')) { confirmDlg('Kopplung lösen?', 'Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.', 'Lösen', true).then(ok => ok && heatAct({src: 'inetx', forget: true})); return; }
     if (e.target.closest('#bMopScan')) { mopPost({scan: true}).then(() => { toast('Suche gestartet. Kurz die Sync-Taste am Sensor drücken.'); loadMop(); }).catch(er => toast(er.message, 'error')); return; }
     const mr = e.target.closest('[data-mremove]');
@@ -2056,6 +2107,10 @@ async function openSettings(tab = 'net') {
   body.addEventListener('input', e => {
     const el = e.target;
     if (el.id === 'satPw') satPw = el.value;
+    if (el.dataset.hy) {   // Hymer-Anmeldung bis zum Absenden merken
+      hyForm[el.dataset.hy] = el.value;
+      if (el.dataset.hy === 'bmode') render();
+    }
     if (el.dataset.gx) {   // Cerbo-Felder bis zum Speichern merken (die Seite wird regelmaessig neu gezeichnet)
       const v = k => (($(`[data-gx="${k}"]`, body) || {}).value || '');
       gxDraft = {host: v('host'), port: v('port'), portal: v('portal'), pass: v('pass')};
@@ -2103,7 +2158,8 @@ const SAVER_INFO = [
   {t: 'Abdunkeln', d: 'Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.'},
   {t: 'Schwarz', d: 'Bild schwarz, Beleuchtung aus. Schont das Display am meisten.'},
   {t: 'Dunkle Uhr', d: 'Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.'},
-  {t: 'Hüpfendes Logo', d: 'Ein Abzeichen mit Uhrzeit – oder dein eigenes Logo – hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Treffer genau in die Ecke werden gezählt.'}];
+  {t: 'Hüpfendes Logo', d: 'Ein Abzeichen mit Uhrzeit – oder dein eigenes Logo – hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Treffer genau in die Ecke werden gezählt.'},
+  {t: 'Ball-Duell', d: 'Zwei Schläger spielen gegeneinander, oben steht der Spielstand. Nur Ball und Schläger bewegen sich.'}];
 const lvlText = v => +v ? v + ' %' : 'Display aus';
 const SAVER_COLORS = ['#F3A43B', '#3C8DFF', '#FF4FA3', '#5BD38A', '#B46BFF', '#FFE14D', '#34D6E0', '#FF6A5C'];
 const WD = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -2155,6 +2211,25 @@ function startSaverPreview(body, draft) {
       ctx.fillStyle = '#7C8794'; ctx.fillText(timeStr(), st.cx, st.cy);
       ctx.font = '600 13px "Inter Panel", system-ui'; ctx.fillStyle = '#55606B';
       ctx.fillText(`${WD[n.getDay()]}, ${n.getDate()}. ${MO[n.getMonth()]}`, st.cx + 4, st.cy + 26);
+    } else if (sv === 4) {
+      // Ball-Duell: zwei Schlaeger, Ball, Spielstand
+      const pw = 6, ph = 44, px = 14, bs = 7;
+      if (!st.duel) st.duel = {bx: Wp / 2, by: Hp / 2, vx: 3, vy: 1.4, l: Hp / 2 - ph / 2, r: Hp / 2 - ph / 2, sl: 0, sr: 0};
+      const g = st.duel;
+      g.bx += g.vx; g.by += g.vy;
+      if (g.by < 0 || g.by > Hp - bs) g.vy = -g.vy;
+      const follow = (p, on) => p + Math.max(-2.4, Math.min(2.4, (on ? g.by : Hp / 2) - (p + ph / 2)));
+      g.l = follow(g.l, g.vx < 0); g.r = follow(g.r, g.vx > 0);
+      if (g.vx < 0 && g.bx <= px + pw && g.by + bs > g.l && g.by < g.l + ph) g.vx = -g.vx;
+      if (g.vx > 0 && g.bx + bs >= Wp - px - pw && g.by + bs > g.r && g.by < g.r + ph) g.vx = -g.vx;
+      if (g.bx < -bs || g.bx > Wp) { if (g.bx < 0) g.sr++; else g.sl++; if (g.sl > 9 || g.sr > 9) g.sl = g.sr = 0; g.bx = Wp / 2; g.by = Hp / 2; g.vx = -g.vx; g.vy = (Math.random() - 0.5) * 4; }
+      ctx.fillStyle = '#3A424B';
+      for (let y = 4; y < Hp; y += 16) ctx.fillRect(Wp / 2 - 1, y, 2, 8);
+      ctx.font = '600 22px "Inter Panel", system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(`${g.sl}   ${g.sr}`, Wp / 2, 28); ctx.textAlign = 'left';
+      ctx.fillStyle = '#E6EAEE';
+      ctx.fillRect(px, g.l, pw, ph); ctx.fillRect(Wp - px - pw, g.r, pw, ph);
+      ctx.fillStyle = '#F3A43B'; ctx.beginPath(); ctx.arc(g.bx + bs / 2, g.by + bs / 2, bs / 2, 0, 7); ctx.fill();
     } else if (sv === 3) {
       const col = st.flash > Date.now() ? '#FFFFFF' : SAVER_COLORS[st.col];
       let w, h;
@@ -2345,6 +2420,7 @@ async function init() {
       const [devs, lay] = await Promise.all([api('/api/devices'), api('/api/layout')]);
       setDevices(devs.devices);
       S.layout = normLayout(lay);
+      post('/api/refresh', {devices: true}).catch(() => {});   // Geraeteliste frisch von Zigbee2MQTT holen
       if (S.info && !S.info.time_valid) post('/api/time', {epoch: Math.floor(Date.now() / 1000)}).catch(() => {});
     } catch (e) { loadDemo(); toast('Das Panel antwortet unvollständig – Demo-Daten werden gezeigt.', 'error'); }
   }

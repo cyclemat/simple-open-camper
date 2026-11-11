@@ -87,43 +87,62 @@ void setup() {
   delay(50);
   log_i("%s %s startet", FW_NAME, FW_VERSION);
   app_events_init();
+  debug_mark("start");
   settings_load();
   if (!LittleFS.begin(true)) log_e("LittleFS konnte nicht eingebunden werden");
   layout_init();
+  debug_mark("layout");
 
   if (!board_init()) {
     log_e("Display-Initialisierung fehlgeschlagen");
   }
+  debug_mark("display");
   // Startbild (splash.jpg im Projektordner): gleich zeigen, waehrend der Rest startet; verschwindet nach 3 s
   if (splash_show()) {
     lv_timer_handler();
     board_set_backlight(g_settings.brightness);
   }
+  debug_mark("startbild");
   log_i("Akkuspannung: %.2f V", board_battery_voltage());
   sd_begin();          // braucht den IO-Expander (CS) aus board_init
   bg_migrate();        // Hintergruende auf die SD-Karte verschieben bzw. alte Rohbilder entfernen
+  debug_mark("sd");
   net_begin();         // WLAN/Netzwerk-Stack zuerst – MQTT setzt darauf auf
+  debug_mark("wlan");
   panelsat_begin();    // Satelliten (MQTT/UDP/Bluetooth) – vor z2m und Bluetooth-Scan, die hineinliefern
+  debug_mark("satelliten");
   z2m_begin();         // vor der Oberflaeche, damit das Geraetemodell existiert
+  debug_mark("mqtt");
   cerbo_begin();       // Victron Cerbo GX per MQTT – nur mit WITH_CERBO, sonst leer
+  debug_mark("cerbo");
   victron_begin();     // Victron-Geraete (Instant Readout) – vor truma_begin, das den BLE-Scan betreibt
+  debug_mark("victron");
   mopeka_begin();      // Mopeka-Tanksensoren – ebenfalls vor truma_begin
   inetx_begin();       // Truma iNet X (Bluetooth) – nur mit WITH_TRUMA_INETX, sonst leer
+  debug_mark("inetx");
   hymer_begin();       // Hymer Connect (Bluetooth zur SCU) – nur mit WITH_HYMER, sonst leer
+  debug_mark("hymer");
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
+  debug_mark("bluetooth");
   ui_init();
+  debug_mark("oberflaeche");
   lv_timer_handler();  // erstes Bild zeichnen, dann Licht an
   board_set_backlight(g_settings.brightness);
   web_begin();
+  debug_mark("webserver");
 }
 
 void loop() {
-  debug_poll();       // Befehle ueber die serielle Schnittstelle (debug, reboot, help)
+  debug_poll();       // Befehle ueber die serielle Schnittstelle (debug, tasks, boot, reboot, help)
+  static uint8_t marked = 0;   // Speicher nach 10 s und 60 s merken (Geraeteliste von Zigbee2MQTT ist dann da)
+  if (marked == 0 && millis() > 10000) { debug_mark("nach 10 s"); marked = 1; }
+  if (marked == 1 && millis() > 60000) { debug_mark("nach 60 s"); marked = 2; }
   uint32_t wait = lv_timer_handler();
   handle_events();
   net_loop();
+  web_loop();         // Webinterface "bei Bedarf": nach 15 min ohne Zugriff beenden
   ui_loop();
   delay(wait > 10 ? 10 : (wait < 2 ? 2 : wait));
 }

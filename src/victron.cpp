@@ -15,7 +15,7 @@
 //  [6] Datensatztyp   [7..8] Nonce/Datenzaehler   [9] erstes Byte des Schluessels   [10..] verschluesselte Daten
 static const size_t HDR_LEN = 10;
 static const uint32_t DISCOVERY_MS = 3 * 60 * 1000;
-static const size_t MAX_FOUND = 12;
+static const size_t MAX_FOUND = 20;   // voll: ein staerkeres Signal verdraengt das schwaechste
 
 struct VicDev {
   std::string mac, name;
@@ -34,10 +34,12 @@ static volatile uint32_t s_disc_until = 0;
 static volatile bool s_disc = false;
 static Preferences s_prefs;
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static std::string lower(std::string s) {
   for (auto &c : s) c = tolower((unsigned char)c);
@@ -72,6 +74,7 @@ VicKind victron_kind_of_record(uint8_t record) {
   switch (record) {
     case 0x01: return VIC_SOLAR;
     case 0x02: return VIC_SHUNT;
+    case 0x08: return VIC_CHARGER;   // Blue Smart IP22/IP65/IP67, Phoenix Smart Charger
     case 0x04:
     case 0x0F: return VIC_DCDC;
     default: return VIC_UNKNOWN;
@@ -202,6 +205,26 @@ static bool parse_record(uint8_t record, const uint8_t *p, size_t n, VictronInfo
       v.in_i = NAN;
       return true;
     }
+    case 0x08: {  // AC-Ladegeraet (Blue Smart / Phoenix Smart Charger): bis zu 3 Ausgaenge
+      if (n < 13) return false;
+      v.state = b.u(8);
+      v.error = b.u(8);
+      float sum_i = NAN;
+      for (int k = 0; k < 3; k++) {
+        uint32_t ov = b.u(13), oi = b.u(11);
+        float fv = ov == 0x1FFF ? NAN : ov * 0.01f, fi = oi == 0x7FF ? NAN : oi * 0.1f;
+        if (k == 0) v.bat_v = fv;
+        if (!isnan(fi)) sum_i = isnan(sum_i) ? fi : sum_i + fi;
+      }
+      v.bat_i = sum_i;
+      uint32_t t = b.u(7);
+      v.aux_mode = t == 0x7F ? 3 : 2;
+      v.aux = t == 0x7F ? NAN : (float)t - 40.0f;
+      uint32_t ac = b.u(9);
+      v.ac_i = ac == 0x1FF ? NAN : ac * 0.1f;
+      v.power_w = (!isnan(v.bat_v) && !isnan(v.bat_i)) ? v.bat_v * v.bat_i : NAN;
+      return true;
+    }
     case 0x0F: {  // Orion XS
       if (n < 10) return false;
       v.state = b.u(8);
@@ -239,6 +262,12 @@ void victron_on_adv(const std::string &mac_in, const uint8_t *md, size_t len, in
             s_ver++;
           }
         }
+      if (!known && s_found.size() >= MAX_FOUND) {   // voll: schwaechstes Signal ersetzen, wenn das neue staerker ist
+        size_t w = 0;
+        for (size_t i = 1; i < s_found.size(); i++)
+          if (s_found[i].rssi < s_found[w].rssi) w = i;
+        if (rssi > s_found[w].rssi) s_found.erase(s_found.begin() + w);
+      }
       if (!known && s_found.size() < MAX_FOUND) {
         VictronFound f;
         f.mac = mac;

@@ -4,6 +4,8 @@
 #include <ctype.h>
 #include "esp_heap_caps.h"
 #include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "hal/usb_serial_jtag_ll.h"   // USB des ESP32-S3 direkt lesen, ohne Treiber und Puffer
 #include "app_config.h"
 #include "net.h"
@@ -11,10 +13,97 @@
 #include "board.h"
 #include "settings.h"
 #include "hymer.h"
+#include "truma.h"
+
+#ifndef DISPLAY_TESTING
+#define DISPLAY_TESTING 0
+#endif
 
 static char s_line[32];
 static uint8_t s_len = 0;
 
+// ---------------------------------------------------------------- Speicher nach jedem Startschritt
+struct Mark {
+  const char *name;
+  uint32_t ms, free_int, min_int;
+};
+static Mark s_marks[20];
+static uint8_t s_nmarks = 0;
+
+void debug_mark(const char *name) {
+  if (s_nmarks >= sizeof(s_marks) / sizeof(s_marks[0])) return;
+  s_marks[s_nmarks++] = {name, millis(), (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                         (uint32_t)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)};
+}
+
+static void print_boot() {
+  log_printf("\nInterner RAM beim Start (frei nach dem Schritt, Verbrauch des Schritts, Tiefstwert bis dahin):\n");
+  uint32_t prev = 0;
+  for (uint8_t i = 0; i < s_nmarks; i++) {
+    const Mark &m = s_marks[i];
+    long used = i ? (long)prev - (long)m.free_int : 0;
+    log_printf("  %6lu ms  %-14s frei %4u KB  Verbrauch %6ld B  Tiefstwert %4u KB\n", (unsigned long)m.ms, m.name,
+               (unsigned)(m.free_int / 1024), used, (unsigned)(m.min_int / 1024));
+    prev = m.free_int;
+  }
+  log_printf("  jetzt              frei %4u KB, Tiefstwert %u KB\n\n",
+             (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+             (unsigned)(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL) / 1024));
+}
+
+// ---------------------------------------------------------------- Tasks (Liste nur waehrend der Ausgabe im PSRAM)
+static void print_tasks() {
+  UBaseType_t n = uxTaskGetNumberOfTasks() + 4;
+  TaskStatus_t *t = (TaskStatus_t *)heap_caps_malloc(n * sizeof(TaskStatus_t), MALLOC_CAP_SPIRAM);
+  if (!t) return;
+  n = uxTaskGetSystemState(t, n, nullptr);
+  log_printf("\n%u Tasks (Reserve = nie benutzter Stack in Byte):\n", (unsigned)n);
+  for (UBaseType_t i = 0; i < n; i++) {
+    int core = t[i].xCoreID == tskNO_AFFINITY ? -1 : (int)t[i].xCoreID;
+    log_printf("  %-16s Prio %2u  Kern %2d  Reserve %6u\n", t[i].pcTaskName, (unsigned)t[i].uxCurrentPriority, core,
+               (unsigned)(t[i].usStackHighWaterMark * sizeof(StackType_t)));
+  }
+  log_printf("\n");
+  heap_caps_free(t);
+}
+
+// ---------------------------------------------------------------- Screenshot (nur Display-Tests)
+// Schickt den Bildspeicher roh ueber USB: "SOCSHOT <b> <h> RGB565\n", Pixel (little endian), "\nSOCEND\n".
+// Abholen mit tools/screenshot.py. Liest direkt aus dem PSRAM – kein zusaetzlicher Speicher.
+#if DISPLAY_TESTING
+static bool jtag_write(const uint8_t *p, size_t n) {
+  while (n) {
+    uint32_t t0 = millis();
+    while (!usb_serial_jtag_ll_txfifo_writable()) {
+      if (millis() - t0 > 1000) return false;   // niemand liest mit
+      delayMicroseconds(50);
+    }
+    uint32_t k = usb_serial_jtag_ll_write_txfifo(p, n);
+    usb_serial_jtag_ll_txfifo_flush();
+    p += k;
+    n -= k;
+  }
+  return true;
+}
+
+static void send_screenshot() {
+  const uint8_t *fb = (const uint8_t *)board_framebuffer();
+  if (!fb) {
+    log_printf("Kein Bildspeicher\n");
+    return;
+  }
+  char head[48];
+  int hn = snprintf(head, sizeof(head), "SOCSHOT %d %d RGB565\n", LCD_H_RES, LCD_V_RES);
+  uint32_t t0 = millis();
+  bool ok = jtag_write((const uint8_t *)head, hn);
+  size_t total = (size_t)LCD_H_RES * LCD_V_RES * 2;
+  for (size_t pos = 0; ok && pos < total; pos += 4096) ok = jtag_write(fb + pos, total - pos < 4096 ? total - pos : 4096);
+  if (ok) jtag_write((const uint8_t *)"\nSOCEND\n", 8);
+  log_printf("Screenshot %s (%lu ms)\n", ok ? "gesendet" : "abgebrochen", (unsigned long)(millis() - t0));
+}
+#endif
+
+// ---------------------------------------------------------------- Status
 static void ram_line(const char *name, uint32_t caps) {
   log_printf("  %-8s frei %5u KB, Tiefstwert %5u KB, groesster Block %5u KB, gesamt %5u KB\n", name,
              (unsigned)(heap_caps_get_free_size(caps) / 1024), (unsigned)(heap_caps_get_minimum_free_size(caps) / 1024),
@@ -59,12 +148,28 @@ static void print_info() {
 static void run(const char *cmd) {
   if (!strcmp(cmd, "debug") || !strcmp(cmd, "info") || !strcmp(cmd, "ram") || !strcmp(cmd, "status")) {
     print_info();
+  } else if (!strcmp(cmd, "tasks")) {
+    print_tasks();
+  } else if (!strcmp(cmd, "boot")) {
+    print_boot();
+  } else if (!strcmp(cmd, "ble")) {
+    log_printf("Zaehle Bluetooth-Geraete 20 s lang ...\n");
+    truma_ble_census(20);
+#if WITH_HYMER
+  } else if (!strcmp(cmd, "hymer")) {
+    hymer_print_debug();
+#endif
+#if DISPLAY_TESTING
+  } else if (!strcmp(cmd, "screenshot")) {
+    send_screenshot();
+#endif
   } else if (!strcmp(cmd, "reboot") || !strcmp(cmd, "neustart")) {
     log_printf("Neustart ...\n");
     delay(200);
     ESP.restart();
   } else if (!strcmp(cmd, "help") || !strcmp(cmd, "?") || !strcmp(cmd, "hilfe")) {
-    log_printf("Befehle: debug (bzw. info/ram/status), reboot, help\n");
+    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, reboot, help%s%s\n",
+               WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "");
   } else {
     log_printf("Unbekannter Befehl \"%s\" - help zeigt die Befehle\n", cmd);
   }

@@ -15,6 +15,7 @@
 #include "truma_cpplus.h"
 #include "truma_inetx.h"
 #include "hymer.h"
+#include "hymer_cloud.h"
 #include "alde.h"
 #include "i18n/i18n.h"
 #include "backup.h"
@@ -33,6 +34,20 @@
 
 static httpd_handle_t s_srv = nullptr;
 
+// JSON der Webanfragen im PSRAM: sonst landen hunderte kleine Stuecke (Geraeteliste, Layout) im knappen internen RAM
+struct WebPsramAlloc : ArduinoJson::Allocator {
+  void *allocate(size_t n) override {
+    void *p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return p ? p : malloc(n);
+  }
+  void deallocate(void *p) override { heap_caps_free(p); }
+  void *reallocate(void *p, size_t n) override {
+    void *q = heap_caps_realloc(p, n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return q ? q : realloc(p, n);
+  }
+};
+static WebPsramAlloc s_ps;
+
 // ---------------------------------------------------------------- Helfer
 static esp_err_t send_json(httpd_req_t *req, const std::string &s, const char *status = nullptr) {
   if (status) httpd_resp_set_status(req, status);
@@ -42,7 +57,7 @@ static esp_err_t send_json(httpd_req_t *req, const std::string &s, const char *s
 }
 
 static esp_err_t send_err(httpd_req_t *req, const char *status, const std::string &msg) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["error"] = msg;
   std::string s;
   serializeJson(d, s);
@@ -103,7 +118,7 @@ static const char *reset_text() {
 
 static esp_err_t h_info(httpd_req_t *req) {
   Settings st = settings_copy();
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["fw"] = FW_VERSION;
   d["lang"] = i18n_lang();   // Sprache der Oberflaeche – der Editor folgt ihr
   d["hostname"] = st.hostname;
@@ -259,6 +274,10 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
     if (v.ac_connected >= 0) st["ac_connected"] = v.ac_connected == 1;
   } else if (v.kind == VIC_CHARGER) {
     put(st, "w", v.power_w, 1);
+    if (!v.gx) {   // Ladegeraet per Bluetooth
+      put(st, "ac_i", v.ac_i, 10);
+      put(st, "temp", v.aux, 1);
+    }
     if (v.mode > 0) {
       st["mode"] = v.mode;
       st["mode_text"] = cerbo_mode_text(v.mode);
@@ -275,7 +294,7 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
 static esp_err_t h_devices(httpd_req_t *req) {
   auto all = z2m_all();
   Layout lay = layout_get();
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["connected"] = z2m_connected();
   d["bridge"] = z2m_bridge_online();
   JsonArray arr = d["devices"].to<JsonArray>();
@@ -509,7 +528,7 @@ static esp_err_t h_rename(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -583,7 +602,7 @@ static esp_err_t h_backup_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 1024, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -591,7 +610,7 @@ static esp_err_t h_backup_post(httpd_req_t *req) {
   if (d["create"] | false) {
     std::string name;
     if (!backup_create(name, msg)) return send_err(req, "400 Bad Request", msg);
-    JsonDocument r;
+    JsonDocument r(&s_ps);
     r["ok"] = true;
     r["name"] = name;
     std::string s;
@@ -613,7 +632,7 @@ static esp_err_t h_backup_post(httpd_req_t *req) {
 // ---------------------------------------------------------------- Einstellungen
 static esp_err_t h_settings_get(httpd_req_t *req) {
   Settings st = settings_copy();
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["hostname"] = st.hostname;
   d["tz"] = st.tz;
   JsonObject ble = d["ble"].to<JsonObject>();
@@ -649,7 +668,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 4096, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -679,7 +698,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
   }
   JsonObject n = d["net"];
   if (!n.isNull()) {
-    if (n["mode"].is<int>()) st->net_mode = constrain((int)n["mode"], 0, 2);
+    if (n["mode"].is<int>()) st->net_mode = constrain((int)n["mode"], 0, 3);
     if (n["ap_ssid"].is<const char *>() && strlen((const char *)n["ap_ssid"]) > 0)
       st->ap_ssid = String((const char *)n["ap_ssid"]).substring(0, 32);
     if (n["ap_pass"].is<const char *>()) {
@@ -697,7 +716,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     if (di["brightness"].is<int>()) st->brightness = constrain((int)di["brightness"], 3, 100);
     if (di["dim_after"].is<int>()) st->dim_after = constrain((int)di["dim_after"], 0, 7200);
     if (di["dim_level"].is<int>()) st->dim_level = constrain((int)di["dim_level"], 0, 100);
-    if (di["saver"].is<int>()) st->saver = constrain((int)di["saver"], 0, 3);
+    if (di["saver"].is<int>()) st->saver = constrain((int)di["saver"], 0, 4);
     if (di["saver_recolor"].is<bool>()) st->saver_recolor = di["saver_recolor"].as<bool>();
   }
   st->hostname.trim();
@@ -718,7 +737,7 @@ static esp_err_t h_time_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 256, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -741,7 +760,7 @@ static esp_err_t h_wifi_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 1024, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e || !d["ssid"].is<const char *>()) return send_err(req, "400 Bad Request", "SSID fehlt");
@@ -755,8 +774,18 @@ static esp_err_t h_wifi_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+// {"devices":true}: Geraeteliste neu holen, sonst Zustaende neu abfragen
 static esp_err_t h_refresh(httpd_req_t *req) {
-  z2m_refresh_states();
+  size_t len = 0;
+  char *body = read_body(req, 256, len);
+  bool devices = false;
+  if (body) {
+    JsonDocument d(&s_ps);
+    if (!deserializeJson(d, body, len)) devices = d["devices"] | false;
+    heap_caps_free(body);
+  }
+  if (devices) z2m_reload_devices();
+  else z2m_refresh_states();
   return send_ok(req);
 }
 
@@ -768,7 +797,7 @@ static esp_err_t h_reboot(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Truma LevelControl
 static esp_err_t h_truma_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["interval"] = truma_interval();
   d["scanning"] = truma_scan_running();
   d["max"] = TRUMA_MAX_SENSORS;
@@ -807,7 +836,7 @@ static esp_err_t h_truma_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -825,7 +854,7 @@ static esp_err_t h_truma_post(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Mopeka
 static esp_err_t h_mopeka_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["scanning"] = mopeka_discovery_running();
   d["max"] = MOPEKA_MAX_SENSORS;
   JsonArray ta = d["tanks"].to<JsonArray>();
@@ -872,7 +901,7 @@ static esp_err_t h_mopeka_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -892,9 +921,63 @@ static esp_err_t h_mopeka_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+// ---------------------------------------------------------------- Hymer Connect: Konto, QR-Code, Kopplung
+static esp_err_t h_hymer_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  d["enabled"] = hymer_enabled() && ble_proto_on(BLE_P_HYMER);
+  d["paired"] = hymer_paired();
+  d["pairing"] = hymer_pairing();
+  d["connected"] = hymer_connected();
+  d["registered"] = hymer_mobile_registered();
+  d["status"] = hymer_status();
+  d["has_qr"] = !hymer_cloud_qr().empty();
+  d["has_token"] = !hymer_cloud_conf().empty();
+  d["has_basic"] = hymer_cloud_has_basic();
+  d["brand"] = hymer_cloud_brand();
+  d["user"] = hymer_cloud_user();
+  d["cloud_state"] = hymer_cloud_state();
+  d["cloud_text"] = hymer_cloud_text();
+  d["online"] = net_connected();
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"login":{"user","pass","brand","qr","basic"}} | {"forget_cloud":true}
+static esp_err_t h_hymer_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 4096, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  memset(body, 0, len);   // enthaelt das Passwort
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (!hymer_enabled()) return send_err(req, "400 Bad Request", "Hymer ist in der Firmware nicht eingeschaltet");
+  if (d["forget_cloud"] | false) {
+    hymer_cloud_forget();
+    return send_ok(req);
+  }
+  if (!d["login"].isNull()) {
+    if (!net_connected()) return send_err(req, "400 Bad Request", "Das Panel hat kein Internet – Heim-WLAN mit Internet nötig");
+    HymerCloudReq r;
+    r.user = d["login"]["user"] | "";
+    r.pass = d["login"]["pass"] | "";
+    r.brand = d["login"]["brand"] | "hymer";
+    r.qr = d["login"]["qr"] | "";
+    r.basic = d["login"]["basic"] | "";
+    r.own_basic = d["login"]["own_basic"] | false;
+    std::string err;
+    bool ok = hymer_cloud_start(r, err);
+    std::fill(r.pass.begin(), r.pass.end(), 0);
+    if (!ok) return send_err(req, "400 Bad Request", err);
+  }
+  return send_ok(req);
+}
+
 // ---------------------------------------------------------------- Truma-Heizung
 static esp_err_t h_heat_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   JsonObject c = d["cpplus"].to<JsonObject>();
   c["enabled"] = cpplus_enabled();
   TrumaHeatInfo h;
@@ -918,7 +1001,7 @@ static esp_err_t h_heat_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 1024, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -959,7 +1042,7 @@ static esp_err_t h_heat_post(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Victron
 static esp_err_t h_victron_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["scanning"] = victron_discovery_running();
   d["max"] = VICTRON_MAX_DEVICES;
   JsonArray da = d["devices"].to<JsonArray>();
@@ -992,7 +1075,7 @@ static esp_err_t h_victron_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -1012,7 +1095,7 @@ static esp_err_t h_victron_post(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Satelliten
 static esp_err_t h_sat_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["enabled"] = panelsat_enabled();
   d["ble"] = ble_proto_on(BLE_P_SAT);
   d["password"] = panelsat_password();
@@ -1041,7 +1124,7 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 512, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -1057,7 +1140,7 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Cerbo GX
 static esp_err_t h_cerbo_get(httpd_req_t *req) {
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   d["enabled"] = cerbo_enabled();
   CerboConfig c = cerbo_config();
   d["host"] = c.host;
@@ -1079,7 +1162,7 @@ static esp_err_t h_cerbo_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 1024, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d;
+  JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
@@ -1200,16 +1283,60 @@ static esp_err_t h_ota(httpd_req_t *req) {
 }
 
 // ---------------------------------------------------------------- Start
-static void reg(const char *uri, httpd_method_t m, esp_err_t (*fn)(httpd_req_t *)) {
+static const uint32_t WEB_IDLE_MS = 15UL * 60 * 1000;   // "bei Bedarf": so lange ohne Zugriff, dann aus
+static volatile uint32_t s_last_req = 0;
+typedef esp_err_t (*WebHandler)(httpd_req_t *);
+
+// Jede Anfrage merkt sich die Zeit (fuer das Abschalten bei Bedarf), dann der eigentliche Handler
+static esp_err_t tramp(httpd_req_t *req) {
+  s_last_req = millis();
+  // Waehrend der Anfrage auch kleine Speicherstuecke (Texte, Kopien der Geraeteliste) ins PSRAM legen
+  heap_caps_malloc_extmem_enable(16);
+  esp_err_t r = ((WebHandler)req->user_ctx)(req);
+  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  return r;
+}
+
+static void reg(const char *uri, httpd_method_t m, WebHandler fn) {
   httpd_uri_t u;
   memset(&u, 0, sizeof(u));
   u.uri = uri;
   u.method = m;
-  u.handler = fn;
+  u.handler = tramp;
+  u.user_ctx = (void *)fn;
   httpd_register_uri_handler(s_srv, &u);
 }
 
 void web_begin() {
+  if (net_mode() == NET_OFF) return;   // ohne WLAN erreicht ihn niemand
+  if (g_settings.web_mode == 0) web_start();
+  else log_i("Webinterface: nur bei Bedarf (Einstellungen > Netzwerk)");
+}
+
+bool web_running() { return s_srv != nullptr; }
+bool web_busy() { return s_srv && millis() - s_last_req < 10000; }
+
+void web_stop() {
+  if (!s_srv) return;
+  httpd_stop(s_srv);
+  s_srv = nullptr;
+  log_i("Webinterface beendet");
+}
+
+void web_loop() {
+  if (!s_srv || g_settings.web_mode == 0) return;
+  if (millis() - s_last_req > WEB_IDLE_MS) web_stop();
+}
+
+uint32_t web_idle_left_s() {
+  if (!s_srv || g_settings.web_mode == 0) return 0;
+  uint32_t idle = millis() - s_last_req;
+  return idle >= WEB_IDLE_MS ? 0 : (WEB_IDLE_MS - idle) / 1000;
+}
+
+void web_start() {
+  s_last_req = millis();
+  if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
   cfg.max_uri_handlers = 40;
@@ -1219,8 +1346,10 @@ void web_begin() {
   cfg.core_id = 0;
   if (httpd_start(&s_srv, &cfg) != ESP_OK) {
     log_e("HTTP-Server konnte nicht starten");
+    s_srv = nullptr;
     return;
   }
+  log_i("Webinterface gestartet");
   reg("/", HTTP_GET, h_index);
   reg("/index.html", HTTP_GET, h_index);
   reg("/api/info", HTTP_GET, h_info);
@@ -1242,6 +1371,8 @@ void web_begin() {
   reg("/api/truma", HTTP_POST, h_truma_post);
   reg("/api/heat", HTTP_GET, h_heat_get);
   reg("/api/heat", HTTP_POST, h_heat_post);
+  reg("/api/hymer", HTTP_GET, h_hymer_get);
+  reg("/api/hymer", HTTP_POST, h_hymer_post);
   reg("/api/mopeka", HTTP_GET, h_mopeka_get);
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);
   reg("/api/victron", HTTP_GET, h_victron_get);

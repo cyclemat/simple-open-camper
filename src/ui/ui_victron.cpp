@@ -231,7 +231,8 @@ static void v_remove_cb(lv_event_t *) {
              "Entfernen", true, [mac] { victron_remove(mac); });
 }
 
-static int row_titles(VicKind k, const char **t) {
+static int row_titles(const VictronInfo &v, const char **t) {
+  VicKind k = v.kind;
   switch (k) {
     case VIC_SOLAR: {
       static const char *a[] = {"Batteriespannung", "Ladestrom", "Ertrag heute", "Ladephase", "Laststrom", "Empfang"};
@@ -254,6 +255,11 @@ static int row_titles(VicKind k, const char **t) {
       return 6;
     }
     case VIC_CHARGER: {
+      if (!v.gx) {   // Blue Smart / Phoenix Smart Charger per Bluetooth
+        static const char *b[] = {"Zustand", "Leistung", "Ausgang Spannung", "Ladestrom", "Netzstrom (230 V)", "Temperatur", "Empfang"};
+        memcpy(t, b, sizeof(b));
+        return 7;
+      }
       static const char *a[] = {"Zustand", "Schalter", "Leistung", "Batteriespannung", "Ladestrom", "Verbindung"};
       memcpy(t, a, sizeof(a));
       return 6;
@@ -347,6 +353,16 @@ void ui_vic_update() {
       val[5] = reception(v);
       break;
     case VIC_CHARGER:
+      if (!v.gx) {
+        val[0] = tr(victron_state_text(v.state));
+        val[1] = ui_num(v.power_w, 0, "W");
+        val[2] = ui_num(v.bat_v, 2, "V");
+        val[3] = ui_num(v.bat_i, 1, "A");
+        val[4] = ui_num(v.ac_i, 1, "A");
+        val[5] = ui_num(v.aux, 0, "Â°" "C");
+        val[6] = reception(v);
+        break;
+      }
       val[0] = tr(victron_state_text(v.state));
       val[1] = tr(cerbo_mode_text(v.mode));
       val[2] = ui_num(v.power_w, 0, "W");
@@ -451,7 +467,7 @@ void ui_vic_open(const std::string &key) {
   lv_obj_set_size(grp, lv_pct(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(grp, LV_FLEX_FLOW_COLUMN);
   const char *titles[MAX_ROWS];
-  d->nrows = row_titles(v.kind, titles);
+  d->nrows = row_titles(v, titles);
   for (int i = 0; i < d->nrows; i++) {
     lv_obj_t *r = nullptr;
     d->rows[i] = ui_row(grp, titles[i], "", nullptr, nullptr, false, &r);

@@ -5,11 +5,15 @@
 #include "mopeka.h"
 #include "truma_inetx.h"
 #include "hymer.h"
+#include "web_server.h"
+// Satelliten haben keinen Webserver: dort gilt dieser Ersatz (das Panel nimmt den aus webserver.cpp)
+__attribute__((weak)) bool web_busy() { return false; }
 #include "settings.h"
 #include "sat_proto.h"
 
 #include <Arduino.h>
 #include <atomic>
+#include <algorithm>
 #include <stdarg.h>
 #include <NimBLEDevice.h>
 #include <Preferences.h>
@@ -27,6 +31,7 @@ static const uint8_t TRIGGER_INIT = 0x03, TRIGGER_GO = 0x02;
 static const uint32_t MEASURE_WAIT_MS = 3000;
 static const uint32_t WAIT_FOR_ADV_MS = 6 * 60 * 1000;  // der Sensor sendet nur alle paar Minuten
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Sensor {
   std::string mac;
   uint8_t type = 0;
@@ -41,6 +46,7 @@ struct Sensor {
   uint32_t due_since = 0, next_ms = 0;
   char status[64] = "Warte auf erste Messung …";
 };
+}  // namespace
 
 static SemaphoreHandle_t s_mtx;
 static std::vector<Sensor> s_sensors;
@@ -60,10 +66,12 @@ enum CmdType : uint8_t { CMD_MEASURE = 1, CMD_SCAN, CMD_RELOAD };
 struct Cmd { CmdType t; char mac[18]; };
 static QueueHandle_t s_cmd;
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static std::string lower(std::string s) {
   for (auto &c : s) c = tolower(c);
@@ -242,8 +250,137 @@ static bool measure(size_t i) {
 }
 
 // ---------------------------------------------------------------- Scannen
+// Diagnose beim Einrichten: jedes neue Geraet einmal loggen (Name, Hersteller-Kennung, Dienste) – nur waehrend
+// "Sensor suchen" laeuft, hoechstens 60 Geraete
+static std::vector<std::string> s_diag_seen;
+static void diag_adv(const NimBLEAdvertisedDevice *dev) {
+  std::string mac = dev->getAddress().toString();
+  for (auto &m : s_diag_seen)
+    if (m == mac) return;
+  if (s_diag_seen.size() >= 60) return;
+  s_diag_seen.push_back(mac);
+  char md[40] = "-";
+  if (dev->haveManufacturerData()) {
+    std::string d = dev->getManufacturerData();
+    int k = 0;
+    for (size_t i = 0; i < d.size() && i < 12; i++) k += snprintf(md + k, sizeof(md) - k, "%02x", (uint8_t)d[i]);
+  }
+  std::string svc;
+  for (int i = 0; i < (int)dev->getServiceUUIDCount() && i < 3; i++) svc += dev->getServiceUUID(i).toString() + " ";
+  log_i("BLE %s %4d dBm  Name \"%s\"  Hersteller %s  Dienste %s", mac.c_str(), dev->getRSSI(),
+        dev->haveName() ? dev->getName().c_str() : "", md, svc.c_str());
+}
+
+// ---- Zaehlung aller Bluetooth-Geraete in Reichweite (serieller Befehl "ble", nur auf Anfrage)
+struct CensusEntry {
+  char mac[18];
+  char name[22];
+  int8_t rssi;
+  uint16_t mfg;   // Hersteller-Kennung (0xFFFF = keine)
+  uint32_t n;     // empfangene Pakete
+};
+static const int CEN_MAX = 250;
+static CensusEntry *s_cen = nullptr;   // nur waehrend der Zaehlung, im PSRAM
+static int s_cen_n = 0;
+static uint32_t s_cen_pkts = 0, s_cen_start = 0;
+static volatile uint32_t s_cen_until = 0;
+
+static void census_add(const NimBLEAdvertisedDevice *dev) {
+  if (!s_cen) return;
+  s_cen_pkts++;
+  std::string mac = dev->getAddress().toString();
+  CensusEntry *e = nullptr;
+  for (int i = 0; i < s_cen_n; i++)
+    if (!strcmp(s_cen[i].mac, mac.c_str())) { e = &s_cen[i]; break; }
+  if (!e) {
+    if (s_cen_n >= CEN_MAX) return;
+    e = &s_cen[s_cen_n++];
+    strncpy(e->mac, mac.c_str(), sizeof(e->mac) - 1);
+    e->rssi = -127;
+    e->mfg = 0xFFFF;
+  }
+  e->n++;
+  if (dev->getRSSI() > e->rssi) e->rssi = dev->getRSSI();
+  if (dev->haveName() && !e->name[0]) strncpy(e->name, dev->getName().c_str(), sizeof(e->name) - 1);
+  if (dev->haveManufacturerData() && e->mfg == 0xFFFF) {
+    std::string md = dev->getManufacturerData();
+    if (md.size() >= 2) e->mfg = (uint8_t)md[0] | ((uint8_t)md[1] << 8);
+  }
+}
+
+static const char *mfg_name(uint16_t id) {
+  switch (id) {
+    case 0x004C: return "Apple";
+    case 0x0006: return "Microsoft";
+    case 0x0075: return "Samsung";
+    case 0x00E0: return "Google";
+    case 0x02E1: return "Victron";
+    case 0x0059: return "Nordic";
+    case 0x0087: return "Garmin";
+    case 0x0157: return "Huami";
+    case 0xFFFF: return "-";
+    default: return nullptr;
+  }
+}
+
+static void census_report() {
+  uint32_t secs = (millis() - s_cen_start) / 1000;
+  log_printf("\n===== Bluetooth in Reichweite (%lu s, aktive Suche) =====\n", (unsigned long)secs);
+  log_printf("%d Geraete, %lu Pakete (%lu pro Sekunde)%s\n", s_cen_n, (unsigned long)s_cen_pkts,
+             (unsigned long)(secs ? s_cen_pkts / secs : 0), s_cen_n >= CEN_MAX ? " – Liste voll" : "");
+  // nach Hersteller zaehlen
+  struct G { uint16_t id; int n; } g[24];
+  int ng = 0;
+  for (int i = 0; i < s_cen_n; i++) {
+    int k = 0;
+    while (k < ng && g[k].id != s_cen[i].mfg) k++;
+    if (k == ng && ng < 24) g[ng++] = {s_cen[i].mfg, 0};
+    if (k < ng) g[k].n++;
+  }
+  std::sort(g, g + ng, [](const G &a, const G &b) { return a.n > b.n; });
+  log_printf("Nach Hersteller:");
+  for (int k = 0; k < ng; k++) {
+    const char *nm = mfg_name(g[k].id);
+    if (nm) log_printf(" %s %d,", nm, g[k].n);
+    else log_printf(" 0x%04X %d,", g[k].id, g[k].n);
+  }
+  log_printf("\nStaerkste Sender:\n");
+  std::sort(s_cen, s_cen + s_cen_n, [](const CensusEntry &a, const CensusEntry &b) { return a.rssi > b.rssi; });
+  for (int i = 0; i < s_cen_n && i < 30; i++) {
+    const char *nm = mfg_name(s_cen[i].mfg);
+    char id[8];
+    if (!nm) { snprintf(id, sizeof(id), "0x%04X", s_cen[i].mfg); nm = id; }
+    log_printf("  %s %4d dBm %5lu Pakete  %-9s %s\n", s_cen[i].mac, s_cen[i].rssi, (unsigned long)s_cen[i].n, nm, s_cen[i].name);
+  }
+  log_printf("==========================================\n\n");
+  heap_caps_free(s_cen);
+  s_cen = nullptr;
+}
+
+void truma_ble_census(uint16_t seconds) {
+  Lock l;
+  if (s_cen_until) return;   // laeuft schon
+  s_cen = (CensusEntry *)heap_caps_calloc(CEN_MAX, sizeof(CensusEntry), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!s_cen) {
+    log_printf("Kein Speicher fuer die Zaehlung\n");
+    return;
+  }
+  s_cen_n = 0;
+  s_cen_pkts = 0;
+  s_cen_start = millis();
+  s_cen_until = (millis() + seconds * 1000UL) | 1;
+}
+
 class ScanCB : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice *dev) override {
+    if (s_cen_until) {
+      Lock l;
+      census_add(dev);
+    }
+    if (s_setup_scan) {
+      Lock l;
+      diag_adv(dev);
+    }
     // Nur die in den Einstellungen gewaehlten Protokolle auswerten
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
     if (hymer_enabled() && ble_proto_on(BLE_P_HYMER) && hymer_on_adv(dev)) return;
@@ -266,6 +403,8 @@ class ScanCB : public NimBLEScanCallbacks {
     }
     if (!ble_proto_on(BLE_P_TRUMA)) return;
     if (!truma && dev->isAdvertisingService(NimBLEUUID(UUID_SERVICE))) truma = true;
+    // Neuere LevelControl: keine feste Hersteller-Kennung, wirbt mit dem kurzen Dienst 0x0A00 (Name "T…<Flaschenart>")
+    if (!truma && dev->isAdvertisingService(NimBLEUUID((uint16_t)0x0A00))) truma = true;
     Lock l;
     if (s_setup_scan && truma) {
       bool known = false;
@@ -340,7 +479,9 @@ static void worker(void *) {
           }
         s_ver++;
       } else if (cmd.t == CMD_SCAN) {
+        Lock l;
         s_found.clear();
+        s_diag_seen.clear();
         s_setup_scan = true;
         s_setup_until = millis() + 180000;  // der Sensor sendet nur alle paar Minuten
         s_ver++;
@@ -368,13 +509,17 @@ static void worker(void *) {
         s_setup_scan = false;
         s_ver++;
       }
+      if (s_cen_until && (int32_t)(now - s_cen_until) >= 0) {
+        s_cen_until = 0;
+        census_report();
+      }
     }
     // Einrichten hat Vorrang (aktiv, kurz); sonst passiv lauschen, solange eine Messung faellig ist
     // oder Victron-Geraete eingerichtet sind
     bool scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
     bool p_truma = ble_proto_on(BLE_P_TRUMA), p_vic = ble_proto_on(BLE_P_VICTRON), p_mop = ble_proto_on(BLE_P_MOPEKA);
     bool want_active = (p_truma && s_setup_scan) || (p_vic && victron_discovery_running()) ||
-                       (p_mop && mopeka_discovery_running());
+                       (p_mop && mopeka_discovery_running()) || s_cen_until != 0;
     bool want_passive = (p_truma && any_due) || (p_vic && victron_has_devices()) || (p_mop && mopeka_has_devices()) ||
                         ble_proto_on(BLE_P_SAT);
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) {
@@ -393,6 +538,9 @@ static void worker(void *) {
         hymer_connect_now();
       }
     }
+    // Waehrend das Webinterface benutzt wird, das Dauer-Lauschen pausieren: WLAN und Bluetooth teilen sich die
+    // Funkeinheit, der Editor laedt sonst zaeh oder gar nicht. Einrichten (aktive Suche) laeuft weiter.
+    if (want_passive && !want_active && web_busy()) want_passive = false;
     if (want_active) {
       if (!scanning || s_scan_passive) {
         scan_start(true);

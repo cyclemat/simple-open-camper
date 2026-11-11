@@ -15,6 +15,7 @@
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
 #include "../hymer.h"
+#include "../web_server.h"
 #include "../alde.h"
 #include "../power.h"
 #include "../backup.h"
@@ -46,6 +47,7 @@ static uint32_t s_sat_sig = 0;
 static std::vector<lv_obj_t *> s_gx_vals;     // Cerbo GX: Status + fuenf Werte
 static uint32_t s_gx_sig = 0;
 static lv_obj_t *s_clock_val = nullptr;
+static lv_obj_t *s_web_val = nullptr;   // Netzwerk-Seite: Zustand des Webinterface
 
 bool ui_settings_is_open() { return s_scr != nullptr; }
 static void show_section(int sec);
@@ -55,6 +57,7 @@ static void reset_dynamic() {
   s_mqtt_status = nullptr;
   s_bl_val = s_dim_val = nullptr;
   s_clock_val = nullptr;
+  s_web_val = nullptr;
   s_info_url = s_info_url2 = nullptr;
   for (auto &p : s_mqtt_vals) p = nullptr;
   for (auto &p : s_info) p = nullptr;
@@ -180,10 +183,11 @@ static void restart_soon() {
   lv_timer_create([](lv_timer_t *) { ESP.restart(); }, 1200, nullptr);
 }
 
-static const char *MODE_TITLES[3] = {"Netzwerk", "Router", "Kombi"};
-static const char *MODE_TEXT[3] = {"Panel und Hub hängen beide im Heim-WLAN.",
+static const char *MODE_TITLES[4] = {"Netzwerk", "Router", "Kombi", "WLAN aus"};
+static const char *MODE_TEXT[4] = {"Panel und Hub hängen beide im Heim-WLAN.",
                                    "Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.",
-                                   "Eigenes WLAN für den Hub plus Heim-WLAN mit Internet-Weiterleitung."};
+                                   "Eigenes WLAN für den Hub plus Heim-WLAN mit Internet-Weiterleitung.",
+                                   "Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor."};
 
 static void mode_cb(lv_event_t *e) {
   int m = (int)(intptr_t)lv_event_get_user_data(e);
@@ -247,6 +251,50 @@ static void ap_edit_cb(lv_event_t *e) {
   ui_input_open(o);
 }
 
+// Webinterface: immer an / bei Bedarf
+static lv_obj_t *dropdown_row(const char *title, const char *opts, int sel, lv_event_cb_t cb);
+static void web_mode_cb(lv_event_t *e) {
+  Settings st = settings_copy();
+  st.web_mode = lv_dropdown_get_selected(lv_event_get_target(e)) ? 1 : 0;
+  settings_apply(st);
+  if (st.web_mode == 0) web_start();
+  ui_settings_refresh();
+}
+static void web_now_cb(lv_event_t *) {
+  if (web_running()) web_stop();
+  else web_start();
+  ui_settings_refresh();
+}
+static std::string web_text() {
+  if (net_mode() == NET_OFF) return tr("Aus (WLAN ausgeschaltet)");
+  if (!web_running()) return tr("Aus – zum Bearbeiten freigeben");
+  uint32_t s = web_idle_left_s();
+  if (!s) return tr("Läuft");
+  char b[64];
+  snprintf(b, sizeof(b), tr("Läuft, aus in %lu min ohne Zugriff"), (unsigned long)((s + 59) / 60));
+  return b;
+}
+
+static void build_web() {
+  s_web_val = nullptr;
+  if (net_mode() == NET_OFF) return;
+  subheading("Webinterface (Editor)");
+  dropdown_row("Webinterface", "Immer an\nNur bei Bedarf", g_settings.web_mode, web_mode_cb);
+  lv_obj_t *g = group();
+  s_web_val = ui_row(g, "Zustand", web_text().c_str(), nullptr, nullptr);
+  if (g_settings.web_mode) {
+    lv_obj_t *row = button_row();
+    ui_button(row, ICON_EYE, web_running() ? "Webinterface beenden" : "Webinterface freigeben", !web_running(), web_now_cb,
+              nullptr);
+  }
+  lv_obj_t *h = ui_label(s_content,
+                         "„Nur bei Bedarf“ spart internen Speicher: Der Editor ist erst nach „freigeben“ erreichbar und "
+                         "schaltet sich nach 15 Minuten ohne Zugriff wieder ab.",
+                         F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+}
+
 static void build_wifi() {
   heading("Netzwerk", nullptr);
   // Betriebsart
@@ -255,7 +303,7 @@ static void build_wifi() {
   lv_obj_set_size(modes, lv_pct(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(modes, LV_FLEX_FLOW_ROW);
   lv_obj_set_style_pad_column(modes, 12, 0);
-  for (int m = 0; m < 3; m++) {
+  for (int m = 0; m < 4; m++) {
     bool act = m == g_settings.net_mode;
     lv_obj_t *c = lv_obj_create(modes);
     ui_plain(c);
@@ -281,7 +329,7 @@ static void build_wifi() {
     ui_label(s_content, "Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", F_SMALL, C_AMBER);
   }
 
-  if (g_settings.net_mode != NET_STA) {
+  if (g_settings.net_mode == NET_AP || g_settings.net_mode == NET_APSTA) {
     subheading("Panel-WLAN");
     lv_obj_t *g = group();
     char ch[40];
@@ -297,7 +345,7 @@ static void build_wifi() {
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
   }
-  if (g_settings.net_mode != NET_AP) {
+  if (g_settings.net_mode == NET_STA || g_settings.net_mode == NET_APSTA) {
     subheading("Heim-WLAN");
     lv_obj_t *card = group();
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
@@ -316,6 +364,7 @@ static void build_wifi() {
     s_wifi_status = ui_label(s_content, net_status_text(), F_BODY, C_TEXT2);
     s_wifi_ip = ui_label(s_content, "", F_SMALL, C_TEXT2);
   }
+  build_web();
 }
 
 // ---------------------------------------------------------------- MQTT
@@ -398,7 +447,7 @@ static void build_mqtt() {
   heading("MQTT-Broker", "Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. "
                          "Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.");
   s_draft = settings_copy();
-  if (s_draft.net_mode != NET_STA) {
+  if (s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) {
     lv_obj_t *r = lv_obj_create(s_content);
     ui_plain(r);
     lv_obj_set_size(r, lv_pct(100), 64);
@@ -413,7 +462,7 @@ static void build_mqtt() {
   }
   lv_obj_t *g = group();
   for (int i = 0; i < 5; i++) s_mqtt_vals[i] = ui_row(g, MQTT_TITLES[i], mqtt_value(i).c_str(), mqtt_row_cb, (void *)(intptr_t)i);
-  if (s_draft.net_mode != NET_STA && s_draft.mqtt_auto) lv_label_set_text(s_mqtt_vals[0], "automatisch");
+  if ((s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) && s_draft.mqtt_auto) lv_label_set_text(s_mqtt_vals[0], "automatisch");
   s_mqtt_status = ui_label(s_content, z2m_status_text(), F_BODY, C_TEXT2);
   lv_obj_t *row = button_row();
   ui_button(row, ICON_CHECK, "Speichern und verbinden", true, mqtt_save_cb, nullptr);
@@ -510,12 +559,14 @@ static lv_obj_t *slider_block(const char *title, lv_obj_t **val, int min, int ma
   return s;
 }
 
-static const char *SAVER_HINT[4] = {
+// Ein Text je Bildschirmschoner (Reihenfolge wie SAVER_* in settings.h)
+static const char *SAVER_HINT[SAVER_DUEL + 1] = {
     "Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.",
     "Bild schwarz, Beleuchtung aus. Schont das Display am meisten.",
     "Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.",
     "Ein Abzeichen mit Uhrzeit hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. "
-    "Ein eigenes Logo lädst du im Browser-Editor hoch."};
+    "Ein eigenes Logo lädst du im Browser-Editor hoch.",
+    "Zwei Schläger spielen von selbst Ball gegeneinander, oben steht der Punktestand."};
 
 static void saver_mode_cb(lv_event_t *e) {
   Settings st = settings_copy();
@@ -686,7 +737,8 @@ static void build_display() {
   dropdown_row("Starten nach", "Nie\n30 Sekunden\n1 Minute\n2 Minuten\n5 Minuten\n10 Minuten\n30 Minuten", sel,
                dim_after_cb);
   int mode = g_settings.saver;
-  dropdown_row("Anzeige", "Abdunkeln\nSchwarz\nDunkle Uhr\nHüpfendes Logo", mode, saver_mode_cb);
+  if (mode < 0 || mode > SAVER_DUEL) mode = SAVER_DIM;
+  dropdown_row("Anzeige", "Abdunkeln\nSchwarz\nDunkle Uhr\nHüpfendes Logo\nBall-Duell", mode, saver_mode_cb);
   lv_obj_t *h = ui_label(s_content, SAVER_HINT[mode], F_SMALL, C_TEXT2);
   lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(h, lv_pct(100));
@@ -1067,6 +1119,11 @@ static std::string hymer_value_text(const SatPoint &p) {
 static uint32_t hymer_structure_sig() {
   uint32_t sig = 3 + ble_proto_on(BLE_P_HYMER) * 2 + hymer_paired() * 4 + hymer_pairing() * 8;
   for (auto &p : hymer_points()) sig = sig * 31 + p.idx;
+  if (!hymer_paired())
+    for (auto &c : hymer_candidates()) {   // Liste der gefundenen Geraete: neu zeichnen, wenn eins dazukommt
+      sig = sig * 31 + c.score;
+      for (char ch : c.mac + c.name) sig = sig * 31 + (uint8_t)ch;
+    }
   return sig;
 }
 
@@ -1240,6 +1297,14 @@ static void hymer_switch_cb(lv_event_t *e) {
   if (!hymer_switch(idx, 2)) ui_toast("Hymer ist gerade nicht verbunden.");
 }
 
+static std::vector<std::string> s_hymer_cands;   // Adressen der angezeigten Geraete (Index = user_data)
+static void hymer_cand_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_hymer_cands.size()) return;
+  hymer_pair_with(s_hymer_cands[i]);
+  ui_toast("Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.");
+}
+
 static void build_hymer() {
   s_hymer_val = nullptr;
   s_hymer_rows.clear();
@@ -1262,6 +1327,28 @@ static void build_hymer() {
                          F_SMALL, C_TEXT2);
   lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(h, lv_pct(100));
+  if (!hymer_paired()) {
+    // Gefundene Geraete: antippen = genau mit diesem koppeln
+    hymer_browse();
+    s_hymer_cands.clear();
+    subheading("Gefundene Geräte");
+    auto cands = hymer_candidates();
+    if (cands.empty()) {
+      ui_label(s_content, "Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.", F_SMALL, C_TEXT2);
+    } else {
+      lv_obj_t *cg = group();
+      for (auto &c : cands) {
+        char val[48];
+        snprintf(val, sizeof(val), "%d dBm%s", c.rssi, c.score >= 2 ? " · Hymer" : "");
+        std::string title = c.name.empty() ? c.mac : c.name + "  (" + c.mac + ")";
+        ui_row(cg, title.c_str(), val, hymer_cand_cb, (void *)(intptr_t)s_hymer_cands.size());
+        s_hymer_cands.push_back(c.mac);
+      }
+      lv_obj_t *h3 = ui_label(s_content, "Gerät antippen, dann am Bedienteil „CONNECTION“ drücken.", F_SMALL, C_TEXT2);
+      lv_label_set_long_mode(h3, LV_LABEL_LONG_WRAP);
+      lv_obj_set_width(h3, lv_pct(100));
+    }
+  }
   auto pts = hymer_points();
   if (pts.empty()) return;
   subheading("Werte");
@@ -1284,6 +1371,7 @@ void ui_settings_tick_hymer() {
     return;
   }
   if (s_hymer_val) lv_label_set_text(s_hymer_val, hymer_status().c_str());
+  if (!hymer_paired()) hymer_browse();   // solange die Seite offen ist, weiter nach Geraeten suchen
   auto pts = hymer_points();
   for (auto &r : s_hymer_rows)
     for (auto &p : pts)
@@ -1814,6 +1902,7 @@ void ui_settings_tick() {
     lv_label_set_text(s_wifi_ip, txt.c_str());
   }
   if (s_scan_box && net_scan_take(s_scan)) fill_scan();
+  if (s_web_val) lv_label_set_text(s_web_val, web_text().c_str());
   if (s_mqtt_status) lv_label_set_text(s_mqtt_status, z2m_status_text());
   if (s_clock_val) lv_label_set_text(s_clock_val, clock_text().c_str());
   info_fill();

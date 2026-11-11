@@ -33,7 +33,7 @@ jobs:
             out: .pio/build/waveshare-7b
           - name: Satelliten
             dir: satellite
-            envs: esp32 esp32-c3 esp32-s3 esp32-c6
+            envs: esp32 esp32-c3 esp32-s3 esp32-c6 esp32-relay16
             artifact: satelliten
             out: satellite/.pio/build
           - name: Display-Test

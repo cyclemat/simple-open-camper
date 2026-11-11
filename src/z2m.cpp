@@ -6,6 +6,8 @@
 #include "shelly.h"
 #include "wled.h"
 #include "panelsat.h"
+#include "layout.h"
+#include <LittleFS.h>
 
 #include <Arduino.h>
 #include <atomic>
@@ -57,10 +59,12 @@ static std::unordered_map<std::string, std::pair<int, int>> s_key_idx;
 static std::unordered_map<std::string, TopicRef> s_topic_idx;
 static std::atomic<uint32_t> s_dev_ver{1}, s_state_ver{1};
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 // ---------------------------------------------------------------- MQTT
 static esp_mqtt_client_handle_t s_client = nullptr;
@@ -86,11 +90,23 @@ static size_t s_rx_cap = 0;
 static std::string s_rx_topic;
 static bool s_rx_skip = false;                     // aktuelle Nachricht passt nicht – Rest ignorieren
 
-enum JobType : uint8_t { JOB_DEVICES = 1, JOB_RESUBSCRIBE, JOB_REFRESH, JOB_RESTART };
+enum JobType : uint8_t { JOB_DEVICES = 1, JOB_RESUBSCRIBE, JOB_REFRESH, JOB_RESTART, JOB_RELOAD_DEVICES };
 struct Job { JobType type; char *data; size_t len; };
 static QueueHandle_t s_jobs;
 static std::vector<std::string> s_get_queue;   // Topics, an die {"state":""} geschickt wird (gedrosselt)
 static std::vector<std::string> s_get_payload;
+
+// ---------------------------------------------------------------- Zwischenspeicher der Geraeteliste
+// Die Geraeteliste von Zigbee2MQTT ist gross (bei ~130 Geraeten ueber 500 KB) und laeuft beim Empfang durch die
+// WLAN/TCP-Puffer im knappen internen RAM. Deshalb wird sie nur auf Anfrage geholt (Editor geoeffnet, Knopf
+// "Geraeteliste neu laden", Umbenennen) und das Noetige klein in LittleFS gemerkt. Beim Start reicht diese Datei.
+// Abonniert werden nur die Geraete, die auf dem Panel liegen.
+static const char *CACHE_PATH = "/z2m_devices.json";
+static bool s_cache_loaded = false;        // Modell stammt aus dem Zwischenspeicher
+static std::string s_cache_base;           // Basis-Topic, unter dem der Zwischenspeicher entstand
+static volatile bool s_devices_wanted = false;   // bridge/devices gerade abonniert (Liste wird geholt)
+static std::set<std::string> s_placed;     // IEEE-Adressen der Geraete auf dem Panel
+static uint32_t s_placed_ver = 0;          // Layout-Version, fuer die s_placed gilt
 
 static void publish(const std::string &topic, const char *payload) {
   if (!s_client || !s_connected) return;
@@ -172,8 +188,11 @@ static void handle_message(const std::string &topic, char *payload, size_t len) 
     } else if (sub == "response/device/rename") {
       JsonDocument doc;
       if (!deserializeJson(doc, payload, len)) {
-        if (strcmp(doc["status"] | "", "ok") == 0)
+        if (strcmp(doc["status"] | "", "ok") == 0) {
           app_toast("In Zigbee2MQTT umbenannt: %s", (const char *)(doc["data"]["to"] | ""));
+          Job j{JOB_RELOAD_DEVICES, nullptr, 0};   // neuer Name: Liste neu holen (Topics aendern sich)
+          xQueueSend(s_jobs, &j, 0);
+        }
         else
           app_toast("Umbenennen fehlgeschlagen: %s", (const char *)(doc["error"] | "unbekannt"));
       }
@@ -343,7 +362,7 @@ static void stop_client() {
 static void start_client() {
   stop_client();
   Settings st = settings_copy();
-  bool auto_mode = st.net_mode != NET_STA && st.mqtt_auto;
+  bool auto_mode = (st.net_mode == NET_AP || st.net_mode == NET_APSTA) && st.mqtt_auto;
   if (auto_mode) st.mqtt_host = s_auto_host;
   if (st.mqtt_host.isEmpty()) {
     snprintf(s_status, sizeof(s_status), "Nicht eingerichtet");
@@ -372,7 +391,7 @@ static void start_client() {
   cfg.network.timeout_ms = 8000;
   cfg.buffer.size = 4096;
   cfg.buffer.out_size = 2048;
-  cfg.task.stack_size = 8192;
+  cfg.task.stack_size = 6144;   // gemessen: max. ~2,7 KB benutzt
   cfg.task.priority = 5;
 
   s_client = esp_mqtt_client_init(&cfg);
@@ -412,6 +431,108 @@ static void queue_gets_for(const Device &d) {
 }
 
 static void parse_devices_inner(char *json, size_t len);
+static void save_cache();
+static void sync_device_topics(bool force);
+
+// Kurze Schluessel, Standardwerte weggelassen – bei ~70 schaltbaren Geraeten etwa 20 KB
+static void save_cache() {
+  JsonDocument doc(&s_psram);
+  {
+    Lock l;
+    doc["base"] = s_base;
+    JsonArray da = doc["devs"].to<JsonArray>();
+    for (auto &d : s_devs) {
+      JsonObject o = da.add<JsonObject>();
+      o["i"] = d.ieee;
+      o["n"] = d.name;
+      if (!d.model.empty()) o["m"] = d.model;
+      if (!d.vendor.empty()) o["v"] = d.vendor;
+      if (!d.description.empty()) o["d"] = d.description;
+      JsonArray ca = o["c"].to<JsonArray>();
+      for (auto &c : d.controls) {
+        JsonObject x = ca.add<JsonObject>();
+        if (!c.ep.empty()) x["e"] = c.ep;
+        if (c.kind != CTL_LIGHT) x["k"] = (int)c.kind;
+        x["s"] = c.p_state;
+        if (!c.p_bri.empty()) { x["b"] = c.p_bri; if (c.bri_max != 254) x["bm"] = c.bri_max; }
+        if (!c.p_ct.empty()) { x["t"] = c.p_ct; x["t0"] = c.ct_min; x["t1"] = c.ct_max; }
+        if (!c.p_color.empty()) { x["c"] = c.p_color; x["cc"] = c.color; }
+        if (c.bool_vals) x["bv"] = true;
+        if (c.v_on != "ON") x["on"] = c.v_on;
+        if (c.v_off != "OFF") x["off"] = c.v_off;
+        if (c.v_toggle != "TOGGLE") x["tg"] = c.v_toggle;
+      }
+    }
+  }
+  File f = LittleFS.open("/z2m_devices.tmp", "w");
+  if (!f) return;
+  size_t n = serializeJson(doc, f);
+  f.close();
+  LittleFS.remove(CACHE_PATH);
+  if (n && LittleFS.rename("/z2m_devices.tmp", CACHE_PATH)) {
+    s_cache_loaded = true;
+    s_cache_base = s_base;
+    log_i("Geräteliste zwischengespeichert (%u Bytes)", (unsigned)n);
+  }
+}
+
+// Beim Start: Modell aus dem Zwischenspeicher, damit die Kacheln sofort stimmen und die grosse Liste nicht noetig ist
+static void load_cache() {
+  File f = LittleFS.open(CACHE_PATH, "r");
+  if (!f) return;
+  JsonDocument doc(&s_psram);
+  DeserializationError err = deserializeJson(doc, f);
+  f.close();
+  if (err) {
+    log_w("Zwischenspeicher der Geräteliste unlesbar: %s", err.c_str());
+    return;
+  }
+  heap_caps_malloc_extmem_enable(16);   // viele kleine Texte: in den PSRAM (siehe parse_devices)
+  std::vector<Device> devs;
+  for (JsonObject o : doc["devs"].as<JsonArray>()) {
+    Device d;
+    d.ieee = o["i"] | "";
+    d.name = o["n"] | "";
+    d.model = o["m"] | "";
+    d.vendor = o["v"] | "";
+    d.description = o["d"] | "";
+    for (JsonObject x : o["c"].as<JsonArray>()) {
+      Control c;
+      c.ep = x["e"] | "";
+      c.key = c.ep.empty() ? d.ieee : d.ieee + "#" + c.ep;
+      c.kind = (CtlKind)(x["k"] | (int)CTL_LIGHT);
+      c.p_state = x["s"] | "state";
+      c.p_bri = x["b"] | "";
+      c.bri_max = x["bm"] | 254;
+      c.p_ct = x["t"] | "";
+      c.ct_min = x["t0"] | 153;
+      c.ct_max = x["t1"] | 500;
+      c.p_color = x["c"] | "";
+      c.color = x["cc"] | 0;
+      c.bool_vals = x["bv"] | false;
+      c.v_on = x["on"] | "ON";
+      c.v_off = x["off"] | "OFF";
+      c.v_toggle = x["tg"] | "TOGGLE";
+      d.controls.push_back(c);
+    }
+    if (!d.ieee.empty() && !d.name.empty() && !d.controls.empty()) devs.push_back(std::move(d));
+  }
+  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  Lock l;
+  s_devs.swap(devs);
+  heap_caps_malloc_extmem_enable(16);
+  rebuild_index_locked();   // Kacheln finden ihr Geraet sofort; die Topics stimmen erst nach dem Verbinden (Basis-Topic)
+  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  s_cache_base = doc["base"] | "";
+  s_cache_loaded = true;
+  heap_caps_malloc_extmem_enable(16);
+  rebuild_index_locked();   // Kacheln finden ihre Geraete sofort; die Topics stimmen nach dem Verbinden (Basis-Topic)
+  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  s_dev_ver++;
+  snprintf(s_diag, sizeof(s_diag), tr("%u Geräte mit Lampe/Schalter aus dem Zwischenspeicher – im Editor neu laden"),
+           (unsigned)s_devs.size());
+  log_i("Geräteliste aus dem Zwischenspeicher: %u Geräte", (unsigned)s_devs.size());
+}
 
 // Das Geraetemodell besteht aus sehr vielen kleinen Texten (Namen, Topics, Eigenschaften). Solche Bloecke
 // unter 1 KB landen sonst im internen RAM – bei ~70 schaltbaren Geraeten reichte der nicht mehr (Absturz).
@@ -511,7 +632,6 @@ static void parse_devices_inner(char *json, size_t len) {
     if (!dev.controls.empty()) devs.push_back(std::move(dev));
   }
 
-  std::set<std::string> want;
   {
     Lock l;
     // Bekannte Zustaende uebernehmen, damit nichts aufblinkt
@@ -527,40 +647,98 @@ static void parse_devices_inner(char *json, size_t len) {
     }
     s_devs.swap(devs);
     rebuild_index_locked();
-    for (auto &kv : s_topic_idx) want.insert(kv.first);
     s_dev_ver++;
     s_state_ver++;
   }
-  // Abos abgleichen
-  std::vector<std::string> drop;
-  for (auto &t : s_subscribed)
-    if (t.rfind(s_base + "/bridge/", 0) != 0 && !want.count(t)) drop.push_back(t);
-  for (auto &t : drop) unsubscribe(t);
-  subscribe_many(std::vector<std::string>(want.begin(), want.end()));
-  {
-    Lock l;
-    for (auto &d : s_devs) queue_gets_for(d);
+  save_cache();
+  // Liste ist da: nicht weiter abonnieren (jede Aenderung in Zigbee2MQTT wuerde sie sonst komplett neu schicken)
+  if (s_devices_wanted) {
+    unsubscribe(s_base + "/bridge/devices");
+    s_devices_wanted = false;
   }
+  sync_device_topics(true);
   size_t ctl = 0;
   {
     Lock l;
     for (auto &d : s_devs) ctl += d.controls.size();
   }
-  snprintf(s_diag, sizeof(s_diag), "%d Geräte empfangen, %u mit Lampe/Schalter (%u Kacheln)%s", total,
-           (unsigned)s_devs.size(), (unsigned)ctl, no_def ? tr(", einige ohne Gerätedefinition") : "");
+  snprintf(s_diag, sizeof(s_diag), "%d Geräte empfangen, %u mit Lampe/Schalter (%u Kacheln, %u auf dem Panel)%s", total,
+           (unsigned)s_devs.size(), (unsigned)ctl, (unsigned)s_placed.size(), no_def ? tr(", einige ohne Gerätedefinition") : "");
   log_i("Zigbee2MQTT: %s", s_diag);
+}
+
+// Geraete auf dem Panel aus dem Layout (Schluessel "<ieee>" bzw. "<ieee>#<endpoint>")
+static bool update_placed() {
+  uint32_t v = layout_version();
+  if (v == s_placed_ver && s_placed_ver) return false;
+  s_placed_ver = v;
+  std::set<std::string> p;
+  Layout lay = layout_get();
+  for (auto &pg : lay.pages)
+    for (auto &t : pg.tiles) p.insert(t.key.substr(0, t.key.find('#')));
+  bool changed = p != s_placed;
+  s_placed.swap(p);
+  return changed;
+}
+
+// Abos der Zigbee-Geraete an das Layout anpassen: nur Geraete auf dem Panel (Zustand + Erreichbarkeit)
+static void sync_device_topics(bool force) {
+  if (!s_connected) return;
+  if (!update_placed() && !force) return;
+  std::set<std::string> want;
+  std::vector<int> fresh;   // neu abonnierte Geraete: Zustand abfragen
+  {
+    Lock l;
+    for (int d = 0; d < (int)s_devs.size(); d++) {
+      if (!s_placed.count(s_devs[d].ieee)) continue;
+      std::string st = s_base + "/" + s_devs[d].name;
+      if (!s_subscribed.count(st)) fresh.push_back(d);
+      want.insert(st);
+      want.insert(st + "/availability");
+    }
+  }
+  std::vector<std::string> drop;
+  {
+    Lock l;
+    for (auto &t : s_subscribed)
+      if (s_topic_idx.count(t) && !want.count(t)) drop.push_back(t);
+  }
+  for (auto &t : drop) unsubscribe(t);
+  heap_caps_malloc_extmem_enable(16);   // Topic-Listen in den PSRAM
+  subscribe_many(std::vector<std::string>(want.begin(), want.end()));
+  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  Lock l;
+  for (int d : fresh)
+    if (d < (int)s_devs.size()) queue_gets_for(s_devs[d]);
+  log_i("MQTT: %u Geräte auf dem Panel abonniert (%u neu, %u abbestellt)", (unsigned)want.size() / 2,
+        (unsigned)fresh.size(), (unsigned)drop.size() / 2);
+}
+
+// Geraeteliste von Zigbee2MQTT holen: Abonnieren schickt die gespeicherte (retained) Liste sofort
+static void request_devices() {
+  if (!s_connected) return;
+  if (s_devices_wanted) unsubscribe(s_base + "/bridge/devices");   // erneut abonnieren = Liste erneut senden
+  s_devices_wanted = true;
+  s_got_devices = false;
+  s_connected_at = millis();
+  snprintf(s_diag, sizeof(s_diag), "%s", tr("Geräteliste wird geholt …"));
+  subscribe(s_base + "/bridge/devices");
 }
 
 static void resubscribe_all() {
   s_subscribed.clear();
-  subscribe(s_base + "/bridge/devices");
+  s_devices_wanted = false;
   subscribe(s_base + "/bridge/state");
   subscribe(s_base + "/bridge/response/device/rename");
-  std::vector<std::string> topics;
   {
     Lock l;
-    for (auto &kv : s_topic_idx) topics.push_back(kv.first);
+    rebuild_index_locked();   // Basis-Topic kann sich geaendert haben
   }
+  // Ohne passenden Zwischenspeicher die Liste holen, sonst reicht er
+  if (!s_cache_loaded || s_cache_base != s_base) request_devices();
+  else s_got_devices = true;
+  sync_device_topics(true);
+  std::vector<std::string> topics;
   for (auto &t : shelly_topics()) topics.push_back(t);
   for (auto &t : wled_topics()) topics.push_back(t);
   for (auto &t : panelsat_topics()) topics.push_back(t);
@@ -646,12 +824,16 @@ static void worker(void *) {
           s_get_queue.clear();
           s_get_payload.clear();
           for (auto &d : s_devs) {
+            if (!s_placed.count(d.ieee)) continue;   // nur abonnierte Geraete melden sich zurueck
             for (auto &c : d.controls) c.known = false;
             queue_gets_for(d);
           }
           shelly_refresh();
           break;
         }
+        case JOB_RELOAD_DEVICES:
+          request_devices();
+          break;
         case JOB_RESTART:
           s_get_queue.clear();
           s_get_payload.clear();
@@ -666,6 +848,12 @@ static void worker(void *) {
       publish(s_get_queue.front(), s_get_payload.front().c_str());
       s_get_queue.erase(s_get_queue.begin());
       s_get_payload.erase(s_get_payload.begin());
+    }
+    // Layout geaendert (Kachel dazu/entfernt): Abos anpassen
+    static uint32_t last_lay = 0;
+    if (s_connected && millis() - last_lay > 1000) {
+      last_lay = millis();
+      if (layout_version() != s_placed_ver) sync_device_topics(false);
     }
     shelly_tick();
     wled_tick();
@@ -691,7 +879,8 @@ void z2m_begin() {
   shelly_init();
   wled_init();
   s_jobs = xQueueCreate(8, sizeof(Job));
-  xTaskCreatePinnedToCore(worker, "z2m", 12288, nullptr, 4, nullptr, 0);
+  load_cache();
+  xTaskCreatePinnedToCore(worker, "z2m", 6144, nullptr, 4, nullptr, 0);   // gemessen: max. ~2,2 KB benutzt
   z2m_restart();
 }
 
@@ -887,5 +1076,10 @@ std::string z2m_rename(const std::string &ieee, const std::string &new_name) {
 
 void z2m_refresh_states() {
   Job j{JOB_REFRESH, nullptr, 0};
+  xQueueSend(s_jobs, &j, 0);
+}
+
+void z2m_reload_devices() {
+  Job j{JOB_RELOAD_DEVICES, nullptr, 0};
   xQueueSend(s_jobs, &j, 0);
 }

@@ -1,4 +1,4 @@
-// Bildschirmschoner: abgedunkeltes Dashboard, schwarzes Bild, dunkle Uhr oder huepfendes Logo.
+// Bildschirmschoner: abgedunkeltes Dashboard, schwarzes Bild, dunkle Uhr, huepfendes Logo oder Ball-Duell.
 // Schwarz, Uhr und Logo liegen als Ebene ueber allem (lv_layer_sys). Das Dashboard darunter wird
 // weiter aktualisiert, damit beim Aufwecken sofort der aktuelle Stand zu sehen ist.
 #include "ui_internal.h"
@@ -232,6 +232,215 @@ static void build_bounce() {
   s_timer = lv_timer_create(bounce_tick, 33, nullptr);
 }
 
+// ---------------------------------------------------------------- Ball-Duell
+// Zwei Schlaeger spielen automatisch gegeneinander. Nur kleine Flaechen bewegen sich (schont PSRAM-Bandbreite).
+// Verstecktes Extra (nirgends dokumentieren): zwei Finger gleichzeitig in den beiden oberen Ecken ~0,5 s
+// -> Fenster "Los!" -> zwei Spieler, jeder mit einem Finger auf seiner Haelfte. Wer zuerst 10 hat, gewinnt,
+// danach zurueck zum Hauptbildschirm.
+enum DuelState : uint8_t { D_AUTO, D_READY, D_PLAY, D_END };
+static const int PW = 16, PH = 110, BS = 16, PX = 36, WIN = 10, CORNER = 170;
+static DuelState s_ds = D_AUTO;
+static lv_obj_t *s_pl = nullptr, *s_pr = nullptr, *s_ball = nullptr, *s_score = nullptr, *s_box = nullptr, *s_msg = nullptr;
+static float s_ply = 0, s_pry = 0, s_bx = 0, s_by = 0, s_bvx = 0, s_bvy = 0;
+static int s_sl = 0, s_sr = 0, s_errl = 0, s_errr = 0;
+static uint32_t s_arm = 0, s_wait = 0, s_end_ms = 0;
+static volatile bool s_go = false, s_released = false;
+static volatile int16_t s_tl = -1, s_tr = -1;   // Fingerhoehe links/rechts (-1 = kein Finger)
+
+static void duel_score() {
+  char b[16];
+  snprintf(b, sizeof(b), "%d   %d", s_sl, s_sr);
+  lv_label_set_text(s_score, b);
+}
+
+static void duel_serve(int dir) {
+  s_bx = LCD_H_RES / 2 - BS / 2;
+  s_by = random(LCD_V_RES / 4, LCD_V_RES * 3 / 4);
+  s_bvx = dir * 7.0f;
+  s_bvy = random(0, 2) ? 3.0f : -3.0f;
+  s_errl = random(-70, 71);   // so verpasst die Automatik auch mal
+  s_errr = random(-70, 71);
+}
+
+static void duel_box(const char *big, const char *small) {
+  if (!s_box) {
+    s_box = lv_obj_create(s_ov);
+    ui_plain(s_box);
+    lv_obj_set_size(s_box, 420, 170);
+    lv_obj_center(s_box);
+    lv_obj_set_style_radius(s_box, 22, 0);
+    lv_obj_set_style_bg_color(s_box, lv_color_hex(0x11151A), 0);
+    lv_obj_set_style_bg_opa(s_box, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_box, 3, 0);
+    lv_obj_set_style_border_color(s_box, C_AMBER, 0);
+    lv_obj_set_flex_flow(s_box, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(s_box, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    s_msg = ui_label(s_box, "", F_BIG, C_AMBER);
+    ui_label(s_box, "", F_BODY, lv_color_hex(0x8D97A2));
+  }
+  lv_label_set_text(s_msg, big);
+  lv_label_set_text(lv_obj_get_child(s_box, 1), small);
+  lv_obj_clear_flag(s_box, LV_OBJ_FLAG_HIDDEN);
+}
+
+static bool in_corner_l(int16_t x, int16_t y) { return x < CORNER && y < CORNER; }
+static bool in_corner_r(int16_t x, int16_t y) { return x > LCD_H_RES - CORNER && y < CORNER; }
+
+// Laeuft beim Lesen des Touch-Controllers (im LVGL-Task). true = Beruehrung gehoert dem Spiel.
+static bool duel_touch(uint8_t n, const int16_t *x, const int16_t *y) {
+  uint32_t now = millis();
+  if (s_ds == D_AUTO) {
+    bool both = n >= 2 && ((in_corner_l(x[0], y[0]) && in_corner_r(x[1], y[1])) ||
+                           (in_corner_r(x[0], y[0]) && in_corner_l(x[1], y[1])));
+    if (both) {
+      if (!s_arm) s_arm = now;
+      if (now - s_arm > 500) s_go = true;   // Uebergang macht der Timer
+      return true;
+    }
+    s_arm = 0;
+    // Ein Finger in einer oberen Ecke: kurz auf den zweiten warten, statt sofort aufzuwecken
+    if (n == 1 && (in_corner_l(x[0], y[0]) || in_corner_r(x[0], y[0]))) {
+      if (!s_wait) s_wait = now;
+      return now - s_wait < 400;
+    }
+    if (n == 0 && s_wait) {   // nur kurz in die Ecke getippt: normal aufwecken
+      s_wait = 0;
+      board_wake();
+      return true;
+    }
+    s_wait = 0;
+    return s_go;   // sonst: normales Aufwecken
+  }
+  // Im Spiel gehoeren alle Beruehrungen dem Spiel
+  if (n == 0) s_released = true;
+  int16_t l = -1, r = -1;
+  for (uint8_t i = 0; i < n; i++) {
+    if (x[i] < LCD_H_RES / 2) l = y[i];
+    else r = y[i];
+  }
+  s_tl = l;
+  s_tr = r;
+  return true;
+}
+
+static float ai_move(float py, float target, float speed) {
+  float d = target - (py + PH / 2);
+  if (d > speed) d = speed;
+  if (d < -speed) d = -speed;
+  return py + d;
+}
+
+static void duel_tick(lv_timer_t *) {
+  uint32_t now = millis();
+  if (s_ds == D_AUTO && s_go) {
+    s_go = false;
+    s_ds = D_READY;
+    s_released = false;
+    board_dim(g_settings.brightness);   // volle Helligkeit, bleibt aber "Schoner" (Touch geht ans Spiel)
+    duel_box(tr("Los!"), tr("Tippen zum Starten"));
+    return;
+  }
+  if (s_ds == D_READY) {
+    if (s_released && (s_tl >= 0 || s_tr >= 0)) {
+      s_ds = D_PLAY;
+      s_sl = s_sr = 0;
+      duel_score();
+      lv_obj_add_flag(s_box, LV_OBJ_FLAG_HIDDEN);
+      duel_serve(random(0, 2) ? 1 : -1);
+    }
+    return;
+  }
+  if (s_ds == D_END) {
+    if (now - s_end_ms > 3000) {
+      ui_saver_stop();
+      lv_disp_trig_activity(nullptr);   // nicht sofort wieder in den Schoner
+    }
+    return;
+  }
+  // Schlaeger: Automatik oder Finger
+  if (s_ds == D_AUTO) {
+    bool to_l = s_bvx < 0;
+    s_ply = ai_move(s_ply, to_l ? s_by + BS / 2 + s_errl : LCD_V_RES / 2, 5.5f);
+    s_pry = ai_move(s_pry, !to_l ? s_by + BS / 2 + s_errr : LCD_V_RES / 2, 5.5f);
+  } else {
+    if (s_tl >= 0) s_ply = s_tl - PH / 2;
+    if (s_tr >= 0) s_pry = s_tr - PH / 2;
+  }
+  s_ply = constrain(s_ply, 0.0f, (float)(LCD_V_RES - PH));
+  s_pry = constrain(s_pry, 0.0f, (float)(LCD_V_RES - PH));
+  // Ball
+  s_bx += s_bvx;
+  s_by += s_bvy;
+  if (s_by <= 0) { s_by = 0; s_bvy = fabsf(s_bvy); }
+  if (s_by >= LCD_V_RES - BS) { s_by = LCD_V_RES - BS; s_bvy = -fabsf(s_bvy); }
+  auto hit = [&](float py, bool left) {
+    float rel = (s_by + BS / 2 - (py + PH / 2)) / (PH / 2);   // -1 oben .. 1 unten
+    float sp = fminf(fabsf(s_bvx) * 1.06f, 16.0f);
+    s_bvx = left ? sp : -sp;
+    s_bvy = rel * 7.0f;
+    if (left) s_errl = random(-70, 71);
+    else s_errr = random(-70, 71);
+  };
+  if (s_bvx < 0 && s_bx <= PX + PW && s_bx >= PX - BS && s_by + BS >= s_ply && s_by <= s_ply + PH) {
+    s_bx = PX + PW;
+    hit(s_ply, true);
+  }
+  int rx = LCD_H_RES - PX - PW;
+  if (s_bvx > 0 && s_bx + BS >= rx && s_bx <= rx + PW && s_by + BS >= s_pry && s_by <= s_pry + PH) {
+    s_bx = rx - BS;
+    hit(s_pry, false);
+  }
+  if (s_bx < -BS || s_bx > LCD_H_RES) {
+    bool right_scores = s_bx < 0;
+    if (right_scores) s_sr++;
+    else s_sl++;
+    if (s_ds == D_AUTO && (s_sl >= WIN || s_sr >= WIN)) s_sl = s_sr = 0;   // Automatik spielt endlos
+    duel_score();
+    if (s_ds == D_PLAY && (s_sl >= WIN || s_sr >= WIN)) {
+      s_ds = D_END;
+      s_end_ms = now;
+      duel_box(s_sl > s_sr ? tr("Links gewinnt!") : tr("Rechts gewinnt!"), "");
+      return;
+    }
+    duel_serve(right_scores ? -1 : 1);
+  }
+  lv_obj_set_y(s_pl, (lv_coord_t)s_ply);
+  lv_obj_set_y(s_pr, (lv_coord_t)s_pry);
+  lv_obj_set_pos(s_ball, (lv_coord_t)s_bx, (lv_coord_t)s_by);
+}
+
+static lv_obj_t *duel_rect(int x, int y, int w, int h, lv_color_t c) {
+  lv_obj_t *o = lv_obj_create(s_ov);
+  ui_plain(o);
+  lv_obj_set_pos(o, x, y);
+  lv_obj_set_size(o, w, h);
+  lv_obj_set_style_bg_color(o, c, 0);
+  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+  return o;
+}
+
+static void build_duel() {
+  lv_color_t dim = lv_color_hex(0x3A424B), fg = lv_color_hex(0xE6EAEE);
+  for (int y = 8; y < LCD_V_RES; y += 40) duel_rect(LCD_H_RES / 2 - 2, y, 4, 20, dim);   // Mittellinie
+  s_ply = s_pry = (LCD_V_RES - PH) / 2;
+  s_pl = duel_rect(PX, (int)s_ply, PW, PH, fg);
+  s_pr = duel_rect(LCD_H_RES - PX - PW, (int)s_pry, PW, PH, fg);
+  s_ball = duel_rect(0, 0, BS, BS, C_AMBER);
+  lv_obj_set_style_radius(s_ball, BS / 2, 0);
+  s_score = ui_label(s_ov, "", F_BIG, dim);
+  lv_obj_align(s_score, LV_ALIGN_TOP_MID, 0, 18);
+  s_ds = D_AUTO;
+  s_sl = s_sr = 0;
+  s_arm = s_wait = 0;
+  s_go = s_released = false;
+  s_tl = s_tr = -1;
+  s_box = s_msg = nullptr;
+  duel_score();
+  duel_serve(random(0, 2) ? 1 : -1);
+  board_set_touch_hook(duel_touch);
+  s_timer = lv_timer_create(duel_tick, 33, nullptr);
+}
+
 // ---------------------------------------------------------------- Steuerung
 void ui_saver_start() {
   if (s_active) return;
@@ -254,6 +463,7 @@ void ui_saver_start() {
     board_dim(0);
   } else {
     if (s_mode == SAVER_CLOCK) build_clock();
+    else if (s_mode == SAVER_DUEL) build_duel();
     else build_bounce();
     board_dim(LV_MAX(lvl, 6));  // bei 0 waere von Uhr/Logo nichts zu sehen
   }
@@ -262,10 +472,12 @@ void ui_saver_start() {
 void ui_saver_stop() {
   if (!s_active) return;
   s_active = false;
+  board_set_touch_hook(nullptr);
   if (s_timer) lv_timer_del(s_timer);
   s_timer = nullptr;
   if (s_ov) lv_obj_del(s_ov);
   s_ov = s_item = s_time = s_date = s_icon = s_corner = nullptr;
+  s_pl = s_pr = s_ball = s_score = s_box = s_msg = nullptr;
   if (board_is_dimmed()) board_wake();
 }
 

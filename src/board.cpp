@@ -28,6 +28,12 @@ static uint8_t s_user_bl = 80;
 static bool s_dimmed = false;
 static bool s_swallow = false;
 
+// Bis zu zwei Finger (GT911 kann fuenf); fuer LVGL zaehlt nur der erste
+static uint8_t s_tn = 0;
+static int16_t s_tx[2], s_ty[2];
+static BoardTouchHook s_hook = nullptr;
+void board_set_touch_hook(BoardTouchHook h) { s_hook = h; }
+
 // ---------------------------------------------------------------- I2C-Helfer
 struct I2CLock {
   I2CLock() { xSemaphoreTakeRecursive(s_i2c_mtx, portMAX_DELAY); }
@@ -259,24 +265,32 @@ static bool touch_read(int16_t *x, int16_t *y) {
   }
   uint8_t n = st & 0x0F;
   bool pressed = false;
+  s_tn = 0;
   if (n > 0 && n <= 5) {
-    uint8_t p[8];
-    if (gt_read(0x814F, p, 8)) {
-      int32_t rx = p[1] | (p[2] << 8);
-      int32_t ry = p[3] | (p[4] << 8);
+    uint8_t k = n > 2 ? 2 : n;
+    uint8_t p[16];
+    if (gt_read(0x814F, p, k * 8)) {
+      for (uint8_t i = 0; i < k; i++) {
+        const uint8_t *q = p + i * 8;   // je Punkt: ID, X (2), Y (2), Groesse (2), reserviert
+        int32_t rx = q[1] | (q[2] << 8);
+        int32_t ry = q[3] | (q[4] << 8);
 #if TOUCH_SWAP_XY
-      int32_t t = rx; rx = ry; ry = t;
+        int32_t t = rx; rx = ry; ry = t;
 #endif
-      rx = rx * LCD_H_RES / (TOUCH_SWAP_XY ? s_gt_ymax : s_gt_xmax);
-      ry = ry * LCD_V_RES / (TOUCH_SWAP_XY ? s_gt_xmax : s_gt_ymax);
+        rx = rx * LCD_H_RES / (TOUCH_SWAP_XY ? s_gt_ymax : s_gt_xmax);
+        ry = ry * LCD_V_RES / (TOUCH_SWAP_XY ? s_gt_xmax : s_gt_ymax);
 #if TOUCH_INVERT_X
-      rx = LCD_H_RES - 1 - rx;
+        rx = LCD_H_RES - 1 - rx;
 #endif
 #if TOUCH_INVERT_Y
-      ry = LCD_V_RES - 1 - ry;
+        ry = LCD_V_RES - 1 - ry;
 #endif
-      lx = constrain(rx, 0, LCD_H_RES - 1);
-      ly = constrain(ry, 0, LCD_V_RES - 1);
+        s_tx[i] = constrain(rx, 0, LCD_H_RES - 1);
+        s_ty[i] = constrain(ry, 0, LCD_V_RES - 1);
+      }
+      s_tn = k;
+      lx = s_tx[0];
+      ly = s_ty[0];
       pressed = true;
     }
   }
@@ -290,6 +304,11 @@ static bool touch_read(int16_t *x, int16_t *y) {
 static void indev_read_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
   int16_t x, y;
   bool pressed = touch_read(&x, &y);
+  // Bildschirmschoner (Spiel) wertet die Finger selbst aus: dann weder aufwecken noch an LVGL geben
+  if (s_hook && s_hook(pressed ? s_tn : 0, s_tx, s_ty)) {
+    data->state = LV_INDEV_STATE_RELEASED;
+    return;
+  }
   if (pressed && s_dimmed) {
     // Erste Beruehrung weckt nur auf und loest nichts aus
     board_wake();
@@ -348,6 +367,12 @@ static bool lcd_init() {
   void *fb = nullptr;
   if (esp_lcd_rgb_panel_get_frame_buffer(s_panel, 1, &fb) == ESP_OK && fb) memset(fb, 0, BG_BYTES);
   return true;
+}
+
+void *board_framebuffer() {
+  void *fb = nullptr;
+  if (s_panel) esp_lcd_rgb_panel_get_frame_buffer(s_panel, 1, &fb);
+  return fb;
 }
 
 static void flush_cb(lv_disp_drv_t *drv, const lv_area_t *a, lv_color_t *px) {

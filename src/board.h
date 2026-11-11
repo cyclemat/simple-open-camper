@@ -18,3 +18,8 @@ void board_rtc_write(time_t utc);
 bool board_touch_ok();
 void board_sd_select(bool on);             // CS der SD-Karte (am IO-Expander)
 const char *board_touch_info();
+void *board_framebuffer();
+// Eigene Auswertung der Beruehrungen (bis zu zwei Finger, n = 0 losgelassen).
+// Rueckgabe true = verbraucht: weder aufwecken noch an LVGL weitergeben. nullptr = aus.
+typedef bool (*BoardTouchHook)(uint8_t n, const int16_t *x, const int16_t *y);
+void board_set_touch_hook(BoardTouchHook h);                 // Bildspeicher (RGB565, im PSRAM) – nur fuer Diagnose

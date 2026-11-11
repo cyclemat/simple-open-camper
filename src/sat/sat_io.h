@@ -19,7 +19,9 @@
 #define SAT_IO_PROBES 5
 #define SAT_IO_DS 8
 #define SAT_IO_ANALOG 4
-#define SAT_IO_SWITCHES 8
+#ifndef SAT_IO_SWITCHES
+#define SAT_IO_SWITCHES 8      // Relaisplatinen mit Schieberegister setzen mehr (z. B. 16)
+#endif
 #define SAT_IO_INPUTS 8
 
 void sat_io_begin();

@@ -17,6 +17,63 @@ struct PinInfo {
   const char *note;
 };
 #define SAT_PIN_MAX 48   // hoechste GPIO-Nummer aller unterstuetzten Chips
+
+// ---------------------------------------------------------------- Relaisplatine mit Schieberegister (74HC595)
+// z. B. LCTech/"ESP32 Relay X16": 16 Relais an zwei 74HC595. Die Relais erscheinen als eigene "Pins"
+// SR_PIN_BASE + Bit (im Web-IF "Relais 1" ...), damit Schalter sie wie GPIOs belegen.
+// Schalter: -DSAT_SR595_BITS=16 -DSAT_SR595_DATA=14 -DSAT_SR595_CLK=13 -DSAT_SR595_LATCH=12 -DSAT_SR595_OE=5
+#ifndef SAT_SR595_BITS
+#define SAT_SR595_BITS 0
+#endif
+#define SR_PIN_BASE 64
+#define SAT_PIN_LIMIT (SAT_SR595_BITS ? SR_PIN_BASE + SAT_SR595_BITS - 1 : SAT_PIN_MAX)
+static bool is_sr(int pin) { return SAT_SR595_BITS && pin >= SR_PIN_BASE && pin < SR_PIN_BASE + SAT_SR595_BITS; }
+#if SAT_SR595_BITS
+static uint32_t s_sr = 0;   // Zustand aller Ausgaenge des Schieberegisters
+static void sr_push() {
+  digitalWrite(SAT_SR595_LATCH, LOW);
+  for (int b = SAT_SR595_BITS - 1; b >= 0; b--) {   // zuerst das hoechste Bit: Bit 0 landet am ersten Register, Q0
+    digitalWrite(SAT_SR595_DATA, (s_sr >> b) & 1);
+    digitalWrite(SAT_SR595_CLK, HIGH);
+    digitalWrite(SAT_SR595_CLK, LOW);
+  }
+  digitalWrite(SAT_SR595_LATCH, HIGH);
+}
+static void sr_begin() {
+  pinMode(SAT_SR595_OE, OUTPUT);
+  digitalWrite(SAT_SR595_OE, HIGH);   // Ausgaenge erst frei, wenn alles auf aus steht (kein Relais-Klacken)
+  pinMode(SAT_SR595_DATA, OUTPUT);
+  pinMode(SAT_SR595_CLK, OUTPUT);
+  pinMode(SAT_SR595_LATCH, OUTPUT);
+  digitalWrite(SAT_SR595_CLK, LOW);
+  s_sr = 0;
+  sr_push();
+  digitalWrite(SAT_SR595_OE, LOW);    // OE ist aktiv Low
+}
+static const char *const SR_NAMES[] = {"Relais 1", "Relais 2", "Relais 3", "Relais 4", "Relais 5", "Relais 6",
+                                       "Relais 7", "Relais 8", "Relais 9", "Relais 10", "Relais 11", "Relais 12",
+                                       "Relais 13", "Relais 14", "Relais 15", "Relais 16"};
+#endif
+
+// Ausgang schalten bzw. freigeben – GPIO oder Bit im Schieberegister
+static void out_mode(int pin) {
+  if (!is_sr(pin)) pinMode(pin, OUTPUT);
+}
+static void out_write(int pin, bool level) {
+#if SAT_SR595_BITS
+  if (is_sr(pin)) {
+    uint32_t m = 1UL << (pin - SR_PIN_BASE);
+    s_sr = level ? (s_sr | m) : (s_sr & ~m);
+    sr_push();
+    return;
+  }
+#endif
+  digitalWrite(pin, level ? HIGH : LOW);
+}
+static void out_release(int pin) {
+  if (is_sr(pin)) out_write(pin, false);
+  else pinMode(pin, INPUT);
+}
 #if defined(CONFIG_IDF_TARGET_ESP32C3)
 // ESP32-C3 (Super Mini, DevKitM-1). GPIO 11–17 Flash, 18/19 USB.
 static const char *CHIP_NAME = "ESP32-C3";
@@ -127,6 +184,15 @@ static const PinInfo PINS[] = {
 };
 #endif
 static const PinInfo *pin_info(int pin) {
+#if SAT_SR595_BITS
+  static PinInfo sr;
+  if (is_sr(pin)) {
+    sr = {(uint8_t)pin, true, false, false, SR_NAMES[pin - SR_PIN_BASE]};
+    return &sr;
+  }
+  // Steuerleitungen des Schieberegisters sind fest belegt
+  if (pin == SAT_SR595_DATA || pin == SAT_SR595_CLK || pin == SAT_SR595_LATCH || pin == SAT_SR595_OE) return nullptr;
+#endif
   for (auto &p : PINS)
     if (p.pin == pin) return &p;
   return nullptr;
@@ -248,10 +314,12 @@ static std::vector<String> s_ds_found;
 static String s_mpu_err;
 
 static SemaphoreHandle_t s_mtx = nullptr;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 // ---------------------------------------------------------------- 1-Wire (DS18B20), eigene Umsetzung ohne Bibliothek
 static int s_ow = -1;
@@ -547,8 +615,8 @@ static void apply_pins() {
   for (int i = 0; i < SAT_IO_SWITCHES; i++) {
     const SwCfg &c = s_cfg.sw[i];
     if (c.pin < 0) continue;
-    pinMode(c.pin, OUTPUT);
-    digitalWrite(c.pin, (s_sw[i] != c.low) ? HIGH : LOW);
+    out_mode(c.pin);
+    out_write(c.pin, s_sw[i] != c.low);
   }
   for (int i = 0; i < SAT_IO_INPUTS; i++) {
     const InCfg &c = s_cfg.in[i];
@@ -574,12 +642,16 @@ static void apply_pins() {
 }
 
 static void save_switch_states() {
-  uint8_t bits = 0;
+  uint32_t bits = 0;
   for (int i = 0; i < SAT_IO_SWITCHES; i++)
-    if (s_sw[i]) bits |= 1 << i;
+    if (s_sw[i]) bits |= 1UL << i;
   Preferences p;
   p.begin("satio", false);
-  if (p.getUChar("sw", 0) != bits) p.putUChar("sw", bits);
+  if (SAT_IO_SWITCHES <= 8) {
+    if (p.getUChar("sw", 0) != bits) p.putUChar("sw", (uint8_t)bits);
+  } else if (p.getULong("swl", 0) != bits) {
+    p.putULong("swl", bits);
+  }
   p.end();
 }
 
@@ -658,7 +730,7 @@ static void cfg_to_json(JsonObject o) {
 
 static int8_t pin_of(JsonVariantConst v) {
   int p = v | -1;
-  return p < 0 || p > SAT_PIN_MAX ? -1 : (int8_t)p;
+  return p < 0 || p > SAT_PIN_LIMIT ? -1 : (int8_t)p;
 }
 
 static void cfg_from_json(JsonObjectConst o, IoCfg &c) {
@@ -734,7 +806,7 @@ static void cfg_from_json(JsonObjectConst o, IoCfg &c) {
 
 // Jeder GPIO nur einmal, passende Faehigkeiten
 static String validate(const IoCfg &c) {
-  String used[SAT_PIN_MAX + 1];
+  String used[SAT_PIN_LIMIT + 1];
   String err;
   auto use = [&](int pin, const String &what, bool out, bool adc) {
     if (pin < 0 || !err.isEmpty()) return;
@@ -796,8 +868,18 @@ void sat_io_begin() {
   Preferences p;
   p.begin("satio", true);
   String s = p.getString("cfg", "");
-  uint8_t bits = p.getUChar("sw", 0);
+  uint32_t bits = SAT_IO_SWITCHES <= 8 ? p.getUChar("sw", 0) : p.getULong("swl", 0);
   p.end();
+#if SAT_SR595_BITS
+  sr_begin();
+  if (s.isEmpty()) {
+    // Erster Start auf der Relaisplatine: alle Relais als Schalter anlegen
+    for (int i = 0; i < SAT_IO_SWITCHES && i < SAT_SR595_BITS; i++) {
+      s_cfg.sw[i].pin = SR_PIN_BASE + i;
+      s_cfg.sw[i].name = SR_NAMES[i];
+    }
+  }
+#endif
   if (!s.isEmpty()) {
     JsonDocument d;
     if (!deserializeJson(d, s)) {
@@ -808,7 +890,7 @@ void sat_io_begin() {
   }
   for (int i = 0; i < SAT_IO_SWITCHES; i++) {
     uint8_t b = s_cfg.sw[i].boot;
-    s_sw[i] = b == 1 || (b == 2 && (bits & (1 << i)));
+    s_sw[i] = b == 1 || (b == 2 && (bits & (1UL << i)));
   }
   apply_pins();
 }
@@ -840,7 +922,7 @@ bool sat_io_switch(uint8_t idx, uint8_t val) {
     if (c.pin < 0) return false;
     bool on = val == 2 ? !s_sw[i] : val == 1;
     s_sw[i] = on;
-    digitalWrite(c.pin, (on != c.low) ? HIGH : LOW);
+    out_write(c.pin, on != c.low);
     s_nonce = esp_random();   // jede Schaltung macht alte Befehlspakete wertlos
     s_sw_ms = millis();
     s_ver++;
@@ -1093,7 +1175,7 @@ String sat_io_set_config(JsonObjectConst o) {
     Lock l;
     // geaenderte Schalter-Pins: alten Ausgang freigeben
     for (int i = 0; i < SAT_IO_SWITCHES; i++)
-      if (s_cfg.sw[i].pin >= 0 && s_cfg.sw[i].pin != c.sw[i].pin) pinMode(s_cfg.sw[i].pin, INPUT);
+      if (s_cfg.sw[i].pin >= 0 && s_cfg.sw[i].pin != c.sw[i].pin) out_release(s_cfg.sw[i].pin);
     s_cfg = c;
     apply_pins();
   }
@@ -1192,7 +1274,20 @@ String sat_io_action(JsonObjectConst o) {
 const char *sat_io_chip() { return CHIP_NAME; }
 
 void sat_io_pins_json(JsonArray a) {
+#if SAT_SR595_BITS
+  for (int i = 0; i < SAT_SR595_BITS; i++) {
+    JsonObject o = a.add<JsonObject>();
+    o["pin"] = SR_PIN_BASE + i;
+    o["out"] = true;
+    o["adc"] = false;
+    o["pull"] = false;
+    o["label"] = SR_NAMES[i];
+  }
+#endif
   for (auto &p : PINS) {
+#if SAT_SR595_BITS
+    if (!pin_info(p.pin)) continue;   // Steuerleitungen der Relaisplatine
+#endif
     JsonObject o = a.add<JsonObject>();
     o["pin"] = p.pin;
     o["out"] = p.out;

@@ -39,12 +39,23 @@ static inline bool hymer_is_idx(uint8_t idx) { return idx >= HYMER_IDX_BASE; }
 
 // Kopplung: erst hier starten, dann an der SCU (Bedienteil) "CONNECTION" druecken
 void hymer_pair_start();
+// Geraeteliste zum Auswaehlen: hymer_browse() solange die Liste offen ist (aktiv suchen, ~15 s Nachlauf)
+struct HymerCand {
+  std::string mac, name;
+  int rssi;
+  uint8_t score;   // 2 = sicher Hymer (Power-Dienst/Name), 1 = nur Nordic UART
+};
+void hymer_browse();
+std::vector<HymerCand> hymer_candidates();
+void hymer_pair_with(const std::string &mac);  // Koppeln nur mit diesem Geraet
 bool hymer_pairing();
 bool hymer_paired();
+bool hymer_mobile_registered();                 // Panel bei der SCU als Mobilgeraet angemeldet (QR-Code)
 bool hymer_connected();                        // TLS steht, Werte laufen
 void hymer_forget();
 void hymer_disconnect();                       // Protokoll ausgeschaltet: trennen, Kopplung bleibt
 std::string hymer_status();
+void hymer_print_debug();                      // serieller Befehl "hymer"
 
 // Fuer den Bluetooth-Scan in truma.cpp
 void hymer_ble_setup();

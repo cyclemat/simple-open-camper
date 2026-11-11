@@ -21,3 +21,6 @@ __pycache__/
 # Logs und Reste
 *.log
 a-*.d
+
+# Screenshots von tools/screenshot.py
+screenshot_*.bmp

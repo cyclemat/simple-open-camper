@@ -23,7 +23,7 @@ struct VictronInfo {
   std::string key;          // "victron:<mac>" – so liegt die Kachel im Layout
   std::string mac, name;
   VicKind kind = VIC_UNKNOWN;
-  uint8_t record = 0;       // Victron-Datensatztyp (0x01 Solar, 0x02 Batteriemonitor, 0x04 DC/DC, 0x0F Orion XS)
+  uint8_t record = 0;       // Victron-Datensatztyp (0x01 Solar, 0x02 Batteriemonitor, 0x04 DC/DC, 0x08 AC-Ladegeraet, 0x0F Orion XS)
   uint16_t model = 0;
   bool has = false;         // mindestens ein Messwert empfangen
   int32_t age_s = -1;       // Sekunden seit dem letzten Paket

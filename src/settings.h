@@ -6,6 +6,7 @@ enum NetMode : uint8_t {
   NET_STA = 0,    // Netzwerk-Modus: Panel im Heim-WLAN
   NET_AP = 1,     // Router-Modus: Panel spannt eigenes WLAN mit DHCP auf
   NET_APSTA = 2,  // Kombi: eigenes WLAN + Heim-WLAN mit Weiterleitung ins Internet
+  NET_OFF = 3,    // WLAN ganz aus: spart internen RAM (~40 KB) und stoert Bluetooth nicht
 };
 
 enum SaverMode : uint8_t {
@@ -13,6 +14,7 @@ enum SaverMode : uint8_t {
   SAVER_BLACK = 1,   // schwarzes Bild, Beleuchtung aus (schont das LCD am meisten)
   SAVER_CLOCK = 2,   // dunkle Uhr, wechselt jede Minute die Position
   SAVER_BOUNCE = 3,  // huepfendes Logo mit Farbwechsel
+  SAVER_DUEL = 4,    // Ball-Duell: zwei Schlaeger spielen automatisch
 };
 
 // Bluetooth-Protokolle, die das Panel auswertet (in den Einstellungen waehlbar)
@@ -29,6 +31,7 @@ enum BleProto : uint8_t {
 struct Settings {
   uint8_t ble_protos = BLE_P_DEFAULT;
   uint8_t net_mode = NET_STA;
+  uint8_t web_mode = 0;        // Webinterface: 0 immer an, 1 nur bei Bedarf (Knopf am Panel, aus nach 15 min ohne Zugriff)
   String ap_ssid, ap_pass;     // Panel-WLAN (Router/Kombi)
   uint8_t ap_channel = 13;
   bool mqtt_auto = true;       // Broker im Panel-WLAN automatisch suchen (Router/Kombi)

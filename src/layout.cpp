@@ -17,10 +17,12 @@ static Layout s_layout;
 static std::atomic<uint32_t> s_ver{1};
 static const char *PATH = "/layout.json";
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static std::string sanitize_id(const char *s) {
   std::string out;
@@ -32,8 +34,24 @@ static std::string sanitize_id(const char *s) {
   return out;
 }
 
+// Layout-JSON im PSRAM aufbauen (viele kleine Stuecke, sonst im knappen internen RAM)
+namespace {
+struct LayoutPsramAlloc : ArduinoJson::Allocator {
+  void *allocate(size_t n) override {
+    void *p = heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return p ? p : malloc(n);
+  }
+  void deallocate(void *p) override { heap_caps_free(p); }
+  void *reallocate(void *p, size_t n) override {
+    void *q = heap_caps_realloc(p, n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    return q ? q : realloc(p, n);
+  }
+};
+}  // namespace
+static LayoutPsramAlloc s_ps;
+
 static bool parse(const char *json, size_t len, Layout &out, std::string &msg) {
-  JsonDocument doc;
+  JsonDocument doc(&s_ps);
   DeserializationError e = deserializeJson(doc, json, len);
   if (e) {
     msg = std::string("JSON-Fehler: ") + e.c_str();
@@ -77,7 +95,7 @@ static bool parse(const char *json, size_t len, Layout &out, std::string &msg) {
 }
 
 static std::string serialize(const Layout &l) {
-  JsonDocument doc;
+  JsonDocument doc(&s_ps);
   doc["version"] = 1;
   doc["rev"] = l.rev;
   doc["grid"] = l.grid;

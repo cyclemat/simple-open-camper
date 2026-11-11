@@ -60,10 +60,12 @@ struct Data {
 };
 
 static SemaphoreHandle_t s_mtx = nullptr;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static CerboConfig s_cfg;
 static Data s_d;
@@ -113,6 +115,8 @@ CerboConfig cerbo_config() {
   return s_cfg;
 }
 
+static void ensure_task();
+
 void cerbo_set_config(const CerboConfig &c) {
   {
     Lock l;
@@ -124,6 +128,7 @@ void cerbo_set_config(const CerboConfig &c) {
   }
   save_config();
   s_restart = true;
+  ensure_task();
 }
 
 bool cerbo_configured() {
@@ -357,9 +362,20 @@ static void send_keepalive() {
   esp_mqtt_client_enqueue(s_client, t.c_str(), pl, strlen(pl), 0, 0, true);
 }
 
+static bool s_task_on = false;   // Task laeuft nur, solange ein GX eingerichtet ist (spart internen RAM)
+
 static void cerbo_task(void *) {
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(1000));
+    bool quit = false;
+    {
+      Lock l;
+      if (s_cfg.host.empty() && !s_client) {   // nicht (mehr) eingerichtet: Task beenden (erst nach der Sperre)
+        s_task_on = false;
+        quit = true;
+      }
+    }
+    if (quit) vTaskDelete(nullptr);
     bool net = net_connected() || net_ap_active();
     if (s_restart && net) {
       s_restart = false;
@@ -387,6 +403,12 @@ static void cerbo_task(void *) {
   }
 }
 
+static void ensure_task() {
+  Lock l;
+  if (s_task_on || s_cfg.host.empty()) return;
+  s_task_on = xTaskCreatePinnedToCore(cerbo_task, "cerbo", 4096, nullptr, 3, nullptr, 0) == pdPASS;
+}
+
 void cerbo_begin() {
   if (!s_mtx) s_mtx = xSemaphoreCreateRecursiveMutex();
   load_config();
@@ -395,7 +417,7 @@ void cerbo_begin() {
     s_portal = s_cfg.portal;
   }
   s_restart = true;
-  xTaskCreatePinnedToCore(cerbo_task, "cerbo", 4096, nullptr, 3, nullptr, 0);
+  ensure_task();
 }
 
 // ---------------------------------------------------------------- Kacheln

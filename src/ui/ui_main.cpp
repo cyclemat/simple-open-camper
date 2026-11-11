@@ -574,7 +574,7 @@ static void tiles_update(bool force) {
 enum OnboardMode { OB_NONE = 0, OB_WIFI, OB_MQTT, OB_ROUTER_WAIT, OB_EMPTY_ALL, OB_EMPTY_PAGE };
 
 static int onboard_mode() {
-  if (net_mode() != NET_AP && g_settings.wifi_ssid.isEmpty()) return OB_WIFI;
+  if (net_mode() != NET_AP && net_mode() != NET_OFF && g_settings.wifi_ssid.isEmpty()) return OB_WIFI;
   if (!settings_mqtt_configured()) return OB_MQTT;
   size_t total = 0;
   for (auto &p : s_lay.pages) total += p.tiles.size();
@@ -771,7 +771,7 @@ static void status_update() {
   }
   bool w = net_mode() == NET_AP ? net_ap_clients() > 0 : net_connected();
   lv_label_set_text(s_ic_wifi, w || net_mode() == NET_AP ? ICON_WIFI : ICON_WIFI_OFF);
-  lv_obj_set_style_text_color(s_ic_wifi, w ? C_TEXT2 : (net_mode() == NET_AP ? C_TEXT3 : C_RED), 0);
+  lv_obj_set_style_text_color(s_ic_wifi, w ? C_TEXT2 : (net_mode() == NET_AP || net_mode() == NET_OFF ? C_TEXT3 : C_RED), 0);
   bool m = z2m_connected();
   lv_label_set_text(s_ic_mqtt, m ? ICON_LINK : ICON_LINK_OFF);
   lv_obj_set_style_text_color(s_ic_mqtt, !m ? C_RED : (z2m_bridge_online() ? C_TEXT2 : C_AMBER), 0);

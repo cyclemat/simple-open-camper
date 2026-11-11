@@ -127,6 +127,7 @@ static bool parse_std(const uint8_t *p, Reading &r) {
 }
 
 // ---------------------------------------------------------------- Zustand
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Sensor {
   std::string mac, name;
   uint8_t tank = 0;
@@ -143,6 +144,7 @@ struct Sensor {
   bool echo_lost = false;
   int shown_pct = -1, shown_batt = -1, shown_temp = -999, shown_q = -1;
 };
+}  // namespace
 
 static SemaphoreHandle_t s_mtx;
 static std::vector<Sensor> s_sens;
@@ -152,10 +154,12 @@ static volatile uint32_t s_disc_until = 0;
 static volatile bool s_disc = false;
 static Preferences s_prefs;
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { if (s_mtx) xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { if (s_mtx) xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 
 static std::string lower(std::string s) {
   for (auto &c : s) c = tolower((unsigned char)c);

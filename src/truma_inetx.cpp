@@ -72,10 +72,12 @@ static const char *TOPICS[] = {"AirCirculation", "AirHeating", "EnergySrc", "Err
 
 // ---------------------------------------------------------------- Zustand
 static SemaphoreHandle_t s_mtx;
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct Lock {
   Lock() { xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
 };
+}  // namespace
 static std::atomic<uint32_t> s_ver{1};
 static Preferences s_prefs;
 
@@ -116,7 +118,9 @@ static size_t s_frame_len = 0;
 static volatile bool s_frame_busy = false;
 
 // Schreibauftraege der Oberflaeche
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 struct WriteReq { char tn[20]; char pn[24]; int32_t v; };
+}  // namespace
 static QueueHandle_t s_wq;
 
 static void set_status(const char *s) {
@@ -403,6 +407,7 @@ static void on_data(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) {
   }
 }
 
+namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 class ClientCB : public NimBLEClientCallbacks {
   void onDisconnect(NimBLEClient *, int reason) override {
     s_connected = false;
@@ -411,6 +416,7 @@ class ClientCB : public NimBLEClientCallbacks {
     xQueueSend(s_ev, &e, 0);
   }
 };
+}  // namespace
 static ClientCB s_ccb;
 
 static bool write_cmd(const uint8_t *d, size_t n) { return s_ch_cmd && s_ch_cmd->writeValue(d, n, true); }

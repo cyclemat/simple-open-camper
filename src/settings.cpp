@@ -46,6 +46,7 @@ void settings_load() {
   lock();
   prefs.begin("panel", true);
   g_settings.net_mode = prefs.getUChar("net_mode", NET_STA);
+  g_settings.web_mode = prefs.getUChar("web_mode", 0) ? 1 : 0;
   g_settings.ap_ssid = prefs.getString("ap_ssid", "");
   g_settings.ap_pass = prefs.getString("ap_pass", "");
   g_settings.ap_channel = prefs.getUChar("ap_ch", 13);
@@ -69,8 +70,8 @@ void settings_load() {
   prefs.end();
   if (g_settings.hostname.isEmpty()) g_settings.hostname = DEFAULT_HOSTNAME;
   if (g_settings.mqtt_base.isEmpty()) g_settings.mqtt_base = DEFAULT_MQTT_BASE;
-  if (g_settings.net_mode > NET_APSTA) g_settings.net_mode = NET_STA;
-  if (g_settings.saver > SAVER_BOUNCE) g_settings.saver = SAVER_BLACK;
+  if (g_settings.net_mode > NET_OFF) g_settings.net_mode = NET_STA;
+  if (g_settings.saver > SAVER_DUEL) g_settings.saver = SAVER_BLACK;
   if (g_settings.ap_channel < 1 || g_settings.ap_channel > 13) g_settings.ap_channel = 13;
   bool fresh = false;
   if (g_settings.ap_ssid.isEmpty()) {
@@ -95,6 +96,7 @@ void settings_save() {
   lock();
   prefs.begin("panel", false);
   prefs.putUChar("net_mode", g_settings.net_mode);
+  prefs.putUChar("web_mode", g_settings.web_mode);
   prefs.putString("ap_ssid", g_settings.ap_ssid);
   prefs.putString("ap_pass", g_settings.ap_pass);
   prefs.putUChar("ap_ch", g_settings.ap_channel);
@@ -118,5 +120,7 @@ void settings_save() {
   unlock();
 }
 
-bool settings_mqtt_auto_active() { return g_settings.net_mode != NET_STA && g_settings.mqtt_auto; }
+bool settings_mqtt_auto_active() {
+  return (g_settings.net_mode == NET_AP || g_settings.net_mode == NET_APSTA) && g_settings.mqtt_auto;
+}
 bool settings_mqtt_configured() { return !g_settings.mqtt_host.isEmpty() || settings_mqtt_auto_active(); }

@@ -41,6 +41,7 @@ bool truma_get(const std::string &key, TrumaInfo &out);
 static inline bool truma_is_key(const std::string &k) { return k.rfind(TRUMA_KEY_PREFIX, 0) == 0; }
 
 void truma_measure(const std::string &mac);       // leer = alle
+void truma_ble_census(uint16_t seconds);           // serieller Befehl "ble": Geraete in Reichweite zaehlen
 void truma_scan_start();                           // bis zu 3 Minuten nach LevelControls suchen
 bool truma_scan_running();
 std::vector<TrumaFound> truma_scan_results();

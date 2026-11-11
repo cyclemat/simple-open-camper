@@ -162,7 +162,7 @@ const P5=[0,1,2,3,4];
 function ioUsed(){const u=new Set(),C=IO;C.tanks.forEach(t=>{if(t.mode==1){t.pins.forEach(p=>p>=0&&u.add(p));t.gnd>=0&&u.add(t.gnd)}if(t.mode==2&&t.apin>=0)u.add(t.apin)});if(C.ow_pin>=0)u.add(C.ow_pin);C.analog.forEach(a=>a.pin>=0&&u.add(a.pin));if(C.mpu.on){u.add(C.mpu.sda);u.add(C.mpu.scl)}C.switches.forEach(x=>x.pin>=0&&u.add(x.pin));C.inputs.forEach(x=>x.pin>=0&&u.add(x.pin));return u}
 const fits=(p,need)=>(need!='out'||p.out)&&(need!='adc'||p.adc);
 function freePin(need){const u=ioUsed();const f=PINS.filter(p=>!u.has(p.pin)&&fits(p,need));return (f.find(p=>!p.note)||f[0]||{pin:-1}).pin}
-function pinSel(k,v,need,opt){const u=ioUsed();return `<select data-k="${k}" data-n data-r>${opt?`<option value="-1" ${v<0?'selected':''}>– keiner –</option>`:''}${PINS.filter(p=>fits(p,need)).map(p=>`<option value="${p.pin}" ${p.pin==v?'selected':''}>GPIO ${p.pin}${u.has(p.pin)&&p.pin!=v?' (belegt)':''}${p.note?' – '+esc(p.note):''}</option>`).join('')}</select>`}
+function pinSel(k,v,need,opt){const u=ioUsed();return `<select data-k="${k}" data-n data-r>${opt?`<option value="-1" ${v<0?'selected':''}>– keiner –</option>`:''}${PINS.filter(p=>fits(p,need)).map(p=>`<option value="${p.pin}" ${p.pin==v?'selected':''}>${p.label||'GPIO '+p.pin}${u.has(p.pin)&&p.pin!=v?' (belegt)':''}${p.note?' – '+esc(p.note):''}</option>`).join('')}</select>`}
 const fld=(l,h,st)=>`<label class="f"${st?` style="${st}"`:''}><span>${l}</span>${h}</label>`;
 const inp=(k,v,a)=>`<input data-k="${k}" value="${esc(v)}" ${a||''}>`;
 const nin=(k,v,a)=>inp(k,v,'type="number" data-n '+(a||''));
@@ -214,7 +214,7 @@ function ioRender(){const C=IO;$('#ioInt').value=C.interval;$('#ioTInt').value=C
  h+='<h2 class="sec">Schalter / Relais</h2>';
  C.switches.forEach((x,i)=>{if(x.pin<0)return;const b=`switches.${i}`;
   h+=`<div class="io"><div class="ioh"><b>Schalter ${i+1}</b><span class="live" id="ls${i}"></span><button class="s" data-iosw="${i+1}">Umschalten</button><button class="d s" data-iodel="switch:${i}">Entfernen</button></div>
-  <div class="row">${fld('Name',inp(b+'.name',x.name,'maxlength="32" placeholder="z. B. Wasserpumpe"'))}${fld('GPIO',pinSel(b+'.pin',x.pin,'out'))}</div>
+  <div class="row">${fld('Name',inp(b+'.name',x.name,'maxlength="32" placeholder="z. B. Wasserpumpe"'))}${fld('Ausgang',pinSel(b+'.pin',x.pin,'out'))}</div>
   <div class="row">${fld('Ansteuerung',sel(b+'.low',x.low?1:0,[[0,'High = an'],[1,'Low = an (viele Relaismodule)']]))}${fld('Nach dem Start',sel(b+'.boot',x.boot,[[0,'aus'],[1,'an'],[2,'wie zuletzt']]))}</div></div>`});
  if(C.switches.some(x=>x.pin<0))h+='<button data-ioadd="switch">+ Schalter</button>';
  // Eingaenge
