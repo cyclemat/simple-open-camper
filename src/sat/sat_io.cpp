@@ -153,6 +153,15 @@ static const PinInfo PINS[] = {
     {22, true, false, true, nullptr},
     {23, true, false, true, nullptr},
 };
+#elif SAT_BOARD_CYD
+// ESP32-2432S028R: Display (2, 12–15, 21), Touch (25, 32, 33, 36, 39), SD (5, 18, 19, 23), RGB-LED (4, 16, 17),
+// Lichtsensor (34) und Lautsprecher (26) sind fest belegt.
+static const char *CHIP_NAME = "ESP32 (CYD)";
+static const PinInfo PINS[] = {
+    {22, true, false, true, "Stecker CN1/P3"},
+    {27, true, false, true, "Stecker CN1"},
+    {35, false, true, false, "Stecker P3 – nur Eingang, kein interner Pull-up"},
+};
 #else
 // ESP32 klassisch (esp32dev, WROOM). GPIO 6–11 Flash.
 static const char *CHIP_NAME = "ESP32";

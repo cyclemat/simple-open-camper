@@ -10,6 +10,7 @@
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_web.h"
+#include "sat_display.h"
 #include "../truma.h"
 #include "../mopeka.h"
 #include "../victron.h"
@@ -82,6 +83,7 @@ void setup() {
   wifi_begin();
   sat_web_begin();
   sat_send_begin();
+  sat_display_begin();   // nur mit Display (SAT_DISPLAY), sonst leer
 }
 
 void loop() {
@@ -89,5 +91,6 @@ void loop() {
   sat_io_loop();
   sat_web_loop();
   sat_send_loop();
+  sat_display_loop();
   delay(2);
 }
