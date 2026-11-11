@@ -23,7 +23,9 @@ struct VictronInfo {
   std::string key;          // "victron:<mac>" – so liegt die Kachel im Layout
   std::string mac, name;
   VicKind kind = VIC_UNKNOWN;
-  uint8_t record = 0;       // Victron-Datensatztyp (0x01 Solar, 0x02 Batteriemonitor, 0x04 DC/DC, 0x08 AC-Ladegeraet, 0x0F Orion XS)
+  uint8_t record = 0;       // Victron-Datensatztyp (0x01 Solar, 0x02 Batteriemonitor, 0x04 DC/DC, 0x08 AC-Ladegeraet,
+                            // 0x0D DC-Energiezaehler, 0x0F Orion XS)
+  int16_t meter = 0;        // DC-Energiezaehler (SmartShunt als DC-Zaehler): Art, z. B. 3 Kuehlschrank, -6 Lichtmaschine
   uint16_t model = 0;
   bool has = false;         // mindestens ein Messwert empfangen
   int32_t age_s = -1;       // Sekunden seit dem letzten Paket
@@ -82,5 +84,6 @@ void victron_remove(const std::string &mac);
 void victron_rename(const std::string &mac, const std::string &name);
 
 VicKind victron_kind_of_record(uint8_t record);
-const char *victron_kind_text(VicKind k);          // "Solarregler", "Batteriemonitor", ...
+const char *victron_kind_text(VicKind k);
+const char *victron_meter_text(int meter);   // "Kühlschrank", "Lichtmaschine", ... (0 = "")          // "Solarregler", "Batteriemonitor", ...
 const char *victron_state_text(int state);         // Betriebszustand, z. B. "Bulk", "Erhaltung"

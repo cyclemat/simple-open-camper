@@ -284,6 +284,7 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
     }
   } else if (v.kind == VIC_DCSYS) {
     put(st, "w", v.power_w, 1);
+    if (!v.gx && *victron_meter_text(v.meter)) st["meter_text"] = victron_meter_text(v.meter);
   }
   if (v.gx) {
     st["gx"] = true;

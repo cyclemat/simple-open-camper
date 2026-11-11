@@ -75,6 +75,7 @@ VicKind victron_kind_of_record(uint8_t record) {
     case 0x01: return VIC_SOLAR;
     case 0x02: return VIC_SHUNT;
     case 0x08: return VIC_CHARGER;   // Blue Smart IP22/IP65/IP67, Phoenix Smart Charger
+    case 0x0D: return VIC_DCSYS;     // SmartShunt als DC-Energiezaehler (Verbraucher oder Quelle)
     case 0x04:
     case 0x0F: return VIC_DCDC;
     default: return VIC_UNKNOWN;
@@ -222,6 +223,21 @@ static bool parse_record(uint8_t record, const uint8_t *p, size_t n, VictronInfo
       v.aux = t == 0x7F ? NAN : (float)t - 40.0f;
       uint32_t ac = b.u(9);
       v.ac_i = ac == 0x1FF ? NAN : ac * 0.1f;
+      v.power_w = (!isnan(v.bat_v) && !isnan(v.bat_i)) ? v.bat_v * v.bat_i : NAN;
+      return true;
+    }
+    case 0x0D: {  // DC-Energiezaehler (SmartShunt im Modus "DC-Energiezaehler")
+      if (n < 13) return false;
+      v.meter = (int16_t)b.u(16);
+      v.bat_v = s16(b.s(16), 0.01f);
+      v.alarm = b.u(16);
+      uint32_t aux = b.u(16);
+      v.aux_mode = b.u(2);
+      int32_t cur = b.s(22);
+      v.bat_i = cur == 0x1FFFFF ? NAN : cur * 0.001f;
+      if (v.aux_mode == 0) v.aux = s16((int16_t)aux, 0.01f);
+      else if (v.aux_mode == 2) v.aux = aux == 0xFFFF ? NAN : aux * 0.01f - 273.15f;
+      else v.aux = NAN;
       v.power_w = (!isnan(v.bat_v) && !isnan(v.bat_i)) ? v.bat_v * v.bat_i : NAN;
       return true;
     }
@@ -457,6 +473,30 @@ void victron_rename(const std::string &mac, const std::string &name) {
     s_ver++;
   }
   save_config();
+}
+
+// Art des DC-Energiezaehlers (VictronConnect: Einstellungen > Allgemein > Monitor-Modus)
+const char *victron_meter_text(int m) {
+  switch (m) {
+    case -9: return "Solarregler";
+    case -8: return "Windgenerator";
+    case -7: return "Wellengenerator";
+    case -6: return "Lichtmaschine";
+    case -5: return "Brennstoffzelle";
+    case -4: return "Wassergenerator";
+    case -3: return "DC/DC-Ladegerät";
+    case -2: return "AC-Ladegerät";
+    case -1: return "Quelle";
+    case 1: return "Verbraucher";
+    case 2: return "Elektroantrieb";
+    case 3: return "Kühlschrank";
+    case 4: return "Wasserpumpe";
+    case 5: return "Bilgepumpe";
+    case 6: return "DC-System";
+    case 7: return "Wechselrichter";
+    case 8: return "Warmwasser";
+    default: return "";
+  }
 }
 
 const char *victron_kind_text(VicKind k) {

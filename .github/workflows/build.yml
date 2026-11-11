@@ -49,8 +49,10 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Version fest: 6.2.0.post1 gilt fuer die pioarduino-Plattform als Vorabversion ("6.2.0-post.1" < 6.2.0)
+      # und wird abgelehnt ("IncompatiblePlatform ... depends on PlatformIO Core >=6.2.0"). Lokal laeuft 6.2.0.
       - name: PlatformIO installieren
-        run: pip install --upgrade platformio
+        run: pip install "platformio==6.2.0"
 
       - name: Cache (Plattform, Pakete, Framework)
         uses: actions/cache@v4

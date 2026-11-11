@@ -727,7 +727,7 @@ function vicSummary(d) {
   if (d.vtype === 'dcdc') return `${vnum(st.v, 2, 'V')}, ${st.state_text || ''}`;
   if (d.vtype === 'grid') return st.ac_connected === false ? T('nicht verbunden') : `${vnum(st.ac_w, 0, 'W')}, ${vnum(st.ac_v, 0, 'V')}`;
   if (d.vtype === 'charger') return `${vnum(st.w, 0, 'W')}, ${st.state_text || '–'}`;
-  if (d.vtype === 'dcsys') return `${vnum(st.w, 0, 'W')}, ${vnum(st.i, 1, 'A')}`;
+  if (d.vtype === 'dcsys') return `${vnum(st.w, 0, 'W')}, ${vnum(st.i, 1, 'A')}${st.meter_text ? ', ' + T(st.meter_text) : ''}`;
   return st.status || '';
 }
 function vicReadout(d) {
@@ -746,7 +746,7 @@ function vicReadout(d) {
       ['Spannung', vnum(st.ac_v, 0, 'V')], ['Strom', vnum(st.ac_i, 1, 'A')], ['Strombegrenzung', vnum(st.ac_limit, 1, 'A')]]
     : d.vtype === 'charger' ? [['Zustand', st.state_text || '–'], ['Schalter', st.mode_text || '–'], ['Leistung', vnum(st.w, 0, 'W')],
       ['Batteriespannung', vnum(st.v, 2, 'V')], ['Ladestrom', vnum(st.i, 1, 'A')]]
-    : d.vtype === 'dcsys' ? [['Leistung', vnum(st.w, 0, 'W')], ['Strom', vnum(st.i, 1, 'A')], ['Batteriespannung', vnum(st.v, 2, 'V')]] : [];
+    : d.vtype === 'dcsys' ? [...(st.meter_text ? [['Art', T(st.meter_text)]] : []), ['Leistung', vnum(st.w, 0, 'W')], ['Strom', vnum(st.i, 1, 'A')], ['Spannung', vnum(st.v, 2, 'V')]] : [];
   if (st.gx && d.vtype === 'shunt') rows.splice(3, 1, ['Leistung', vnum(st.w, 0, 'W')]);
   const rxName = st.gx ? 'Verbindung' : 'Empfang';
   rows.push([rxName, rx]);

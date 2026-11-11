@@ -109,6 +109,13 @@ void hymer_connect_now() {}
 #include <Preferences.h>
 #include "esp_heap_caps.h"
 #include "hymer_cloud.h"
+#if PANEL_SATELLITE
+// Satelliten haben keine Anmeldung beim Hymer-Konto (hymer_cloud.cpp wird dort nicht gebaut):
+// ohne QR-Code/Token ueberspringt session() die Anmeldung als Mobilgeraet einfach.
+std::string hymer_cloud_qr() { return ""; }
+std::string hymer_cloud_conf() { return ""; }
+void hymer_mbedtls_psram(bool) {}
+#endif
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"

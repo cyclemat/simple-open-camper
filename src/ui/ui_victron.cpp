@@ -116,11 +116,12 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (big && !isnan(v.bat_i)) t.sub += "  ·  " + ui_num(v.bat_i, 1, "A");
       break;
     }
-    case VIC_DCSYS:   // Cerbo GX: DC-Verbraucher
+    case VIC_DCSYS:   // Cerbo GX: DC-Verbraucher; per Bluetooth: SmartShunt als DC-Energiezaehler
       t.value = watt(v.power_w);
       t.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
       t.sub = ui_num(v.bat_i, 1, "A");
       if (!small) t.sub += "  ·  " + ui_num(v.bat_v, 1, "V");
+      if (!v.gx && big && *victron_meter_text(v.meter)) t.sub += std::string("  ·  ") + tr(victron_meter_text(v.meter));
       break;
     default:
       t.value = "–";
@@ -265,6 +266,11 @@ static int row_titles(const VictronInfo &v, const char **t) {
       return 6;
     }
     case VIC_DCSYS: {
+      if (!v.gx) {   // SmartShunt als DC-Energiezaehler per Bluetooth
+        static const char *b[] = {"Art", "Leistung", "Strom", "Spannung", "Empfang"};
+        memcpy(t, b, sizeof(b));
+        return 5;
+      }
       static const char *a[] = {"Leistung", "Strom", "Batteriespannung", "Verbindung"};
       memcpy(t, a, sizeof(a));
       return 4;
@@ -371,6 +377,14 @@ void ui_vic_update() {
       val[5] = reception(v);
       break;
     case VIC_DCSYS:
+      if (!v.gx) {
+        val[0] = *victron_meter_text(v.meter) ? std::string(tr(victron_meter_text(v.meter))) : std::string("–");
+        val[1] = ui_num(v.power_w, 0, "W");
+        val[2] = ui_num(v.bat_i, 2, "A");
+        val[3] = ui_num(v.bat_v, 2, "V");
+        val[4] = reception(v);
+        break;
+      }
       val[0] = ui_num(v.power_w, 0, "W");
       val[1] = ui_num(v.bat_i, 1, "A");
       val[2] = ui_num(v.bat_v, 2, "V");
