@@ -377,8 +377,9 @@ static void relayout() {
     int col = i % cols, row = (i / cols) % rows;
     lv_obj_set_size(t.box, tw, th);
     lv_obj_set_pos(t.box, GAP + col * (tw + GAP), TOP + row * (th + GAP));
-    lv_obj_set_width(t.name, tw - 50);
-    lv_obj_set_width(t.value, tw - 20);
+    // feste Hoehe = eine Zeile: zu lange Texte enden mit "…" statt umzubrechen
+    lv_obj_set_size(t.name, tw - 50, lv_font_get_line_height(&font_ui_16));
+    lv_obj_set_size(t.value, tw - 20, lv_font_get_line_height(&font_ui_20));
     lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, -10);
   }
 }
@@ -407,8 +408,8 @@ static void refresh() {
       if (s_items.empty() && i == 0) {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
         set_text(t.icon, ICON_INFO);
-        set_text(t.name, "Noch nichts eingerichtet");
-        set_text(t.value, "Web: Einstellungen");
+        set_text(t.name, "Noch nichts da");
+        set_text(t.value, "im Browser einrichten");
         lv_obj_set_style_text_color(t.icon, C_TEXT3, 0);
         lv_obj_set_style_text_color(t.name, C_TEXT2, 0);
         lv_obj_set_style_text_color(t.value, C_TEXT2, 0);
