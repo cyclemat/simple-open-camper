@@ -362,6 +362,10 @@ static void stop_client() {
 static void start_client() {
   stop_client();
   Settings st = settings_copy();
+  if (!st.mqtt_on) {
+    snprintf(s_status, sizeof(s_status), "MQTT ausgeschaltet");
+    return;
+  }
   bool auto_mode = (st.net_mode == NET_AP || st.net_mode == NET_APSTA) && st.mqtt_auto;
   if (auto_mode) st.mqtt_host = s_auto_host;
   if (st.mqtt_host.isEmpty()) {
@@ -753,6 +757,10 @@ static void worker(void *) {
   uint32_t last_get = 0, last_probe = 0;
   for (;;) {
     bool auto_mode = settings_mqtt_auto_active();
+    if (s_want_start && !g_settings.mqtt_on) {   // ausgeschaltet: gar nicht erst suchen oder verbinden
+      s_want_start = false;
+      snprintf(s_status, sizeof(s_status), "MQTT ausgeschaltet");
+    }
     if (s_want_start) {
       if (auto_mode) {
         // Router-/Kombi-Modus: Broker (z. B. SMHUB Nano) unter den WLAN-Teilnehmern suchen

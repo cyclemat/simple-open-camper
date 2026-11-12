@@ -33,7 +33,7 @@ static void apply_settings_event(Settings *st) {
   bool tz_changed = old.tz != st->tz;
   bool restart = old.net_mode != st->net_mode || old.ap_ssid != st->ap_ssid || old.ap_pass != st->ap_pass ||
                  old.ap_channel != st->ap_channel || old.hostname != st->hostname;
-  mqtt_changed |= old.mqtt_auto != st->mqtt_auto;
+  mqtt_changed |= old.mqtt_auto != st->mqtt_auto || old.mqtt_on != st->mqtt_on;
   bool inetx_off = (old.ble_protos & BLE_P_INETX) && !(st->ble_protos & BLE_P_INETX);
   bool hymer_off = (old.ble_protos & BLE_P_HYMER) && !(st->ble_protos & BLE_P_HYMER);
   settings_apply(*st);

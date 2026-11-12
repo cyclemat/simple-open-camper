@@ -31,6 +31,7 @@ void cerbo_begin();
 uint32_t cerbo_version();                          // aendert sich bei neuen Werten/Konfiguration
 bool cerbo_configured();
 bool cerbo_connected();
+std::string cerbo_debug_text();   // Trennungen seit dem Start und letzte Ursache (serieller Befehl "debug")
 std::string cerbo_status();                        // "Verbunden", "GX nicht erreichbar", ...
 std::string cerbo_portal_id();                     // erkannte bzw. eingestellte Portal-ID
 

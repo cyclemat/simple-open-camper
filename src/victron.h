@@ -17,6 +17,7 @@ enum VicKind : uint8_t {
   VIC_GRID = 4,      // Netz/Landstrom am AC-Eingang
   VIC_CHARGER = 5,   // Wechselrichter/Lader (Multi, Quattro) oder Netzladegeraet
   VIC_DCSYS = 6,     // DC-Verbraucher ("DC-System")
+  VIC_INVERTER = 7,  // Wechselrichter (Phoenix, Multi RS, Ausgang von MultiPlus/Quattro) – ueber den Cerbo GX
 };
 
 struct VictronInfo {

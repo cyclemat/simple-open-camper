@@ -14,6 +14,7 @@
 #include "settings.h"
 #include "hymer.h"
 #include "truma.h"
+#include "cerbo.h"
 
 #ifndef DISPLAY_TESTING
 #define DISPLAY_TESTING 0
@@ -139,6 +140,7 @@ static void print_info() {
              ble_proto_on(BLE_P_VICTRON) ? " Victron" : "", ble_proto_on(BLE_P_INETX) ? " iNetX" : "",
              ble_proto_on(BLE_P_SAT) ? " Satelliten" : "", ble_proto_on(BLE_P_HYMER) ? " Hymer" : "");
   if (hymer_enabled()) log_printf("Hymer: %s\n", hymer_status().c_str());
+  if (cerbo_configured()) log_printf("Cerbo GX: %s – %s\n", cerbo_status().c_str(), cerbo_debug_text().c_str());
   float bv = board_battery_voltage();
   if (bv > 0) log_printf("Akku: %.2f V\n", bv);
   log_printf("Hintergrundbeleuchtung: %u %%%s\n", board_backlight(), board_is_dimmed() ? " (Ruhezustand)" : "");

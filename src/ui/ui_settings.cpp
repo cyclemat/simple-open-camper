@@ -437,6 +437,13 @@ static void mqtt_save_cb(lv_event_t *) {
   ui_toast("Gespeichert – verbinde mit dem Broker …");
 }
 
+static void mqtt_on_cb(lv_event_t *e) {
+  Settings st = settings_copy();
+  st.mqtt_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  settings_apply(st);   // startet bzw. beendet den MQTT-Client
+  ui_settings_refresh();
+}
+
 static void auto_cb(lv_event_t *e) {
   lv_obj_t *sw = lv_event_get_target(e);
   s_draft.mqtt_auto = lv_obj_has_state(sw, LV_STATE_CHECKED);
@@ -447,6 +454,28 @@ static void build_mqtt() {
   heading("MQTT-Broker", "Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. "
                          "Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.");
   s_draft = settings_copy();
+  {
+    lv_obj_t *r = lv_obj_create(s_content);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 64);
+    lv_obj_t *t = ui_label(r, "MQTT verwenden", F_BODY, C_TEXT);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_t *sw = lv_switch_create(r);
+    lv_obj_set_size(sw, 64, 34);
+    lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if (s_draft.mqtt_on) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_add_event_cb(sw, mqtt_on_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  }
+  if (!s_draft.mqtt_on) {
+    lv_obj_t *h = ui_label(s_content,
+                           "MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und "
+                           "Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.",
+                           F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, lv_pct(100));
+    return;
+  }
   if (s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) {
     lv_obj_t *r = lv_obj_create(s_content);
     ui_plain(r);

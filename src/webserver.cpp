@@ -167,7 +167,7 @@ static esp_err_t h_info(httpd_req_t *req) {
 // ---------------------------------------------------------------- Victron-Hilfen
 static const char *vic_type(VicKind k) {
   return k == VIC_SOLAR ? "solar" : k == VIC_SHUNT ? "shunt" : k == VIC_DCDC ? "dcdc" : k == VIC_GRID ? "grid"
-       : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : "other";
+       : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -262,6 +262,10 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
     put(st, "in_v", v.in_v);
     put(st, "in_i", v.in_i, 10);
     if (v.off_reason) st["off_reason"] = v.off_reason;
+  } else if (v.kind == VIC_INVERTER) {
+    put(st, "ac_w", v.ac_w, 1);
+    put(st, "ac_v", v.ac_v, 1);
+    put(st, "ac_i", v.ac_i, 10);
   } else if (v.kind == VIC_GRID) {
     put(st, "ac_w", v.ac_w, 1);
     put(st, "ac_v", v.ac_v, 1);
@@ -643,6 +647,7 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   if (inetx_enabled()) ble["inetx"] = (st.ble_protos & BLE_P_INETX) != 0;
   if (hymer_enabled()) ble["hymer"] = (st.ble_protos & BLE_P_HYMER) != 0;
   if (panelsat_enabled()) ble["sat"] = (st.ble_protos & BLE_P_SAT) != 0;
+  d["mqtt"]["on"] = st.mqtt_on;
   d["mqtt"]["host"] = st.mqtt_host;
   d["mqtt"]["port"] = st.mqtt_port;
   d["mqtt"]["user"] = st.mqtt_user;
@@ -696,6 +701,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     if (m["pass"].is<const char *>() && strlen((const char *)m["pass"]) > 0) st->mqtt_pass = (const char *)m["pass"];
     if (m["clear_pass"] | false) st->mqtt_pass = "";
     if (m["auto"].is<bool>()) st->mqtt_auto = m["auto"].as<bool>();
+    if (m["on"].is<bool>()) st->mqtt_on = m["on"].as<bool>();
   }
   JsonObject n = d["net"];
   if (!n.isNull()) {

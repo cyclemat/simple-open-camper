@@ -635,8 +635,8 @@ function mopHTML(m) {
 }
 
 // ------------------------------------------------------------------ Victron (Instant Readout)
-const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', other: 'bluetooth'};
-const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', other: 'Victron-Gerät'};
+const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', other: 'bluetooth'};
+const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', other: 'Victron-Gerät'};
 const isVicKey = k => k.startsWith('victron:') || k.startsWith('cerbo:');
 // Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
 const isSioKey = k => k.startsWith('satio:');
@@ -727,6 +727,7 @@ function vicSummary(d) {
   if (d.vtype === 'dcdc') return `${vnum(st.v, 2, 'V')}, ${st.state_text || ''}`;
   if (d.vtype === 'grid') return st.ac_connected === false ? T('nicht verbunden') : `${vnum(st.ac_w, 0, 'W')}, ${vnum(st.ac_v, 0, 'V')}`;
   if (d.vtype === 'charger') return `${vnum(st.w, 0, 'W')}, ${st.state_text || '–'}`;
+  if (d.vtype === 'inverter') return `${vnum(st.ac_w, 0, 'W')}, ${st.state_text || '–'}`;
   if (d.vtype === 'dcsys') return `${vnum(st.w, 0, 'W')}, ${vnum(st.i, 1, 'A')}${st.meter_text ? ', ' + T(st.meter_text) : ''}`;
   return st.status || '';
 }
@@ -744,6 +745,8 @@ function vicReadout(d) {
       ['Ausgang', vnum(st.v, 2, 'V')], ['Ausgang Strom', vnum(st.i, 1, 'A')]]
     : d.vtype === 'grid' ? [['Eingang', st.ac_connected === false ? 'nicht verbunden' : (st.source_text || '–')], ['Leistung', vnum(st.ac_w, 0, 'W')],
       ['Spannung', vnum(st.ac_v, 0, 'V')], ['Strom', vnum(st.ac_i, 1, 'A')], ['Strombegrenzung', vnum(st.ac_limit, 1, 'A')]]
+    : d.vtype === 'inverter' ? [['Zustand', st.state_text || '–'], ['Leistung', vnum(st.ac_w, 0, 'W')], ['Spannung', vnum(st.ac_v, 0, 'V')],
+      ['Strom', vnum(st.ac_i, 1, 'A')], ['Batteriespannung', vnum(st.v, 2, 'V')]]
     : d.vtype === 'charger' ? [['Zustand', st.state_text || '–'], ['Schalter', st.mode_text || '–'], ['Leistung', vnum(st.w, 0, 'W')],
       ['Batteriespannung', vnum(st.v, 2, 'V')], ['Ladestrom', vnum(st.i, 1, 'A')]]
     : d.vtype === 'dcsys' ? [...(st.meter_text ? [['Art', T(st.meter_text)]] : []), ['Leistung', vnum(st.w, 0, 'W')], ['Strom', vnum(st.i, 1, 'A')], ['Spannung', vnum(st.v, 2, 'V')]] : [];
@@ -1836,13 +1839,16 @@ async function openSettings(tab = 'net') {
         <p class="hint">Eine andere Betriebsart oder ein geändertes Panel-WLAN wirkt nach einem Neustart des Panels.</p>`;
     } else if (tab === 'mqtt') {
       const auto = m !== 0 && draft.mqtt.auto;
-      html = `${m !== 0 ? `<label class="switch"><input type="checkbox" data-m="auto" ${draft.mqtt.auto ? 'checked' : ''}>Broker im Panel-WLAN automatisch finden</label>` : ''}
+      const mon = draft.mqtt.on !== false;
+      html = `<label class="switch"><input type="checkbox" data-m="on" ${mon ? 'checked' : ''}>MQTT verwenden</label>
+        ${mon ? '' : '<p class="hint">MQTT ist aus: keine Zigbee-Geräte. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit am Panel. Zum Übernehmen speichern.</p>'}
+        <div ${mon ? '' : 'style="display:none"'}>${m !== 0 ? `<label class="switch"><input type="checkbox" data-m="auto" ${draft.mqtt.auto ? 'checked' : ''}>Broker im Panel-WLAN automatisch finden</label>` : ''}
         <div class="row"><label class="field"><span>Server</span><input data-m="host" value="${esc(draft.mqtt.host)}" placeholder="${auto ? 'automatisch' : 'z. B. 192.168.1.20 oder smhub.local'}" ${auto ? 'disabled' : ''}></label>
         <label class="field" style="flex:.45"><span>Port</span><input data-m="port" type="number" value="${draft.mqtt.port}"></label></div>
         <div class="row"><label class="field"><span>Benutzer</span><input data-m="user" value="${esc(draft.mqtt.user)}" autocomplete="off"></label>
         <label class="field"><span>Passwort</span><input data-m="pass" type="password" placeholder="${draft.mqtt.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
         <label class="field"><span>Basis-Topic von Zigbee2MQTT</span><input data-m="base" value="${esc(draft.mqtt.base)}"></label>
-        <p class="hint">Beim SMHUB Nano läuft der Broker auf dem Hub selbst. Dort unter Einstellungen → MQTT „Allow External“ einschalten, sonst darf sich das Panel nicht verbinden.</p>
+        <p class="hint">Beim SMHUB Nano läuft der Broker auf dem Hub selbst. Dort unter Einstellungen → MQTT „Allow External“ einschalten, sonst darf sich das Panel nicht verbinden.</p></div>
         <p class="hint">Stand: ${esc((info.mqtt || {}).status || '–')}</p>`;
     } else if (tab === 'disp') {
       const dd = draft.display, sv = dd.saver ?? 1;
@@ -2117,7 +2123,8 @@ async function openSettings(tab = 'net') {
     if (el.dataset.w) draft.newWifi[el.dataset.w] = el.value;
     if (el.dataset.m) {
       const k = el.dataset.m;
-      draft.mqtt[k] = k === 'auto' ? el.checked : k === 'port' ? +el.value : el.value;
+      draft.mqtt[k] = k === 'auto' || k === 'on' ? el.checked : k === 'port' ? +el.value : el.value;
+      if (k === 'on') render();   // Felder ein-/ausblenden
       if (k === 'auto') render();
     }
     if (el.dataset.d) {
@@ -2133,7 +2140,7 @@ async function openSettings(tab = 'net') {
     {label: 'Schließen', kind: 'ghost'},
     {label: 'Speichern', kind: 'primary', onClick: async (close, btn) => {
       const p = {hostname: draft.hostname, display: draft.display,
-        mqtt: {host: draft.mqtt.host, port: draft.mqtt.port, user: draft.mqtt.user, base: draft.mqtt.base, auto: !!draft.mqtt.auto},
+        mqtt: {host: draft.mqtt.host, port: draft.mqtt.port, user: draft.mqtt.user, base: draft.mqtt.base, auto: !!draft.mqtt.auto, on: draft.mqtt.on !== false},
         net: {mode: draft.net.mode, ap_ssid: draft.net.ap_ssid, ap_channel: draft.net.ap_channel}};
       if (draft.mqtt.pass) p.mqtt.pass = draft.mqtt.pass;
       if (draft.net.ap_pass !== st.net.ap_pass) {
@@ -2402,7 +2409,7 @@ function loadDemo() {
     {name: '2026-11-02_1914', fw: '1.0.0', bg: 2, complete: true}, {name: '2026-10-20_0841', fw: '1.0.0', bg: 1, complete: true}]};
   S.demoSettings = {hostname: 'simply-open-camper', tz: 'CET-1CEST,M3.5.0,M10.5.0/3', wifi: {ssid: 'Heimnetz'},
     mqtt: {host: '192.168.1.20', port: 1883, user: '', base: 'zigbee2mqtt', has_pass: false, auto: true},
-    net: {mode: 0, ap_ssid: 'Simply-Open-Camper-3F2A', ap_pass: 'k7mxq2pr9t', ap_channel: 13},
+    net: {mode: 0, ap_ssid: 'SOC-Panel-3F2A', ap_pass: 'k7mxq2pr9t', ap_channel: 13},
     display: {brightness: 80, dim_after: 120, dim_level: 10, saver: 3, saver_recolor: true, saver_logo: false}};
 }
 
