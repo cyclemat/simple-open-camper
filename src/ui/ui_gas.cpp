@@ -1,4 +1,5 @@
 // Gasflaschen und Tanks (Truma LevelControl, Mopeka): Detailansicht, Hilfsfunktionen fuer Kacheln und Einrichtung
+#include "../cerbo.h"
 #include "ui_internal.h"
 #include "../i18n/i18n.h"
 #include "theme.h"
@@ -133,8 +134,10 @@ std::string ui_gas_label(const Layout &lay, const GasView &g) {
   return g.name.empty() ? (g.water ? tr("Tank") : tr("Gasflasche")) : g.name;
 }
 
+// Reihenfolge: zuerst alles ausser Zigbee (Gas, Victron, Cerbo GX, Heizung, Satelliten) – sonst fuellen viele
+// Zigbee-Geraete die Seiten (MAX_PAGES) und die uebrigen kommen gar nicht mehr dran. Zigbee/Shelly/WLED danach.
 std::vector<ControlView> ui_arrange_items() {
-  std::vector<ControlView> all = z2m_all();
+  std::vector<ControlView> all;
   for (auto &g : ui_gas_list()) {
     ControlView v;
     v.key = g.key;
@@ -168,6 +171,13 @@ std::vector<ControlView> ui_arrange_items() {
     v.name = p.name;
     all.push_back(v);
   }
+  for (auto &x : cerbo_list()) {   // Victron Cerbo GX (MQTT)
+    ControlView v;
+    v.key = x.key;
+    v.name = x.name;
+    all.push_back(v);
+  }
+  for (auto &z : z2m_all()) all.push_back(std::move(z));
   return all;
 }
 

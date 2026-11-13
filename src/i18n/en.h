@@ -120,7 +120,7 @@
 {"Unplausibler Messwert", "Implausible reading"},  // src/truma.cpp:212
 {"Kein Messwert erhalten", "No reading received"},  // src/truma.cpp:214
 {"Nicht gefunden – außer Reichweite?", "Not found – out of range?"},  // src/truma.cpp:359
-{"Es sind höchstens zwei Gasflaschen möglich", "At most two gas bottles are possible"},  // src/truma.cpp:507
+{"Es sind höchstens vier Gasflaschen möglich", "At most four gas bottles are possible"},  // src/truma.cpp:507
 {"Gasflasche ", "Gas bottle"},  // src/truma.cpp:511
 {"CP Plus hat den Befehl abgelehnt (Code %u)", "CP Plus rejected the command (code %u)"},  // src/truma_cpplus.cpp:229
 {"Keine Rückmeldung vom CP Plus", "No response from the CP Plus"},  // src/truma_cpplus.cpp:345
@@ -448,7 +448,7 @@
 {"Bluetooth-Adresse ", "Bluetooth address"},  // src/ui/ui_settings.cpp:851
 {". Zum Beispiel „Flasche links“ oder „Reserve“.", ". For example “Left bottle” or “Reserve”."},  // src/ui/ui_settings.cpp:851
 {"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Set up. The first measurement follows as soon as the sensor reports."},  // src/ui/ui_settings.cpp:856
-{"Es sind schon zwei Gasflaschen eingerichtet.", "Two gas bottles are already set up."},  // src/ui/ui_settings.cpp:864
+{"Es sind schon vier Gasflaschen eingerichtet.", "Four gas bottles are already set up."},  // src/ui/ui_settings.cpp:864
 {"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Searching. The sensor only advertises every few minutes – please be patient."},  // src/ui/ui_settings.cpp:868
 {"Messung angefordert.", "Measurement requested."},  // src/ui/ui_settings.cpp:873
 {"Name des Tanks", "Name of the tank"},  // src/ui/ui_settings.cpp:899
@@ -512,7 +512,7 @@
 {"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Measuring more often drains the sensor battery faster."},  // src/ui/ui_settings.cpp:1196
 {"Gas und Heizung", "Gas and heating"},  // src/ui/ui_settings.cpp:1203
 {"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Levels and heating over Bluetooth. Choose which devices the panel should read – disabled ones are not scanned and don't load radio and Wi-Fi."},  // src/ui/ui_settings.cpp:1203
-{"Gasflaschen, bis zu zwei", "Gas bottles, up to two"},  // src/ui/ui_settings.cpp:1205
+{"Gasflaschen, bis zu vier", "Gas bottles, up to four"},  // src/ui/ui_settings.cpp:1205
 {"Gas- und Tanksensoren, bis zu vier", "Gas and tank sensors, up to four"},  // src/ui/ui_settings.cpp:1206
 {"Heizung, Boiler und Klima über das Bedienteil", "Heating, boiler and air conditioning via the control panel"},  // src/ui/ui_settings.cpp:1207
 {"Dieses Gerät ist schon eingerichtet.", "This device is already set up."},  // src/ui/ui_settings.cpp:1260

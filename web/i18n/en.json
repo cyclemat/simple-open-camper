@@ -398,7 +398,7 @@
  "LevelControl {}": "LevelControl {}",
  "Noch nichts gefunden. Der Sensor sendet nur alle paar Minuten.": "Nothing found yet. The sensor only advertises every few minutes.",
  "Gefundene Sensoren{}": "Sensors found{}",
- "Direkt per Bluetooth – bis zu zwei Flaschen. Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.": "Directly over Bluetooth – up to two bottles. The sensor allows only one connection at a time: if the Truma app, Home Assistant or the Victron GX is connected, the panel measures on the next round.",
+ "Direkt per Bluetooth – bis zu vier Flaschen. Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.": "Directly over Bluetooth – up to four bottles. The sensor allows only one connection at a time: if the Truma app, Home Assistant or the Victron GX is connected, the panel measures on the next round.",
  "Abfrage alle": "Poll every",
  "Häufigeres Messen kostet die Batterie des Sensors mehr.": "Measuring more often drains the sensor battery faster.",
  "{}Schlüssel": "{}Key",

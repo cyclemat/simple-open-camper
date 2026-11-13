@@ -16,6 +16,9 @@ __attribute__((weak)) bool web_busy() { return false; }
 #include <algorithm>
 #include <stdarg.h>
 #include <NimBLEDevice.h>
+#if CONFIG_ESP_HOSTED_ENABLED || BOARD_P4
+#include "esp32-hal-hosted.h"
+#endif
 #include <Preferences.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -435,6 +438,11 @@ static ScanCB s_scan_cb;
 
 static void ble_init() {
   if (s_ble_ready) return;
+#if CONFIG_ESP_HOSTED_ENABLED || BOARD_P4
+  // ESP32-P4: der Funk sitzt im ESP32-C6 (esp-hosted). Dessen Bluetooth-Controller erst einschalten – die
+  // Arduino-BLE-Bibliothek macht das selbst, esp-nimble-cpp nicht.
+  if (!hostedInitBLE()) log_e("Bluetooth ueber den C6 nicht verfuegbar (hostedInitBLE)");
+#endif
   NimBLEDevice::init(BLE_DEVICE_NAME);
   if (inetx_enabled()) inetx_ble_setup();
   if (hymer_enabled()) hymer_ble_setup();
@@ -663,7 +671,7 @@ std::string truma_add(const std::string &mac_in, uint8_t addr_type, const std::s
     Lock l;
     for (auto &s : s_sensors)
       if (s.mac == mac) return "Dieser Sensor ist schon eingerichtet";
-    if (s_sensors.size() >= TRUMA_MAX_SENSORS) return "Es sind höchstens zwei Gasflaschen möglich";
+    if (s_sensors.size() >= TRUMA_MAX_SENSORS) return "Es sind höchstens vier Gasflaschen möglich";
     Sensor s;
     s.mac = mac;
     s.type = addr_type;

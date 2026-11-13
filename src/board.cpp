@@ -1,4 +1,6 @@
+// Hardware-Schicht Waveshare ESP32-S3-Touch-LCD-7B (RGB-Panel). ESP32-P4-Panels: board_p4_hw.cpp.
 #include "board.h"
+#if !BOARD_P4
 #include "app_config.h"
 
 #include <Arduino.h>
@@ -423,3 +425,4 @@ bool board_init() {
   ESP_LOGI(TAG, "Display bereit");
   return true;
 }
+#endif  // !BOARD_P4

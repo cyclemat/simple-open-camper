@@ -120,7 +120,7 @@
 {"Unplausibler Messwert", "Mesure invraisemblable"},  // src/truma.cpp:212
 {"Kein Messwert erhalten", "Aucune mesure reçue"},  // src/truma.cpp:214
 {"Nicht gefunden – außer Reichweite?", "Introuvable – hors de portée ?"},  // src/truma.cpp:359
-{"Es sind höchstens zwei Gasflaschen möglich", "Deux bouteilles de gaz au maximum"},  // src/truma.cpp:507
+{"Es sind höchstens vier Gasflaschen möglich", "Quatre bouteilles de gaz au maximum"},  // src/truma.cpp:507
 {"Gasflasche ", "Bouteille de gaz"},  // src/truma.cpp:511
 {"CP Plus hat den Befehl abgelehnt (Code %u)", "Le CP Plus a refusé la commande (code %u)"},  // src/truma_cpplus.cpp:229
 {"Keine Rückmeldung vom CP Plus", "Pas de réponse du CP Plus"},  // src/truma_cpplus.cpp:345
@@ -448,7 +448,7 @@
 {"Bluetooth-Adresse ", "Adresse Bluetooth"},  // src/ui/ui_settings.cpp:851
 {". Zum Beispiel „Flasche links“ oder „Reserve“.", ". Par exemple « Bouteille gauche » ou « Réserve »."},  // src/ui/ui_settings.cpp:851
 {"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Configuré. La première mesure suit dès que le capteur se manifeste."},  // src/ui/ui_settings.cpp:856
-{"Es sind schon zwei Gasflaschen eingerichtet.", "Deux bouteilles sont déjà configurées."},  // src/ui/ui_settings.cpp:864
+{"Es sind schon vier Gasflaschen eingerichtet.", "Quatre bouteilles sont déjà configurées."},  // src/ui/ui_settings.cpp:864
 {"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Recherche en cours. Le capteur n'émet que toutes les quelques minutes – merci de patienter."},  // src/ui/ui_settings.cpp:868
 {"Messung angefordert.", "Mesure demandée."},  // src/ui/ui_settings.cpp:873
 {"Name des Tanks", "Nom du réservoir"},  // src/ui/ui_settings.cpp:899
@@ -512,7 +512,7 @@
 {"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Mesurer plus souvent use davantage la pile du capteur."},  // src/ui/ui_settings.cpp:1196
 {"Gas und Heizung", "Gaz et chauffage"},  // src/ui/ui_settings.cpp:1203
 {"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Niveaux et chauffage par Bluetooth. Choisissez les appareils que le panneau doit lire – ceux désactivés ne sont pas recherchés et ne chargent ni la radio ni le Wi-Fi."},  // src/ui/ui_settings.cpp:1203
-{"Gasflaschen, bis zu zwei", "Bouteilles de gaz, jusqu'à deux"},  // src/ui/ui_settings.cpp:1205
+{"Gasflaschen, bis zu vier", "Bouteilles de gaz, jusqu'à quatre"},  // src/ui/ui_settings.cpp:1205
 {"Gas- und Tanksensoren, bis zu vier", "Capteurs de gaz et de réservoir, jusqu'à quatre"},  // src/ui/ui_settings.cpp:1206
 {"Heizung, Boiler und Klima über das Bedienteil", "Chauffage, chauffe-eau et climatisation via le panneau de commande"},  // src/ui/ui_settings.cpp:1207
 {"Dieses Gerät ist schon eingerichtet.", "Cet appareil est déjà configuré."},  // src/ui/ui_settings.cpp:1260

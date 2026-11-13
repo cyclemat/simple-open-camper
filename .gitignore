@@ -7,6 +7,8 @@ dependencies.lock
 # Unterprojekt fuer Display-Tests: von PlatformIO/ESP-IDF erzeugt
 display-testing/CMakeLists.txt
 display-testing/sdkconfig.*
+p4/CMakeLists.txt
+p4/sdkconfig.*
 sdkconfig.waveshare-7b
 sdkconfig.check-all
 sdkconfig.*.old

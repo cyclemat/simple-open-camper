@@ -11,6 +11,7 @@
 #include "../truma.h"
 #include "../victron.h"
 #include "../cerbo.h"
+#include "../gx_find.h"
 #include "../panelsat.h"
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
@@ -437,11 +438,13 @@ static void mqtt_save_cb(lv_event_t *) {
   ui_toast("Gespeichert – verbinde mit dem Broker …");
 }
 
+static void mqtt_rebuild(void *) { show_section(s_sec); }
 static void mqtt_on_cb(lv_event_t *e) {
   Settings st = settings_copy();
   st.mqtt_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
   settings_apply(st);   // startet bzw. beendet den MQTT-Client
-  ui_settings_refresh();
+  // Seite gleich neu aufbauen (Eingabefelder ein-/ausblenden); asynchron, weil der Schalter selbst auf der Seite liegt
+  lv_async_call(mqtt_rebuild, nullptr);
 }
 
 static void auto_cb(lv_event_t *e) {
@@ -943,7 +946,7 @@ static void gas_found_cb(lv_event_t *e) {
 
 static void gas_scan_cb(lv_event_t *) {
   if (truma_list().size() >= TRUMA_MAX_SENSORS) {
-    ui_toast("Es sind schon zwei Gasflaschen eingerichtet.");
+    ui_toast("Es sind schon vier Gasflaschen eingerichtet.");
     return;
   }
   truma_scan_start();
@@ -1410,7 +1413,7 @@ void ui_settings_tick_hymer() {
 static void build_gas() {
   heading("Gas und Heizung", "Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
                              "wird nicht gesucht und belastet Funk und WLAN nicht.");
-  proto_switch("Truma LevelControl", "Gasflaschen, bis zu zwei", BLE_P_TRUMA);
+  proto_switch("Truma LevelControl", "Gasflaschen, bis zu vier", BLE_P_TRUMA);
   proto_switch("Mopeka", "Gas- und Tanksensoren, bis zu vier", BLE_P_MOPEKA);
   if (inetx_enabled()) proto_switch("Truma iNet X", "Heizung, Boiler und Klima über das Bedienteil", BLE_P_INETX);
   Layout lay = layout_get();
@@ -1490,7 +1493,14 @@ static void vic_scan_cb(lv_event_t *) {
 }
 
 // ---------------------------------------------------------------- Cerbo GX (MQTT)
-static uint32_t gx_struct_sig() { return (cerbo_configured() ? 5 : 3) * 31 + (cerbo_connected() ? 1 : 0); }
+static uint32_t gx_struct_sig() {
+  return ((cerbo_configured() ? 5 : 3) * 31 + (cerbo_connected() ? 1 : 0)) * 2 + (gx_find_running() ? 1 : 0);
+}
+
+static void gx_find_cb(lv_event_t *) {
+  if (gx_find_start()) ui_toast("Suche den Cerbo GX im Netz … (bis etwa 20 Sekunden)");
+  else ui_toast(gx_find_running() ? "Suche läuft schon." : gx_find_status().c_str());
+}
 
 static void gx_host_cb(lv_event_t *) {
   InputOptions o;
@@ -1537,6 +1547,10 @@ static void build_cerbo() {
   lv_obj_t *g = group();
   CerboConfig c = cerbo_config();
   ui_row(g, "Adresse", c.host.empty() ? "nicht gesetzt" : c.host.c_str(), gx_host_cb, nullptr);
+  {
+    std::string fs = gx_find_running() ? gx_find_status() : std::string("im Netz suchen und eintragen");
+    ui_row(g, "Automatisch suchen", fs.c_str(), gx_find_running() ? nullptr : gx_find_cb, nullptr);
+  }
   if (!c.host.empty()) {
     ui_row(g, "Passwort", c.pass.empty() ? "keins" : "••••••", gx_pass_cb, nullptr);
     s_gx_vals.push_back(ui_row(g, "Status", cerbo_status().c_str(), nullptr, nullptr, false));
@@ -1546,7 +1560,8 @@ static void build_cerbo() {
       s_gx_vals.push_back(ui_row(g, ui_vic_label(lay, list[i]).c_str(), ui_vic_summary(list[i]).c_str(), gx_row_cb, (void *)(intptr_t)i));
   } else {
     lv_obj_t *h = ui_label(g, "Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). "
-                              "Am GX unter Einstellungen > Dienste > MQTT einschalten und hier die IP-Adresse eintragen. "
+                              "Am GX unter Einstellungen > Dienste > MQTT einschalten, dann „Automatisch suchen“ "
+                              "oder die IP-Adresse von Hand eintragen. "
                               "Die Kacheln setzt du danach im Editor.", F_SMALL, C_TEXT2);
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
