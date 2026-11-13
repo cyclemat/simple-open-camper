@@ -76,7 +76,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 🐝 **Zigbee2MQTT** – Lampen und Schalter, auch große Netze
 - 🔌 **Shelly** (Gen1 und Gen2+) über denselben Broker
 - 🌈 **WLED** über denselben Broker – Ein/Aus, Helligkeit, Farbe
-- ⛽ **Truma LevelControl** per Bluetooth – bis zu zwei Gasflaschen
+- ⛽ **Truma LevelControl** per Bluetooth – bis zu vier Gasflaschen
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
 - ☀️ **Victron** per Bluetooth („Instant Readout“) – Solarregler, Batteriemonitor, Ladebooster
 - 🔋 **Victron Cerbo GX** (Venus OS) per MQTT – Solar, Netz/Landstrom, Ladegerät, Batterie (SOC) und DC-System

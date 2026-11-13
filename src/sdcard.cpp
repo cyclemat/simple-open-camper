@@ -12,11 +12,48 @@
 #include "esp_heap_caps.h"
 #include "esp_vfs_fat.h"
 #include "sdmmc_cmd.h"
+#if BOARD_P4
+#include "driver/sdmmc_host.h"
+#include "board_p4.h"
+#endif
 
 static sdmmc_card_t *s_card = nullptr;
 static bool s_ok = false;
 static const char *s_status = "nicht geprüft";
 
+static bool sd_mounted();
+
+#if BOARD_P4
+// ESP32-P4: Karte direkt am SDMMC (Slot 0, 1 Bit – D1..D3 sind auf dem Board anders belegt). Versorgung ueber LDO4,
+// den board_init() schon eingeschaltet hat.
+bool sd_begin() {
+  const P4BoardDef &b = p4_board();
+  if (b.sd_clk < 0) {
+    s_status = "kein Kartenleser";
+    return false;
+  }
+  sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+  host.slot = SDMMC_HOST_SLOT_0;
+  host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+  sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
+  slot.width = 1;
+  slot.clk = (gpio_num_t)b.sd_clk;
+  slot.cmd = (gpio_num_t)b.sd_cmd;
+  slot.d0 = (gpio_num_t)b.sd_d0;
+  slot.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+  esp_vfs_fat_mount_config_t mc = {};
+  mc.format_if_mount_failed = false;   // fremde Karten nie ungefragt formatieren
+  mc.max_files = 6;
+  mc.allocation_unit_size = 16 * 1024;
+  esp_err_t e = esp_vfs_fat_sdmmc_mount(SD_MOUNT, &host, &slot, &mc, &s_card);
+  if (e != ESP_OK) {
+    s_status = e == ESP_FAIL ? "Karte nicht lesbar (FAT32 oder exFAT nötig)" : "keine Karte eingesteckt";
+    log_w("SD: %s (%s)", s_status, esp_err_to_name(e));
+    return false;
+  }
+  return sd_mounted();
+}
+#else
 bool sd_begin() {
   spi_bus_config_t bus = {};
   bus.mosi_io_num = PIN_SD_MOSI;
@@ -55,6 +92,11 @@ bool sd_begin() {
     spi_bus_free(SD_SPI_HOST);
     return false;
   }
+  return sd_mounted();
+}
+#endif
+
+static bool sd_mounted() {
   s_ok = true;
   s_status = "bereit";
   fs_mkdirs(SD_DIR "/bg");

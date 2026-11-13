@@ -8,7 +8,7 @@
 #include <vector>
 #include <time.h>
 
-#define TRUMA_MAX_SENSORS 2
+#define TRUMA_MAX_SENSORS 4
 #define TRUMA_KEY_PREFIX "truma:"
 
 struct TrumaInfo {

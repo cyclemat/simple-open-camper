@@ -26,7 +26,7 @@ struct P4BoardDef {
   uint16_t h_res, v_res;
   uint8_t dsi_lanes;
   uint16_t dsi_mbps;   // je Lane
-  uint8_t dpi_mhz;
+  float dpi_mhz;        // Pixeltakt; so waehlen, dass das Panel 60 Hz hat (darunter flackern mittlere Grautoene)
   uint16_t hpw, hbp, hfp, vpw, vbp, vfp;
   int8_t lcd_rst;
   int8_t ldo_mipi_chan;   // MIPI-PHY-Versorgung (-1 = keine)

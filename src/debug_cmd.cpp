@@ -26,7 +26,7 @@ static uint8_t s_len = 0;
 // ---------------------------------------------------------------- Speicher nach jedem Startschritt
 struct Mark {
   const char *name;
-  uint32_t ms, free_int, min_int;
+  uint32_t ms, free_int, min_int, min_ps;   // min_ps: Tiefstwert PSRAM in KB
 };
 static Mark s_marks[20];
 static uint8_t s_nmarks = 0;
@@ -34,7 +34,8 @@ static uint8_t s_nmarks = 0;
 void debug_mark(const char *name) {
   if (s_nmarks >= sizeof(s_marks) / sizeof(s_marks[0])) return;
   s_marks[s_nmarks++] = {name, millis(), (uint32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-                         (uint32_t)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)};
+                         (uint32_t)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+                         (uint32_t)(heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM) / 1024)};
 }
 
 static void print_boot() {
@@ -43,8 +44,9 @@ static void print_boot() {
   for (uint8_t i = 0; i < s_nmarks; i++) {
     const Mark &m = s_marks[i];
     long used = i ? (long)prev - (long)m.free_int : 0;
-    log_printf("  %6lu ms  %-14s frei %4u KB  Verbrauch %6ld B  Tiefstwert %4u KB\n", (unsigned long)m.ms, m.name,
-               (unsigned)(m.free_int / 1024), used, (unsigned)(m.min_int / 1024));
+    log_printf("  %6lu ms  %-14s frei %4u KB  Verbrauch %6ld B  Tiefstwert %4u KB  PSRAM-Tiefstwert %5u KB\n",
+               (unsigned long)m.ms, m.name, (unsigned)(m.free_int / 1024), used, (unsigned)(m.min_int / 1024),
+               (unsigned)m.min_ps);
     prev = m.free_int;
   }
   log_printf("  jetzt              frei %4u KB, Tiefstwert %u KB\n\n",

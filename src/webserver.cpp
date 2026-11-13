@@ -9,6 +9,7 @@
 #include "truma.h"
 #include "victron.h"
 #include "cerbo.h"
+#include "gx_find.h"
 #include "panelsat.h"
 #include "mopeka.h"
 #include "power.h"
@@ -1158,6 +1159,8 @@ static esp_err_t h_cerbo_get(httpd_req_t *req) {
   d["connected"] = cerbo_connected();
   d["status"] = cerbo_status();
   d["portal_id"] = cerbo_portal_id();
+  d["find_running"] = gx_find_running();
+  d["find_status"] = gx_find_status();
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -1185,6 +1188,10 @@ static esp_err_t h_cerbo_post(httpd_req_t *req) {
   if (d["user"].is<const char *>()) c.user = trim(d["user"].as<const char *>()).substr(0, 64);
   if (d["pass"].is<const char *>() && strlen(d["pass"].as<const char *>()) > 0) c.pass = d["pass"].as<const char *>();
   if (d["clear_pass"] | false) c.pass.clear();
+  if (d["find"] | false) {   // GX im Netz suchen und eintragen (Ergebnis ueber GET find_status)
+    if (!gx_find_start() && !gx_find_running()) return send_err(req, "409 Conflict", gx_find_status().c_str());
+    return send_ok(req);
+  }
   cerbo_set_config(c);
   return send_ok(req);
 }

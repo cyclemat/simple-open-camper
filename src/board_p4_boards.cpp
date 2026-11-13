@@ -11,9 +11,13 @@
 // Quelle: Elecrow-RD/CrowPanel-Advanced-7inch-ESP32-P4-HMI-AI-Display-1024x600-IPS-Touch-Screen
 //   example/V1.x/ESPHome/Code/advance-p4-7-inch.yaml, Arduino_Code/Lesson07 (board_config.h, esp_panel_board_custom_conf.h)
 // Unterschiede: V1.0 -> V1.1 SDIO D0..D3 zum C6 umgekehrt; V1.2 Funkmodul-Steckplatz 53/54 -> 27/28 (hier nicht genutzt).
+// Timings, LDO und Licht nach den Arduino-Beispielen (Lesson07, alle Revisionen gleich): H 70/160/160, V 10/23/21,
+// LDO3 2,5 V (MIPI-PHY), LDO4 3,3 V. Pixeltakt 55,5 MHz = genau 60 Hz; Elecrow nimmt 51 MHz = 55 Hz, dabei flackern
+// mittlere Grautoene sichtbar (am Board getestet 2026-11-13). GPIO 29 nutzen die Arduino-Beispiele nicht (ESPHome
+// setzt ihn auf High) -> hier nicht angefasst.
 #define CROWPANEL7(ID, NAME, D0, D1, D2, D3)                                                              \
-  {ID, NAME, P4_LCD_EK79007, 1024, 600, 2, 1000, 52, 10, 160, 160, 1, 23, 12, /*lcd_rst*/ 41,             \
-   /*LDO MIPI*/ 3, 2500, /*LDO aux*/ 4, 2500, /*bl_pwm*/ 31, /*bl_power*/ 29, true, P4_TOUCH_GT911,        \
+  {ID, NAME, P4_LCD_EK79007, 1024, 600, 2, 1000, 55.5f, 70, 160, 160, 10, 23, 21, /*lcd_rst*/ 41,         \
+   /*LDO MIPI*/ 3, 2500, /*LDO aux*/ 4, 3300, /*bl_pwm*/ 31, /*bl_power*/ -1, false, P4_TOUCH_GT911,       \
    /*SDA*/ 45, /*SCL*/ 46, /*INT*/ 42, /*RST*/ 40, /*C6 CLK*/ 18, /*CMD*/ 19, D0, D1, D2, D3, /*C6 RST*/ 32, \
    /*SD CMD*/ 44, /*CLK*/ 43, /*D0*/ 39}
 
