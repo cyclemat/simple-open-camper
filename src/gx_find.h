@@ -11,6 +11,9 @@
 using GxFound = std::function<void(const std::string &host, const std::string &portal)>;
 
 bool gx_find_start(GxFound on_found = nullptr);   // false = laeuft schon oder kein Netz
+// Empfaenger fuer Funde ohne eigenen Rueckruf (auch fuer gx_find_watch). Ohne: direkt in cerbo_set_config eintragen.
+// Achtung: wird in der Such-Task aufgerufen, nicht in loop().
+void gx_find_set_handler(GxFound h);
 bool gx_find_running();
 std::string gx_find_status();                     // "Suche …", "Gefunden: …", "Kein GX gefunden" ("" = noch nie gesucht)
 // Einmal pro Sekunde aufrufen: ist der eingetragene GX laenger nicht erreichbar (neue IP vom Router?), wird neu gesucht

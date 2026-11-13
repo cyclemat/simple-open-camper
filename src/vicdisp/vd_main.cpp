@@ -17,11 +17,10 @@
 #include "../mopeka.h"
 #include "../sat/sat_display.h"
 #include "../devsetup.h"
+#include "../gx_find.h"
 
 #define VD_FW_VERSION "1.0.0"
 
-// Feste Adresse des GX in seinem eigenen WLAN-Zugangspunkt ("venus-HQ…", Netz 172.24.24.0/24)
-static const char *GX_AP_IP = "172.24.24.1";
 static const uint32_t AP_AFTER_MS = 30000;   // so lange ohne WLAN: Einrichtungs-WLAN dazuschalten
 static const uint32_t AP_OFF_MS = 120000;    // verbunden und niemand im Einrichtungs-WLAN: abschalten
 
@@ -36,10 +35,9 @@ struct VdConfig {
 VdConfig s_cfg;
 String s_id;   // "SOC-Victron-AABBCC"
 WebServer s_srv(80);
-uint32_t s_lost_ms = 0, s_conn_ms = 0, s_cerbo_down_ms = 0, s_probe_ms = 0;
+uint32_t s_lost_ms = 0, s_conn_ms = 0, s_probe_ms = 0;
 bool s_mdns = false;
 bool s_upl_ok = false;          // Firmware-Upload nur angemeldet
-char s_find[96] = "";   // Ergebnis der Cerbo-Suche (Anzeige in der Weboberflaeche)
 
 void load_cfg() {
   Preferences p;
@@ -207,50 +205,30 @@ void cerbo_apply() {
   cerbo_set_config(c);
 }
 
-// automatisch finden
-bool port_open(IPAddress ip, uint16_t port) {
-  WiFiClient c;
-  bool ok = c.connect(ip, port, 800);
-  c.stop();
-  return ok;
-}
+// automatisch finden: gemeinsames Modul gx_find (172.24.24.1, Gateway, venus/einstein.local, dann das eigene Netz;
+// jeder Treffer wird per MQTT als GX bestaetigt). Fund kommt aus der Such-Task -> hier nur merken, in loop() uebernehmen.
+char s_found_host[48] = "";
+volatile bool s_found_new = false;
 
-// Kandidaten: feste GX-Adresse 172.24.24.1, Gateway, dann mDNS-Namen des GX
 void cerbo_find() {
-  if (!s_cfg.cerbo_on || !s_cfg.cerbo_auto || !WiFi.isConnected()) return;
-  uint32_t now = millis();
-  if (cerbo_connected()) {
-    s_cerbo_down_ms = 0;
-    return;
-  }
-  if (!s_cerbo_down_ms) s_cerbo_down_ms = now;
-  // erst suchen, wenn noch nichts eingestellt ist oder die Verbindung laenger fehlt
-  if (cerbo_configured() && now - s_cerbo_down_ms < 60000) return;
-  if (s_probe_ms && now - s_probe_ms < 30000) return;
-  s_probe_ms = now;
-  IPAddress cand[4];
-  int n = 0;
-  IPAddress ap;
-  ap.fromString(GX_AP_IP);
-  cand[n++] = ap;
-  if (WiFi.gatewayIP() != ap) cand[n++] = WiFi.gatewayIP();
-  for (const char *h : {"venus", "einstein"}) {
-    IPAddress a = MDNS.queryHost(h, 1500);
-    if (a != IPAddress(0, 0, 0, 0) && a != ap && n < 4) cand[n++] = a;
-  }
-  for (int i = 0; i < n; i++) {
-    if (cand[i] == IPAddress(0, 0, 0, 0) || !port_open(cand[i], 1883)) continue;
-    std::string host = cand[i].toString().c_str();
-    if (s_cfg.chost != host.c_str()) {
-      s_cfg.chost = host.c_str();
+  if (s_found_new) {
+    s_found_new = false;
+    if (s_cfg.chost != s_found_host) {
+      s_cfg.chost = s_found_host;
       save_cfg();
     }
     cerbo_apply();
-    snprintf(s_find, sizeof(s_find), "Cerbo GX gefunden: %s", host.c_str());
-    s_cerbo_down_ms = 0;
+  }
+  if (!s_cfg.cerbo_on || !s_cfg.cerbo_auto || !WiFi.isConnected()) return;
+  if (s_cfg.chost.isEmpty()) {   // noch kein GX eingetragen: suchen, hoechstens einmal pro Minute
+    uint32_t now = millis();
+    if (!gx_find_running() && (!s_probe_ms || now - s_probe_ms > 60000)) {
+      s_probe_ms = now | 1;
+      gx_find_start();
+    }
     return;
   }
-  snprintf(s_find, sizeof(s_find), "Kein Cerbo GX gefunden – MQTT am GX eingeschaltet? (Dienste > MQTT im LAN)");
+  gx_find_watch();   // eingetragener GX 3 Minuten nicht erreichbar (neue IP?) -> neu suchen
 }
 
 // ---------------------------------------------------------------- Weboberflaeche
@@ -301,7 +279,7 @@ void h_state() {
   c["portal"] = cerbo_portal_id();
   c["connected"] = cerbo_connected();
   c["status"] = cerbo_status();
-  c["find"] = s_find;
+  c["find"] = gx_find_status();
   JsonObject l = d["led"].to<JsonObject>();
   l["mode"] = s_cfg.led;
   l["src"] = s_led_src == 'b' ? "Batterie" : s_led_src == 'g' ? "Gas" : "";
@@ -450,8 +428,6 @@ void h_config() {
     cc.portal.clear();
     cerbo_set_config(cc);
     s_probe_ms = 0;
-    s_cerbo_down_ms = 0;
-    s_find[0] = 0;
   }
   if (d["led"].is<int>()) {
     int m = d["led"];
@@ -585,6 +561,10 @@ void setup() {
   // Cerbo/Victron vor dem Display anlegen: das Display fragt beim Start schon deren Werte ab (Sperren muessen existieren)
   cerbo_begin();
   cerbo_apply();     // Cerbo aus: Adresse im Cerbo-Modul leeren (kein Client, keine Kacheln)
+  gx_find_set_handler([](const std::string &host, const std::string &) {
+    snprintf(s_found_host, sizeof(s_found_host), "%s", host.c_str());
+    s_found_new = true;
+  });
   victron_begin();   // gespeicherte Bluetooth-Geraete
   mopeka_begin();    // nur damit truma.cpp ein angelegtes Modul vorfindet (Mopeka ist abgeschaltet)
   truma_begin();     // Bluetooth-Task: Truma LevelControl + Victron, startet den Funk erst bei Bedarf

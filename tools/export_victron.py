@@ -16,7 +16,7 @@ DST = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "
 FILES = [
     "src/vicdisp/vd_main.cpp", "src/vicdisp/vd_main.h", "src/vicdisp/vd_ble.cpp", "src/vicdisp/vd_page.h",
     "src/sat/sat_display.cpp", "src/sat/sat_display.h",
-    "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h",
+    "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h",
     "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
     "src/hymer.cpp", "src/hymer.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
     "src/i18n/i18n.cpp", "src/i18n/i18n.h",

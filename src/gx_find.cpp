@@ -26,6 +26,7 @@ SemaphoreHandle_t s_mtx = nullptr;
 std::string s_status;
 volatile bool s_running = false;
 GxFound s_cb;
+GxFound s_handler;   // Standard-Empfaenger (gx_find_set_handler)
 uint32_t s_last_ms = 0, s_down_ms = 0;
 
 void set_status(const std::string &s) {
@@ -220,7 +221,7 @@ bool try_host(uint32_t ip, bool named, const char *what) {
   // einer Anforderung); im Netz gefundene Broker nur mit Kennung
   if (portal.empty() && !named) return false;
   set_status("Gefunden: " + ip_str(ip) + (portal.empty() ? "" : " (Portal-ID " + portal + ")"));
-  (s_cb ? s_cb : GxFound(apply_default))(ip_str(ip), portal);
+  (s_cb ? s_cb : s_handler ? s_handler : GxFound(apply_default))(ip_str(ip), portal);
   return true;
 }
 
@@ -290,6 +291,8 @@ bool gx_find_start(GxFound on_found) {
 
 bool gx_find_running() { return s_running; }
 
+void gx_find_set_handler(GxFound h) { s_handler = h; }
+
 std::string gx_find_status() {
   if (!s_mtx) return "";
   xSemaphoreTake(s_mtx, portMAX_DELAY);
@@ -313,6 +316,7 @@ void gx_find_watch() {
 
 #else
 bool gx_find_start(GxFound) { return false; }
+void gx_find_set_handler(GxFound) {}
 bool gx_find_running() { return false; }
 std::string gx_find_status() { return ""; }
 void gx_find_watch() {}
