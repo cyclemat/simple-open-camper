@@ -16,6 +16,7 @@ __attribute__((weak)) bool web_busy() { return false; }
 #include <algorithm>
 #include <stdarg.h>
 #include <NimBLEDevice.h>
+#include "bms.h"
 #if CONFIG_ESP_HOSTED_ENABLED || BOARD_P4
 #include "esp32-hal-hosted.h"
 #endif
@@ -385,6 +386,9 @@ class ScanCB : public NimBLEScanCallbacks {
       diag_adv(dev);
     }
     // Nur die in den Einstellungen gewaehlten Protokolle auswerten
+#if WITH_BMS
+    if (ble_proto_on(BLE_P_BMS) && bms_on_adv(dev)) return;
+#endif
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
     if (hymer_enabled() && ble_proto_on(BLE_P_HYMER) && hymer_on_adv(dev)) return;
     bool truma = false;
@@ -446,6 +450,11 @@ static void ble_init() {
   NimBLEDevice::init(BLE_DEVICE_NAME);
   if (inetx_enabled()) inetx_ble_setup();
   if (hymer_enabled()) hymer_ble_setup();
+#if WITH_BMS
+  // Super B fordert selbst eine Kopplung an: Just Works mit Bonding zulassen (wie Hymer/iNet X)
+  NimBLEDevice::setSecurityAuth(true, false, true);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+#endif
   NimBLEScan *sc = NimBLEDevice::getScan();
   sc->setScanCallbacks(&s_scan_cb, true);  // Duplikate: jede Aussendung zaehlt
   sc->setMaxResults(0);                     // nichts speichern, nur Rueckrufe
@@ -546,6 +555,19 @@ static void worker(void *) {
         hymer_connect_now();
       }
     }
+#if WITH_BMS
+    // Akkus (BMS): bleiben verbunden; Verbindung hier aufbauen, solange der Scan pausiert
+    if (ble_proto_on(BLE_P_BMS)) {
+      bms_scan_wanted(want_passive, want_active);
+      if (bms_want_connect()) {
+        ble_init();
+        scan_stop();
+        bms_connect_now();
+        scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
+      }
+      if (bms_want_poll()) bms_poll_now();   // Akkus, die abgefragt werden (Power Quarry)
+    }
+#endif
     // Waehrend das Webinterface benutzt wird, das Dauer-Lauschen pausieren: WLAN und Bluetooth teilen sich die
     // Funkeinheit, der Editor laedt sonst zaeh oder gar nicht. Einrichten (aktive Suche) laeuft weiter.
     if (want_passive && !want_active && web_busy()) want_passive = false;

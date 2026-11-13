@@ -18,6 +18,7 @@
 #include "../sat/sat_display.h"
 #include "../devsetup.h"
 #include "../gx_find.h"
+#include "../bms.h"
 
 #define VD_FW_VERSION "1.0.0"
 
@@ -108,6 +109,8 @@ int led_battery() {
   for (auto &v : victron_list()) take(v);
   if (s_cfg.cerbo_on)
     for (auto &v : cerbo_list()) take(v);
+  for (auto &b : bms_list())   // Akkus mit eigenem BMS (Super B …): nur frische Werte
+    if (b.has && b.soc >= 0 && b.soc <= 100 && b.age_s >= 0 && b.age_s <= 600 && (best < 0 || b.soc < best)) best = b.soc;
   return best < 0 ? -1 : (int)lroundf(best);
 }
 
@@ -324,6 +327,61 @@ void h_state() {
     o["configured"] = f.configured;
   }
 
+#if WITH_BMS
+  JsonObject bm = d["bms"].to<JsonObject>();
+  bm["scanning"] = bms_discovery_running();
+  bm["max"] = BMS_MAX;
+  JsonArray bd = bm["devices"].to<JsonArray>();
+  for (auto &b : bms_list()) {
+    JsonObject o = bd.add<JsonObject>();
+    o["mac"] = b.mac;
+    o["name"] = b.name;
+    o["model"] = b.model_text;
+    o["connected"] = b.connected;
+    o["has"] = b.has;
+    o["age"] = b.age_s;
+    if (b.has) {
+      o["soc"] = b.soc;
+      o["soh"] = b.soh;
+      if (isfinite(b.volt)) o["v"] = b.volt;
+      if (isfinite(b.amp)) o["a"] = b.amp;
+      o["ttg"] = b.ttg_s;
+      o["ok"] = b.ok;
+      o["chg"] = b.charging;
+      o["dis"] = b.discharging;
+      o["low"] = b.low;
+      o["chg_ok"] = b.charge_allowed;
+      o["dis_ok"] = b.discharge_allowed;
+      if (isfinite(b.temp)) o["t"] = b.temp;
+      if (b.cycles >= 0) o["cyc"] = b.cycles;
+      if (b.alarms) o["alarms"] = b.alarms;
+      if (!b.cells_mv.empty()) {
+        JsonArray c = o["cells"].to<JsonArray>();
+        for (uint16_t mv : b.cells_mv) c.add(mv);
+      }
+    }
+    o["serial"] = b.serial;
+    o["fw"] = b.firmware;
+    o["status"] = b.status;
+  }
+  JsonArray bf = bm["found"].to<JsonArray>();
+  for (auto &f : bms_found()) {
+    JsonObject o = bf.add<JsonObject>();
+    o["mac"] = f.mac;
+    o["name"] = f.name;
+    o["addr_type"] = f.addr_type;
+    o["rssi"] = f.rssi;
+    o["model"] = (int)f.model;
+    o["service"] = f.service;
+    o["product"] = f.product;
+    o["cap"] = f.capacity_ah;
+    o["cells"] = f.cells;
+    o["configured"] = f.configured;
+  }
+  JsonArray bl = bm["log"].to<JsonArray>();
+  for (auto &line : bms_log()) bl.add(line);
+#endif
+
   JsonObject vi = d["victron"].to<JsonObject>();
   vi["scanning"] = victron_discovery_running();
   vi["max"] = VICTRON_MAX_DEVICES;
@@ -383,6 +441,24 @@ void h_truma() {
   if (d["interval"].is<int>()) truma_set_interval(constrain((int)d["interval"], 1, 1440));
   send_ok();
 }
+
+#if WITH_BMS
+// Akkus (BMS): {"scan":true} | {"add":{mac,addr_type,name,model}} | {"remove":mac} | {"rename":{mac,name}}
+void h_bms() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (d["scan"] | false) bms_discovery_start();
+  if (!d["add"].isNull()) {
+    std::string err = bms_add(d["add"]["mac"] | "", d["add"]["addr_type"] | 0, d["add"]["name"] | "",
+                              (BmsModel)(int)(d["add"]["model"] | (int)BMS_SUPERB), d["add"]["cap"] | 0,
+                              d["add"]["cells"] | 0);
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  send_ok();
+}
+#endif
 
 // Victron per Bluetooth: {"scan":true} | {"add":{mac,key,name}} | {"key":{mac,key}} | {"remove":mac} | {"rename":{mac,name}}
 void h_victron() {
@@ -524,6 +600,9 @@ void web_begin() {
   s_srv.on("/api/wifiscan", HTTP_GET, devsetup::guard(h_wifiscan));
   s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
   s_srv.on("/api/truma", HTTP_POST, devsetup::guard(h_truma));
+#if WITH_BMS
+  s_srv.on("/api/bms", HTTP_POST, devsetup::guard(h_bms));
+#endif
   s_srv.on("/api/cerbo", HTTP_POST, devsetup::guard(h_cerbo));
   s_srv.on("/api/display", HTTP_GET, devsetup::guard(h_display_get));
   s_srv.on("/api/display", HTTP_POST, devsetup::guard(h_display_set));
@@ -567,7 +646,8 @@ void setup() {
   });
   victron_begin();   // gespeicherte Bluetooth-Geraete
   mopeka_begin();    // nur damit truma.cpp ein angelegtes Modul vorfindet (Mopeka ist abgeschaltet)
-  truma_begin();     // Bluetooth-Task: Truma LevelControl + Victron, startet den Funk erst bei Bedarf
+  bms_begin();       // Akkus mit BMS (Super B …): gespeicherte Geraete, Verbindung macht der Bluetooth-Task
+  truma_begin();     // Bluetooth-Task: Truma LevelControl + Victron + Akkus, startet den Funk erst bei Bedarf
   sat_display_begin();
   if (sat_display_reset_requested()) {   // beim Einschalten 10 s gedrueckt: Passwort zuruecksetzen
     devsetup::password_reset();

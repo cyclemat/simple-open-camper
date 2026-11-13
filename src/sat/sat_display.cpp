@@ -22,6 +22,7 @@
 #endif
 #include "../truma.h"
 #include "../victron.h"
+#include "../bms.h"
 #if WITH_CERBO
 #include "../cerbo.h"
 #endif
@@ -336,6 +337,22 @@ static void collect_raw(std::vector<Item> &s_items) {
     s_items.push_back(it);
   }
 #endif
+#if WITH_BMS
+  // Akkus mit eigenem BMS (Super B …): erst mit Werten eine Kachel
+  for (auto &b : bms_list()) {
+    if (!b.has) continue;
+    Item it;
+    it.key = "b:" + b.mac;
+    it.name = b.name.empty() ? "Akku" : b.name;
+    it.icon = ICON_BATTERY;
+    std::string second = num(b.volt, 1, "V");
+    if (isfinite(b.volt) && isfinite(b.amp)) second += "  ·  " + num(b.volt * b.amp, 0, "W");
+    it.value = std::to_string(b.soc) + " %  ·  " + second;
+    bool stale = !b.connected || b.age_s > 120;
+    it.accent = stale ? C_TEXT3 : (!b.ok || b.soc <= 10) ? C_RED : b.soc <= 50 ? C_AMBER : C_GREEN;
+    s_items.push_back(it);
+  }
+#endif
   for (auto &t : truma_list()) {
 #if SAT_VICTRON_ONLY
     if (!t.has_reading) continue;   // keine leeren Kacheln
@@ -600,6 +617,123 @@ static void info_open() {
   lv_obj_align(l, LV_ALIGN_BOTTOM_MID, 0, -8);
 }
 
+#if WITH_BMS
+// Akku-Uebersicht: alle Werte eines Akkus, jede Sekunde aufgefrischt (refresh), antippen schliesst.
+// Nur waehrend es offen ist im Speicher.
+static lv_obj_t *s_bat = nullptr;
+static std::string s_bat_key;
+static const int BAT_N = 9;
+static lv_obj_t *s_bat_title = nullptr, *s_bat_val[BAT_N] = {nullptr};
+static const char *BAT_ROWS[BAT_N] = {"Ladezustand", "Spannung", "Strom", "Leistung", "Temperatur",
+                                      "Restzeit", "Zyklen", "Gesundheit", "Zustand"};
+
+static void bat_close_cb(lv_event_t *) {
+  if (!s_bat) return;
+  lv_obj_del_async(s_bat);
+  s_bat = nullptr;
+}
+
+static void bat_sync() {
+  if (!s_bat) return;
+  BmsInfo b;
+  if (!bms_get(s_bat_key, b)) {
+    bat_close_cb(nullptr);
+    return;
+  }
+  (lv_label_set_text)(s_bat_title, b.name.c_str());
+  std::string v[BAT_N];
+  bool h = b.has;
+  v[0] = h ? std::to_string(b.soc) + " %" : "–";
+  v[1] = h ? num(b.volt, 2, "V") : "–";
+  v[2] = h ? num(b.amp, 2, "A") : "–";
+  v[3] = h && isfinite(b.volt) && isfinite(b.amp) ? num(b.volt * b.amp, 0, "W") : "–";
+  v[4] = isfinite(b.temp) ? num(b.temp, 0, "°C") : "–";
+  if (b.ttg_s > 0) {
+    char t[24];
+    snprintf(t, sizeof(t), "%ld h %02ld min", (long)(b.ttg_s / 3600), (long)(b.ttg_s % 3600 / 60));
+    v[5] = t;
+  } else {
+    v[5] = h && isfinite(b.amp) && b.amp > 0.2f ? "lädt" : "–";
+  }
+  v[6] = b.cycles >= 0 ? std::to_string(b.cycles) : "–";
+  v[7] = b.soh >= 0 ? std::to_string(b.soh) + " %" : "–";
+  if (!b.connected) {
+    v[8] = b.status.empty() ? std::string("getrennt") : b.status;
+  } else if (h) {
+    std::string z = !b.ok ? "Alarm" : b.charging ? "lädt" : b.discharging ? "entlädt" : "Ruhe";
+    if (b.low) z += ", niedrig";
+    if (!b.charge_allowed) z += ", Laden aus";
+    if (!b.discharge_allowed) z += ", Entladen aus";
+    v[8] = z;
+  } else {
+    v[8] = "–";
+  }
+  for (int i = 0; i < BAT_N; i++) (lv_label_set_text)(s_bat_val[i], v[i].c_str());
+}
+
+static void bat_open(const std::string &key) {
+  if (s_bat) return;
+  s_bat_key = key;
+  s_bat = lv_obj_create(lv_scr_act());
+  lv_obj_remove_style_all(s_bat);
+  lv_obj_set_size(s_bat, W, H);
+  lv_obj_set_style_bg_opa(s_bat, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(s_bat, C_BG, 0);
+  lv_obj_clear_flag(s_bat, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(s_bat, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(s_bat, bat_close_cb, LV_EVENT_CLICKED, nullptr);
+  s_bat_title = lv_label_create(s_bat);
+  lv_obj_set_style_text_font(s_bat_title, &font_ui_20, 0);
+  lv_obj_set_style_text_color(s_bat_title, C_TEXT, 0);
+  lv_obj_set_width(s_bat_title, W - 20);
+  lv_label_set_long_mode(s_bat_title, LV_LABEL_LONG_DOT);
+  lv_obj_set_pos(s_bat_title, 10, 4);
+  // nur Zeilen, die das Modell liefert: Super B ohne Temperatur/Zyklen, Power Quarry ohne Gesundheit (SoH)
+  BmsInfo bi;
+  bms_get(key, bi);
+  bool sb = bi.model == BMS_SUPERB;
+  int lh = lv_font_get_line_height(&font_ui_16) + 4, row = 0;
+  for (int i = 0; i < BAT_N; i++) {
+    bool show = !((sb && (i == 4 || i == 6)) || (!sb && i == 7));
+    int y = 32 + row * lh;
+    if (show) row++;
+    lv_obj_t *l = lv_label_create(s_bat);
+    lv_obj_set_style_text_font(l, &font_ui_16, 0);
+    lv_obj_set_style_text_color(l, C_TEXT2, 0);
+    lv_label_set_text(l, BAT_ROWS[i]);
+    lv_obj_set_pos(l, 10, y);
+    s_bat_val[i] = lv_label_create(s_bat);
+    lv_obj_set_style_text_font(s_bat_val[i], &font_ui_16, 0);
+    lv_obj_set_style_text_color(s_bat_val[i], C_TEXT, 0);
+    lv_obj_set_width(s_bat_val[i], W - 136);
+    lv_label_set_long_mode(s_bat_val[i], LV_LABEL_LONG_DOT);
+    lv_obj_set_pos(s_bat_val[i], 126, y);   // rechts von der laengsten Bezeichnung ("Ladezustand")
+    if (!show) {
+      lv_obj_add_flag(l, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(s_bat_val[i], LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  bat_sync();
+}
+#endif
+
+// Kacheln mit Fenster (Akku-Uebersicht, MultiPlus/Ladegeraet bedienen) oeffnen erst nach ~2 s Druecken
+// (LONG_PRESS_MS), damit Wischen und kurzes Antippen beim Blaettern nichts ausloesen.
+static const uint16_t LONG_PRESS_MS = 2000;
+static void tile_long_cb(lv_event_t *e) {
+  size_t k = s_page * s_per + (int)(intptr_t)lv_event_get_user_data(e);
+  if (k >= s_items.size()) return;
+#if WITH_BMS
+  if (s_items[k].key.rfind("b:", 0) == 0) {
+    bat_open(BMS_KEY_PREFIX + s_items[k].key.substr(2));
+    return;
+  }
+#endif
+#if WITH_CERBO
+  if (!s_items[k].ctl.empty()) pop_open(s_items[k].ctl);
+#endif
+}
+
 static void tile_cb(lv_event_t *e) {
   int slot = (int)(intptr_t)lv_event_get_user_data(e);
   size_t k = s_page * s_per + slot;
@@ -607,12 +741,7 @@ static void tile_cb(lv_event_t *e) {
     info_open();
     return;
   }
-#if WITH_CERBO
-  if (k < s_items.size() && !s_items[k].ctl.empty()) {
-    pop_open(s_items[k].ctl);
-    return;
-  }
-#endif
+  // Akku- und MultiPlus-Kacheln: nur lange druecken (tile_long_cb)
   if (k < s_items.size() && s_items[k].sw >= 0) {
 #if !SAT_VICTRON_ONLY
     sat_io_switch((uint8_t)s_items[k].sw, 2);   // umschalten
@@ -626,6 +755,9 @@ static void gesture_cb(lv_event_t *) {
   if (s_pop) return;   // Bedienfenster offen: nicht blaettern
 #endif
   if (s_info) return;
+#if WITH_BMS
+  if (s_bat) return;
+#endif
   lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
   if (d == LV_DIR_BOTTOM) {   // von oben nach unten wischen: Geraet/WLAN/Adresse zeigen
     info_open();
@@ -671,6 +803,7 @@ static void build() {
     lv_obj_add_flag(t.box, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(t.box, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_event_cb(t.box, tile_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+    lv_obj_add_event_cb(t.box, tile_long_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
 
     t.icon = lv_label_create(t.box);
     lv_obj_set_style_text_font(t.icon, &font_icons_24, 0);
@@ -792,6 +925,9 @@ static void refresh() {
   set_text(s_dots, dots);
 #if WITH_CERBO
   pop_sync();
+#endif
+#if WITH_BMS
+  bat_sync();
 #endif
 }
 static void load_cfg() {
@@ -973,6 +1109,7 @@ void sat_display_begin() {
   s_lcd.setRotation(SAT_DISPLAY_ROTATION);
   touch_cal_load();
   load_cfg();
+  analogRead(SAT_LDR_PIN);   // richtet den Pin als Analogeingang ein – erst danach laesst sich der Bereich setzen
   analogSetPinAttenuation(SAT_LDR_PIN, ADC_0db);   // empfindlichster Bereich (der LDR liefert nur kleine Spannungen)
   s_ldr = analogRead(SAT_LDR_PIN);
   s_night_on = s_ldr > s_ldr_thr;
@@ -1024,6 +1161,7 @@ void sat_display_begin() {
   lv_indev_drv_init(&s_indev_drv);
   s_indev_drv.type = LV_INDEV_TYPE_POINTER;
   s_indev_drv.read_cb = touch_cb;
+  s_indev_drv.long_press_time = LONG_PRESS_MS;
   lv_indev_drv_register(&s_indev_drv);
 
   s_last_touch = millis();

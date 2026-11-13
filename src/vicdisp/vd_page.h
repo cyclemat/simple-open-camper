@@ -74,6 +74,13 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row"><button id="bTrScan" style="flex:none">Sensoren suchen</button><button id="bTrMeasure" style="flex:none">Jetzt messen</button></div>
 <div id="trFound"></div></div>
 
+<div class="card" id="bmCard" style="display:none"><h2>Akkus per Bluetooth</h2>
+<p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Bulltron, JBD/Xiaoxiang, JK-BMS und LiTime (Redodo, PowerQueen). Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Display liest nur Werte und schaltet am Akku nichts.</p>
+<div id="bmList"></div>
+<div class="row" style="margin-top:8px"><button id="bBmScan" style="flex:none">Akkus suchen</button></div>
+<div id="bmFound"></div>
+<details style="margin-top:10px"><summary class="hint">Protokoll (für die Fehlersuche)</summary><pre id="bmLog" class="mono" style="white-space:pre-wrap;font-size:12px"></pre></details></div>
+
 <div class="card"><h2>Victron per Bluetooth</h2>
 <p class="hint">Auch ohne Cerbo GX: SmartSolar, SmartShunt/BMV, Orion, Ladegeräte direkt per Bluetooth („Instant Readout“). Pro Gerät den Schlüssel aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.</p>
 <div id="viList"></div>
@@ -131,13 +138,20 @@ function render(){
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#cbStatus').textContent=(S.cerbo.connected?'Verbunden mit '+S.cerbo.host:S.cerbo.host?'Adresse '+S.cerbo.host+' – '+(S.cerbo.status||'nicht verbunden'):'Noch keine Adresse.')+(S.cerbo.find?' · '+S.cerbo.find:'');
  $('#fwInfo').textContent='Version '+S.fw+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
- if(document.activeElement&&document.activeElement.closest('#viList,#trList'))return;
+ if(document.activeElement&&document.activeElement.closest('#viList,#trList,#bmList'))return;
  const T=S.truma;
  $('#trList').innerHTML=T.sensors.length?T.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-trn="${x.mac}" maxlength="32">
   <div class="v">${x.has?x.percent+' % · '+num(x.kg,1,'kg')+' · Akku '+x.battery+' % · '+age(x.age):esc(x.status)}${x.busy?' · misst …':''} · <span class="mono">${x.mac}</span></div></div>
   <button data-trm="${x.mac}">Messen</button><button class="d" data-trr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Sensor eingerichtet.</p>';
  $('#bTrScan').disabled=T.scanning||T.sensors.length>=T.max;$('#bTrScan').textContent=T.scanning?'Suche läuft … (Taste am Sensor drücken)':'Sensoren suchen';
  $('#trFound').innerHTML=T.scanning||T.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(T.found.length?T.found.map((f,i)=>`<div class="dev"><div class="t mono">${f.mac}<div class="v">Signal ${sig(f.rssi)}${f.configured?', eingerichtet':''}</div></div><button data-tra="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):'';
+ const B=S.bms;if(B){$('#bmCard').style.display='';
+  $('#bmList').innerHTML=B.devices.length?B.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-bmn="${x.mac}" maxlength="32">
+   <div class="v">${esc(x.model)} · ${x.has?[x.soc+' %',x.v!=null?num(x.v,2,'V'):'',x.a!=null?num(x.a,1,'A'):'',x.soh!=null?'SoH '+x.soh+' %':'',x.chg?'lädt':x.dis?'entlädt':'',x.low?'Ladung niedrig':'',x.ok?'':'BMS meldet Alarm',x.t!=null?num(x.t,0,'°C'):'',x.cyc!=null?x.cyc+' Zyklen':'',x.cells?'Zellen '+x.cells.map(c=>(c/1000).toFixed(3)).join(' / ')+' V':'',x.ttg>0?'leer in '+Math.floor(x.ttg/3600)+' h '+Math.floor(x.ttg%3600/60)+' min':'',x.connected?age(x.age):'getrennt'].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
+   <button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
+  $('#bBmScan').disabled=B.scanning||B.devices.length>=B.max;$('#bBmScan').textContent=B.scanning?'Suche läuft …':'Akkus suchen';
+  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#bmLog').textContent=(B.log||[]).join('\n')||'–'}
  const V=S.victron;
  $('#viList').innerHTML=V.devices.length?V.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-vin="${x.mac}" maxlength="32">
   <div class="v">${esc(x.kind_text)} · ${x.has?[x.pv!=null?num(x.pv,0,'W'):'',x.soc!=null?num(x.soc,0,'%'):'',num(x.v,2,'V'),num(x.i,1,'A'),x.state_text||''].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
@@ -187,14 +201,18 @@ $('#trInt').onchange=e=>act('/api/truma',{interval:+e.target.value},'Gespeichert
 $('#bTrScan').onclick=()=>act('/api/truma',{scan:true},'Suche gestartet – jetzt am Sensor die Taste drücken.');
 $('#bTrMeasure').onclick=()=>act('/api/truma',{measure:''},'Messung gestartet.');
 $('#bViScan').onclick=()=>act('/api/victron',{scan:true},'Suche gestartet (3 Minuten).');
+$('#bBmScan').onclick=()=>act('/api/bms',{scan:true},'Suche gestartet (1 Minute).');
 document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
  if(d.vin)act('/api/victron',{rename:{mac:d.vin,name:t.value}},'Name gespeichert.');
  if(d.trn)act('/api/truma',{rename:{mac:d.trn,name:t.value}},'Name gespeichert.');
+ if(d.bmn)act('/api/bms',{rename:{mac:d.bmn,name:t.value}},'Name gespeichert.');
 });
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.vir&&confirm('Gerät entfernen?'))act('/api/victron',{remove:d.vir});
  if(d.trm)act('/api/truma',{measure:d.trm},'Messung gestartet.');
  if(d.trr&&confirm('Sensor entfernen?'))act('/api/truma',{remove:d.trr});
+ if(d.bmr&&confirm('Akku entfernen?'))act('/api/bms',{remove:d.bmr});
+ if(d.bma){const f=S.bms.found[+d.bma];const n=prompt('Name, z. B. „Bordbatterie“',f.name||'Akku');if(n!=null)act('/api/bms',{add:{mac:f.mac,addr_type:f.addr_type,name:n,model:f.model,cap:f.cap,cells:f.cells}},'Eingerichtet – verbinde …')}
  if(d.tra){const f=S.truma.found[+d.tra];const n=prompt('Name, z. B. „Flasche links“','Gasflasche '+(S.truma.sensors.length+1));if(n!=null)act('/api/truma',{add:{mac:f.mac,addr_type:f.addr_type,name:n}},'Eingerichtet.')}
  if(d.vik){const k=prompt('Schlüssel (32 Zeichen)');if(k)act('/api/victron',{key:{mac:d.vik,key:k.replace(/[\s:-]/g,'')}},'Schlüssel gespeichert.')}
  if(d.via){const f=S.victron.found[+d.via];const k=prompt('Schlüssel (32 Zeichen) für '+(f.name||f.mac));if(k){const n=prompt('Name',f.name||'Victron');act('/api/victron',{add:{mac:f.mac,key:k.replace(/[\s:-]/g,''),name:n||''}},'Eingerichtet.')}}
