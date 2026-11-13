@@ -1,0 +1,608 @@
+// Victron-Display – siehe vd_main.h
+#include "vd_main.h"
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <ESPmDNS.h>
+#include <Preferences.h>
+#include <Update.h>
+#include <WebServer.h>
+#include <WiFi.h>
+#include <algorithm>
+#include <math.h>
+#include <vector>
+#include "vd_page.h"
+#include "../cerbo.h"
+#include "../victron.h"
+#include "../truma.h"
+#include "../mopeka.h"
+#include "../sat/sat_display.h"
+#include "../devsetup.h"
+
+#define VD_FW_VERSION "1.0.0"
+
+// Feste Adresse des GX in seinem eigenen WLAN-Zugangspunkt ("venus-HQ…", Netz 172.24.24.0/24)
+static const char *GX_AP_IP = "172.24.24.1";
+static const uint32_t AP_AFTER_MS = 30000;   // so lange ohne WLAN: Einrichtungs-WLAN dazuschalten
+static const uint32_t AP_OFF_MS = 120000;    // verbunden und niemand im Einrichtungs-WLAN: abschalten
+
+namespace {
+struct VdConfig {
+  String ssid, pass, name;
+  bool cerbo_on = false;    // Cerbo GX benutzen – ab Werk aus (vielleicht gibt es nur Bluetooth-Geraete)
+  bool cerbo_auto = true;   // Cerbo GX automatisch suchen (172.24.24.1, Gateway, venus.local / einstein.local)
+  String chost;             // Adresse des GX (eingetragen oder zuletzt gefunden)
+  uint8_t led = 1;          // RGB-LED Rueckseite: 0 aus, 1 automatisch (Batterie, sonst Gas), 2 Batterie, 3 Gas
+};
+VdConfig s_cfg;
+String s_id;   // "SOC-Victron-AABBCC"
+WebServer s_srv(80);
+uint32_t s_lost_ms = 0, s_conn_ms = 0, s_cerbo_down_ms = 0, s_probe_ms = 0;
+bool s_mdns = false;
+bool s_upl_ok = false;          // Firmware-Upload nur angemeldet
+char s_find[96] = "";   // Ergebnis der Cerbo-Suche (Anzeige in der Weboberflaeche)
+
+void load_cfg() {
+  Preferences p;
+  p.begin("vicdisp", true);
+  s_cfg.ssid = p.getString("ssid", "");
+  s_cfg.pass = p.getString("pass", "");
+  s_cfg.name = p.getString("name", "");
+  s_cfg.cerbo_on = p.getBool("con", false);
+  s_cfg.cerbo_auto = p.getBool("cauto", true);
+  s_cfg.chost = p.getString("chost", "");
+  s_cfg.led = p.getUChar("led", 1);
+  p.end();
+}
+
+void save_cfg() {
+  Preferences p;
+  p.begin("vicdisp", false);
+  p.putString("ssid", s_cfg.ssid);
+  p.putString("pass", s_cfg.pass);
+  p.putString("name", s_cfg.name);
+  p.putBool("con", s_cfg.cerbo_on);
+  p.putBool("cauto", s_cfg.cerbo_auto);
+  p.putString("chost", s_cfg.chost);
+  p.putUChar("led", s_cfg.led);
+  p.end();
+}
+
+// ---------------------------------------------------------------- RGB-LED (Rueckseite des CYD)
+// Ampel fuer Batterie (Ladezustand) oder Gas (Truma LevelControl, niedrigste Flasche):
+// bis 10 % rot, bis 50 % orange, darueber gruen; ohne Wert aus. Gemeinsame Anode -> Low = an.
+// Nur LEDC-PWM (3 Kanaele), keine eigene Task: Auswertung alle 2 s aus loop().
+#ifndef VD_LED_R
+#define VD_LED_R 4
+#define VD_LED_G 16
+#define VD_LED_B 17
+#endif
+static const int LED_LOW = 10, LED_MID = 50;   // Grenzen in Prozent
+bool s_led_init = false;
+int s_led_pct = -1;          // angezeigter Wert, -1 = keiner
+char s_led_src = 0;          // 'b' Batterie, 'g' Gas
+uint32_t s_led_ms = 0;
+uint32_t s_led_rgb = 0xFFFFFFFF;
+
+void led_write(uint32_t rgb) {
+  if (rgb == s_led_rgb) return;
+  if (!s_led_init) {
+    ledcAttach(VD_LED_R, 5000, 8);
+    ledcAttach(VD_LED_G, 5000, 8);
+    ledcAttach(VD_LED_B, 5000, 8);
+    s_led_init = true;
+  }
+  s_led_rgb = rgb;
+  // bei Dunkelheit (Lichtsensor, Helligkeit-Automatik an) auf rund ein Achtel gedimmt
+  auto ch = [](uint32_t v) -> uint32_t { return sat_display_night() ? (v + 7) / 8 : v; };
+  ledcWrite(VD_LED_R, 255 - ch((rgb >> 16) & 0xFF));
+  ledcWrite(VD_LED_G, 255 - ch((rgb >> 8) & 0xFF));
+  ledcWrite(VD_LED_B, 255 - ch(rgb & 0xFF));
+}
+
+// niedrigster Ladezustand aller Batteriemonitore (Bluetooth und Cerbo GX), -1 = keiner
+int led_battery() {
+  float best = -1;
+  auto take = [&](const VictronInfo &v) {
+    if (v.kind != VIC_SHUNT || v.record == 0x0D || !v.has || !isfinite(v.soc) || v.soc < 0 || v.soc > 100) return;
+    if (!v.gx && (v.age_s < 0 || v.age_s > 600)) return;   // Bluetooth: Wert aelter als 10 min zaehlt nicht
+    if (best < 0 || v.soc < best) best = v.soc;
+  };
+  for (auto &v : victron_list()) take(v);
+  if (s_cfg.cerbo_on)
+    for (auto &v : cerbo_list()) take(v);
+  return best < 0 ? -1 : (int)lroundf(best);
+}
+
+// niedrigster Fuellstand aller Truma-LevelControl-Sensoren mit Messwert, -1 = keiner
+int led_gas() {
+  int best = -1;
+  for (auto &t : truma_list())
+    if (t.has_reading && t.percent >= 0 && (best < 0 || t.percent < best)) best = t.percent;
+  return best;
+}
+
+void led_loop() {
+  if (s_led_ms && millis() - s_led_ms < 2000) return;
+  s_led_ms = millis();
+  int pct = -1;
+  char src = 0;
+  if (s_cfg.led == 1 || s_cfg.led == 2) {
+    pct = led_battery();
+    src = 'b';
+  }
+  if ((s_cfg.led == 1 && pct < 0) || s_cfg.led == 3) {
+    pct = led_gas();
+    src = 'g';
+  }
+  if (pct < 0) src = 0;
+  s_led_pct = pct;
+  s_led_src = src;
+  if (pct < 0) {
+    if (s_led_init) led_write(0);
+    return;
+  }
+  uint32_t rgb = pct <= LED_LOW ? 0xFF0000 : pct <= LED_MID ? 0xFF3C00 : 0x00A000;   // rot / orange / gruen
+  static bool night = false;   // Wechsel hell/dunkel: neu schreiben, auch wenn die Farbe gleich bleibt
+  if (night != sat_display_night()) {
+    night = !night;
+    s_led_rgb = 0xFFFFFFFF;
+  }
+  led_write(rgb);
+}
+
+// ---------------------------------------------------------------- WLAN
+// Einrichtungs-WLAN: 4.3.2.1 mit Captive Portal und eigenem Passwort (devsetup)
+void ap_on() {
+  if (WiFi.getMode() & WIFI_AP) return;
+  WiFi.mode(s_cfg.ssid.isEmpty() ? WIFI_AP : WIFI_AP_STA);
+  devsetup::ap_start(s_id);
+}
+
+void ap_off() {
+  if (!(WiFi.getMode() & WIFI_AP)) return;
+  devsetup::ap_stop();
+  WiFi.mode(WIFI_STA);
+}
+
+void wifi_begin() {
+  WiFi.persistent(false);
+  WiFi.setHostname(s_id.c_str());
+  if (s_cfg.ssid.isEmpty()) {
+    ap_on();
+    return;
+  }
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(s_cfg.ssid.c_str(), s_cfg.pass.c_str());
+  s_lost_ms = millis();
+  if (devsetup::force_ap()) ap_on();   // Mehrfach-Reset: Einrichtungs-WLAN sofort
+}
+
+void wifi_loop() {
+  if (s_cfg.ssid.isEmpty()) return;
+  uint32_t now = millis();
+  if (WiFi.isConnected()) {
+    if (!s_conn_ms) {
+      s_conn_ms = now;
+      if (!s_mdns) s_mdns = MDNS.begin(s_id.c_str());
+      if (s_mdns) MDNS.addService("http", "tcp", 80);
+    }
+    s_lost_ms = 0;
+    if (!devsetup::force_ap() && (WiFi.getMode() & WIFI_AP) && now - s_conn_ms > AP_OFF_MS && WiFi.softAPgetStationNum() == 0) ap_off();
+  } else {
+    s_conn_ms = 0;
+    if (!s_lost_ms) s_lost_ms = now;
+    if (now - s_lost_ms > AP_AFTER_MS) ap_on();
+  }
+}
+
+// ---------------------------------------------------------------- Cerbo GX
+// Aus: keine Adresse im Cerbo-Modul -> kein Client, kein Task, keine Kacheln.
+void cerbo_apply() {
+  CerboConfig c = cerbo_config();
+  std::string want = s_cfg.cerbo_on ? std::string(s_cfg.chost.c_str()) : std::string();
+  if (c.host == want) return;
+  c.host = want;
+  c.portal.clear();
+  cerbo_set_config(c);
+}
+
+// automatisch finden
+bool port_open(IPAddress ip, uint16_t port) {
+  WiFiClient c;
+  bool ok = c.connect(ip, port, 800);
+  c.stop();
+  return ok;
+}
+
+// Kandidaten: feste GX-Adresse 172.24.24.1, Gateway, dann mDNS-Namen des GX
+void cerbo_find() {
+  if (!s_cfg.cerbo_on || !s_cfg.cerbo_auto || !WiFi.isConnected()) return;
+  uint32_t now = millis();
+  if (cerbo_connected()) {
+    s_cerbo_down_ms = 0;
+    return;
+  }
+  if (!s_cerbo_down_ms) s_cerbo_down_ms = now;
+  // erst suchen, wenn noch nichts eingestellt ist oder die Verbindung laenger fehlt
+  if (cerbo_configured() && now - s_cerbo_down_ms < 60000) return;
+  if (s_probe_ms && now - s_probe_ms < 30000) return;
+  s_probe_ms = now;
+  IPAddress cand[4];
+  int n = 0;
+  IPAddress ap;
+  ap.fromString(GX_AP_IP);
+  cand[n++] = ap;
+  if (WiFi.gatewayIP() != ap) cand[n++] = WiFi.gatewayIP();
+  for (const char *h : {"venus", "einstein"}) {
+    IPAddress a = MDNS.queryHost(h, 1500);
+    if (a != IPAddress(0, 0, 0, 0) && a != ap && n < 4) cand[n++] = a;
+  }
+  for (int i = 0; i < n; i++) {
+    if (cand[i] == IPAddress(0, 0, 0, 0) || !port_open(cand[i], 1883)) continue;
+    std::string host = cand[i].toString().c_str();
+    if (s_cfg.chost != host.c_str()) {
+      s_cfg.chost = host.c_str();
+      save_cfg();
+    }
+    cerbo_apply();
+    snprintf(s_find, sizeof(s_find), "Cerbo GX gefunden: %s", host.c_str());
+    s_cerbo_down_ms = 0;
+    return;
+  }
+  snprintf(s_find, sizeof(s_find), "Kein Cerbo GX gefunden – MQTT am GX eingeschaltet? (Dienste > MQTT im LAN)");
+}
+
+// ---------------------------------------------------------------- Weboberflaeche
+void send_json(JsonDocument &d) {
+  String s;
+  serializeJson(d, s);
+  s_srv.send(200, "application/json", s);
+}
+void send_ok() { s_srv.send(200, "application/json", "{\"ok\":true}"); }
+void send_err(const char *e) {
+  JsonDocument d;
+  d["error"] = e;
+  String s;
+  serializeJson(d, s);
+  s_srv.send(400, "application/json", s);
+}
+bool body(JsonDocument &d) {
+  if (deserializeJson(d, s_srv.arg("plain"))) {
+    send_err("Ungueltiges JSON");
+    return false;
+  }
+  return true;
+}
+
+void h_state() {
+  JsonDocument d;
+  d["id"] = s_id;
+  d["name"] = s_cfg.name;
+  d["fw"] = VD_FW_VERSION;
+  d["uptime"] = millis() / 1000;
+  d["heap"] = ESP.getFreeHeap();
+  sat_display_light(d["light"].to<JsonObject>());
+  JsonObject w = d["wifi"].to<JsonObject>();
+  w["ssid"] = s_cfg.ssid;
+  w["connected"] = WiFi.isConnected();
+  w["ip"] = WiFi.isConnected() ? WiFi.localIP().toString() : "";
+  w["rssi"] = WiFi.isConnected() ? WiFi.RSSI() : 0;
+  w["ap"] = (WiFi.getMode() & WIFI_AP) != 0;
+  w["force_ap"] = devsetup::force_ap();
+  w["mdns"] = s_mdns ? String("http://") + s_id + ".local/" : String("");
+  JsonObject c = d["cerbo"].to<JsonObject>();
+  CerboConfig cc = cerbo_config();
+  c["on"] = s_cfg.cerbo_on;
+  c["auto"] = s_cfg.cerbo_auto;
+  c["host"] = s_cfg.chost;
+  c["user"] = cc.user;
+  c["has_pass"] = !cc.pass.empty();
+  c["portal"] = cerbo_portal_id();
+  c["connected"] = cerbo_connected();
+  c["status"] = cerbo_status();
+  c["find"] = s_find;
+  JsonObject l = d["led"].to<JsonObject>();
+  l["mode"] = s_cfg.led;
+  l["src"] = s_led_src == 'b' ? "Batterie" : s_led_src == 'g' ? "Gas" : "";
+  l["pct"] = s_led_pct;
+  // Einstellbares am GX (MultiPlus: an Netz/Ladegeraet/Wechselrichter gleich -> nur einmal je Geraeteart)
+  JsonArray ctl = c["ctl"].to<JsonArray>();
+  bool have[2] = {false, false};
+  for (auto &v : cerbo_list()) {
+    if (!(v.can_limit || v.can_mode) || v.mode_set > 1 || have[v.mode_set]) continue;
+    have[v.mode_set] = true;
+    JsonObject o = ctl.add<JsonObject>();
+    o["key"] = v.key;
+    o["name"] = v.mode_set == 0 ? "MultiPlus" : v.name;
+    o["set"] = v.mode_set;
+    if (v.can_limit && !isnan(v.ac_limit)) o["limit"] = v.ac_limit;
+    if (v.can_mode) o["mode"] = v.mode;
+  }
+
+  JsonObject tr = d["truma"].to<JsonObject>();
+  tr["interval"] = truma_interval();
+  tr["scanning"] = truma_scan_running();
+  tr["max"] = TRUMA_MAX_SENSORS;
+  JsonArray ts = tr["sensors"].to<JsonArray>();
+  for (auto &t : truma_list()) {
+    JsonObject o = ts.add<JsonObject>();
+    o["mac"] = t.mac;
+    o["name"] = t.name;
+    o["has"] = t.has_reading;
+    o["percent"] = t.percent;
+    o["kg"] = t.kg;
+    o["battery"] = t.battery;
+    o["age"] = t.age_s;
+    o["busy"] = t.busy;
+    o["status"] = t.status;
+  }
+  JsonArray tf = tr["found"].to<JsonArray>();
+  for (auto &f : truma_scan_results()) {
+    JsonObject o = tf.add<JsonObject>();
+    o["mac"] = f.mac;
+    o["addr_type"] = f.addr_type;
+    o["rssi"] = f.rssi;
+    o["configured"] = f.configured;
+  }
+
+  JsonObject vi = d["victron"].to<JsonObject>();
+  vi["scanning"] = victron_discovery_running();
+  vi["max"] = VICTRON_MAX_DEVICES;
+  JsonArray vs = vi["devices"].to<JsonArray>();
+  for (auto &v : victron_list()) {
+    JsonObject o = vs.add<JsonObject>();
+    o["mac"] = v.mac;
+    o["name"] = v.name;
+    o["kind_text"] = victron_kind_text(v.kind);
+    o["has"] = v.has;
+    o["age"] = v.age_s;
+    o["status"] = v.status;
+    if (v.has) {
+      if (!isnan(v.bat_v)) o["v"] = v.bat_v;
+      if (!isnan(v.bat_i)) o["i"] = v.bat_i;
+      if (v.kind == VIC_SOLAR && !isnan(v.pv_w)) o["pv"] = v.pv_w;
+      if (v.kind == VIC_SHUNT && !isnan(v.soc)) o["soc"] = v.soc;
+      if (v.state >= 0) o["state_text"] = victron_state_text(v.state);
+    }
+  }
+  JsonArray vf = vi["found"].to<JsonArray>();
+  for (auto &f : victron_found()) {
+    JsonObject o = vf.add<JsonObject>();
+    o["mac"] = f.mac;
+    o["name"] = f.name;
+    o["rssi"] = f.rssi;
+    o["configured"] = f.configured;
+  }
+  send_json(d);
+}
+
+// GX einstellen: {"key":"cerbo:grid","limit":16} | {"key":"cerbo:grid","mode":3}
+void h_cerbo() {
+  JsonDocument d;
+  if (!body(d)) return;
+  std::string key = d["key"] | "";
+  bool ok = true;
+  if (d["limit"].is<float>()) ok = cerbo_set_limit(key, d["limit"].as<float>());
+  if (ok && d["mode"].is<int>()) ok = cerbo_set_mode(key, d["mode"].as<int>());
+  if (!ok) return send_err("Geht gerade nicht - Cerbo verbunden und Wert einstellbar?");
+  send_ok();
+}
+
+// Truma LevelControl: {"scan":true} | {"add":{mac,addr_type,name}} | {"remove":mac} | {"rename":{mac,name}} |
+// {"measure":""|mac} | {"interval":min}
+void h_truma() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (d["scan"] | false) truma_scan_start();
+  if (!d["add"].isNull()) {
+    std::string err = truma_add(d["add"]["mac"] | "", d["add"]["addr_type"] | 0, d["add"]["name"] | "");
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (d["remove"].is<const char *>()) truma_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) truma_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (d["measure"].is<const char *>()) truma_measure(d["measure"].as<const char *>());
+  if (d["interval"].is<int>()) truma_set_interval(constrain((int)d["interval"], 1, 1440));
+  send_ok();
+}
+
+// Victron per Bluetooth: {"scan":true} | {"add":{mac,key,name}} | {"key":{mac,key}} | {"remove":mac} | {"rename":{mac,name}}
+void h_victron() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (d["scan"] | false) victron_discovery_start();
+  if (!d["add"].isNull()) {
+    std::string err = victron_add(d["add"]["mac"] | "", d["add"]["key"] | "", d["add"]["name"] | "");
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (!d["key"].isNull()) {
+    std::string err = victron_set_key(d["key"]["mac"] | "", d["key"]["key"] | "");
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (d["remove"].is<const char *>()) victron_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) victron_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  send_ok();
+}
+
+void h_config() {
+  JsonDocument d;
+  if (!body(d)) return;
+  bool restart = false;
+  if (d["name"].is<const char *>()) s_cfg.name = (const char *)d["name"];
+  if (d["wifi"]["ssid"].is<const char *>()) {
+    String ss = (const char *)d["wifi"]["ssid"];
+    if (ss != s_cfg.ssid) restart = true;
+    s_cfg.ssid = ss;
+    if (d["wifi"]["pass"].is<const char *>() && strlen((const char *)d["wifi"]["pass"])) {
+      s_cfg.pass = (const char *)d["wifi"]["pass"];
+      restart = true;
+    }
+  }
+  if (d["cerbo"].is<JsonObject>()) {
+    JsonObject c = d["cerbo"];
+    if (c["on"].is<bool>()) s_cfg.cerbo_on = c["on"];
+    if (c["auto"].is<bool>()) s_cfg.cerbo_auto = c["auto"];
+    if (c["host"].is<const char *>()) s_cfg.chost = (const char *)c["host"];
+    CerboConfig cc = cerbo_config();
+    if (c["user"].is<const char *>()) cc.user = (const char *)c["user"];
+    if (c["pass"].is<const char *>() && strlen((const char *)c["pass"])) cc.pass = (const char *)c["pass"];
+    cc.host = s_cfg.cerbo_on ? std::string(s_cfg.chost.c_str()) : std::string();
+    cc.portal.clear();
+    cerbo_set_config(cc);
+    s_probe_ms = 0;
+    s_cerbo_down_ms = 0;
+    s_find[0] = 0;
+  }
+  if (d["led"].is<int>()) {
+    int m = d["led"];
+    if (m >= 0 && m <= 3) s_cfg.led = (uint8_t)m;
+    s_led_ms = 0;   // gleich neu auswerten
+  }
+  save_cfg();
+  JsonDocument r;
+  r["ok"] = true;
+  r["restart"] = restart;
+  send_json(r);
+  if (restart) {
+    delay(300);
+    ESP.restart();
+  }
+}
+
+// Netze suchen: jeder Name nur einmal (staerkstes Signal), ohne versteckte Netze, staerkste zuerst
+void h_wifiscan() {
+  if (!(WiFi.getMode() & WIFI_STA)) WiFi.mode(WIFI_AP_STA);   // Suche braucht den Client-Teil
+  int n = WiFi.scanNetworks(false, false);
+  if (n < 0) {
+    delay(500);
+    n = WiFi.scanNetworks(false, false);
+  }
+  if (n < 0) return send_err("Suche fehlgeschlagen - bitte nochmal.");
+  std::vector<int> idx;
+  for (int i = 0; i < n; i++) {
+    if (WiFi.SSID(i).isEmpty()) continue;
+    bool dup = false;
+    for (int &j : idx)
+      if (WiFi.SSID(j) == WiFi.SSID(i)) {
+        if (WiFi.RSSI(i) > WiFi.RSSI(j)) j = i;
+        dup = true;
+        break;
+      }
+    if (!dup) idx.push_back(i);
+  }
+  std::sort(idx.begin(), idx.end(), [](int a, int b) { return WiFi.RSSI(a) > WiFi.RSSI(b); });
+  JsonDocument d;
+  JsonArray a = d["networks"].to<JsonArray>();
+  for (int i : idx) {
+    JsonObject o = a.add<JsonObject>();
+    o["ssid"] = WiFi.SSID(i);
+    o["rssi"] = WiFi.RSSI(i);
+    o["open"] = WiFi.encryptionType(i) == WIFI_AUTH_OPEN;
+  }
+  WiFi.scanDelete();
+  send_json(d);
+}
+
+void h_display_get() {
+  JsonDocument d;
+  sat_display_json(d.to<JsonObject>());
+  send_json(d);
+}
+
+void h_display_set() {
+  JsonDocument d;
+  if (!body(d)) return;
+  sat_display_apply(d.as<JsonObjectConst>());
+  send_ok();
+}
+
+void h_update_done() {
+  if (!s_upl_ok) return devsetup::deny();
+  bool ok = !Update.hasError();
+  s_srv.send(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true}" : "{\"error\":\"Update fehlgeschlagen\"}");
+  if (ok) {
+    delay(500);
+    ESP.restart();
+  }
+}
+
+void h_update_data() {
+  HTTPUpload &u = s_srv.upload();
+  if (u.status == UPLOAD_FILE_START) {
+    s_upl_ok = devsetup::upload_allowed();
+    if (s_upl_ok) Update.begin(UPDATE_SIZE_UNKNOWN);
+  } else if (!s_upl_ok) {
+    return;
+  } else if (u.status == UPLOAD_FILE_WRITE) {
+    Update.write(u.buf, u.currentSize);
+  } else if (u.status == UPLOAD_FILE_END) {
+    Update.end(true);
+  }
+}
+
+void web_begin() {
+  devsetup::begin(s_srv);   // Anmeldung, Passwort, Captive Portal
+  s_srv.on("/", HTTP_GET, [] { s_srv.send_P(200, "text/html; charset=utf-8", VD_PAGE); });
+  s_srv.on("/api/state", HTTP_GET, devsetup::guard(h_state));
+  s_srv.on("/api/config", HTTP_POST, devsetup::guard(h_config));
+  s_srv.on("/api/wifiscan", HTTP_GET, devsetup::guard(h_wifiscan));
+  s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
+  s_srv.on("/api/truma", HTTP_POST, devsetup::guard(h_truma));
+  s_srv.on("/api/cerbo", HTTP_POST, devsetup::guard(h_cerbo));
+  s_srv.on("/api/display", HTTP_GET, devsetup::guard(h_display_get));
+  s_srv.on("/api/display", HTTP_POST, devsetup::guard(h_display_set));
+  s_srv.on("/api/reboot", HTTP_POST, devsetup::guard([] {
+             send_ok();
+             delay(300);
+             ESP.restart();
+           }));
+  s_srv.on("/api/update", HTTP_POST, h_update_done, h_update_data);
+  s_srv.begin();
+}
+}  // namespace
+
+// Fuer cerbo.cpp (beim Panel in net.cpp)
+bool net_connected() { return WiFi.isConnected(); }
+bool net_ap_active() { return (WiFi.getMode() & WIFI_AP) != 0; }
+
+std::string vd_title() { return std::string(s_cfg.name.length() ? s_cfg.name.c_str() : s_id.c_str()); }
+
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+  uint64_t mac = ESP.getEfuseMac();
+  char id[32];
+  snprintf(id, sizeof(id), "SOC-Victron-%02X%02X%02X", (unsigned)(mac >> 24) & 0xFF, (unsigned)(mac >> 32) & 0xFF,
+           (unsigned)(mac >> 40) & 0xFF);
+  s_id = id;
+  load_cfg();
+  devsetup::Boot boot = devsetup::boot_check();   // zuerst: Mehrfach-Reset erkennen
+  if (boot.factory) {   // 5x: WLAN-Daten loeschen (Passwort setzt devsetup zurueck)
+    s_cfg.ssid = "";
+    s_cfg.pass = "";
+    save_cfg();
+  }
+  // Cerbo/Victron vor dem Display anlegen: das Display fragt beim Start schon deren Werte ab (Sperren muessen existieren)
+  cerbo_begin();
+  cerbo_apply();     // Cerbo aus: Adresse im Cerbo-Modul leeren (kein Client, keine Kacheln)
+  victron_begin();   // gespeicherte Bluetooth-Geraete
+  mopeka_begin();    // nur damit truma.cpp ein angelegtes Modul vorfindet (Mopeka ist abgeschaltet)
+  truma_begin();     // Bluetooth-Task: Truma LevelControl + Victron, startet den Funk erst bei Bedarf
+  sat_display_begin();
+  if (sat_display_reset_requested()) {   // beim Einschalten 10 s gedrueckt: Passwort zuruecksetzen
+    devsetup::password_reset();
+    log_w("Passwort auf Standard zurueckgesetzt");
+  }
+  wifi_begin();
+  web_begin();
+}
+
+void loop() {
+  devsetup::loop();
+  wifi_loop();
+  cerbo_find();
+  s_srv.handleClient();
+  sat_display_loop();
+  led_loop();
+  delay(2);
+}

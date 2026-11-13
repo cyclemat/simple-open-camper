@@ -30,10 +30,13 @@ static const char *SUBS[] = {
     "vebus/+/Ac/ActiveIn/#",            // L1/V, L1/I, P, CurrentLimit, Connected
     "vebus/+/State",
     "vebus/+/Mode",
+    "vebus/+/ModeIsAdjustable",
     "vebus/+/Dc/0/#",
     "charger/+/State",
     "charger/+/Dc/0/#",
     "charger/+/Ac/In/L1/I",
+    "charger/+/Ac/In/CurrentLimit",     // Eingangsstrom-Begrenzung (Phoenix Smart u. a.)
+    "charger/+/Mode",                   // 1 ein, 4 aus
     "solarcharger/+/State",
     "solarcharger/+/History/Daily/0/Yield",
     "solarcharger/+/Yield/Power",       // PV-Leistung je Regler
@@ -73,10 +76,12 @@ struct Data {
   bool vebus = false;
   float vb_in_p = NAN, vb_in_v = NAN, vb_in_i = NAN, vb_limit = NAN;
   int vb_connected = -1, vb_state = -1, vb_mode = -1;
+  int vb_inst = -1, vb_limit_adj = -1, vb_mode_adj = -1;   // Instanz fuer W/..., -1 = unbekannt
   float vb_dc_w = NAN, vb_dc_i = NAN, vb_dc_v = NAN;
   bool charger = false;
   int chg_state = -1;
-  float chg_i = NAN, chg_v = NAN, chg_ac_i = NAN;
+  float chg_i = NAN, chg_v = NAN, chg_ac_i = NAN, chg_limit = NAN;
+  int chg_inst = -1, chg_mode = -1;
   int sol_state = -1;
   std::map<int, float> yield;   // Ertrag heute je Solarregler
   std::map<int, Mppt> mppt;     // einzelne Solarregler
@@ -108,6 +113,8 @@ static volatile bool s_full = false;       // naechster Keepalive ohne "suppress
 static uint32_t s_disc_ms = 0, s_ka_ms = 0;
 static esp_mqtt_client_handle_t s_client = nullptr;
 static std::string s_c_host, s_c_id, s_c_user, s_c_pass;   // muessen leben, solange der Client laeuft
+// Schreibauftraege (W/<portal>/<pfad>, Inhalt) - sendet nur der Cerbo-Task, dem der Client gehoert
+static std::vector<std::pair<std::string, std::string>> s_wq;
 
 static void set_status(const std::string &s) {
   Lock l;
@@ -266,6 +273,7 @@ static void handle(const std::string &topic, const char *payload, size_t len) {
     else return;
   } else if (svc == "vebus") {
     d.vebus = true;
+    d.vb_inst = inst;
     d.seen[T_GRID] = d.seen[T_CHARGER] = true;
     if (path == "Ac/ActiveIn/P") d.vb_in_p = v;
     else if (path == "Ac/ActiveIn/L1/P" && isnan(d.vb_in_p)) d.vb_in_p = v;
@@ -273,6 +281,8 @@ static void handle(const std::string &topic, const char *payload, size_t len) {
     else if (path == "Ac/ActiveIn/L1/I") d.vb_in_i = v;
     else if (path == "Ac/ActiveIn/CurrentLimit") d.vb_limit = v;
     else if (path == "Ac/ActiveIn/Connected") d.vb_connected = to_int(v);
+    else if (path == "Ac/ActiveIn/CurrentLimitIsAdjustable") d.vb_limit_adj = to_int(v);
+    else if (path == "ModeIsAdjustable") d.vb_mode_adj = to_int(v);
     else if (path == "State") d.vb_state = to_int(v);
     else if (path == "Mode") d.vb_mode = to_int(v);
     else if (path == "Dc/0/Power") d.vb_dc_w = v;
@@ -296,7 +306,10 @@ static void handle(const std::string &topic, const char *payload, size_t len) {
   } else if (svc == "charger") {
     d.charger = true;
     d.seen[T_CHARGER] = true;
+    d.chg_inst = inst;
     if (path == "State") d.chg_state = to_int(v);
+    else if (path == "Ac/In/CurrentLimit") d.chg_limit = v;
+    else if (path == "Mode") d.chg_mode = to_int(v);
     else if (path == "Dc/0/Current") d.chg_i = v;
     else if (path == "Dc/0/Voltage") d.chg_v = v;
     else if (path == "Ac/In/L1/I") { d.chg_ac_i = v; d.seen[T_GRID] = true; }
@@ -474,6 +487,13 @@ static void cerbo_task(void *) {
         s_ver++;
       }
     }
+    std::vector<std::pair<std::string, std::string>> wq;
+    {
+      Lock l;
+      wq.swap(s_wq);
+    }
+    if (have_portal)
+      for (auto &w : wq) esp_mqtt_client_enqueue(s_client, w.first.c_str(), w.second.c_str(), w.second.size(), 0, 0, true);
     if (have_portal && (s_full || !s_ka_ms || now - s_ka_ms >= KEEPALIVE_MS)) {
       s_ka_ms = now ? now : 1;
       send_keepalive();
@@ -519,6 +539,21 @@ static bool tile(int t, VictronInfo &v) {
   v.has = d.seen[t];
   v.age_s = s_connected ? 0 : (s_disc_ms ? (int32_t)((millis() - s_disc_ms) / 1000) : -1);
   v.status = s_status;
+  // MultiPlus/Quattro: Begrenzung und Schalter an allen drei Kacheln (Netz, Ladegeraet, Wechselrichter)
+  bool vb_ctl = d.vebus && d.vb_inst >= 0 && (t == T_GRID || t == T_CHARGER || (t == T_INVERTER && !d.inv));
+  if (vb_ctl) {
+    v.ac_limit = d.vb_limit;
+    v.mode = d.vb_mode;
+    v.can_limit = !isnan(d.vb_limit) && d.vb_limit_adj != 0;
+    v.can_mode = d.vb_mode >= 0 && d.vb_mode_adj != 0;
+    v.mode_set = 0;
+  } else if (t == T_CHARGER && d.charger && d.chg_inst >= 0) {   // eigenstaendiges Ladegeraet
+    v.ac_limit = d.chg_limit;
+    v.mode = d.chg_mode;
+    v.can_limit = !isnan(d.chg_limit);
+    v.can_mode = d.chg_mode >= 0;
+    v.mode_set = 1;
+  }
   switch (t) {
     case T_SOLAR: {
       v.kind = VIC_SOLAR;
@@ -545,7 +580,6 @@ static bool tile(int t, VictronInfo &v) {
         if (isnan(v.ac_w)) v.ac_w = d.vb_in_p;
         v.ac_v = d.vb_in_v;
         v.ac_i = d.vb_in_i;
-        v.ac_limit = d.vb_limit;
         v.ac_connected = d.vb_connected;
       } else {
         v.ac_i = d.chg_ac_i;
@@ -557,7 +591,6 @@ static bool tile(int t, VictronInfo &v) {
       v.name = tr("Ladegerät");
       if (d.vebus) {
         v.state = d.vb_state;
-        v.mode = d.vb_mode;
         v.power_w = d.vb_dc_w;
         v.bat_v = d.vb_dc_v;
         v.bat_i = d.vb_dc_i;
@@ -591,7 +624,6 @@ static bool tile(int t, VictronInfo &v) {
       } else {   // MultiPlus/Quattro
         v.name = tr("Wechselrichter");
         v.state = d.vb_state;
-        v.mode = d.vb_mode;
         v.ac_w = d.vb_out_p;
         v.ac_v = d.vb_out_v;
         v.ac_i = d.vb_out_i;
@@ -669,6 +701,69 @@ std::vector<VictronInfo> cerbo_list() {
   return r;
 }
 
+// ---------------------------------------------------------------- Einstellen (W/<portal>/...)
+static bool queue_write(const std::string &path, const std::string &value) {
+  Lock l;
+  if (!s_connected || s_portal.empty() || s_wq.size() > 8) return false;
+  s_wq.push_back({"W/" + s_portal + "/" + path, "{\"value\": " + value + "}"});
+  return true;
+}
+
+static bool tile_of(const std::string &key, int &t) {
+  if (!cerbo_is_key(key)) return false;
+  std::string id = key.substr(strlen(CERBO_KEY_PREFIX));
+  for (t = 0; t < T_COUNT; t++)
+    if (id == TILE_ID[t]) return true;
+  return false;
+}
+
+bool cerbo_set_limit(const std::string &key, float amps) {
+  int t;
+  if (!tile_of(key, t) || isnan(amps) || amps < 0 || amps > 200) return false;
+  std::string path;
+  char val[16];
+  snprintf(val, sizeof(val), "%.1f", amps);
+  {
+    Lock l;
+    Data &d = s_d;
+    if (d.vebus && d.vb_inst >= 0 && (t == T_GRID || t == T_CHARGER || (t == T_INVERTER && !d.inv))) {
+      if (d.vb_limit_adj == 0) return false;
+      path = "vebus/" + std::to_string(d.vb_inst) + "/Ac/ActiveIn/CurrentLimit";
+      d.vb_limit = amps;   // gleich anzeigen, der GX bestaetigt mit dem neuen Wert
+    } else if (t == T_CHARGER && d.charger && d.chg_inst >= 0 && !isnan(d.chg_limit)) {
+      path = "charger/" + std::to_string(d.chg_inst) + "/Ac/In/CurrentLimit";
+      d.chg_limit = amps;
+    } else {
+      return false;
+    }
+    s_ver++;
+  }
+  return queue_write(path, val);
+}
+
+bool cerbo_set_mode(const std::string &key, int mode) {
+  int t;
+  if (!tile_of(key, t)) return false;
+  std::string path;
+  {
+    Lock l;
+    Data &d = s_d;
+    if (d.vebus && d.vb_inst >= 0 && (t == T_GRID || t == T_CHARGER || (t == T_INVERTER && !d.inv))) {
+      if (d.vb_mode_adj == 0 || mode < 1 || mode > 4) return false;
+      path = "vebus/" + std::to_string(d.vb_inst) + "/Mode";
+      d.vb_mode = mode;
+    } else if (t == T_CHARGER && d.charger && d.chg_inst >= 0 && d.chg_mode >= 0) {
+      if (mode != 1 && mode != 4) return false;
+      path = "charger/" + std::to_string(d.chg_inst) + "/Mode";
+      d.chg_mode = mode;
+    } else {
+      return false;
+    }
+    s_ver++;
+  }
+  return queue_write(path, std::to_string(mode));
+}
+
 std::string cerbo_debug_text() {
   char b[160];
   if (!s_disc_count) snprintf(b, sizeof(b), "keine Trennung seit dem Start");
@@ -691,6 +786,8 @@ CerboConfig cerbo_config() { return CerboConfig(); }
 void cerbo_set_config(const CerboConfig &) {}
 bool cerbo_get(const std::string &, VictronInfo &) { return false; }
 std::vector<VictronInfo> cerbo_list() { return {}; }
+bool cerbo_set_limit(const std::string &, float) { return false; }
+bool cerbo_set_mode(const std::string &, int) { return false; }
 
 #endif
 

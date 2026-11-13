@@ -1,0 +1,65 @@
+# Haelt das abgespeckte Repository "simply-open-camper-victron-beta" (Mini-Display nur Victron) automatisch
+# auf dem Stand dieses Projekts: bei jedem Push auf main, der dessen Dateien beruehrt, und per Knopf.
+# Einmalig noetig: Secret VICTRON_SYNC_TOKEN (Fine-grained Token mit "Contents: Read and write" fuer
+# cyclemat/simply-open-camper-victron-beta) unter Settings -> Secrets and variables -> Actions.
+name: Victron-Display abgleichen
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/vicdisp/**'
+      - 'src/sat/sat_display.*'
+      - 'src/cerbo.*'
+      - 'src/victron.*'
+      - 'src/devsetup.*'
+      - 'src/truma.*'
+      - 'src/truma_inetx.*'
+      - 'src/truma_heat.h'
+      - 'src/mopeka.*'
+      - 'src/hymer.*'
+      - 'src/hymer_tls.*'
+      - 'src/hymer_cloud.h'
+      - 'src/settings.h'
+      - 'src/sat_proto.h'
+      - 'src/app.h'
+      - 'src/web_server.h'
+      - 'src/net.h'
+      - 'src/i18n/i18n.*'
+      - 'src/fonts/**'
+      - 'src/ui/theme.h'
+      - 'src/lv_psram_alloc.c'
+      - 'include/lv_conf.h'
+      - 'include/lv_psram_alloc.h'
+      - 'assets/splash_cyd.jpg'
+      - 'assets/banner_small.jpg'
+      - 'tools/export_victron.py'
+      - 'tools/victron_readme.md'
+      - 'tools/embed_splash_cyd.py'
+      - 'tools/upload_wait.py'
+      - 'LICENSE'
+      - '.github/workflows/sync-victron.yml'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ziel-Repository holen
+        uses: actions/checkout@v4
+        with:
+          repository: cyclemat/simply-open-camper-victron-beta
+          token: ${{ secrets.VICTRON_SYNC_TOKEN }}
+          path: victron
+      - name: Exportieren
+        run: python3 tools/export_victron.py victron
+      - name: Committen und hochladen
+        run: |
+          cd victron
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Keine Aenderungen"; exit 0; fi
+          git commit -m "Abgleich mit simply-open-camper ${GITHUB_SHA::7}"
+          git push

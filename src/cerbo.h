@@ -41,5 +41,10 @@ void cerbo_set_config(const CerboConfig &c);       // speichert und verbindet ne
 bool cerbo_get(const std::string &key, VictronInfo &out);
 std::vector<VictronInfo> cerbo_list();             // leer, solange kein GX eingetragen ist
 
+// Einstellen ueber den GX (nur Kacheln mit can_limit/can_mode): Eingangsstrom-Begrenzung in A bzw. Schalter
+// (MultiPlus: 1 nur Laden, 2 nur Wechselrichter, 3 ein, 4 aus; Ladegeraet: 1 ein, 4 aus). false = nicht moeglich.
+bool cerbo_set_limit(const std::string &key, float amps);
+bool cerbo_set_mode(const std::string &key, int mode);
+
 const char *cerbo_mode_text(int mode);             // Schalter des Wechselrichters/Laders: "Ein", "Nur Laden", ...
 const char *cerbo_source_text(int src);            // aktiver AC-Eingang: "Netz", "Landstrom", "Generator", ...

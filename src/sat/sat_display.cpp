@@ -6,20 +6,31 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <math.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <LovyanGFX.hpp>
 #include <lvgl.h>
 #include "esp_heap_caps.h"
 #include <Preferences.h>
+#if SAT_VICTRON_ONLY   // eigene Firmware "Victron-Display" (src/vicdisp/): Cerbo GX, Victron-Bluetooth, Truma LevelControl
+#include "../vicdisp/vd_main.h"
+#else
 #include "sat_config.h"
 #include "sat_io.h"
-#include "../truma.h"
 #include "../mopeka.h"
+#endif
+#include "../truma.h"
 #include "../victron.h"
+#if WITH_CERBO
+#include "../cerbo.h"
+#endif
 #include "../fonts/fonts.h"
 #include "../fonts/icons.h"
 #include "../ui/theme.h"
+#if SAT_SPLASH   // Startbild 3 s (tools/embed_splash_cyd.py, Bild assets/splash_cyd.jpg 320x240)
+#include "../generated/splash_cyd_jpg.h"
+#endif
 
 // ---------------------------------------------------------------- Hardware: ESP32-2432S028R
 // Display ILI9341 an HSPI (SCK 14, MOSI 13, MISO 12, CS 15, DC 2), Licht GPIO 21.
@@ -27,8 +38,10 @@
 #ifndef SAT_TOUCH_XMIN
 #define SAT_TOUCH_XMIN 300    // Rohwerte des Touch-Controllers an den Raendern – bei Bedarf nachstellen
 #define SAT_TOUCH_XMAX 3900
-#define SAT_TOUCH_YMIN 200
-#define SAT_TOUCH_YMAX 3700
+// Y vertauscht (2026-11-13 am echten Board): quer liegt die Waagerechte auf der Y-Achse des Touch-Controllers,
+// links/rechts waren gespiegelt
+#define SAT_TOUCH_YMIN 3700
+#define SAT_TOUCH_YMAX 200
 #endif
 #ifndef SAT_DISPLAY_ROTATION
 #define SAT_DISPLAY_ROTATION 1   // quer
@@ -118,6 +131,21 @@ static const uint8_t DIMMED = 12;
 static int s_per = 4;            // Kacheln pro Seite: 4 (2x2) oder 2 (gross)
 static uint8_t s_bright = 200;   // Helligkeit 20..255
 static uint16_t s_dim_min = 2;   // nach so vielen Minuten ohne Beruehrung dimmen, 0 = nie
+
+// Lichtsensor vorne neben dem Display (LDR an GPIO 34, nur Analogeingang): Helligkeit hell/dunkel umschalten.
+// Groesserer Messwert = dunkler. Geglaettet, mit Hysterese (zurueck auf hell unter 75 % der Grenze) und 3 s
+// Bestaetigung, damit ein Schatten nicht flackert. Kein eigener Task, gelesen alle 0,5 s aus sat_display_loop().
+#ifndef SAT_LDR_PIN
+#define SAT_LDR_PIN 34
+#endif
+static bool s_auto = true;          // Helligkeit automatisch (ab Werk an)
+static uint8_t s_night = 40;        // Helligkeit bei Dunkelheit
+static uint16_t s_ldr_thr = 300;    // ab diesem Messwert ist es dunkel
+static float s_ldr = -1;            // geglaetteter Messwert, -1 = noch keiner
+static bool s_night_on = false;     // Sensor meldet dunkel
+static uint32_t s_ldr_ms = 0, s_ldr_chg_ms = 0;
+
+static uint8_t cur_bright() { return s_auto && s_night_on ? s_night : s_bright; }
 struct TileCfg {
   std::string k, n;   // Schluessel ("p:tank1", "t:<mac>", "m:<mac>", "v:<mac>"), eigener Name
   bool on = true;
@@ -140,7 +168,7 @@ static void touch_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
     s_last_touch = millis();
     if (s_dim) {   // erste Beruehrung weckt nur (nicht an LVGL weitergeben)
       s_dim = false;
-      s_lcd.setBrightness(s_bright);
+      s_lcd.setBrightness(cur_bright());
       data->state = LV_INDEV_STATE_RELEASED;
       return;
     }
@@ -158,12 +186,17 @@ struct Item {
   lv_color_t accent;
   int sw = -1;     // Schalter: Punktnummer (idx) fuer sat_io_switch, sonst -1
   bool on = false;
+  std::string ctl;   // Cerbo-Schluessel, wenn ueber den GX einstellbar (Bedienfenster beim Antippen)
 };
 
+#if SAT_VICTRON_ONLY
+static const int MAX_TILES = 4, TOP = 8, GAP = 8, DOTS_H = 16;   // ohne Kopfzeile: nur Kacheln
+#else
 static const int MAX_TILES = 4, TOP = 30, GAP = 8, DOTS_H = 16;
+#endif
 
 struct Tile {
-  lv_obj_t *box, *icon, *name, *value;
+  lv_obj_t *box, *icon, *name, *value, *sub;   // sub = zweiter Wert (Zeile darunter, kleiner)
 };
 static Tile s_tiles[MAX_TILES];
 static lv_obj_t *s_title, *s_net, *s_dots;
@@ -180,6 +213,7 @@ static std::string num(float v, int dec, const char *unit) {
   return b;
 }
 
+#if !SAT_VICTRON_ONLY
 static const char *point_icon(const SatPoint &p) {
   switch (p.kind) {
     case SP_TANK: return ICON_BATH;
@@ -198,9 +232,85 @@ static const char *point_icon(const SatPoint &p) {
     default: return ICON_INFO;
   }
 }
+#endif
+
+// Victron-Werte als Kachel – Bluetooth-Geraete ("v:<mac>") und Cerbo GX ("c:cerbo:<id>")
+static Item vic_item(const VictronInfo &v, const std::string &key) {
+  Item it;
+  it.key = key;
+  it.name = v.name.empty() ? std::string(victron_kind_text(v.kind)) : v.name;
+  it.accent = v.has ? C_BLUE : C_TEXT3;
+  if (v.gx && (v.can_limit || v.can_mode)) it.ctl = v.key;
+  switch (v.kind) {
+    case VIC_SOLAR: it.icon = ICON_SUN; break;
+    case VIC_SHUNT: it.icon = ICON_BATTERY; break;
+    case VIC_CHARGER: it.icon = ICON_LIGHTNING; break;
+    case VIC_GRID: it.icon = ICON_PLUG; break;
+    case VIC_INVERTER: it.icon = ICON_POWER; break;
+    case VIC_DCSYS: it.icon = ICON_BULB; break;
+    default: it.icon = ICON_LIGHTNING; break;
+  }
+  if (!v.has) {
+    it.value = v.status.empty() ? "–" : v.status;
+    return it;
+  }
+  switch (v.kind) {
+    case VIC_SOLAR:
+      it.value = num(v.pv_w, 0, "W") + (isnan(v.yield_kwh) ? std::string("") : "  ·  " + num(v.yield_kwh, 2, "kWh"));
+      it.accent = (!isnan(v.pv_w) && v.pv_w > 5) ? C_AMBER : C_TEXT2;
+      break;
+    case VIC_SHUNT:
+      it.value = num(v.soc, 0, "%") + "  ·  " + num(v.bat_v, 1, "V");
+      it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
+      break;
+    case VIC_CHARGER:
+      it.value = num(v.power_w, 0, "W") + "  ·  " + victron_state_text(v.state);
+      break;
+    case VIC_GRID:
+      it.value = v.ac_connected == 0 ? std::string("nicht verbunden") : num(v.ac_w, 0, "W") + "  ·  " + num(v.ac_v, 0, "V");
+      it.accent = v.ac_connected == 0 ? C_TEXT3 : C_BLUE;
+      break;
+    case VIC_INVERTER:
+      it.value = num(v.ac_w, 0, "W") + "  ·  " + victron_state_text(v.state);
+      it.accent = (!isnan(v.ac_w) && v.ac_w > 5) ? C_AMBER : C_TEXT2;
+      break;
+    case VIC_DCSYS:
+      it.value = num(v.power_w, 0, "W") + "  ·  " + num(v.bat_i, 1, "A");
+      it.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
+      break;
+    default:
+      it.value = num(v.bat_v, 2, "V");
+      break;
+  }
+  return it;
+}
+
+// Liefert das Geraet wirklich etwas? (Der GX meldet manche Werte als null, Bluetooth-Geraete ohne Paket/Schluessel)
+static bool vic_has_value(const VictronInfo &v) {
+  if (!v.has) return false;
+  if (!v.gx) return true;
+  switch (v.kind) {
+    case VIC_SOLAR: return !isnan(v.pv_w);
+    case VIC_SHUNT: return !isnan(v.soc) || !isnan(v.bat_v);
+    case VIC_CHARGER: return !isnan(v.power_w) || !isnan(v.bat_i) || v.state >= 0;
+    case VIC_GRID: return !isnan(v.ac_w) || v.ac_connected >= 0;
+    case VIC_INVERTER: return !isnan(v.ac_w) || v.state >= 0;
+    case VIC_DCSYS: return !isnan(v.power_w);
+    default: return !isnan(v.bat_v);
+  }
+}
 
 static void collect_raw(std::vector<Item> &s_items) {
   s_items.clear();
+#if WITH_CERBO
+  for (auto &v : cerbo_list()) {
+#if SAT_VICTRON_ONLY
+    if (!vic_has_value(v)) continue;   // keine leeren Kacheln
+#endif
+    s_items.push_back(vic_item(v, "c:" + v.key));
+  }
+#endif
+#if !SAT_VICTRON_ONLY
   // Eigene Anschluesse (Tanks, Temperatur, Analog, Eingaenge, Schalter) und Hymer-Punkte
   for (auto &p : sat_io_points()) {
     Item it;
@@ -225,7 +335,11 @@ static void collect_raw(std::vector<Item> &s_items) {
     }
     s_items.push_back(it);
   }
+#endif
   for (auto &t : truma_list()) {
+#if SAT_VICTRON_ONLY
+    if (!t.has_reading) continue;   // keine leeren Kacheln
+#endif
     Item it;
     it.key = "t:" + t.mac;
     it.name = t.name.empty() ? "Gasflasche" : t.name;
@@ -239,6 +353,7 @@ static void collect_raw(std::vector<Item> &s_items) {
     }
     s_items.push_back(it);
   }
+#if !SAT_VICTRON_ONLY
   for (auto &m : mopeka_list()) {
     Item it;
     it.key = "m:" + m.mac;
@@ -253,30 +368,12 @@ static void collect_raw(std::vector<Item> &s_items) {
     }
     s_items.push_back(it);
   }
+#endif
   for (auto &v : victron_list()) {
-    Item it;
-    it.key = "v:" + v.mac;
-    it.name = v.name.empty() ? "Victron" : v.name;
-    it.accent = v.has ? C_BLUE : C_TEXT3;
-    switch (v.kind) {
-      case VIC_SOLAR: it.icon = ICON_SUN; break;
-      case VIC_SHUNT: it.icon = ICON_BATTERY; break;
-      case VIC_CHARGER: it.icon = ICON_PLUG; break;
-      default: it.icon = ICON_LIGHTNING; break;
-    }
-    if (!v.has) it.value = v.status.empty() ? "–" : v.status;
-    else if (v.kind == VIC_SOLAR) {
-      it.value = num(v.pv_w, 0, "W") + "  ·  " + num(v.bat_v, 1, "V");
-      it.accent = (!isnan(v.pv_w) && v.pv_w > 5) ? C_AMBER : C_TEXT2;
-    } else if (v.kind == VIC_SHUNT) {
-      it.value = num(v.soc, 0, "%") + "  ·  " + num(v.bat_v, 1, "V");
-      it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
-    } else if (v.kind == VIC_CHARGER) {
-      it.value = num(v.power_w, 0, "W") + "  ·  " + num(v.bat_v, 1, "V");
-    } else {
-      it.value = num(v.bat_v, 2, "V");
-    }
-    s_items.push_back(it);
+#if SAT_VICTRON_ONLY
+    if (!vic_has_value(v)) continue;   // eingerichtet, aber (noch) nichts empfangen: keine Kachel
+#endif
+    s_items.push_back(vic_item(v, "v:" + v.mac));
   }
 }
 
@@ -303,17 +400,237 @@ static void collect() {
 
 static int pages() { return s_items.empty() ? 1 : (int)((s_items.size() + s_per - 1) / s_per); }
 
+#if WITH_CERBO
+// ---------------------------------------------------------------- Bedienfenster MultiPlus/Ladegeraet (ueber den GX)
+// Antippen einer Kachel mit Einstellmoeglichkeit (Netz, Ladegeraet, Wechselrichter) oeffnet es:
+// Eingangsstrom-Begrenzung (- / +, ganze Ampere) und Schalter. Nur, was der GX als einstellbar meldet.
+// Die LVGL-Objekte entstehen erst beim Oeffnen und werden beim Schliessen wieder geloescht.
+static lv_obj_t *s_pop = nullptr, *s_pop_lim = nullptr;
+static lv_obj_t *s_pop_mbtn[4];
+static int s_pop_mval[4], s_pop_nm = 0;
+static std::string s_pop_key;
+static float s_pop_val = NAN;
+static uint32_t s_pop_send_ms = 0, s_pop_edit_ms = 0;
+
+static void pop_flush() {
+  if (!s_pop_send_ms) return;
+  s_pop_send_ms = 0;
+  cerbo_set_limit(s_pop_key, s_pop_val);
+}
+
+static void pop_show_limit() {
+  if (!s_pop_lim) return;
+  if (isnan(s_pop_val)) {
+    lv_label_set_text(s_pop_lim, "–");
+    return;
+  }
+  lv_label_set_text(s_pop_lim, num(s_pop_val, 1, "A").c_str());
+}
+
+static void pop_show_mode(int mode) {
+  for (int i = 0; i < s_pop_nm; i++) lv_obj_set_style_bg_color(s_pop_mbtn[i], s_pop_mval[i] == mode ? C_BLUE : C_FIELD, 0);
+}
+
+static void pop_close_cb(lv_event_t *) {
+  pop_flush();
+  if (s_pop) lv_obj_del_async(s_pop);   // aus dem eigenen Ereignis heraus nur verzoegert loeschen
+  s_pop = s_pop_lim = nullptr;
+  s_pop_nm = 0;
+  s_next_ms = 0;
+}
+
+static void pop_step_cb(lv_event_t *e) {
+  int d = (int)(intptr_t)lv_event_get_user_data(e);
+  if (isnan(s_pop_val)) return;
+  float v = roundf(s_pop_val) + d;
+  if (v < 0) v = 0;
+  if (v > 100) v = 100;
+  s_pop_val = v;
+  pop_show_limit();
+  s_pop_edit_ms = millis();
+  s_pop_send_ms = (millis() + 800) | 1;   // erst nach kurzer Pause senden (mehrfach tippen = ein Befehl)
+}
+
+static void pop_mode_cb(lv_event_t *e) {
+  int i = (int)(intptr_t)lv_event_get_user_data(e);
+  if (i < 0 || i >= s_pop_nm) return;
+  if (cerbo_set_mode(s_pop_key, s_pop_mval[i])) pop_show_mode(s_pop_mval[i]);
+  s_pop_edit_ms = millis();
+}
+
+static lv_obj_t *pop_label(lv_obj_t *parent, const char *txt, const lv_font_t *font, lv_color_t col) {
+  lv_obj_t *l = lv_label_create(parent);
+  lv_obj_set_style_text_font(l, font, 0);
+  lv_obj_set_style_text_color(l, col, 0);
+  lv_label_set_text(l, txt);
+  return l;
+}
+
+static lv_obj_t *pop_btn(const char *txt, int x, int y, int w, int h, lv_event_cb_t cb, intptr_t ud) {
+  lv_obj_t *b = lv_obj_create(s_pop);
+  lv_obj_remove_style_all(b);
+  lv_obj_set_style_radius(b, 10, 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(b, C_FIELD, 0);
+  lv_obj_set_style_border_width(b, 1, 0);
+  lv_obj_set_style_border_color(b, C_TILE_LINE, 0);
+  lv_obj_set_style_border_color(b, C_BLUE, LV_STATE_PRESSED);
+  lv_obj_set_pos(b, x, y);
+  lv_obj_set_size(b, w, h);
+  lv_obj_clear_flag(b, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, (void *)ud);
+  lv_obj_center(pop_label(b, txt, &font_ui_16, C_TEXT));
+  return b;
+}
+
+static void pop_open(const std::string &key) {
+  VictronInfo v;
+  if (s_pop || !cerbo_get(key, v) || (!v.can_limit && !v.can_mode)) return;
+  s_pop_key = key;
+  s_pop_val = v.ac_limit;
+  s_pop_send_ms = s_pop_edit_ms = 0;
+  s_pop = lv_obj_create(lv_scr_act());
+  lv_obj_remove_style_all(s_pop);
+  lv_obj_set_size(s_pop, W, H);
+  lv_obj_set_style_bg_opa(s_pop, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(s_pop, C_BG, 0);
+  lv_obj_clear_flag(s_pop, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(s_pop, LV_OBJ_FLAG_CLICKABLE);   // Kacheln darunter nicht antippbar
+  lv_obj_set_pos(pop_label(s_pop, v.mode_set == 0 ? "MultiPlus" : v.name.c_str(), &font_ui_20, C_TEXT), 12, 12);
+  pop_btn("Fertig", W - 92, 6, 84, 34, pop_close_cb, 0);
+  int y = 50;
+  if (v.can_limit) {
+    lv_obj_set_pos(pop_label(s_pop, "Netzstrom-Begrenzung", &font_ui_16, C_TEXT2), 12, y);
+    y += 22;
+    pop_btn("–", 12, y, 72, 44, pop_step_cb, -1);
+    pop_btn("+", W - 84, y, 72, 44, pop_step_cb, 1);
+    s_pop_lim = pop_label(s_pop, "", &font_ui_20, C_TEXT);
+    lv_obj_align(s_pop_lim, LV_ALIGN_TOP_MID, 0, y + 10);
+    pop_show_limit();
+    y += 54;
+  }
+  if (v.can_mode) {
+    lv_obj_set_pos(pop_label(s_pop, "Schalter", &font_ui_16, C_TEXT2), 12, y);
+    y += 22;
+    static const char *MP_TXT[4] = {"Ein", "Aus", "Nur Laden", "Nur Wechselrichter"};
+    static const int MP_VAL[4] = {3, 4, 1, 2};
+    static const char *CH_TXT[2] = {"Ein", "Aus"};
+    static const int CH_VAL[2] = {1, 4};
+    s_pop_nm = v.mode_set == 0 ? 4 : 2;
+    int bw = (W - 36) / 2, bh = 40;
+    for (int i = 0; i < s_pop_nm; i++) {
+      s_pop_mval[i] = v.mode_set == 0 ? MP_VAL[i] : CH_VAL[i];
+      s_pop_mbtn[i] = pop_btn(v.mode_set == 0 ? MP_TXT[i] : CH_TXT[i], 12 + (i % 2) * (bw + 12), y + (i / 2) * (bh + 6),
+                              bw, bh, pop_mode_cb, i);
+    }
+    pop_show_mode(v.mode);
+  }
+}
+
+// einmal pro Sekunde: Werte vom GX uebernehmen (nicht direkt nach eigener Eingabe)
+static void pop_sync() {
+  if (!s_pop || (s_pop_edit_ms && millis() - s_pop_edit_ms < 3000)) return;
+  VictronInfo v;
+  if (!cerbo_get(s_pop_key, v)) return;
+  if (!s_pop_send_ms) {
+    s_pop_val = v.ac_limit;
+    pop_show_limit();
+  }
+  pop_show_mode(v.mode);
+}
+#endif
+
+// Info-Fenster: Name, WLAN und Adresse der Weboberflaeche gross und lesbar.
+// Oeffnen: Platzhalter-Kachel antippen oder von oben nach unten wischen; schliessen: irgendwo antippen.
+static lv_obj_t *s_info = nullptr;
+
+static void info_close_cb(lv_event_t *) {
+  if (!s_info) return;
+  lv_obj_del_async(s_info);   // nichts im Speicher behalten
+  s_info = nullptr;
+}
+
+static void info_line(int &y, const char *label, const std::string &val, const lv_font_t *font) {
+  lv_obj_t *l = lv_label_create(s_info);
+  lv_obj_set_style_text_font(l, &font_ui_16, 0);
+  lv_obj_set_style_text_color(l, C_TEXT2, 0);
+  lv_label_set_text(l, label);
+  lv_obj_set_pos(l, 14, y);
+  y += lv_font_get_line_height(&font_ui_16) + 2;
+  l = lv_label_create(s_info);
+  lv_obj_set_style_text_font(l, font, 0);
+  lv_obj_set_style_text_color(l, C_TEXT, 0);
+  lv_obj_set_width(l, W - 28);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+  (lv_label_set_text)(l, val.c_str());   // Klammer: keine Uebersetzung (Namen/Adressen)
+  lv_obj_set_pos(l, 14, y);
+  y += lv_font_get_line_height(font) + 10;
+}
+
+static void info_open() {
+  if (s_info) return;
+  s_info = lv_obj_create(lv_scr_act());
+  lv_obj_remove_style_all(s_info);
+  lv_obj_set_size(s_info, W, H);
+  lv_obj_set_style_bg_opa(s_info, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(s_info, C_BG, 0);
+  lv_obj_clear_flag(s_info, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(s_info, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(s_info, info_close_cb, LV_EVENT_CLICKED, nullptr);
+  int y = 10;
+#if SAT_VICTRON_ONLY
+  info_line(y, "Gerät", vd_title(), &font_ui_20);
+#else
+  info_line(y, "Gerät", std::string(g_sat.name.length() ? g_sat.name.c_str() : g_sat.id.c_str()), &font_ui_20);
+#endif
+  if (WiFi.isConnected()) {
+    info_line(y, "WLAN", std::string(WiFi.SSID().c_str()), &font_ui_20);
+    info_line(y, "Weboberfläche im Browser", std::string("http://") + WiFi.localIP().toString().c_str(), &font_ui_20);
+  } else if (WiFi.getMode() & WIFI_AP) {
+    info_line(y, "Einrichtungs-WLAN verbinden", std::string(WiFi.softAPSSID().c_str()), &font_ui_20);
+    info_line(y, "Seite öffnet sich, sonst im Browser", std::string("http://") + WiFi.softAPIP().toString().c_str(), &font_ui_20);
+  } else {
+    info_line(y, "WLAN", "nicht verbunden", &font_ui_20);
+  }
+  lv_obj_t *l = lv_label_create(s_info);
+  lv_obj_set_style_text_font(l, &font_ui_16, 0);
+  lv_obj_set_style_text_color(l, C_TEXT3, 0);
+  lv_label_set_text(l, "Antippen zum Schließen");
+  lv_obj_align(l, LV_ALIGN_BOTTOM_MID, 0, -8);
+}
+
 static void tile_cb(lv_event_t *e) {
   int slot = (int)(intptr_t)lv_event_get_user_data(e);
   size_t k = s_page * s_per + slot;
+  if (s_items.empty()) {   // Platzhalter-Kachel: Adresse gross zeigen
+    info_open();
+    return;
+  }
+#if WITH_CERBO
+  if (k < s_items.size() && !s_items[k].ctl.empty()) {
+    pop_open(s_items[k].ctl);
+    return;
+  }
+#endif
   if (k < s_items.size() && s_items[k].sw >= 0) {
+#if !SAT_VICTRON_ONLY
     sat_io_switch((uint8_t)s_items[k].sw, 2);   // umschalten
+#endif
     s_next_ms = 0;                               // gleich auffrischen
   }
 }
 
 static void gesture_cb(lv_event_t *) {
+#if WITH_CERBO
+  if (s_pop) return;   // Bedienfenster offen: nicht blaettern
+#endif
+  if (s_info) return;
   lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+  if (d == LV_DIR_BOTTOM) {   // von oben nach unten wischen: Geraet/WLAN/Adresse zeigen
+    info_open();
+    return;
+  }
   if (d == LV_DIR_LEFT) s_page = (s_page + 1) % pages();
   else if (d == LV_DIR_RIGHT) s_page = (s_page + pages() - 1) % pages();
   else return;
@@ -335,6 +652,10 @@ static void build() {
   lv_obj_set_style_text_font(s_net, &font_ui_16, 0);
   lv_obj_set_style_text_color(s_net, C_TEXT2, 0);
   lv_obj_align(s_net, LV_ALIGN_TOP_RIGHT, -GAP - 2, 7);
+#if SAT_VICTRON_ONLY
+  lv_obj_add_flag(s_title, LV_OBJ_FLAG_HIDDEN);   // keine Kopfzeile, Adresse steht notfalls in der Platzhalter-Kachel
+  lv_obj_add_flag(s_net, LV_OBJ_FLAG_HIDDEN);
+#endif
 
   for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
@@ -361,11 +682,21 @@ static void build() {
     t.value = lv_label_create(t.box);
     lv_obj_set_style_text_font(t.value, &font_ui_20, 0);
     lv_label_set_long_mode(t.value, LV_LABEL_LONG_DOT);
+    t.sub = lv_label_create(t.box);
+    lv_obj_set_style_text_font(t.sub, &font_ui_16, 0);
+    lv_label_set_long_mode(t.sub, LV_LABEL_LONG_DOT);
+    lv_obj_add_flag(t.sub, LV_OBJ_FLAG_HIDDEN);
   }
   s_dots = lv_label_create(scr);
   lv_obj_set_style_text_font(s_dots, &font_ui_16, 0);
   lv_obj_set_style_text_color(s_dots, C_TEXT3, 0);
   lv_obj_align(s_dots, LV_ALIGN_BOTTOM_MID, 0, -1);
+}
+
+// Hauptwert unten; mit zweitem Wert eine Zeile hoeher (zweiter Wert darunter)
+static void place_value(Tile &t) {
+  bool two = !lv_obj_has_flag(t.sub, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, two ? -8 - lv_font_get_line_height(&font_ui_16) : -10);
 }
 
 // Groesse und Lage der Kacheln: 4 pro Seite (2x2) oder 2 grosse (volle Breite)
@@ -380,7 +711,9 @@ static void relayout() {
     // feste Hoehe = eine Zeile: zu lange Texte enden mit "…" statt umzubrechen
     lv_obj_set_size(t.name, tw - 50, lv_font_get_line_height(&font_ui_16));
     lv_obj_set_size(t.value, tw - 20, lv_font_get_line_height(&font_ui_20));
-    lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, -10);
+    lv_obj_set_size(t.sub, tw - 20, lv_font_get_line_height(&font_ui_16));
+    lv_obj_align(t.sub, LV_ALIGN_BOTTOM_LEFT, 10, -8);
+    place_value(t);
   }
 }
 
@@ -389,12 +722,29 @@ static void set_text(lv_obj_t *l, const std::string &s) {
   if (strcmp(lv_label_get_text(l), s.c_str())) (lv_label_set_text)(l, s.c_str());
 }
 
+// "Wert1  ·  Wert2  ·  …": erster Wert gross, der Rest in der Zeile darunter (nebeneinander war nur der erste lesbar)
+static void set_value(Tile &t, const std::string &s) {
+  static const char SEP[] = "  ·  ";
+  size_t p = s.find(SEP);
+  std::string a = p == std::string::npos ? s : s.substr(0, p);
+  std::string b = p == std::string::npos ? std::string() : s.substr(p + sizeof(SEP) - 1);
+  set_text(t.value, a);
+  bool had = !lv_obj_has_flag(t.sub, LV_OBJ_FLAG_HIDDEN);
+  if (b.empty()) lv_obj_add_flag(t.sub, LV_OBJ_FLAG_HIDDEN);
+  else { set_text(t.sub, b); lv_obj_clear_flag(t.sub, LV_OBJ_FLAG_HIDDEN); }
+  if (had != !b.empty()) place_value(t);
+}
+
 static void refresh() {
   collect();
   if (s_page >= pages()) s_page = pages() - 1;
+#if SAT_VICTRON_ONLY
+  set_text(s_title, vd_title());
+#else
   set_text(s_title, std::string(g_sat.name.length() ? g_sat.name.c_str() : g_sat.id.c_str()));
+#endif
   std::string net = WiFi.isConnected() ? std::string(WiFi.localIP().toString().c_str())
-                    : (WiFi.getMode() & WIFI_AP) ? std::string("Einrichtung 192.168.4.1")
+                    : (WiFi.getMode() & WIFI_AP) ? std::string("Einrichtung ") + WiFi.softAPIP().toString().c_str()
                                                  : std::string("kein WLAN");
   set_text(s_net, net);
   for (int i = 0; i < MAX_TILES; i++) {
@@ -408,8 +758,13 @@ static void refresh() {
       if (s_items.empty() && i == 0) {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
         set_text(t.icon, ICON_INFO);
+#if SAT_VICTRON_ONLY
+        set_text(t.name, "Einrichten");
+        set_value(t, "Antippen  ·  für Adresse");
+#else
         set_text(t.name, "Noch nichts da");
-        set_text(t.value, "im Browser einrichten");
+        set_value(t, "Antippen  ·  für Adresse");
+#endif
         lv_obj_set_style_text_color(t.icon, C_TEXT3, 0);
         lv_obj_set_style_text_color(t.name, C_TEXT2, 0);
         lv_obj_set_style_text_color(t.value, C_TEXT2, 0);
@@ -422,18 +777,22 @@ static void refresh() {
     lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
     set_text(t.icon, it.icon);
     set_text(t.name, it.name);
-    set_text(t.value, it.value);
+    set_value(t, it.value);
     bool lit = it.sw >= 0 && it.on;   // eingeschalteter Schalter: Kachel in Bernstein wie die Lichter am Panel
     lv_obj_set_style_bg_color(t.box, lit ? C_AMBER : C_TILE, 0);
     lv_obj_set_style_border_color(t.box, lit ? C_AMBER_D : C_TILE_LINE, 0);
     lv_obj_set_style_text_color(t.icon, lit ? C_INK : it.accent, 0);
     lv_obj_set_style_text_color(t.name, lit ? C_INK : C_TEXT2, 0);
     lv_obj_set_style_text_color(t.value, lit ? C_INK : C_TEXT, 0);
+    lv_obj_set_style_text_color(t.sub, lit ? C_INK : C_TEXT2, 0);
   }
   std::string dots;
   if (pages() > 1)
     for (int p = 0; p < pages(); p++) dots += p == s_page ? " • " : " · ";   // Zeichen aus der Panel-Schrift
   set_text(s_dots, dots);
+#if WITH_CERBO
+  pop_sync();
+#endif
 }
 static void load_cfg() {
   Preferences p;
@@ -446,6 +805,9 @@ static void load_cfg() {
   s_per = (d["p"] | 4) == 2 ? 2 : 4;
   s_bright = constrain((int)(d["b"] | 200), 20, 255);
   s_dim_min = d["d"] | 2;
+  s_auto = d["a"] | true;
+  s_night = constrain((int)(d["nb"] | 40), 5, 255);
+  s_ldr_thr = constrain((int)(d["lt"] | 300), 1, 4095);
   s_cfg.clear();
   for (JsonObject t : d["t"].as<JsonArray>()) s_cfg.push_back({t["k"] | "", t["n"] | "", (bool)(t["o"] | 1)});
 }
@@ -455,6 +817,9 @@ static void save_cfg() {
   d["p"] = s_per;
   d["b"] = s_bright;
   d["d"] = s_dim_min;
+  d["a"] = s_auto;
+  d["nb"] = s_night;
+  d["lt"] = s_ldr_thr;
   JsonArray a = d["t"].to<JsonArray>();
   for (auto &c : s_cfg) {
     JsonObject t = a.add<JsonObject>();
@@ -477,6 +842,9 @@ void sat_display_json(JsonObject o) {
   o["per"] = s_per;
   o["bright"] = s_bright;
   o["dim"] = s_dim_min;
+  o["auto"] = s_auto;
+  o["night"] = s_night;
+  o["ldr_thr"] = s_ldr_thr;
   // alle bekannten Kacheln: erst in der eingestellten Reihenfolge, dann neue
   std::vector<Item> raw;
   collect_raw(raw);
@@ -501,10 +869,56 @@ void sat_display_json(JsonObject o) {
     if (!used[i]) add(raw[i], nullptr);
 }
 
+// ---------------------------------------------------------------- Touch kalibrieren
+// LovyanGFX zeichnet nacheinander Pfeile in die vier Ecken, die man antippt. Ergebnis: 8 Werte (16 Bytes) in NVS
+// "satdisp"/"tcal", beim Start per setTouchCalibrate gesetzt. Kein Dauer-RAM (laeuft blockierend im loop()).
+// Ausloesen: Weboberflaeche (Display -> "Touch kalibrieren") oder beim Einschalten 2 s auf den Bildschirm druecken.
+static volatile bool s_cal_req = false;
+static bool s_reset_req = false;
+bool sat_display_reset_requested() { return s_reset_req; }
+
+static void touch_cal_load() {
+  uint16_t cal[8];
+  Preferences p;
+  p.begin("satdisp", true);
+  size_t n = p.getBytesLength("tcal") == sizeof(cal) ? p.getBytes("tcal", cal, sizeof(cal)) : 0;
+  p.end();
+  if (n == sizeof(cal)) s_lcd.setTouchCalibrate(cal);
+}
+
+static void touch_cal_run() {
+  uint16_t cal[8];
+  s_lcd.setBrightness(cur_bright());
+  s_lcd.fillScreen(TFT_BLACK);
+  s_lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  s_lcd.setTextDatum(textdatum_t::middle_center);
+  s_lcd.setTextSize(2);
+  s_lcd.drawString("Touch kalibrieren", W / 2, H / 2 - 14);
+  s_lcd.setTextSize(1);
+  s_lcd.drawString("Pfeilspitzen nacheinander antippen", W / 2, H / 2 + 12);
+  s_lcd.calibrateTouch(cal, TFT_WHITE, TFT_BLACK, 16);
+  Preferences p;
+  p.begin("satdisp", false);
+  p.putBytes("tcal", cal, sizeof(cal));
+  p.end();
+  s_lcd.setTouchCalibrate(cal);
+  s_lcd.fillScreen(TFT_BLACK);
+  s_last_touch = millis();
+  s_dim = false;
+  lv_obj_invalidate(lv_scr_act());   // Kacheln neu zeichnen
+}
+
 bool sat_display_apply(JsonObjectConst c) {
+  if (c["calibrate"] | false) {   // nur Kalibrierung anstossen, sonst nichts aendern
+    s_cal_req = true;
+    return true;
+  }
   if (c["per"].is<int>()) s_per = c["per"].as<int>() == 2 ? 2 : 4;
   if (c["bright"].is<int>()) s_bright = constrain(c["bright"].as<int>(), 20, 255);
   if (c["dim"].is<int>()) s_dim_min = constrain(c["dim"].as<int>(), 0, 600);
+  if (c["auto"].is<bool>()) s_auto = c["auto"];
+  if (c["night"].is<int>()) s_night = constrain(c["night"].as<int>(), 5, 255);
+  if (c["ldr_thr"].is<int>()) s_ldr_thr = constrain(c["ldr_thr"].as<int>(), 1, 4095);
   if (c["tiles"].is<JsonArrayConst>()) {
     s_cfg.clear();
     for (JsonObjectConst t : c["tiles"].as<JsonArrayConst>()) {
@@ -517,11 +931,38 @@ bool sat_display_apply(JsonObjectConst c) {
   relayout();
   s_page = 0;
   s_dim = false;
-  s_lcd.setBrightness(s_bright);
+  s_lcd.setBrightness(cur_bright());
   s_last_touch = millis();
   s_next_ms = 0;   // gleich neu zeichnen
   return true;
 }
+
+static uint32_t s_splash_until = 0;   // != 0: Startbild steht noch, LVGL zeichnet noch nicht
+
+static void ldr_loop(uint32_t now) {
+  if (now - s_ldr_ms < 500) return;
+  s_ldr_ms = now;
+  int raw = analogRead(SAT_LDR_PIN);
+  s_ldr = s_ldr < 0 ? raw : s_ldr * 0.8f + raw * 0.2f;
+  bool want = s_night_on ? s_ldr > s_ldr_thr * 0.75f : s_ldr > s_ldr_thr;
+  if (want == s_night_on) {
+    s_ldr_chg_ms = 0;
+    return;
+  }
+  if (!s_ldr_chg_ms) s_ldr_chg_ms = now | 1;
+  if (now - s_ldr_chg_ms < 3000) return;
+  s_ldr_chg_ms = 0;
+  s_night_on = want;
+  if (s_auto && !s_dim) s_lcd.setBrightness(cur_bright());
+}
+
+void sat_display_light(JsonObject o) {
+  o["ldr"] = s_ldr < 0 ? -1 : (int)lroundf(s_ldr);
+  o["night"] = s_night_on;
+  o["auto"] = s_auto;
+}
+
+bool sat_display_night() { return s_auto && s_night_on; }
 
 void sat_display_begin() {
   for (int p : {4, 16, 17}) {   // RGB-LED aus (Low = an)
@@ -530,8 +971,46 @@ void sat_display_begin() {
   }
   s_lcd.init();
   s_lcd.setRotation(SAT_DISPLAY_ROTATION);
+  touch_cal_load();
   load_cfg();
-  s_lcd.setBrightness(s_bright);
+  analogSetPinAttenuation(SAT_LDR_PIN, ADC_0db);   // empfindlichster Bereich (der LDR liefert nur kleine Spannungen)
+  s_ldr = analogRead(SAT_LDR_PIN);
+  s_night_on = s_ldr > s_ldr_thr;
+  s_lcd.setBrightness(cur_bright());
+#if SAT_SPLASH
+  if (SPLASH_CYD_JPG_LEN) {   // direkt aufs Display, der Decoder braucht nur kurz ~4 KB
+    s_lcd.drawJpg(SPLASH_CYD_JPG, SPLASH_CYD_JPG_LEN, 0, 0);
+    s_splash_until = (millis() + 3000) | 1;
+  }
+#endif
+
+  {   // beim Einschalten gedrueckt halten: 2 s = Touch kalibrieren, 10 s = Passwort zuruecksetzen
+    lgfx::touch_point_t tp;
+    uint32_t t0 = millis();
+    bool shown = false;
+    const uint32_t HOLD_MAX = 10000;
+    while (s_lcd.getTouch(&tp) > 0 && millis() - t0 < HOLD_MAX) {
+      if (!shown && millis() - t0 >= 2000 && HOLD_MAX > 2000) {
+        shown = true;
+        s_lcd.fillScreen(TFT_BLACK);
+        s_lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        s_lcd.setTextDatum(textdatum_t::middle_center);
+        s_lcd.setTextSize(1);
+        s_lcd.drawString("Jetzt loslassen: Touch kalibrieren", W / 2, H / 2 - 10);
+        s_lcd.drawString("Weiter halten (10 s): Passwort zuruecksetzen", W / 2, H / 2 + 10);
+      }
+      delay(20);
+    }
+    uint32_t held = millis() - t0;
+    if (held >= HOLD_MAX && HOLD_MAX > 2000) {
+      s_reset_req = true;
+      s_lcd.fillScreen(TFT_BLACK);
+      s_lcd.drawString("Passwort zurueckgesetzt (panelsat)", W / 2, H / 2);
+      delay(1500);
+    } else if (held >= 2000) {
+      s_cal_req = true;
+    }
+  }
 
   lv_init();
   lv_color_t *buf = (lv_color_t *)heap_caps_malloc(W * BUF_LINES * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
@@ -554,11 +1033,27 @@ void sat_display_begin() {
 }
 
 void sat_display_loop() {
+  if (s_cal_req) {
+    s_cal_req = false;
+    touch_cal_run();
+    s_splash_until = 0;
+  }
+  if (s_splash_until) {   // Startbild: 3 s oder bis zur ersten Beruehrung
+    lgfx::touch_point_t tp;
+    if ((int32_t)(millis() - s_splash_until) < 0 && s_lcd.getTouch(&tp) == 0) return;
+    s_splash_until = 0;
+    s_last_touch = millis();
+    lv_obj_invalidate(lv_scr_act());   // alles neu zeichnen
+  }
+#if WITH_CERBO
+  if (s_pop_send_ms && (int32_t)(millis() - s_pop_send_ms) >= 0) pop_flush();
+#endif
   lv_timer_handler();
   uint32_t now = millis();
+  ldr_loop(now);
   if (!s_dim && s_dim_min && now - s_last_touch > s_dim_min * 60000UL) {
     s_dim = true;
-    s_lcd.setBrightness(DIMMED);
+    s_lcd.setBrightness(std::min<uint8_t>(DIMMED, cur_bright()));
   }
   if ((int32_t)(now - s_next_ms) < 0) return;
   s_next_ms = now + 1000;   // Werte einmal pro Sekunde auffrischen
@@ -568,7 +1063,10 @@ void sat_display_loop() {
 #else
 void sat_display_begin() {}
 void sat_display_loop() {}
+void sat_display_light(JsonObject) {}
+bool sat_display_night() { return false; }
 bool sat_display_present() { return false; }
 void sat_display_json(JsonObject) {}
 bool sat_display_apply(JsonObjectConst) { return false; }
+bool sat_display_reset_requested() { return false; }
 #endif

@@ -11,3 +11,6 @@ void sat_display_loop();
 bool sat_display_present();                    // true = Firmware mit Display
 void sat_display_json(JsonObject o);           // Weboberflaeche: alle Kacheln (Schluessel, Name, Wert) und Einstellungen
 bool sat_display_apply(JsonObjectConst c);     // Weboberflaeche: Einstellungen uebernehmen und speichern
+bool sat_display_reset_requested();            // beim Einschalten 10 s gedrueckt gehalten (Passwort zuruecksetzen)
+void sat_display_light(JsonObject o);          // Lichtsensor: {ldr: Messwert (groesser = dunkler), night, auto}
+bool sat_display_night();                      // Helligkeit-Automatik an und es ist dunkel (z. B. LED dimmen)

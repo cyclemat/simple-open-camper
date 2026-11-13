@@ -1,11 +1,13 @@
 // Satellit: eigener ESP32, liest Truma LevelControl, Mopeka und Victron per Bluetooth und schickt die Werte
 // per MQTT, UDP und/oder Bluetooth-Werbepaketen an das Panel (siehe sat_proto.h).
-// Einrichten: Ohne WLAN-Zugang spannt der Satellit das WLAN "SOC-<id>" auf (Passwort "panelsat"),
-// die Weboberflaeche liegt dann unter http://192.168.4.1/
+// Einrichten: Ohne WLAN-Zugang spannt der Satellit das WLAN "SOC-<id>" auf (Standardpasswort "panelsat", beim
+// ersten Oeffnen muss ein eigenes vergeben werden), die Einstellungsseite oeffnet sich von selbst (http://4.3.2.1/).
+// Notfall: 3x schnell aus/ein = Einrichtungs-WLAN sofort, 5x = WLAN und Passwort zuruecksetzen (devsetup.h).
 #include <Arduino.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
 #include "sat_config.h"
+#include "../devsetup.h"
 #include "../hymer.h"
 #include "sat_io.h"
 #include "sat_send.h"
@@ -25,13 +27,12 @@ static void ap_on() {
   if (WiFi.getMode() & WIFI_AP) return;
   String ssid = "SOC-" + g_sat.id;   // z. B. "SOC-Satellite-AABBCCDDEEFF"
   WiFi.mode(g_sat.wifi_ssid.isEmpty() ? WIFI_AP : WIFI_AP_STA);
-  WiFi.softAP(ssid.c_str(), SAT_AP_PASS);
-  log_i("Einrichtungs-WLAN %s an (Passwort %s), http://%s/", ssid.c_str(), SAT_AP_PASS, WiFi.softAPIP().toString().c_str());
+  devsetup::ap_start(ssid);   // 4.3.2.1, Captive Portal, eigenes Passwort
 }
 
 static void ap_off() {
   if (!(WiFi.getMode() & WIFI_AP)) return;
-  WiFi.softAPdisconnect(true);
+  devsetup::ap_stop();
   WiFi.mode(WIFI_STA);
   log_i("Einrichtungs-WLAN aus");
 }
@@ -47,6 +48,7 @@ static void wifi_begin() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(g_sat.wifi_ssid.c_str(), g_sat.wifi_pass.c_str());
   s_lost_ms = millis();
+  if (devsetup::force_ap()) ap_on();   // Mehrfach-Reset: Einrichtungs-WLAN sofort
 }
 
 static void wifi_loop() {
@@ -60,7 +62,7 @@ static void wifi_loop() {
       if (s_mdns) MDNS.addService("http", "tcp", 80);
     }
     s_lost_ms = 0;
-    if ((WiFi.getMode() & WIFI_AP) && now - s_conn_ms > AP_OFF_MS && WiFi.softAPgetStationNum() == 0) ap_off();
+    if (!devsetup::force_ap() && (WiFi.getMode() & WIFI_AP) && now - s_conn_ms > AP_OFF_MS && WiFi.softAPgetStationNum() == 0) ap_off();
   } else {
     s_conn_ms = 0;
     if (!s_lost_ms) s_lost_ms = now;
@@ -72,6 +74,11 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   sat_config_load();
+  if (devsetup::boot_check().factory) {   // 5x schnell neu gestartet: WLAN-Daten loeschen
+    g_sat.wifi_ssid = "";
+    g_sat.wifi_pass = "";
+    sat_config_save();
+  }
   log_i("PanelSat %s (%s) startet", SAT_FW_VERSION, g_sat.id.c_str());
   victron_begin();
   mopeka_begin();
@@ -84,6 +91,13 @@ void setup() {
   sat_web_begin();
   sat_send_begin();
   sat_display_begin();   // nur mit Display (SAT_DISPLAY), sonst leer
+  if (sat_display_reset_requested()) {   // beim Einschalten 10 s aufs Display gedrueckt: Passwort zuruecksetzen
+    devsetup::password_reset();
+    if (WiFi.getMode() & WIFI_AP) {
+      ap_off();
+      ap_on();
+    }
+  }
 }
 
 void loop() {

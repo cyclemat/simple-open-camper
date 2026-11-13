@@ -10,16 +10,14 @@
 #include "../mopeka.h"
 #include "../victron.h"
 #include "../hymer.h"
+#include "../devsetup.h"
 
 #include <ArduinoJson.h>
-#include <DNSServer.h>
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
 static WebServer s_srv(80);
-static DNSServer s_dns;
-static bool s_dns_on = false;
 static uint32_t s_restart_at = 0;
 
 static void send_json(const JsonDocument &d, int code = 200) {
@@ -53,6 +51,7 @@ static void h_state() {
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
   d["display"] = sat_display_present();
+  if (sat_display_present()) sat_display_light(d["light"].to<JsonObject>());
   JsonObject w = d["wifi"].to<JsonObject>();
   w["ssid"] = g_sat.wifi_ssid;
   w["connected"] = WiFi.isConnected();
@@ -280,8 +279,11 @@ static void h_wifiscan() {
   int n = WiFi.scanNetworks(false, false);
   JsonDocument d;
   JsonArray a = d["networks"].to<JsonArray>();
-  for (int i = 0; i < n && i < 30; i++) {
+  for (int i = 0; i < n && a.size() < 30; i++) {   // Liste kommt nach Signal sortiert: erster Eintrag je Name
     if (WiFi.SSID(i).isEmpty()) continue;
+    bool dup = false;
+    for (int j = 0; j < i && !dup; j++) dup = WiFi.SSID(j) == WiFi.SSID(i);
+    if (dup) continue;
     JsonObject o = a.add<JsonObject>();
     o["ssid"] = WiFi.SSID(i);
     o["rssi"] = WiFi.RSSI(i);
@@ -398,15 +400,17 @@ static void h_io_action() {
 }
 
 // ---------------------------------------------------------------- Firmware
-static bool s_upd_ok = false;
+static bool s_upd_ok = false, s_upd_auth = false;
 static void h_update_done() {
+  if (!s_upd_auth) return devsetup::deny();
   s_srv.send(200, "application/json", s_upd_ok ? "{\"ok\":true,\"restart\":true}" : "{\"error\":\"Update fehlgeschlagen\"}");
   if (s_upd_ok) s_restart_at = millis() + 1500;
 }
 static void h_update_data() {
   HTTPUpload &u = s_srv.upload();
   if (u.status == UPLOAD_FILE_START) {
-    s_upd_ok = Update.begin(UPDATE_SIZE_UNKNOWN);
+    s_upd_auth = devsetup::upload_allowed();   // Firmware nur angemeldet
+    s_upd_ok = s_upd_auth && Update.begin(UPDATE_SIZE_UNKNOWN);
   } else if (u.status == UPLOAD_FILE_WRITE) {
     if (s_upd_ok && Update.write(u.buf, u.currentSize) != u.currentSize) s_upd_ok = false;
   } else if (u.status == UPLOAD_FILE_END) {
@@ -419,46 +423,32 @@ static void h_update_data() {
 
 // ---------------------------------------------------------------- Start/Ablauf
 void sat_web_begin() {
+  devsetup::begin(s_srv);   // Anmeldung, Pflicht-Passwort, Captive Portal (auch onNotFound)
   s_srv.on("/", HTTP_GET, [] { s_srv.send_P(200, "text/html; charset=utf-8", SAT_PAGE); });
-  s_srv.on("/api/state", HTTP_GET, h_state);
-  s_srv.on("/api/config", HTTP_POST, h_config);
-  s_srv.on("/api/wifiscan", HTTP_GET, h_wifiscan);
-  s_srv.on("/api/truma", HTTP_POST, h_truma);
-  s_srv.on("/api/mopeka", HTTP_POST, h_mopeka);
-  s_srv.on("/api/victron", HTTP_POST, h_victron);
-  s_srv.on("/api/hymer", HTTP_POST, h_hymer);
-  s_srv.on("/api/io", HTTP_GET, h_io_get);
+  s_srv.on("/api/state", HTTP_GET, devsetup::guard(h_state));
+  s_srv.on("/api/config", HTTP_POST, devsetup::guard(h_config));
+  s_srv.on("/api/wifiscan", HTTP_GET, devsetup::guard(h_wifiscan));
+  s_srv.on("/api/truma", HTTP_POST, devsetup::guard(h_truma));
+  s_srv.on("/api/mopeka", HTTP_POST, devsetup::guard(h_mopeka));
+  s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
+  s_srv.on("/api/hymer", HTTP_POST, devsetup::guard(h_hymer));
+  s_srv.on("/api/io", HTTP_GET, devsetup::guard(h_io_get));
   if (sat_display_present()) {
-    s_srv.on("/api/display", HTTP_GET, h_display_get);
-    s_srv.on("/api/display", HTTP_POST, h_display_set);
+    s_srv.on("/api/display", HTTP_GET, devsetup::guard(h_display_get));
+    s_srv.on("/api/display", HTTP_POST, devsetup::guard(h_display_set));
   }
-  s_srv.on("/api/io", HTTP_POST, h_io_set);
-  s_srv.on("/api/io/action", HTTP_POST, h_io_action);
-  s_srv.on("/api/reboot", HTTP_POST, [] {
-    send_ok();
-    s_restart_at = millis() + 1000;
-  });
+  s_srv.on("/api/io", HTTP_POST, devsetup::guard(h_io_set));
+  s_srv.on("/api/io/action", HTTP_POST, devsetup::guard(h_io_action));
+  s_srv.on("/api/reboot", HTTP_POST, devsetup::guard([] {
+             send_ok();
+             s_restart_at = millis() + 1000;
+           }));
   s_srv.on("/api/update", HTTP_POST, h_update_done, h_update_data);
-  // Einrichtungs-WLAN: alle unbekannten Adressen auf die Startseite (Anmeldeseite am Handy)
-  s_srv.onNotFound([] {
-    if (WiFi.getMode() & WIFI_AP) {
-      s_srv.sendHeader("Location", "http://192.168.4.1/");
-      s_srv.send(302, "text/plain", "");
-    } else {
-      s_srv.send(404, "text/plain", "Nicht gefunden");
-    }
-  });
   s_srv.begin();
 }
 
 void sat_web_loop() {
-  bool ap = (WiFi.getMode() & WIFI_AP) != 0;
-  if (ap && !s_dns_on) s_dns_on = s_dns.start(53, "*", WiFi.softAPIP());
-  if (!ap && s_dns_on) {
-    s_dns.stop();
-    s_dns_on = false;
-  }
-  if (s_dns_on) s_dns.processNextRequest();
+  devsetup::loop();
   s_srv.handleClient();
   if (s_restart_at && (int32_t)(millis() - s_restart_at) > 0) ESP.restart();
 }

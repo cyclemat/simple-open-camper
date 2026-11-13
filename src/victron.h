@@ -52,6 +52,10 @@ struct VictronInfo {
   int ac_source = -1;       // aktiver AC-Eingang (0 unbekannt, 1 Netz, 2 Generator, 3 Landstrom, 240 keiner)
   int ac_connected = -1;
   int mode = -1;            // Schalter des Multi: 1 nur Laden, 2 nur Wechselrichter, 3 ein, 4 aus
+  // Einstellbar ueber den GX (nur wenn der GX den Wert liefert und als einstellbar meldet)
+  bool can_limit = false;   // Eingangsstrom-Begrenzung (ac_limit, A)
+  bool can_mode = false;    // Schalter (mode)
+  uint8_t mode_set = 0;     // 0 MultiPlus/Quattro (1 nur Laden, 2 nur Wechselrichter, 3 ein, 4 aus), 1 Ladegeraet (1 ein, 4 aus)
 };
 
 struct VictronFound {

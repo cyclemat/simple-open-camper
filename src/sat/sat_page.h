@@ -31,15 +31,30 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <h1 id="hName">PanelSat</h1><p class="sub" id="hSub">…</p>
 <div class="chips" id="chips"></div>
 
+<div class="card" id="authCard" style="display:none"><h2 id="authT">Anmelden</h2><p class="hint" id="authH"></p>
+<div id="pwSetup"><label class="f"><span>Standardpasswort (steht in der Anleitung)</span><input id="pOld" type="password" autocomplete="current-password"></label>
+<label class="f"><span>Neues Passwort (mindestens 8 Zeichen)</span><input id="pNew" type="password" autocomplete="new-password"></label>
+<label class="f"><span>Neues Passwort wiederholen</span><input id="pNew2" type="password" autocomplete="new-password"></label></div>
+<div id="pwLogin"><label class="f"><span>Passwort</span><input id="pLogin" type="password" autocomplete="current-password"></label></div>
+<div class="row"><button class="p" id="bAuth" style="flex:none">Weiter</button></div></div>
+<div id="app" style="display:none">
+
 <div class="card"><h2>Satellit</h2>
 <div class="row"><label class="f"><span>Name</span><input id="cName" maxlength="32"></label>
 <label class="f"><span>Kennung (Teil der Topics)</span><input id="cId" maxlength="32" class="mono"></label></div>
 <h2 style="margin-top:6px">WLAN</h2>
-<div class="row"><label class="f"><span>Netzname (SSID)</span><input id="cSsid" maxlength="32" list="nets"></label>
+<div class="row"><label class="f"><span>Netzname (SSID)</span><input id="cSsid" maxlength="32"></label>
 <label class="f"><span>Passwort</span><input id="cWpass" type="password" maxlength="64" placeholder="unverändert"></label></div>
-<datalist id="nets"></datalist>
+<div id="netList"></div>
 <div class="row" style="flex:none"><button id="bScanW" style="flex:none">Netze suchen</button></div>
-<p class="hint">Ohne WLAN-Verbindung öffnet der Satellit nach 30 s das WLAN „SOC-Satellite-…“ (Passwort <b>panelsat</b>), Adresse 192.168.4.1.</p>
+<p class="hint">Ohne WLAN-Verbindung öffnet der Satellit nach 30 s das Einrichtungs-WLAN „SOC-Satellite-…“, die Einstellungsseite erscheint dann von selbst (sonst http://4.3.2.1/).</p>
+<h2 style="margin-top:14px">Einrichtungs-WLAN</h2>
+<p class="hint">Das eigene WLAN „<span class="apSsid">…</span>“ zum Einrichten (öffnet sich, wenn keine WLAN-Verbindung besteht). Sein WLAN-Passwort ist unabhängig vom Zugangspasswort dieser Seite.</p>
+<label class="ck"><input type="checkbox" id="apOn">Mit WLAN-Passwort schützen (ab Werk: <b>panelsat</b>)</label>
+<div class="row" id="apPwRow"><label class="f"><span>WLAN-Passwort (mindestens 8 Zeichen)</span><input id="apPw" type="password" maxlength="63" placeholder="unverändert" autocomplete="new-password"></label></div>
+<p class="hint" id="apOpenHint" style="display:none">Ohne WLAN-Passwort kann sich jeder in der Nähe mit dem Einrichtungs-WLAN verbinden – Einstellungen ändern geht trotzdem nur mit dem Zugangspasswort.</p>
+<div class="row"><button id="bApSave" style="flex:none">WLAN-Passwort speichern</button><button id="bPw" style="flex:none">Zugangspasswort ändern</button></div>
+<p class="hint">Notfall: 3× kurz hintereinander aus- und einschalten (je unter 10 s) öffnet das Einrichtungs-WLAN sofort, 5× setzt WLAN-Verbindung, Zugangspasswort und WLAN-Passwort zurück (beide wieder <b>panelsat</b>).</p>
 
 <h2 style="margin-top:14px">Wege zum Panel</h2>
 <label class="ck"><input type="checkbox" id="mMqtt">MQTT-Broker (auch Home Assistant)</label>
@@ -102,12 +117,17 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <label class="f"><span>Kacheln pro Seite</span><select id="dpPer"><option value="4">4 (2 × 2)</option><option value="2">2 (groß)</option></select></label>
 <label class="f"><span>Helligkeit</span><input type="range" id="dpBright" min="20" max="255"></label>
 <label class="f"><span>Dimmen nach</span><select id="dpDim"><option value="1">1 Minute</option><option value="2">2 Minuten</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="0">nie</option></select></label>
+<label class="ck"><input type="checkbox" id="dpAuto">Helligkeit automatisch (Lichtsensor vorne am Display)</label>
+<label class="f"><span>Helligkeit bei Dunkelheit</span><input type="range" id="dpNight" min="5" max="255"></label>
+<label class="f"><span>Dunkel ab Messwert</span><input type="number" id="dpThr" min="1" max="4095"></label>
+<p class="hint"><span id="ldrNow">Lichtsensor: …</span> Größerer Wert = dunkler. Zum Einstellen: Raum abdunkeln, Wert ablesen und etwas darunter als Grenze eintragen.</p>
 </div>
 <div class="row" style="margin-top:8px"><button id="bDpSave" style="flex:none">Speichern</button></div></div>
 
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button><button id="bReboot" style="flex:none">Neu starten</button></div>
+</div>
 </div>
 </main><div id="toast"></div>
 <script>
@@ -164,7 +184,26 @@ function render(){
  $('#bViScan').disabled=V.scanning||V.devices.length>=V.max;$('#bViScan').textContent=V.scanning?'Suche läuft …':'Geräte suchen';
  $('#viFound').innerHTML=V.scanning||V.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(V.found.length?V.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Victron')} <span class="mono">${f.mac}</span><div class="v">Signal ${sig(f.rssi)}${f.configured?', eingerichtet':''}</div></div><button data-via="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):'';
 }
-async function load(){try{S=await (await fetch('/api/state')).json();if(!loaded){fill();loaded=true}render();ioLive()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
+async function apLoad(){try{const r=await fetch('/api/appw');if(!r.ok)return;const j=await r.json();$('#apOn').checked=j.on;apShow();document.querySelectorAll('.apSsid').forEach(e=>e.textContent=j.ssid||'…');$('#apPw').placeholder=j.custom?'unverändert':'unverändert (panelsat)'}catch(e){}}
+function apShow(){$('#apPwRow').style.display=$('#apOn').checked?'':'none';$('#apOpenHint').style.display=$('#apOn').checked?'none':''}
+$('#apOn').onchange=apShow;
+$('#bApSave').onclick=()=>{const pw=$('#apPw').value;if($('#apOn').checked&&pw&&pw.length<8)return toast('Das WLAN-Passwort braucht mindestens 8 Zeichen.',true);
+ post('/api/appw',{on:$('#apOn').checked,pw:pw}).then(()=>{$('#apPw').value='';toast('Gespeichert – das Einrichtungs-WLAN startet gleich mit der neuen Einstellung neu.');apLoad()}).catch(e=>toast(e.message,true))};
+let AUTH=null;
+function showAuth(mode){AUTH=mode;$('#app').style.display='none';$('#authCard').style.display='';
+ const setup=mode==='setup';$('#pwSetup').style.display=setup?'':'none';$('#pwLogin').style.display=setup?'none':'';
+ $('#authT').textContent=setup?'Erste Einrichtung: Passwort vergeben':'Anmelden';
+ $('#authH').textContent=setup?'Zum Schutz zuerst das Standardpasswort eingeben und ein eigenes Zugangspasswort für diese Seite vergeben. Das WLAN-Passwort des Einrichtungs-WLANs stellst du danach getrennt ein.':'Passwort des Satelliten eingeben.';$('#hSub').textContent=''}
+$('#bAuth').onclick=async()=>{try{
+ if(AUTH==='setup'){if($('#pNew').value!==$('#pNew2').value)return toast('Die neuen Passwörter sind nicht gleich.',true);
+  await post('/api/setpw',{old:$('#pOld').value,new:$('#pNew').value});toast('Zugangspasswort gespeichert.')}
+ else await post('/api/login',{pw:$('#pLogin').value});
+ setTimeout(()=>location.reload(),800)}catch(e){toast(e.message,true)}};
+$('#bPw').onclick=async()=>{const o=prompt('Aktuelles Zugangspasswort');if(o==null)return;const n=prompt('Neues Passwort (mindestens 8 Zeichen)');if(!n)return;if(prompt('Neues Passwort wiederholen')!==n)return toast('Nicht gleich.',true);
+ try{await post('/api/setpw',{old:o,new:n});toast('Passwort geändert.')}catch(e){toast(e.message,true)}};
+$('#netList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const n=$('#netList')._n[+b.dataset.net];$('#cSsid').value=n.ssid;$('#netList').innerHTML='';$('#cWpass').value='';$('#cWpass').focus();toast('„'+n.ssid+'“ gewählt – Passwort eingeben und speichern.')});
+async function load(){try{const r=await fetch('/api/state');if(r.status===401){const j=await r.json();if(AUTH!==j.auth)showAuth(j.auth);return}
+ AUTH=null;$('#authCard').style.display='none';$('#app').style.display='';S=await r.json();if(!loaded){fill();apLoad();loaded=true}render();ioLive();ldrShow()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
 // ---------------- Anschluesse (GPIO)
 let IO=null,PINS=[];
 const CLS=[['','Allgemein'],['temperature','Temperatur'],['humidity','Luftfeuchte'],['level','Füllstand'],['voltage','Spannung'],['pressure','Druck'],['current','Strom']];
@@ -277,7 +316,9 @@ $('#bSave').onclick=()=>{
  if($('#cWpass').value)d.wifi.pass=$('#cWpass').value;if($('#qPass').value)d.mqtt.pass=$('#qPass').value;
  post('/api/config',d).then(r=>{toast(r.restart?'Gespeichert – der Satellit startet neu und verbindet sich mit dem WLAN.':'Gespeichert.');$('#cWpass').value='';$('#qPass').value='';loaded=false;setTimeout(load,r.restart?8000:500)}).catch(e=>toast(e.message,true));
 };
-$('#bScanW').onclick=async()=>{$('#bScanW').disabled=true;$('#bScanW').textContent='Suche …';try{const r=await (await fetch('/api/wifiscan')).json();$('#nets').innerHTML=r.networks.map(n=>`<option value="${esc(n.ssid)}">${n.rssi} dBm</option>`).join('');toast(r.networks.length+' Netze gefunden – ins Feld tippen zum Auswählen.')}catch(e){toast('Suche fehlgeschlagen',true)}$('#bScanW').disabled=false;$('#bScanW').textContent='Netze suchen'};
+$('#bScanW').onclick=async()=>{$('#bScanW').disabled=true;$('#bScanW').textContent='Suche …';try{const r=await fetch('/api/wifiscan');const j=await r.json();if(!r.ok)throw new Error(j.error||'Suche fehlgeschlagen');
+ $('#netList').innerHTML=j.networks.length?j.networks.map((n,i)=>`<div class="dev"><div class="t">${esc(n.ssid)}<div class="v">Signal ${sig(n.rssi)}${n.open?' · offen':''}</div></div><button data-net="${i}" style="flex:none">Wählen</button></div>`).join(''):'<p class="hint">Keine Netze gefunden.</p>';
+ $('#netList')._n=j.networks}catch(e){toast(e.message,true)}$('#bScanW').disabled=false;$('#bScanW').textContent='Netze suchen'};
 $('#trInt').onchange=e=>act('/api/truma',{interval:+e.target.value},'Gespeichert.');
 $('#bTrScan').onclick=()=>act('/api/truma',{scan:true},'Suche gestartet (bis zu 3 Minuten).');
 $('#bTrMeasure').onclick=()=>act('/api/truma',{measure:''},'Messung gestartet.');
@@ -306,15 +347,16 @@ $('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Er
  try{const r=await fetch('/api/update',{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
 let DP=null;
+function ldrShow(){const l=S.light;if(!l||l.ldr<0)return;$('#ldrNow').textContent='Lichtsensor zurzeit: '+l.ldr+' – '+(l.night?'dunkel':'hell')+(l.auto?'.':' (Automatik aus).')}
 async function dpLoad(){try{const r=await fetch('/api/display');if(!r.ok)return;DP=await r.json();dpRender()}catch(e){}}
 function dpRender(){if(!DP)return;$('#dpCard').style.display='';
  $('#dpList').innerHTML=DP.tiles.length?DP.tiles.map((t,i)=>`<div class="dev"><label class="ck" style="flex:none;margin:0"><input type="checkbox" data-dpon="${i}" ${t.on?'checked':''}></label><div class="t" style="flex:1"><input data-dpn="${i}" value="${esc(t.n)}" placeholder="${esc(t.name)}" style="width:100%"><div class="v">${esc(t.value||'')}</div></div><button data-dpup="${i}" ${i?'':'disabled'} style="flex:none">▲</button><button data-dpdn="${i}" ${i<DP.tiles.length-1?'':'disabled'} style="flex:none">▼</button></div>`).join(''):'<p class="hint">Noch keine Werte – erst Geräte oder Anschlüsse einrichten.</p>';
- $('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim}
+ $('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr}
 $('#dpList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,T=DP.tiles;
  if(d.dpup){const i=+d.dpup;[T[i-1],T[i]]=[T[i],T[i-1]];dpRender()}
  if(d.dpdn){const i=+d.dpdn;[T[i+1],T[i]]=[T[i],T[i+1]];dpRender()}});
 $('#dpList').addEventListener('change',e=>{const d=e.target.dataset;if(d.dpon)DP.tiles[+d.dpon].on=e.target.checked});
 $('#dpList').addEventListener('input',e=>{const d=e.target.dataset;if(d.dpn)DP.tiles[+d.dpn].n=e.target.value});
-$('#bDpSave').onclick=()=>post('/api/display',{tiles:DP.tiles.map(t=>({k:t.k,on:t.on,n:t.n||''})),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true));
+$('#bDpSave').onclick=()=>post('/api/display',{tiles:DP.tiles.map(t=>({k:t.k,on:t.on,n:t.n||''})),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true));
 load();ioLoad();dpLoad();setInterval(load,3000);
 </script></body></html>)HTML";
