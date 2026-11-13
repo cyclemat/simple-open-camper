@@ -428,10 +428,8 @@ void ui_gas_open(const std::string &key) {
   d->title = ui_label(hdr, "", F_TITLE, C_TEXT);
   lv_label_set_long_mode(d->title, LV_LABEL_LONG_DOT);
   lv_obj_set_width(d->title, 600 - 56 - 64 - 20 - 130);
-  lv_obj_align(d->title, LV_ALIGN_TOP_LEFT, 84, 2);
-  std::string sub = g.source + "  ·  " + (g.sat.empty() ? g.mac : g.sat);
-  lv_obj_t *s = ui_label(hdr, sub.c_str(), F_SMALL, C_TEXT2);
-  lv_obj_align(s, LV_ALIGN_TOP_LEFT, 84, 38);
+  // nur der Name (keine graue Unterzeile: die lief unter den grossen Wert rechts)
+  lv_obj_align(d->title, LV_ALIGN_LEFT_MID, 84, 0);
   lv_obj_t *xb = ui_icon_button(hdr, ICON_CLOSE, g_close_cb, nullptr, 56);
   lv_obj_align(xb, LV_ALIGN_RIGHT_MID, 0, 0);
   lv_obj_t *pb = ui_icon_button(hdr, ICON_PENCIL, g_rename_cb, nullptr, 56);

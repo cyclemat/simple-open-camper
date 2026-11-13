@@ -170,6 +170,14 @@ struct VicDlg {
   lv_obj_t *rows[MAX_ROWS] = {nullptr};
   int nrows = 0;
   lv_obj_t *status = nullptr;
+  // Bedienen ueber den Cerbo GX (MultiPlus/Quattro bzw. Ladegeraet): nur wenn der GX es als einstellbar meldet
+  lv_obj_t *lim_lbl = nullptr;
+  float lim_val = NAN;
+  uint32_t edit_ms = 0;              // letzte eigene Eingabe: so lange keine Werte vom GX uebernehmen
+  lv_timer_t *lim_timer = nullptr;   // Begrenzung erst kurz nach dem letzten Tippen senden
+  lv_obj_t *mode_btn[4] = {nullptr};
+  int mode_val[4] = {0};
+  int nmode = 0;
 };
 static VicDlg *s_v = nullptr;
 
@@ -181,7 +189,122 @@ void ui_vic_close() {
 static void v_delete_cb(lv_event_t *e) {
   VicDlg *d = (VicDlg *)lv_event_get_user_data(e);
   if (d == s_v) s_v = nullptr;
+  if (d->lim_timer) {   // noch nicht gesendete Begrenzung jetzt senden
+    lv_timer_del(d->lim_timer);
+    if (!isnan(d->lim_val)) cerbo_set_limit(d->key, d->lim_val);
+  }
   delete d;
+}
+
+// ---------------------------------------------------------------- Bedienen ueber den Cerbo GX
+static void ctl_show_limit() {
+  if (s_v && s_v->lim_lbl) lv_label_set_text(s_v->lim_lbl, isnan(s_v->lim_val) ? "–" : ui_num(s_v->lim_val, 1, "A").c_str());
+}
+
+static void ctl_show_mode(int mode) {
+  if (!s_v) return;
+  for (int i = 0; i < s_v->nmode; i++) {
+    bool on = s_v->mode_val[i] == mode;
+    lv_obj_set_style_bg_color(s_v->mode_btn[i], on ? C_AMBER : C_FIELD, 0);
+    lv_obj_t *l = lv_obj_get_child(s_v->mode_btn[i], 0);
+    if (l) lv_obj_set_style_text_color(l, on ? C_INK : C_TEXT, 0);
+  }
+}
+
+static void ctl_send_cb(lv_timer_t *t) {
+  VicDlg *d = (VicDlg *)t->user_data;
+  d->lim_timer = nullptr;
+  lv_timer_del(t);
+  if (!isnan(d->lim_val) && !cerbo_set_limit(d->key, d->lim_val)) ui_toast("Der GX nimmt die Begrenzung gerade nicht an.");
+  d->edit_ms = lv_tick_get();
+}
+
+static void ctl_step_cb(lv_event_t *e) {
+  if (!s_v || isnan(s_v->lim_val)) return;
+  int dir = (int)(intptr_t)lv_event_get_user_data(e);
+  float v = roundf(s_v->lim_val) + dir;   // ganze Ampere
+  s_v->lim_val = v < 0 ? 0 : v > 100 ? 100 : v;
+  s_v->edit_ms = lv_tick_get();
+  ctl_show_limit();
+  if (s_v->lim_timer) lv_timer_reset(s_v->lim_timer);
+  else s_v->lim_timer = lv_timer_create(ctl_send_cb, 800, s_v);
+}
+
+static void ctl_mode_cb(lv_event_t *e) {
+  if (!s_v) return;
+  int i = (int)(intptr_t)lv_event_get_user_data(e);
+  if (i < 0 || i >= s_v->nmode) return;
+  s_v->edit_ms = lv_tick_get();
+  if (cerbo_set_mode(s_v->key, s_v->mode_val[i])) ctl_show_mode(s_v->mode_val[i]);
+  else ui_toast("Der GX nimmt den Schalter gerade nicht an.");
+}
+
+static lv_obj_t *ctl_btn(lv_obj_t *parent, const char *txt, int w, lv_event_cb_t cb, intptr_t ud) {
+  lv_obj_t *b = lv_obj_create(parent);
+  ui_plain(b);
+  lv_obj_set_size(b, w, 56);
+  lv_obj_set_style_radius(b, 16, 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(b, C_FIELD, 0);
+  lv_obj_set_style_border_width(b, 1, 0);
+  lv_obj_set_style_border_color(b, C_LINE, 0);
+  lv_obj_set_style_border_color(b, C_AMBER, LV_STATE_PRESSED);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, (void *)ud);
+  lv_obj_t *l = ui_label(b, txt, F_BODY, C_TEXT);
+  lv_obj_center(l);
+  return b;
+}
+
+static void ctl_build(lv_obj_t *card, const VictronInfo &v) {
+  VicDlg *d = s_v;
+  if (v.can_limit) {
+    lv_obj_t *r = lv_obj_create(card);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 60);
+    lv_obj_t *t = ui_label(r, "Netzstrom-Begrenzung", F_BODY, C_TEXT2);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_t *plus = ctl_btn(r, "+", 72, ctl_step_cb, 1);
+    lv_obj_align(plus, LV_ALIGN_RIGHT_MID, 0, 0);
+    d->lim_lbl = ui_label(r, "", F_TITLE, C_TEXT);
+    lv_obj_set_width(d->lim_lbl, 120);
+    lv_obj_set_style_text_align(d->lim_lbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(d->lim_lbl, LV_ALIGN_RIGHT_MID, -80, 0);
+    lv_obj_t *minus = ctl_btn(r, "\xE2\x80\x93", 72, ctl_step_cb, -1);
+    lv_obj_align(minus, LV_ALIGN_RIGHT_MID, -208, 0);
+    d->lim_val = v.ac_limit;
+    ctl_show_limit();
+  }
+  if (v.can_mode) {
+    static const char *MP_TXT[4] = {"Ein", "Aus", "Nur Laden", "Nur Wechselrichter"};
+    static const int MP_VAL[4] = {3, 4, 1, 2};
+    static const char *CH_TXT[2] = {"Ein", "Aus"};
+    static const int CH_VAL[2] = {1, 4};
+    bool mp = v.mode_set == 0;
+    d->nmode = mp ? 4 : 2;
+    lv_obj_t *r = lv_obj_create(card);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(r, 8, 0);
+    int w = (640 - 48 - 8 * (d->nmode - 1)) / d->nmode;
+    for (int i = 0; i < d->nmode; i++) {
+      d->mode_val[i] = mp ? MP_VAL[i] : CH_VAL[i];
+      d->mode_btn[i] = ctl_btn(r, mp ? MP_TXT[i] : CH_TXT[i], w, ctl_mode_cb, i);
+    }
+    ctl_show_mode(v.mode);
+  }
+}
+
+// einmal pro Aktualisierung: Werte vom GX uebernehmen, ausser direkt nach einer eigenen Eingabe
+static void ctl_sync(const VictronInfo &v) {
+  if (!s_v || (!s_v->lim_lbl && !s_v->nmode)) return;
+  if (s_v->lim_timer || (s_v->edit_ms && lv_tick_elaps(s_v->edit_ms) < 3000)) return;
+  if (s_v->lim_lbl) {
+    s_v->lim_val = v.ac_limit;
+    ctl_show_limit();
+  }
+  if (s_v->nmode) ctl_show_mode(v.mode);
 }
 static void v_ov_click(lv_event_t *e) {
   if (lv_event_get_target(e) == lv_event_get_current_target(e)) ui_vic_close();
@@ -425,6 +548,7 @@ void ui_vic_update() {
   if (v.gx) st = (v.status == "OK" || v.age_s == 0) ? "" : v.status;
   if (v.error > 0) st = tr("Gerät meldet Fehler ") + std::to_string(v.error) + tr(" – Details in VictronConnect.");
   lv_label_set_text(s_v->status, st.c_str());
+  ctl_sync(v);
 }
 
 void ui_vic_open(const std::string &key) {
@@ -477,11 +601,8 @@ void ui_vic_open(const std::string &key) {
   d->title = ui_label(hdr, "", F_TITLE, C_TEXT);
   lv_label_set_long_mode(d->title, LV_LABEL_LONG_DOT);
   lv_obj_set_width(d->title, 230);  // rechts daneben steht der grosse Wert
-  lv_obj_align(d->title, LV_ALIGN_TOP_LEFT, 84, 2);
-  std::string via = panelsat_sat_of(key).empty() ? v.mac : panelsat_via_text(key);
-  std::string sub = std::string(tr(victron_kind_text(v.kind))) + "  ·  " + via;
-  lv_obj_t *s = ui_label(hdr, sub.c_str(), F_SMALL, C_TEXT2);
-  lv_obj_align(s, LV_ALIGN_TOP_LEFT, 84, 38);
+  // nur der Name (keine graue Unterzeile: die lief unter den grossen Wert rechts)
+  lv_obj_align(d->title, LV_ALIGN_LEFT_MID, 84, 0);
   lv_obj_t *xb = ui_icon_button(hdr, ICON_CLOSE, v_close_cb, nullptr, 56);
   lv_obj_align(xb, LV_ALIGN_RIGHT_MID, 0, 0);
   lv_obj_t *pb = ui_icon_button(hdr, ICON_PENCIL, v_rename_cb, nullptr, 56);
@@ -515,6 +636,7 @@ void ui_vic_open(const std::string &key) {
   d->status = ui_label(card, "", F_SMALL, C_TEXT2);
   lv_label_set_long_mode(d->status, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(d->status, lv_pct(100));
+  if (v.gx && (v.can_limit || v.can_mode)) ctl_build(card, v);   // MultiPlus/Ladegeraet ueber den GX bedienen
 
   lv_obj_t *row = lv_obj_create(card);
   ui_plain(row);
