@@ -1,8 +1,8 @@
 # Simply Open Camper – Firmware auf GitHub bauen
-# Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel, Satelliten und Display-Test.
-# Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf (Actions -> Lauf -> unten "Artifacts").
+# Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel (S3 und P4), Satelliten, Victron-Display
+# und Display-Test. Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf (Actions -> Lauf -> unten).
 #   Panel per Web-Editor aktualisieren: firmware.bin unter Info -> Firmware aktualisieren
-#   Per USB: bootloader.bin @0x0, partitions.bin @0x8000, firmware.bin @0x10000 (esptool)
+#   Per USB: bootloader.bin @0x0 (P4: @0x2000), partitions.bin @0x8000, firmware.bin @0x10000 (esptool)
 # Pakete und Framework liegen im Cache; der erste Lauf dauert laenger (Framework-Neubau wegen custom_sdkconfig).
 name: Firmware bauen
 
@@ -31,11 +31,21 @@ jobs:
             envs: waveshare-7b check-all
             artifact: panel-waveshare-7b
             out: .pio/build/waveshare-7b
+          - name: Panel P4
+            dir: p4
+            envs: crowpanel-p4
+            artifact: panel-crowpanel-p4
+            out: p4/.pio/build/crowpanel-p4
           - name: Satelliten
             dir: satellite
-            envs: esp32 esp32-c3 esp32-s3 esp32-c6 esp32-relay16
+            envs: esp32 esp32-c3 esp32-s3 esp32-c6 esp32-relay16 esp32-cyd
             artifact: satelliten
             out: satellite/.pio/build
+          - name: Victron-Display
+            dir: satellite
+            envs: esp32-cyd-victron
+            artifact: victron-display
+            out: satellite/.pio/build/esp32-cyd-victron
           - name: Display-Test
             dir: display-testing
             envs: waveshare-7b-display-testing
@@ -43,32 +53,47 @@ jobs:
             out: display-testing/.pio/build/waveshare-7b-display-testing
 
     steps:
+      # Der Runner hat nur ~14 GB frei; die Pakete fuer alle Chips sprengen das (Satelliten: "No space left on device")
+      - name: Platz schaffen
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      # Version fest: 6.2.0.post1 gilt fuer die pioarduino-Plattform als Vorabversion ("6.2.0-post.1" < 6.2.0)
-      # und wird abgelehnt ("IncompatiblePlatform ... depends on PlatformIO Core >=6.2.0"). Lokal laeuft 6.2.0.
+      # Die pioarduino-Plattform legt sich ~/.platformio/penv an und installiert dort "pioarduino>=6.2.0" – also die
+      # neueste Version 6.2.0.post1. Die meldet sich als "6.2.0-post.1", das gilt als Vorabversion (< 6.2.0), und die
+      # Plattform bricht nach dem Framework-Neubau ab ("IncompatiblePlatform ... depends on PlatformIO Core >=6.2.0").
+      # Deshalb die Umgebung selbst anlegen, mit fester Version 6.2.0 wie lokal. Erfuellt ">=6.2.0", nichts wird ersetzt.
       - name: PlatformIO installieren
-        run: pip install "platformio==6.2.0"
+        run: |
+          python -m venv ~/.platformio/penv
+          ~/.platformio/penv/bin/pip install "platformio==6.2.0" "pioarduino==6.2.0"
+          echo "$HOME/.platformio/penv/bin" >> "$GITHUB_PATH"
 
       - name: Cache (Plattform, Pakete, Framework)
         uses: actions/cache@v4
         with:
+          # penv nicht cachen: kaeme sonst aus alten Laeufen mit 6.2.0.post1 zurueck
           path: |
-            ~/.platformio
+            ~/.platformio/platforms
+            ~/.platformio/packages
+            ~/.platformio/.cache
             ${{ matrix.dir }}/.pio
-          key: pio-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-${{ github.sha }}
+          key: pio2-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-${{ github.sha }}
           restore-keys: |
-            pio-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-
-            pio-${{ matrix.artifact }}-
+            pio2-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-
+            pio2-${{ matrix.artifact }}-
 
       - name: Bauen
         env:
           PANEL_UPLOAD_NOWAIT: '1'
         run: |
+          pio --version
           for e in ${{ matrix.envs }}; do
             echo "::group::$e"
             pio run -d "${{ matrix.dir }}" -e "$e"
@@ -80,6 +105,7 @@ jobs:
           for f in $(find "${{ matrix.out }}" -name firmware.bin 2>/dev/null); do
             echo "$f: $(stat -c %s "$f") Bytes"
           done
+          df -h /
 
       - name: Firmware einsammeln
         run: |
