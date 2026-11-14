@@ -1795,7 +1795,7 @@ async function openSettings(tab = 'net') {
     if (!b) return '';
     const sumOf = x => x.has ? [x.soc + ' %', x.v != null ? x.v.toFixed(2).replace('.', ',') + ' V' : '', x.v != null && x.a != null ? Math.round(x.v * x.a) + ' W' : '', x.t != null ? Math.round(x.t) + ' °C' : '', x.ok === false ? T('Alarm') : ''].filter(Boolean).join(' · ') : (x.status || '–');
     return `<h3 style="font-size:13px;margin:0 0 8px">Akkus mit BMS (Bluetooth)</h3>
-      <p class="hint" style="margin-top:0">Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy und Eco-Worthy. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
+      <p class="hint" style="margin-top:0">Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
       <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
       ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
           <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
@@ -1813,7 +1813,7 @@ async function openSettings(tab = 'net') {
           <p class="hint">Welches BMS steckt im Akku? Steht oft in der App des Herstellers (z. B. „Xiaoxiang“ = JBD, „JK BMS“ = JK, „Smart BMS“ von Daly). Im Zweifel nacheinander probieren – das Protokoll unten zeigt, ob der Akku antwortet.</p>
           ${b.seen.map((x, i) => `<div class="gasrow" style="grid-template-columns:1fr auto auto">
               <div><b data-notr>${esc(x.name || '(ohne Name)')}</b><div class="hint" style="margin:0" data-notr>${esc(x.mac)} · Signal ${x.rssi > -65 ? 'stark' : x.rssi > -80 ? 'mittel' : 'schwach'}${x.mid ? ' · Hersteller 0x' + x.mid.toString(16).toUpperCase().padStart(4, '0') : ''}${x.svc ? ' · Dienste ' + esc(x.svc) : ''}</div></div>
-              <select data-bmsseltype="${i}"><option value="5">JBD / Xiaoxiang</option><option value="6">JK-BMS</option><option value="4">Daly / Bulltron</option><option value="7">LiTime / Redodo</option><option value="8">Renogy</option><option value="9">Eco-Worthy</option><option value="2">Power Quarry (binär)</option><option value="3">Power Quarry (ASCII)</option><option value="1">Super B</option></select>
+              <select data-bmsseltype="${i}"><option value="5">JBD / Xiaoxiang</option><option value="6">JK-BMS</option><option value="4">Daly / Bulltron</option><option value="7">LiTime / Redodo</option><option value="8">Renogy</option><option value="9">Eco-Worthy</option><option value="10">ANT</option><option value="11">Vatrer</option><option value="2">Power Quarry (binär)</option><option value="3">Power Quarry (ASCII)</option><option value="1">Super B</option></select>
               <button class="btn small" data-bmsseen="${i}">Hinzufügen</button></div>`).join('')}</details>` : ''}
         ${(b.log || []).length ? `<details style="margin-top:10px"><summary class="hint">Protokoll (für die Fehlersuche)</summary><pre class="hint" style="white-space:pre-wrap" data-notr>${esc(b.log.join('\n'))}</pre></details>` : ''}` : ''}`;
   };

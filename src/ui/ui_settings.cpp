@@ -1599,7 +1599,7 @@ static void bms_scan_cb(lv_event_t *) {
 static void build_bms() {
   heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
                          "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
-  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly/Bulltron, JBD, JK-BMS, LiTime, Renogy, Eco-Worthy – nur lesen", BLE_P_BMS);
+  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy, Eco-Worthy, ANT, Vatrer – nur lesen", BLE_P_BMS);
   s_bms_vals.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
     s_bms_sig = 0;

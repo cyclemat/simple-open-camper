@@ -45,6 +45,19 @@ default_envs = cyd-victron
 ; teilen sich sonst den Paketordner und loesen gegenseitig eine Neuinstallation aus
 packages_dir = .pio/packages
 
+; Akkus mit BMS: welche Typen mitkompiliert werden (1 = an, 0 = aus) – nicht gebrauchte auf 0 spart Flash
+[bms]
+superb = 1
+power_quarry = 1
+daly = 1
+jbd = 1
+jk = 1
+litime = 1
+renogy = 1
+ecoworthy = 1
+ant = 1
+vatrer = 1
+
 [env:cyd-victron]
 platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
 framework = arduino
@@ -69,6 +82,16 @@ build_flags =
     -DSAT_BOARD_CYD=1
     -DSAT_VICTRON_ONLY=1
     -DWITH_BMS=1
+    -DBMS_SUPERB_ON=${bms.superb}
+    -DBMS_PQ_ON=${bms.power_quarry}
+    -DBMS_DALY_ON=${bms.daly}
+    -DBMS_JBD_ON=${bms.jbd}
+    -DBMS_JK_ON=${bms.jk}
+    -DBMS_LITIME_ON=${bms.litime}
+    -DBMS_RENOGY_ON=${bms.renogy}
+    -DBMS_ECOWORTHY_ON=${bms.ecoworthy}
+    -DBMS_ANT_ON=${bms.ant}
+    -DBMS_VATRER_ON=${bms.vatrer}
     -DSAT_SPLASH=1
     -DLV_CONF_INCLUDE_SIMPLE
     -DLV_LVGL_H_INCLUDE_SIMPLE

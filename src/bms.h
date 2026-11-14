@@ -25,13 +25,46 @@
 #define WITH_BMS 0
 #endif
 
+// Einzelne Akku-Typen ein-/ausbauen (spart Flash, z. B. beim Mini-Display). Ab Werk alle an.
+// Im Mini-Display: satellite/platformio.ini, Abschnitt [bms].
+#ifndef BMS_SUPERB_ON
+#define BMS_SUPERB_ON 1
+#endif
+#ifndef BMS_PQ_ON
+#define BMS_PQ_ON 1          // Power Quarry (binaer und ASCII)
+#endif
+#ifndef BMS_DALY_ON
+#define BMS_DALY_ON 1        // Daly / Bulltron
+#endif
+#ifndef BMS_JBD_ON
+#define BMS_JBD_ON 1
+#endif
+#ifndef BMS_JK_ON
+#define BMS_JK_ON 1
+#endif
+#ifndef BMS_LITIME_ON
+#define BMS_LITIME_ON 1      // LiTime / Redodo / PowerQueen
+#endif
+#ifndef BMS_RENOGY_ON
+#define BMS_RENOGY_ON 1
+#endif
+#ifndef BMS_ECOWORTHY_ON
+#define BMS_ECOWORTHY_ON 1
+#endif
+#ifndef BMS_ANT_ON
+#define BMS_ANT_ON 1
+#endif
+#ifndef BMS_VATRER_ON
+#define BMS_VATRER_ON 1
+#endif
+
 #define BMS_MAX 4
 #define BMS_KEY_PREFIX "bms:"
 
 enum BmsModel : uint8_t {
   BMS_UNKNOWN = 0, BMS_SUPERB = 1, BMS_PQ_HEX = 2, BMS_PQ_ASCII = 3,
   BMS_BULLTRON = 4,   // Daly (Bulltron verbaut Daly): Modbus D2, zweite Variante 0x81/0x51
-  BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7, BMS_RENOGY = 8, BMS_ECOWORTHY = 9
+  BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7, BMS_RENOGY = 8, BMS_ECOWORTHY = 9, BMS_ANT = 10, BMS_VATRER = 11
 };
 // Abgleich/Erweiterung nach patman15/aiobmsble (Apache-2.0): Daly-Varianten und -Erkennung, JK-Aufbau nach
 // Firmware-Version, LiTime/Redodo-Hersteller-ID 0x585A, Renogy (BT-TH-…), Eco-Worthy (ECO-WORTHY…/DCHOUSE…).

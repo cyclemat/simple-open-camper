@@ -75,7 +75,7 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div id="trFound"></div></div>
 
 <div class="card" id="bmCard" style="display:none"><h2>Akkus per Bluetooth</h2>
-<p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy und Eco-Worthy. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Display liest nur Werte und schaltet am Akku nichts.</p>
+<p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Display liest nur Werte und schaltet am Akku nichts.</p>
 <div id="bmList"></div>
 <div class="row" style="margin-top:8px"><button id="bBmScan" style="flex:none">Akkus suchen</button></div>
 <div id="bmFound"></div>
@@ -150,7 +150,7 @@ function render(){
    <div class="v">${esc(x.model)} · ${x.has?[x.soc+' %',x.v!=null?num(x.v,2,'V'):'',x.a!=null?num(x.a,1,'A'):'',x.soh!=null?'SoH '+x.soh+' %':'',x.chg?'lädt':x.dis?'entlädt':'',x.low?'Ladung niedrig':'',x.ok?'':'BMS meldet Alarm',x.t!=null?num(x.t,0,'°C'):'',x.cyc!=null?x.cyc+' Zyklen':'',x.cells?'Zellen '+x.cells.map(c=>(c/1000).toFixed(3)).join(' / ')+' V':'',x.ttg>0?'leer in '+Math.floor(x.ttg/3600)+' h '+Math.floor(x.ttg%3600/60)+' min':'',x.connected?age(x.age):'getrennt'].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
    <button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
   $('#bBmScan').disabled=B.scanning||B.devices.length>=B.max;$('#bBmScan').textContent=B.scanning?'Suche läuft …':'Akkus suchen';
-  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
   $('#bmLog').textContent=(B.log||[]).join('\n')||'–'}
  const V=S.victron;
  $('#viList').innerHTML=V.devices.length?V.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-vin="${x.mac}" maxlength="32">

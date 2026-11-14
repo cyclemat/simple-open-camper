@@ -33,7 +33,7 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 | 🔋 **Cerbo GX** (optional) | Batterie, Solar (Summe und jeder Laderegler einzeln), Netz/Landstrom, Ladegerät, Wechselrichter, DC-System – per MQTT im WLAN, der GX wird automatisch gefunden |
 | 🔥 **Truma LevelControl** | Füllstand der Gasflaschen (%, kg, Akku des Sensors) per Bluetooth, bis zu 4 Sensoren |
 | 📶 **Victron Bluetooth** | SmartSolar, SmartShunt/BMV, Orion/DC-DC, Blue Smart/Phoenix Smart Ladegeräte – „Instant Readout“, auch ganz ohne Cerbo |
-| 🔋 **Akkus per Bluetooth** | Super B (Epsilon), Power Quarry (VB…/CBT), Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime/Redodo/PowerQueen: Ladezustand, Spannung, Strom, Temperatur, Zellen – nur lesen |
+| 🔋 **Akkus per Bluetooth** | Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime/Redodo/PowerQueen, Renogy, Eco-Worthy, ANT, Vatrer: Ladezustand, Spannung, Strom, Temperatur, Zellen – nur lesen |
 | 🎛️ **MultiPlus steuern** | Netzstrom-Begrenzung (− / +) und Schalter (Ein, Aus, Nur Laden, Nur Wechselrichter); eigenständige Ladegeräte: Begrenzung und Ein/Aus |
 | 🧩 **Nur echte Werte** | Kacheln entstehen automatisch – nur für Geräte, die wirklich Werte liefern. Keine leeren Kacheln |
 | 🚦 **Ampel-LED** | Die RGB-LED auf der Rückseite zeigt Batterie oder Gas: bis 10 % rot, bis 50 % orange, darüber grün |
@@ -109,7 +109,7 @@ Bluetooth startet erst, wenn ein Gerät eingerichtet ist oder gesucht wird.
 4. Gemessen wird automatisch alle 10 Minuten (einstellbar 2–240) oder per „Jetzt messen“.
    Die Kachel erscheint mit der ersten Messung.
 
-### Akkus per Bluetooth (Super B, Power Quarry, Bulltron, JBD, JK-BMS, LiTime)
+### Akkus per Bluetooth (BMS)
 
 1. **App des Herstellers schließen** (z. B. „Be in Charge“, „Power Quarry“, „BullTron“, „Xiaoxiang“, „JK BMS“, „LiTime“) – der Akku spricht nur mit einem Gerät.
 2. In der Weboberfläche bei **Akkus per Bluetooth**: „Akkus suchen“ (1 Minute).
