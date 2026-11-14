@@ -29,8 +29,12 @@
 #define BMS_KEY_PREFIX "bms:"
 
 enum BmsModel : uint8_t {
-  BMS_UNKNOWN = 0, BMS_SUPERB = 1, BMS_PQ_HEX = 2, BMS_PQ_ASCII = 3, BMS_BULLTRON = 4, BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7
+  BMS_UNKNOWN = 0, BMS_SUPERB = 1, BMS_PQ_HEX = 2, BMS_PQ_ASCII = 3,
+  BMS_BULLTRON = 4,   // Daly (Bulltron verbaut Daly): Modbus D2, zweite Variante 0x81/0x51
+  BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7, BMS_RENOGY = 8, BMS_ECOWORTHY = 9
 };
+// Abgleich/Erweiterung nach patman15/aiobmsble (Apache-2.0): Daly-Varianten und -Erkennung, JK-Aufbau nach
+// Firmware-Version, LiTime/Redodo-Hersteller-ID 0x585A, Renogy (BT-TH-…), Eco-Worthy (ECO-WORTHY…/DCHOUSE…).
 
 struct BmsInfo {
   std::string key, mac, name;

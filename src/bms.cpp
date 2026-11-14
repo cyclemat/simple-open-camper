@@ -6,7 +6,9 @@ const char *bms_model_text(BmsModel m) {
     case BMS_SUPERB: return "Super B";
     case BMS_PQ_HEX:
     case BMS_PQ_ASCII: return "Power Quarry";
-    case BMS_BULLTRON: return "Bulltron";
+    case BMS_BULLTRON: return "Daly/Bulltron";
+    case BMS_RENOGY: return "Renogy";
+    case BMS_ECOWORTHY: return "Eco-Worthy";
     case BMS_JBD: return "JBD";
     case BMS_JK: return "JK-BMS";
     case BMS_LITIME: return "LiTime";
@@ -93,6 +95,9 @@ struct Bat {
   // Abgefragte Akkus (Power Quarry, Bulltron) nur kurz verbinden: verbinden, abfragen, trennen. Die Dauer-
   // verbindung riss beim Power Quarry immer nach ~13 s ab ("Grund 520", Funkverbindung verloren).
   bool polled() const { return model != BMS_SUPERB && model != BMS_UNKNOWN; }
+  int8_t daly_x81 = -1;    // Daly: -1 noch unbekannt, 0 Protokoll D2, 1 Protokoll 0x81 (Antwort 0x51)
+  int jk_sw = -1;          // JK: Firmware-Hauptversion (ab 11 Aufbau 32S)
+  std::string eco_a1, eco_a2;   // Eco-Worthy: letzte Rahmen A1/A2 (je ein Notify)
 };
 
 class ClientCB : public NimBLEClientCallbacks {
@@ -437,11 +442,12 @@ static uint16_t mb_crc(const uint8_t *d, size_t n) {
   }
   return c;
 }
+static uint8_t s_mb_addr = 0xD2;   // erwartete Antwortadresse (Daly D2: 0xD2, Daly 0x81: 0x51, Renogy: 0x30)
 static bool mb_frame(const std::string &rx, uint8_t len, std::string &data) {
   const uint8_t *b = (const uint8_t *)rx.data();
   size_t n = rx.size();
   for (size_t i = 0; i + 2 < n; i++) {
-    if (b[i] != 0xD2 || b[i + 1] != 0x03 || b[i + 2] != len) continue;
+    if (b[i] != s_mb_addr || b[i + 1] != 0x03 || b[i + 2] != len) continue;
     size_t total = (size_t)len + 5;
     if (i + total > n) continue;
     uint16_t c = mb_crc(b + i, total - 2);
@@ -471,12 +477,14 @@ static bool jbd_frame(const std::string &rx, uint8_t cmd, std::string &data) {
   return false;
 }
 
-// JK02: 55 AA EB 90 TYP …, 300 Byte, Byte 299 = Summe der Bytes 0..298 (unteres Byte). TYP 2 = Zelldaten.
+// JK02: 55 AA EB 90 TYP …, 300 Byte, Byte 299 = Summe der Bytes 0..298 (unteres Byte).
+// TYP 2 = Zelldaten, 3 = Geraeteinfo (Firmware ab Byte 30)
+static uint8_t s_jk_type = 0x02;
 static bool jk_frame(const std::string &rx, std::string &data) {
   const uint8_t *b = (const uint8_t *)rx.data();
   size_t n = rx.size();
   for (size_t i = 0; i + 300 <= n; i++) {
-    if (b[i] != 0x55 || b[i + 1] != 0xAA || b[i + 2] != 0xEB || b[i + 3] != 0x90 || b[i + 4] != 0x02) continue;
+    if (b[i] != 0x55 || b[i + 1] != 0xAA || b[i + 2] != 0xEB || b[i + 3] != 0x90 || b[i + 4] != s_jk_type) continue;
     uint8_t sum = 0;
     for (size_t k = 0; k < 299; k++) sum += b[i + k];
     if (sum != b[i + 299]) continue;
@@ -600,6 +608,63 @@ static bool jk_connect(Bat &b, NimBLEClient *c) {
   return false;
 }
 
+// Renogy: Antworten auf 0xFFF1 (Dienst 0xFFF0), Anfragen auf 0xFFD1 (Dienst 0xFFD0)
+static bool renogy_connect(Bat &b, NimBLEClient *c) {
+  NimBLERemoteService *rs = c->getService(NimBLEUUID((uint16_t)0xFFF0));
+  NimBLERemoteService *ts = c->getService(NimBLEUUID((uint16_t)0xFFD0));
+  NimBLERemoteCharacteristic *nt = rs ? rs->getCharacteristic(NimBLEUUID((uint16_t)0xFFF1)) : nullptr;
+  NimBLERemoteCharacteristic *wr = ts ? ts->getCharacteristic(NimBLEUUID((uint16_t)0xFFD1)) : nullptr;
+  if (!nt || !wr) {
+    logf("%s: Renogy-Dienste FFF0/FFF1 bzw. FFD0/FFD1 fehlen", b.name.c_str());
+    return false;
+  }
+  std::string mac = b.mac;
+  if (!nt->subscribe(true, [mac](NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) { pq_rx(mac, d, n); }, true))
+    return false;
+  b.wr = wr;
+  b.wr_resp = !wr->canWriteNoResponse() && wr->canWrite();
+  b.next_poll = millis() + 300;
+  if (!b.has) logf("%s: verbunden (Renogy)", b.name.c_str());
+  return true;
+}
+
+// Eco-Worthy: jeder Notify ist ein ganzer Rahmen, beginnend mit A1/A2 (Version 1) oder MAC + A1/A2 (Version 2),
+// am Ende CRC-16/Modbus (Little Endian). Version 2 wird um 2 Byte vorne aufgefuellt, dann gelten dieselben Positionen.
+static void eco_rx(const std::string &mac, const uint8_t *d, size_t n) {
+  if (n < 10) return;
+  uint16_t c = mb_crc(d, n - 2);
+  if (d[n - 2] != (c & 0xFF) || d[n - 1] != (c >> 8)) return;
+  uint8_t m[6];
+  if (sscanf(mac.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6) return;
+  bool v2 = n > 7 && memcmp(d, m, 6) == 0 && (d[6] == 0xA1 || d[6] == 0xA2);
+  bool v1 = d[0] == 0xA1 || d[0] == 0xA2;
+  if (!v1 && !v2) return;
+  std::string f = v2 ? std::string(2, '\0') + std::string((const char *)d, n) : std::string((const char *)d, n);
+  uint8_t typ = v2 ? d[6] : d[0];
+  Lock l;
+  Bat *b = find_mac(mac);
+  if (!b) return;
+  (typ == 0xA1 ? b->eco_a1 : b->eco_a2) = f;
+}
+
+static bool eco_connect(Bat &b, NimBLEClient *c) {
+  NimBLERemoteService *svc = c->getService(NimBLEUUID((uint16_t)0xFFF0));
+  NimBLERemoteCharacteristic *nt = svc ? svc->getCharacteristic(NimBLEUUID((uint16_t)0xFFF1)) : nullptr;
+  NimBLERemoteCharacteristic *wr = svc ? svc->getCharacteristic(NimBLEUUID((uint16_t)0xFFF2)) : nullptr;
+  if (!nt || !wr) {
+    logf("%s: Eco-Worthy-Dienst FFF0 mit FFF1/FFF2 fehlt", b.name.c_str());
+    return false;
+  }
+  std::string mac = b.mac;
+  if (!nt->subscribe(true, [mac](NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) { eco_rx(mac, d, n); }, true))
+    return false;
+  b.wr = wr;
+  b.wr_resp = !wr->canWriteNoResponse() && wr->canWrite();
+  b.next_poll = millis() + 300;
+  if (!b.has) logf("%s: verbunden (Eco-Worthy)", b.name.c_str());
+  return true;
+}
+
 static bool litime_connect(Bat &b, NimBLEClient *c) {
   if (generic_connect(b, c, 0xFFE0, 0xFFE1, 0xFFE2, "LiTime")) return true;
   logf("%s: LiTime-Dienst FFE0 mit FFE1/FFE2 fehlt", b.name.c_str());
@@ -675,6 +740,18 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
     std::string un = name;
     for (auto &ch : un) ch = toupper((unsigned char)ch);
     bool ff00 = dev->isAdvertisingService(NimBLEUUID((uint16_t)0xFF00));
+    // eindeutige Merkmale nach aiobmsble zuerst: Hersteller-IDs und Namensanfaenge
+    uint16_t mid = 0;
+    if (dev->haveManufacturerData()) {
+      std::string md = dev->getManufacturerData();
+      if (md.size() >= 2) mid = (uint8_t)md[0] | (uint8_t)md[1] << 8;
+    }
+    if (model == BMS_UNKNOWN && (un.rfind("DL-", 0) == 0 || mid == 0x102 || mid == 0x104 || mid == 0x107 ||
+                                 mid == 0x302 || mid == 0x303 || mid == 0x402))
+      model = BMS_BULLTRON;   // Daly
+    if (model == BMS_UNKNOWN && mid == 0x585A) model = BMS_LITIME;   // LiTime/Redodo
+    if (model == BMS_UNKNOWN && un.rfind("BT-TH-", 0) == 0) model = BMS_RENOGY;
+    if (model == BMS_UNKNOWN && (un.rfind("ECO-WORTHY", 0) == 0 || un.rfind("DCHOUSE", 0) == 0)) model = BMS_ECOWORTHY;
     if (model == BMS_UNKNOWN && un.rfind("JK", 0) == 0) model = BMS_JK;   // "JK-B2A24S…", "JK_…"
     // LiTime / Redodo / PowerQueen: "L-12100…", "R-12…", "P-12…"
     if (model == BMS_UNKNOWN && un.size() >= 4 && (un[0] == 'L' || un[0] == 'R' || un[0] == 'P') && un[1] == '-' &&
@@ -843,6 +920,8 @@ void bms_connect_now() {
   else if (copy.model == BMS_JBD) good = jbd_connect(copy, c);
   else if (copy.model == BMS_JK) good = jk_connect(copy, c);
   else if (copy.model == BMS_LITIME) good = litime_connect(copy, c);
+  else if (copy.model == BMS_RENOGY) good = renogy_connect(copy, c);
+  else if (copy.model == BMS_ECOWORTHY) good = eco_connect(copy, c);
   NimBLEClient *dead = nullptr;
   {
     Lock l;
@@ -968,13 +1047,29 @@ void bms_poll_now() {
       return std::string((const char *)f, 20);
     };
     std::string r97 = jk_req(0x97), r96 = jk_req(0x96);
-    pq_write(wr, (const uint8_t *)r97.data(), 20, false);
-    delay(300);
+    int sw = -1;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) sw = b->jk_sw;
+    }
+    // Geraeteinfo (Typ 3): Firmware-Version ab Byte 30 ("11.XW" …) – ab Version 11 Aufbau 32S (wie aiobmsble)
+    s_jk_type = 0x03;
+    if (pq_ask(mac, wr, (const uint8_t *)r97.data(), 20, 4, 0, d, 3000) && d.size() >= 38) {
+      sw = atoi(d.substr(30, 8).c_str());
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b && b->jk_sw != sw) {
+        b->jk_sw = sw;
+        logf("%s: JK-Firmware %d, Aufbau %s", b->name.c_str(), sw, sw >= 11 ? "32S" : "24S");
+      }
+    }
+    s_jk_type = 0x02;
     for (int attempt = 0; attempt < 2 && !ok; attempt++) {
       if (!pq_ask(mac, wr, (const uint8_t *)r96.data(), 20, 4, 0, d, 5000) || d.size() < 300) continue;
       const uint8_t *q = (const uint8_t *)d.data();
-      // 24S- oder 32S-Aufbau: bei 32S ist Byte 287 belegt; ab Byte 112 dann alles 32 Byte weiter hinten
-      int o = q[287] > 0 ? 32 : 0;
+      // 24S-/32S-Aufbau: nach Firmware (ab 11 = 32S); ohne Info wie bisher an Byte 287 erkennen
+      int o = sw >= 0 ? (sw >= 11 ? 32 : 0) : (q[287] > 0 ? 32 : 0);
       auto u16 = [&](int x) -> uint16_t { return q[x] | q[x + 1] << 8; };
       auto u32 = [&](int x) -> uint32_t { return q[x] | q[x + 1] << 8 | q[x + 2] << 16 | (uint32_t)q[x + 3] << 24; };
       v = u16(118 + o) / 1000.0f;
@@ -986,7 +1081,7 @@ void bms_poll_now() {
       cyc = (int)u32(150 + o);
       chg_on = q[166 + o];
       dis_on = q[167 + o];
-      alarms = u16(136 + o);
+      alarms = o ? (u32(166) >> 16) : (u32(134) & 0xFFFF);   // wie aiobmsble
       ok = true;
     }
   } else if (model == BMS_LITIME) {
@@ -1012,8 +1107,16 @@ void bms_poll_now() {
       ok = true;
     }
   } else if (model == BMS_BULLTRON) {
+    int8_t x81 = -1;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) x81 = b->daly_x81;
+    }
+    uint8_t dev = 0xD2;
     auto rd = [&](uint16_t reg, uint16_t cnt) -> bool {
-      uint8_t req[8] = {0xD2, 0x03, (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(cnt >> 8), (uint8_t)cnt, 0, 0};
+      s_mb_addr = dev == 0x81 ? 0x51 : dev;   // Daly 0x81 antwortet mit 0x51
+      uint8_t req[8] = {dev, 0x03, (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(cnt >> 8), (uint8_t)cnt, 0, 0};
       uint16_t c = mb_crc(req, 6);
       req[6] = c & 0xFF;
       req[7] = c >> 8;
@@ -1027,9 +1130,44 @@ void bms_poll_now() {
       Bat *b = find_mac(mac);
       if (b) nominal = b->cap_ah;
     }
-    if (nominal <= 0 && rd(0x0080, 41) && d.size() >= 2)   // Einstellungen: S0 = Nennkapazitaet x 0,1 Ah
+    if (x81 != 1 && nominal <= 0 && rd(0x0080, 41) && d.size() >= 2)   // Einstellungen: S0 = Nennkapazitaet x 0,1 Ah
       cap = (int)lroundf(((uint8_t)d[0] << 8 | (uint8_t)d[1]) / 10.0f);
-    if (rd(0x0000, 62) && d.size() >= 124) {   // Laufdaten, 62 Register Big Endian
+    bool d2ok = x81 != 1 && rd(0x0000, 62) && d.size() >= 124;   // Laufdaten D2
+    if (!d2ok && x81 != 0) {
+      // Daly-Variante 0x81 (Antwort 0x51): 64 Register ab 0 und 62 ab 0x41 (Positionen nach aiobmsble)
+      dev = 0x81;
+      std::string m64;
+      if (rd(0x0000, 64) && d.size() >= 128) {
+        m64 = d;
+        if (rd(0x0041, 62) && d.size() >= 124) {
+          auto r64 = [&](int x) -> uint16_t { return (uint8_t)m64[x] << 8 | (uint8_t)m64[x + 1]; };
+          auto r62 = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
+          v = r64(112) / 10.0f;
+          a = ((int)r64(114) - 30000) / 10.0f;
+          soc = r64(116) / 10.0f;
+          int nt = r64(122) > 8 ? 8 : r64(122), sum = 0;
+          for (int i = 0; i < nt; i++) sum += (int)r64(96 + 2 * i) - 40;
+          if (nt) temp = (float)sum / nt;
+          cyc = r62(22);
+          alarms = (uint32_t)r62(88) << 16 | r62(90);
+          chg_on = r62(34);
+          dis_on = r62(36);
+          state = a > 0.05f ? 1 : a < -0.05f ? 2 : 0;
+          ok = true;
+          if (x81 != 1) {
+            Lock l;
+            Bat *b = find_mac(mac);
+            if (b) b->daly_x81 = 1;
+            logf("%s: Daly-Protokoll 0x81", mac.c_str());
+          }
+        }
+      }
+    } else if (d2ok) {   // Laufdaten D2, 62 Register Big Endian
+      if (x81 == -1) {
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) b->daly_x81 = 0;
+      }
       auto r = [&](int i) -> uint16_t { return (uint8_t)d[2 * i] << 8 | (uint8_t)d[2 * i + 1]; };
       for (int i = 0; i < 32; i++)
         if (r(i)) cmv.push_back(r(i));
@@ -1046,6 +1184,80 @@ void bms_poll_now() {
       dis_on = r(54) == 1;
       alarms = (r(58) | r(59) | r(60) | r(61)) ? (uint32_t)(r(58) | r(59) << 16) | 1u : 0;
       ok = true;
+    }
+  } else if (model == BMS_RENOGY) {
+    // Renogy (Modbus, Geraet 0x30): 0x13B2 x7 = Strom/Spannung/Ladung/Kapazitaet/Zyklen, 0x1388 x34 = Zellen/Temperaturen,
+    // 0x13EC x8 = Alarme und Schalter (Positionen nach aiobmsble, ohne den 3-Byte-Kopf)
+    auto rd = [&](uint16_t reg, uint16_t cnt) -> bool {
+      s_mb_addr = 0x30;
+      uint8_t req[8] = {0x30, 0x03, (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(cnt >> 8), (uint8_t)cnt, 0, 0};
+      uint16_t c = mb_crc(req, 6);
+      req[6] = c & 0xFF;
+      req[7] = c >> 8;
+      for (int attempt = 0; attempt < 2; attempt++)
+        if (pq_ask(mac, wr, req, 8, 2, (uint8_t)(cnt * 2), d, 2500)) return true;
+      return false;
+    };
+    auto be16 = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
+    auto be32 = [&](int x) -> uint32_t { return (uint32_t)be16(x) << 16 | be16(x + 2); };
+    if (rd(0x13B2, 7) && d.size() >= 14) {
+      a = (int16_t)be16(0) / 100.0f;
+      v = be16(2) / 10.0f;
+      float ah = be32(4) / 1000.0f, full = be32(8) / 1000.0f;
+      cap = (int)lroundf(full);
+      cyc = be16(12);
+      if (full > 0) soc = ah / full * 100.0f;
+      ok = !isnan(soc);
+      if (rd(0x1388, 0x22) && d.size() >= 38 && be16(34) > 0) temp = (int16_t)be16(36) / 10.0f;
+      if (rd(0x13EC, 8) && d.size() >= 14) {
+        uint8_t st = (uint8_t)d[13];
+        chg_on = st & 0x02;
+        dis_on = st & 0x04;
+        alarms = 0;
+        for (int i = 0; i < 13; i++) alarms |= (uint8_t)d[i];
+        alarms |= st & ~0x0E & 0xFF;
+      }
+    }
+  } else if (model == BMS_ECOWORTHY) {
+    // Eco-Worthy: zwei Startbefehle, danach schickt der Akku die Rahmen A1 (Werte) und A2 (Zellen, Temperaturen)
+    static const uint8_t INIT1[18] = {0xFF, 0x08, 0x02, 0x00, 0x0B, 0x01, 0x00, 0x64, 0x01, 0xFF,
+                                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x2D};
+    static const uint8_t INIT2[18] = {0xFF, 0x08, 0x02, 0x00, 0x0B, 0x01, 0x00, 0x14, 0x01, 0xFF,
+                                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x65, 0xEF};
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) b->eco_a1.clear(), b->eco_a2.clear();
+    }
+    pq_write(wr, INIT1, 18, false);
+    delay(150);
+    pq_write(wr, INIT2, 18, false);
+    std::string f1, f2;
+    for (uint32_t t0 = millis(); millis() - t0 < 4000 && (f1.empty() || f2.empty());) {
+      delay(50);
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (!b) break;
+      f1 = b->eco_a1;
+      f2 = b->eco_a2;
+    }
+    if (f1.size() >= 53) {
+      const uint8_t *q = (const uint8_t *)f1.data();
+      auto be = [&](int x) -> uint16_t { return q[x] << 8 | q[x + 1]; };
+      bool v1 = q[0] == 0xA1;   // Version 1: Strom in 0,01 A, Version 2: 0,1 A
+      soc = be(16);
+      v = be(20) / 100.0f;
+      a = (int16_t)be(22) / (v1 ? 100.0f : 10.0f);
+      cap = be(26) / 100;
+      alarms = be(51);
+      ok = true;
+      if (f2.size() >= 84) {
+        const uint8_t *t = (const uint8_t *)f2.data();
+        int nt = t[80] << 8 | t[81];
+        if (nt > 0 && f2.size() >= 84) temp = (int16_t)(t[82] << 8 | t[83]) / 10.0f;
+      }
+    } else {
+      pq_note(INIT2, 18, true, f1.empty() ? std::string() : f1);
     }
   } else if (model == BMS_PQ_ASCII) {
     // ~11014642E00201FD35\r : Messwerte, Akku 01

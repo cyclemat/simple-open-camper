@@ -1557,7 +1557,7 @@ static void bms_scan_cb(lv_event_t *) {
 
 static void build_bms() {
   subheading("Akkus mit BMS (Bluetooth)");
-  proto_switch("Akkus auswerten", "Super B, Power Quarry, Bulltron, JBD, JK-BMS, LiTime – das Panel liest nur Werte", BLE_P_BMS);
+  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly/Bulltron, JBD, JK-BMS, LiTime, Renogy, Eco-Worthy – nur lesen", BLE_P_BMS);
   s_bms_vals.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
     s_bms_sig = 0;

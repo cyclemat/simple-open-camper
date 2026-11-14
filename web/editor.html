@@ -1795,7 +1795,7 @@ async function openSettings(tab = 'net') {
     if (!b) return '';
     const sumOf = x => x.has ? [x.soc + ' %', x.v != null ? x.v.toFixed(2).replace('.', ',') + ' V' : '', x.v != null && x.a != null ? Math.round(x.v * x.a) + ' W' : '', x.t != null ? Math.round(x.t) + ' °C' : '', x.ok === false ? T('Alarm') : ''].filter(Boolean).join(' · ') : (x.status || '–');
     return `<h3 style="font-size:13px;margin:22px 0 8px">Akkus mit BMS (Bluetooth)</h3>
-      <p class="hint" style="margin-top:0">Super B, Power Quarry, Bulltron, JBD/Xiaoxiang, JK-BMS und LiTime (Redodo, PowerQueen). Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
+      <p class="hint" style="margin-top:0">Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy und Eco-Worthy. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
       <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
       ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
           <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
