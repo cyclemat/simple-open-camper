@@ -616,5 +616,14 @@
  "online": "online",
  "offline": "offline",
  "Satellit offline": "Satellite offline",
- "Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen. Satelliten mit passendem Passwort nimmt das Panel per Bluetooth automatisch auf (Name „Satellite-<MAC>“).": "Enter the same password in the satellite’s web interface. The panel automatically accepts satellites with a matching password via Bluetooth (name “Satellite-<MAC>”)."
+ "Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen. Satelliten mit passendem Passwort nimmt das Panel per Bluetooth automatisch auf (Name „Satellite-<MAC>“).": "Enter the same password in the satellite’s web interface. The panel automatically accepts satellites with a matching password via Bluetooth (name “Satellite-<MAC>”).",
+ "Gas/Heizung": "Gas/Heating",
+ "Akkus": "Batteries",
+ "Akkus mit BMS (Bluetooth)": "Batteries with BMS (Bluetooth)",
+ "Akkus auswerten": "Read batteries",
+ "Akkus suchen": "Search batteries",
+ "Gefundene Akkus": "Batteries found",
+ "Akku hinzufügen": "Add battery",
+ "Akku entfernen?": "Remove battery?",
+ "Noch kein Akku eingerichtet.": "No battery set up yet."
 }

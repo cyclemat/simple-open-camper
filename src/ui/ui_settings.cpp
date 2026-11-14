@@ -1556,7 +1556,8 @@ static void bms_scan_cb(lv_event_t *) {
 }
 
 static void build_bms() {
-  subheading("Akkus mit BMS (Bluetooth)");
+  heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
+                         "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
   proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly/Bulltron, JBD, JK-BMS, LiTime, Renogy, Eco-Worthy – nur lesen", BLE_P_BMS);
   s_bms_vals.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
@@ -1682,9 +1683,6 @@ static void build_victron() {
   proto_switch("Victron auswerten", "Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", BLE_P_VICTRON);
   if (!ble_proto_on(BLE_P_VICTRON)) {
     s_vic_sig = 0;
-#if WITH_BMS
-    build_bms();
-#endif
     return;
   }
   auto list = victron_list();
@@ -1712,13 +1710,23 @@ static void build_victron() {
     }
   }
   s_vic_sig = vic_struct_sig();
-#if WITH_BMS
-  build_bms();
-#endif
 }
 
 void ui_settings_tick_victron() {
-  if (!s_scr || s_sec != SEC_VICTRON || ui_input_is_open()) return;
+  if (!s_scr || ui_input_is_open()) return;
+#if WITH_BMS
+  if (s_sec == SEC_BMS) {   // eigener Abschnitt "Akkus (BMS)"
+    if (!ble_proto_on(BLE_P_BMS)) return;
+    if (bms_struct_sig() != s_bms_sig) {
+      show_section(SEC_BMS);
+      return;
+    }
+    auto bl = bms_list();
+    for (size_t i = 0; i < bl.size() && i < s_bms_vals.size(); i++) lv_label_set_text(s_bms_vals[i], bms_summary(bl[i]).c_str());
+    return;
+  }
+#endif
+  if (s_sec != SEC_VICTRON) return;
   if (cerbo_enabled()) {
     if (gx_struct_sig() != s_gx_sig) {
       show_section(SEC_VICTRON);
@@ -1730,16 +1738,7 @@ void ui_settings_tick_victron() {
       for (size_t i = 0; i < gl.size() && i + 1 < s_gx_vals.size(); i++) lv_label_set_text(s_gx_vals[i + 1], ui_vic_summary(gl[i]).c_str());
     }
   }
-#if WITH_BMS
-  if (ble_proto_on(BLE_P_BMS)) {
-    if (bms_struct_sig() != s_bms_sig) {
-      show_section(SEC_VICTRON);
-      return;
-    }
-    auto bl = bms_list();
-    for (size_t i = 0; i < bl.size() && i < s_bms_vals.size(); i++) lv_label_set_text(s_bms_vals[i], bms_summary(bl[i]).c_str());
-  }
-#endif
+
   if (!ble_proto_on(BLE_P_VICTRON)) return;
   if (vic_struct_sig() != s_vic_sig) {
     show_section(SEC_VICTRON);
@@ -1932,8 +1931,8 @@ static void build_backup() {
 }
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_HOUSE, ICON_LOCK, ICON_INFO};
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Hymer", "Sicherung", "Info"};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_HOUSE, ICON_LOCK, ICON_INFO};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Hymer", "Sicherung", "Info"};
 
 static void show_section(int sec) {
   s_sec = sec;
@@ -1956,6 +1955,9 @@ static void show_section(int sec) {
     case SEC_DEVICES: build_devices(); break;
     case SEC_GAS: build_gas(); break;
     case SEC_VICTRON: build_victron(); break;
+#if WITH_BMS
+    case SEC_BMS: build_bms(); break;
+#endif
     case SEC_HYMER: build_hymer(); break;
     case SEC_BACKUP: build_backup(); break;
     default: build_info(); break;
@@ -2009,7 +2011,7 @@ void ui_settings_open(int section) {
     lv_obj_t *it = lv_obj_create(nav);
     ui_plain(it);
     lv_obj_add_flag(it, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(it, lv_pct(100), 50);   // 9 Punkte muessen in 600 px passen
+    lv_obj_set_size(it, lv_pct(100), 46);   // 10 Punkte muessen in 600 px passen
     lv_obj_set_style_radius(it, 12, 0);
     lv_obj_set_style_bg_color(it, C_FIELD, 0);
     lv_obj_set_style_border_side(it, LV_BORDER_SIDE_LEFT, 0);
@@ -2021,6 +2023,7 @@ void ui_settings_open(int section) {
     lv_obj_add_event_cb(it, nav_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     s_nav_items[i] = it;
     if (i == SEC_HYMER && !hymer_enabled()) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);   // nicht eingebaut
+    if (i == SEC_BMS && !WITH_BMS) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);
   }
 
   s_content = lv_obj_create(s_scr);
