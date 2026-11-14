@@ -56,6 +56,11 @@ litime = 1
 renogy = 1
 ; Renogy-Geraete ausser Akkus: Laderegler, DC-DC-Lader, Wechselrichter, Smart Shunt
 renogy_dev = 1
+; Power Stations (ungetestet) – im Mini-Display ab Werk aus (Flash)
+bluetti = 0
+allpowers = 0
+anker = 0
+ecoflow = 0
 ecoworthy = 1
 ant = 1
 vatrer = 1
@@ -64,8 +69,8 @@ vatrer = 1
 platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
 framework = arduino
 board = esp32dev
-; 1,9 MB pro App mit Platz fuer Updates ueber die Weboberflaeche
-board_build.partitions = min_spiffs.csv
+; 1984 KB pro App (ohne SPIFFS) mit Platz fuer Updates ueber die Weboberflaeche
+board_build.partitions = partitions_upd.csv
 board_upload.flash_size = 4MB
 monitor_speed = 115200
 monitor_filters = esp32_exception_decoder
@@ -92,6 +97,10 @@ build_flags =
     -DBMS_LITIME_ON=${bms.litime}
     -DBMS_RENOGY_ON=${bms.renogy}
     -DBMS_RENOGY_DEV_ON=${bms.renogy_dev}
+    -DBMS_BLUETTI_ON=${bms.bluetti}
+    -DBMS_ALLPOWERS_ON=${bms.allpowers}
+    -DBMS_ANKER_ON=${bms.anker}
+    -DBMS_ECOFLOW_ON=${bms.ecoflow}
     -DBMS_ECOWORTHY_ON=${bms.ecoworthy}
     -DBMS_ANT_ON=${bms.ant}
     -DBMS_VATRER_ON=${bms.vatrer}
@@ -172,6 +181,7 @@ def main():
     write(".gitignore", GITIGNORE)
     write(".github/workflows/build.yml", WORKFLOW)
     shutil.copyfile(os.path.join(ROOT, "tools", "victron_readme.md"), os.path.join(DST, "README.md"))
+    shutil.copyfile(os.path.join(ROOT, "satellite", "partitions_upd.csv"), os.path.join(DST, "partitions_upd.csv"))
     print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 4))
 
 

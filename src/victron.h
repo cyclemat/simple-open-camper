@@ -3,6 +3,7 @@
 // Das Panel lauscht nur mit – keine Verbindung, stoert weder VictronConnect noch einen GX.
 // Den Schluessel pro Geraet zeigt VictronConnect: Einstellungen -> Produktinfo -> Instant Readout -> Details.
 #pragma once
+#include <math.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <string>
@@ -18,6 +19,7 @@ enum VicKind : uint8_t {
   VIC_CHARGER = 5,   // Wechselrichter/Lader (Multi, Quattro) oder Netzladegeraet
   VIC_DCSYS = 6,     // DC-Verbraucher ("DC-System")
   VIC_INVERTER = 7,  // Wechselrichter (Phoenix, Multi RS, Ausgang von MultiPlus/Quattro) – ueber den Cerbo GX
+  VIC_PSTATION = 8,  // Power Station (bms.cpp: Bluetti, Allpowers …)
 };
 
 struct VictronInfo {
@@ -57,6 +59,10 @@ struct VictronInfo {
   bool can_mode = false;    // Schalter (mode)
   uint8_t mode_set = 0;     // 0 MultiPlus/Quattro (1 nur Laden, 2 nur Wechselrichter, 3 ein, 4 aus), 1 Ladegeraet (1 ein, 4 aus)
   bool bms = false;         // Akku mit eigenem BMS (bms.cpp), Schluessel "bms:<mac>"
+  // Power Station (VIC_PSTATION): Leistungen in W, Ausgaenge -1 unbekannt / 0 aus / 1 an
+  float ps_in_w = NAN, ps_out_w = NAN, ps_ac_in_w = NAN, ps_dc_in_w = NAN, ps_ac_out_w = NAN, ps_dc_out_w = NAN;
+  int8_t ac_on = -1, dc_on = -1;
+  bool can_ac = false, can_dc = false;
 };
 
 struct VictronFound {

@@ -635,8 +635,8 @@ function mopHTML(m) {
 }
 
 // ------------------------------------------------------------------ Victron (Instant Readout)
-const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', other: 'bluetooth'};
-const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', other: 'Victron-Gerät'};
+const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', other: 'bluetooth'};
+const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', other: 'Victron-Gerät'};
 const isVicKey = k => k.startsWith('victron:') || k.startsWith('cerbo:');
 // Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
 const isSioKey = k => k.startsWith('satio:');
@@ -695,6 +695,9 @@ function vicText(d, small, big) {
   } else if (t === 'shunt') {
     if (st.soc != null) { r.fill = Math.round(st.soc); r.accent = gasColor(r.fill); r.value = r.fill + ' %'; }
     r.sub = vnum(st.v, 2, 'V') + (small ? '' : '  ·  ' + (st.gx && st.w != null ? vnum(st.w, 0, 'W') : vnum(st.i, 1, 'A'))) + (big && st.remaining != null ? '  ·  ' + remText(st.remaining) : '');
+  } else if (t === 'pstation') {
+    if (st.soc != null) { r.fill = Math.round(st.soc); r.accent = gasColor(r.fill); r.value = r.fill + ' %'; }
+    r.sub = small ? T('raus ') + vnum(st.out_w, 0, 'W') : T('rein ') + vnum(st.in_w, 0, 'W') + T('  ·  raus ') + vnum(st.out_w, 0, 'W');
   } else if (t === 'dcdc') {
     r.value = vnum(st.v, 1, 'V');
     r.accent = st.state === 0 ? [0x8D, 0x97, 0xA2] : [3, 4, 5, 6, 7, 246, 247].includes(st.state) ? [0x5B, 0xD3, 0x8A] : [0x3C, 0x8D, 0xFF];
@@ -728,6 +731,7 @@ function vicSummary(d) {
   if (d.vtype === 'grid') return st.ac_connected === false ? T('nicht verbunden') : `${vnum(st.ac_w, 0, 'W')}, ${vnum(st.ac_v, 0, 'V')}`;
   if (d.vtype === 'charger') return `${vnum(st.w, 0, 'W')}, ${st.state_text || '–'}`;
   if (d.vtype === 'inverter') return `${vnum(st.ac_w, 0, 'W')}, ${st.state_text || '–'}`;
+  if (d.vtype === 'pstation') return `${vnum(st.soc, 0, '%')}, ${T('rein')} ${vnum(st.in_w, 0, 'W')}, ${T('raus')} ${vnum(st.out_w, 0, 'W')}`;
   if (d.vtype === 'dcsys') return `${vnum(st.w, 0, 'W')}, ${vnum(st.i, 1, 'A')}${st.meter_text ? ', ' + T(st.meter_text) : ''}`;
   return st.status || '';
 }
@@ -749,6 +753,8 @@ function vicReadout(d) {
       ['Strom', vnum(st.ac_i, 1, 'A')], ['Batteriespannung', vnum(st.v, 2, 'V')]]
     : d.vtype === 'charger' ? [['Zustand', st.state_text || '–'], ['Schalter', st.mode_text || '–'], ['Leistung', vnum(st.w, 0, 'W')],
       ['Batteriespannung', vnum(st.v, 2, 'V')], ['Ladestrom', vnum(st.i, 1, 'A')]]
+    : d.vtype === 'pstation' ? [['Ladestand', vnum(st.soc, 0, '%')], ['Eingang', vnum(st.in_w, 0, 'W')], ['Ausgang', vnum(st.out_w, 0, 'W')],
+      ['AC-Ausgang', vnum(st.ac_out, 0, 'W') + (st.ac_on == null ? '' : st.ac_on ? ' (ein)' : ' (aus)')], ['DC-Ausgang', vnum(st.dc_out, 0, 'W') + (st.dc_on == null ? '' : st.dc_on ? ' (ein)' : ' (aus)')]]
     : d.vtype === 'dcsys' ? [...(st.meter_text ? [['Art', T(st.meter_text)]] : []), ['Leistung', vnum(st.w, 0, 'W')], ['Strom', vnum(st.i, 1, 'A')], ['Spannung', vnum(st.v, 2, 'V')]] : [];
   if (st.gx && d.vtype === 'shunt') rows.splice(3, 1, ['Leistung', vnum(st.w, 0, 'W')]);
   const rxName = st.gx ? 'Verbindung' : 'Empfang';
@@ -1692,7 +1698,7 @@ async function openSettings(tab = 'net') {
   const body = document.createElement('div');
   const draft = JSON.parse(JSON.stringify(st));
   draft.newWifi = {ssid: st.wifi.ssid || '', pass: ''};
-  const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['sat', 'Satelliten'], ['sd', 'SD-Karte'], ['sys', 'System']];
+  const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sat', 'Satelliten'], ['sd', 'SD-Karte'], ['sys', 'System']];
   let gasData = null;
   const loadGas = async () => {
     try { gasData = S.demo ? S.demoTruma : await api('/api/truma'); } catch (e) { gasData = null; }
@@ -1761,11 +1767,11 @@ async function openSettings(tab = 'net') {
   let bmsData = null;
   const loadBms = async () => {
     try { bmsData = S.demo ? null : await api('/api/bms'); } catch (e) { bmsData = null; }
-    if (tab === 'bms' && body.isConnected && !body.contains(document.activeElement)) render();
+    if ((tab === 'bms' || tab === 'ps') && body.isConnected && !body.contains(document.activeElement)) render();
   };
   loadBms();
   const bmsPost = data => (S.demo ? Promise.resolve() : post('/api/bms', data));
-  const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); } else if (tab === 'bms') loadBms(); }, 2500);
+  const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); } else if (tab === 'bms' || tab === 'ps') loadBms(); }, 2500);
   const gxPost = async data => {
     if (S.demo) { Object.assign(S.demoCerbo, data, {has_pass: data.clear_pass ? false : (S.demoCerbo.has_pass || !!data.pass)}); delete S.demoCerbo.pass; return; }
     await post('/api/cerbo', data);
@@ -1789,29 +1795,59 @@ async function openSettings(tab = 'net') {
           <p class="hint">Die fünf Kacheln stehen in der Geräteliste und lassen sich wie andere Geräte aufs Panel ziehen.</p>` : ''}` : ''}
       <h3 style="font-size:13px;margin:18px 0 8px">Bluetooth (Instant Readout)</h3>`;
   };
-  const bmsHTML = b => {
-    if (!b) return '';
+  const PS_MODELS = [18, 19, 20, 21, 22, 23, 24, 25];   // Power Stations (Bluetti, Allpowers, Anker SOLIX, EcoFlow)
+  const bmsHTML = (b0, ps) => {
+    if (!b0) return '';
+    // gleiche Daten fuer beide Reiter: Akkus bzw. Power Stations herausfiltern (Index in found bleibt erhalten)
+    const b = Object.assign({}, b0, {
+      devices: (b0.devices || []).filter(x => (x.dev === 5) === ps),
+      found: (b0.found || []).map((f, i) => Object.assign({}, f, {idx: i})).filter(f => PS_MODELS.includes(f.model) === ps),
+      seen: ps ? [] : b0.seen,
+      log: b0.log});
+    if (ps) return `<h3 style="font-size:13px;margin:0 0 8px">Power Stations (Bluetooth)</h3>
+      <p class="hint" style="margin-top:0">Bluetti (auch verschlüsselte neuere Modelle), Allpowers und Anker SOLIX (C300, C800, C1000, C1000 Gen 2, F2600, F3800) und EcoFlow (Delta 2, River 2, River 3, Delta 3; braucht die Benutzer-ID des EcoFlow-Kontos) – <b>ungetestet</b>. Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. Ladezustand und Leistung rein/raus; AC- und DC-Ausgang lassen sich am Panel im Fenster der Kachel ein- und ausschalten. Die App des Herstellers vorher schließen.</p>
+      <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus und Power Stations auswerten</label>
+      <div class="card" style="margin:10px 0;padding:12px">
+        <b>EcoFlow-Konto</b> <span class="hint" data-notr>${b0.ef_uid_set ? '– Benutzer-ID gespeichert (' + esc(b0.ef_uid_hint || '') + ')' : '– noch keine Benutzer-ID'}</span>
+        <p class="hint" style="margin:6px 0">Anmelden holt nur die Benutzer-ID vom EcoFlow-Server; das Passwort wird nicht gespeichert. Alternativ die ID direkt eintragen.</p>
+        <div class="row"><input id="efMail" type="email" placeholder="E-Mail" autocomplete="username"><input id="efPass" type="password" placeholder="Passwort" autocomplete="current-password"><button class="btn small" id="bEfLogin" ${b0.ef_login_state === 1 ? 'disabled' : ''}>Anmelden</button></div>
+        <div class="row" style="margin-top:6px"><input id="efUid" placeholder="Benutzer-ID (Zahl)" inputmode="numeric"><button class="btn small" id="bEfUid">ID speichern</button>${b0.ef_uid_set ? '<button class="btn small danger" id="bEfUidDel">ID löschen</button>' : ''}</div>
+        ${b0.ef_login_text ? `<p class="hint" style="margin:6px 0 0" data-notr>${esc(b0.ef_login_text)}</p>` : ''}
+      </div>
+      ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
+          <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Power Station')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
+          <button class="btn small danger" data-bmsremove="${esc(x.mac)}">Entfernen</button>
+          <div class="st" data-notr>${esc(x.mac)} – ${esc(x.has ? x.sum : (x.status || '–'))}</div></div>`).join('') : '<p class="hint">Noch keine Power Station eingerichtet.</p>'}
+        <div class="row" style="margin-top:14px">
+          <button class="btn small primary" id="bBmsScan" ${b0.devices.length >= (b.max || 4) || b.scanning ? 'disabled' : ''} style="flex:none">${icon('search', 16)}${b.scanning ? 'Suche läuft …' : 'Power Stations suchen'}</button>
+        </div>
+        ${b.scanning || b.found.length ? `<h3 style="font-size:13px;margin:16px 0 6px">Gefundene Power Stations${b.scanning ? ' (Suche läuft, 1 Minute)' : ''}</h3>
+          ${b.found.length ? b.found.map(f => `<div class="gasrow" style="grid-template-columns:1fr auto">
+              <div><b data-notr>${esc(f.name || f.model_text)}</b><div class="hint" style="margin:0" data-notr>${esc(f.model_text)} · ${esc(f.mac)}, Signal ${f.rssi > -65 ? 'stark' : f.rssi > -80 ? 'mittel' : 'schwach'}${f.configured ? ', schon eingerichtet' : ''}</div></div>
+              <button class="btn small" data-bmsadd="${f.idx}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
+            : '<p class="hint">Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe? Nicht erkannte Geräte stehen im Reiter Akkus unter „Andere Bluetooth-Geräte“.</p>'}` : ''}
+        ${(b.log || []).length ? `<details style="margin-top:12px"><summary class="hint">Protokoll (Fehlersuche)</summary><pre class="hint" style="white-space:pre-wrap;margin:6px 0 0" data-notr>${esc(b.log.join('\n'))}</pre></details>` : ''}` : ''}`;
     const sumOf = x => x.has && x.dev ? x.sum : x.has ? [x.soc + ' %', x.v != null ? x.v.toFixed(2).replace('.', ',') + ' V' : '', x.v != null && x.a != null ? Math.round(x.v * x.a) + ' W' : '', x.t != null ? Math.round(x.t) + ' °C' : '', x.ok === false ? T('Alarm') : ''].filter(Boolean).join(' · ') : (x.status || '–');
     return `<h3 style="font-size:13px;margin:0 0 8px">Akkus mit BMS (Bluetooth)</h3>
-      <p class="hint" style="margin-top:0">Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer – dazu Renogy-Laderegler, DC-DC-Lader, Wechselrichter und Smart Shunt. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
+      <p class="hint" style="margin-top:0">Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer – dazu Renogy-Laderegler, DC-DC-Lader, Wechselrichter und Smart Shunt. Power Stations stehen im eigenen Reiter. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
       <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
       ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
           <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
           <button class="btn small danger" data-bmsremove="${esc(x.mac)}">Entfernen</button>
           <div class="st" data-notr>${esc(x.mac)} – ${esc(sumOf(x))}</div></div>`).join('') : '<p class="hint">Noch kein Akku eingerichtet.</p>'}
         <div class="row" style="margin-top:14px">
-          <button class="btn small primary" id="bBmsScan" ${b.devices.length >= (b.max || 4) || b.scanning ? 'disabled' : ''} style="flex:none">${icon('search', 16)}${b.scanning ? 'Suche läuft …' : 'Akkus suchen'}</button>
+          <button class="btn small primary" id="bBmsScan" ${b0.devices.length >= (b.max || 4) || b.scanning ? 'disabled' : ''} style="flex:none">${icon('search', 16)}${b.scanning ? 'Suche läuft …' : 'Akkus suchen'}</button>
         </div>
         ${b.scanning || b.found.length ? `<h3 style="font-size:13px;margin:16px 0 6px">Gefundene Akkus${b.scanning ? ' (Suche läuft, 1 Minute)' : ''}</h3>
           ${b.found.length ? b.found.map((f, i) => `<div class="gasrow" style="grid-template-columns:1fr auto">
               <div><b data-notr>${esc(f.name || f.model_text)}</b><div class="hint" style="margin:0" data-notr>${esc(f.model_text)} · ${esc(f.mac)}, Signal ${f.rssi > -65 ? 'stark' : f.rssi > -80 ? 'mittel' : 'schwach'}${f.configured ? ', schon eingerichtet' : ''}</div></div>
-              <button class="btn small" data-bmsadd="${i}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
+              <button class="btn small" data-bmsadd="${f.idx}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
             : '<p class="hint">Noch nichts gefunden. Akku eingeschaltet und in der Nähe?</p>'}` : ''}
         ${(b.seen || []).length ? `<details style="margin-top:12px" ${b.found.length ? '' : 'open'}><summary class="hint">Andere Bluetooth-Geräte in der Nähe (${b.seen.length}) – Akku nicht erkannt? Hier von Hand zuordnen</summary>
           <p class="hint">Welches BMS steckt im Akku? Steht oft in der App des Herstellers (z. B. „Xiaoxiang“ = JBD, „JK BMS“ = JK, „Smart BMS“ von Daly). Im Zweifel nacheinander probieren – das Protokoll unten zeigt, ob der Akku antwortet.</p>
           ${b.seen.map((x, i) => `<div class="gasrow" style="grid-template-columns:1fr auto auto">
               <div><b data-notr>${esc(x.name || '(ohne Name)')}</b><div class="hint" style="margin:0" data-notr>${esc(x.mac)} · Signal ${x.rssi > -65 ? 'stark' : x.rssi > -80 ? 'mittel' : 'schwach'}${x.mid ? ' · Hersteller 0x' + x.mid.toString(16).toUpperCase().padStart(4, '0') : ''}${x.svc ? ' · Dienste ' + esc(x.svc) : ''}</div></div>
-              <select data-bmsseltype="${i}"><option value="5">JBD / Xiaoxiang</option><option value="6">JK-BMS</option><option value="4">Daly / Bulltron</option><option value="7">LiTime / Redodo</option><option value="8">Renogy-Akku</option><option value="17">Renogy-Akku Pro</option><option value="12">Renogy BT-1/BT-2 (Laderegler, DC-DC-Lader)</option><option value="15">Renogy Wechselrichter</option><option value="16">Renogy Smart Shunt</option><option value="9">Eco-Worthy</option><option value="10">ANT</option><option value="11">Vatrer</option><option value="2">Power Quarry (binär)</option><option value="3">Power Quarry (ASCII)</option><option value="1">Super B</option></select>
+              <select data-bmsseltype="${i}"><option value="5">JBD / Xiaoxiang</option><option value="6">JK-BMS</option><option value="4">Daly / Bulltron</option><option value="7">LiTime / Redodo</option><option value="8">Renogy-Akku</option><option value="17">Renogy-Akku Pro</option><option value="12">Renogy BT-1/BT-2 (Laderegler, DC-DC-Lader)</option><option value="15">Renogy Wechselrichter</option><option value="16">Renogy Smart Shunt</option><option value="18">Bluetti (ungetestet)</option><option value="19">Allpowers (ungetestet)</option><option value="20">Anker SOLIX C1000/C800/F2600 (ungetestet)</option><option value="21">Anker SOLIX C300 (ungetestet)</option><option value="22">Anker SOLIX C1000 Gen 2 (ungetestet)</option><option value="23">Anker SOLIX F3800 (ungetestet)</option><option value="9">Eco-Worthy</option><option value="10">ANT</option><option value="11">Vatrer</option><option value="2">Power Quarry (binär)</option><option value="3">Power Quarry (ASCII)</option><option value="1">Super B</option></select>
               <button class="btn small" data-bmsseen="${i}">Hinzufügen</button></div>`).join('')}</details>` : ''}
         ${(b.log || []).length ? `<details style="margin-top:10px"><summary class="hint">Protokoll (für die Fehlersuche)</summary><pre class="hint" style="white-space:pre-wrap" data-notr>${esc(b.log.join('\n'))}</pre></details>` : ''}` : ''}`;
   };
@@ -1953,8 +1989,8 @@ async function openSettings(tab = 'net') {
               : '<p class="hint">Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?</p>'}` : ''}`;
       }
       if ((draft.ble || {}).victron === false) html = gxHTML(gxData) + bleHTML(draft.ble, [['victron', 'Victron']]);
-    } else if (tab === 'bms') {
-      html = bmsData ? bmsHTML(bmsData) : '<p class="hint">Lade … (diese Firmware hat vielleicht keine Akku-Unterstützung)</p>';
+    } else if (tab === 'bms' || tab === 'ps') {
+      html = bmsData ? bmsHTML(bmsData, tab === 'ps') : '<p class="hint">Lade … (diese Firmware hat vielleicht keine Akku-Unterstützung)</p>';
     } else if (tab === 'sat') {
       html = satHTML(satData);
     } else if (tab === 'sd') {
@@ -2103,6 +2139,18 @@ async function openSettings(tab = 'net') {
     if (e.target.closest('#bBmsScan')) { bmsPost({scan: true}).then(() => { toast('Suche gestartet (1 Minute).'); loadBms(); }).catch(er => toast(er.message, 'error')); return; }
     const br = e.target.closest('[data-bmsremove]');
     if (br) { confirmDlg('Akku entfernen?', 'Das Panel wertet diesen Akku dann nicht mehr aus.', 'Entfernen', true).then(ok => ok && bmsPost({remove: br.dataset.bmsremove}).then(loadBms)); return; }
+    if (e.target.closest('#bEfLogin')) {
+      bmsPost({ef_login: {email: ($('#efMail', body) || {}).value || '', password: ($('#efPass', body) || {}).value || ''}})
+        .then(() => { toast('Anmeldung läuft …'); setTimeout(loadBms, 3000); setTimeout(loadBms, 8000); }).catch(er => toast(er.message, 'error'));
+      return;
+    }
+    if (e.target.closest('#bEfUid')) {
+      const v = (($('#efUid', body) || {}).value || '').trim();
+      if (!v) { toast('Benutzer-ID eingeben', 'error'); return; }
+      bmsPost({ef_uid: v}).then(() => { toast('Benutzer-ID gespeichert.'); loadBms(); }).catch(er => toast(er.message, 'error'));
+      return;
+    }
+    if (e.target.closest('#bEfUidDel')) { bmsPost({ef_uid: ''}).then(loadBms); return; }
     const bs = e.target.closest('[data-bmsseen]');
     if (bs && bmsData) {
       const x = bmsData.seen[+bs.dataset.bmsseen], sel = $(`[data-bmsseltype="${bs.dataset.bmsseen}"]`, body);

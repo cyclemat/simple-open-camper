@@ -248,6 +248,7 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
     case VIC_CHARGER: it.icon = ICON_LIGHTNING; break;
     case VIC_GRID: it.icon = ICON_PLUG; break;
     case VIC_INVERTER: it.icon = ICON_POWER; break;
+    case VIC_PSTATION: it.icon = ICON_BATTERY; break;
     case VIC_DCSYS: it.icon = ICON_BULB; break;
     default: it.icon = ICON_LIGHTNING; break;
   }
@@ -274,6 +275,10 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
     case VIC_INVERTER:
       it.value = num(v.ac_w, 0, "W") + "  ·  " + victron_state_text(v.state);
       it.accent = (!isnan(v.ac_w) && v.ac_w > 5) ? C_AMBER : C_TEXT2;
+      break;
+    case VIC_PSTATION:
+      it.value = num(v.soc, 0, "%") + "  ·  raus " + num(v.ps_out_w, 0, "W");
+      it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
       break;
     case VIC_DCDC:
       it.value = isnan(v.bat_i) ? num(v.bat_v, 2, "V") + "  ·  " + victron_state_text(v.state)
@@ -346,7 +351,7 @@ static void collect_raw(std::vector<Item> &s_items) {
   // Akkus mit eigenem BMS (Super B …): erst mit Werten eine Kachel
   for (auto &b : bms_list()) {
     if (!b.has) continue;
-    if (b.dev == BMS_DEV_SOLAR || b.dev == BMS_DEV_DCDC || b.dev == BMS_DEV_INVERTER) {   // Renogy-Geraete wie Victron
+    if (b.dev == BMS_DEV_SOLAR || b.dev == BMS_DEV_DCDC || b.dev == BMS_DEV_INVERTER || b.dev == BMS_DEV_PSTATION) {
       VictronInfo v;
       victron_from_bms(b, v);
       s_items.push_back(vic_item(v, "b:" + b.mac));

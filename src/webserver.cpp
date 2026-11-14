@@ -169,7 +169,8 @@ static esp_err_t h_info(httpd_req_t *req) {
 // ---------------------------------------------------------------- Victron-Hilfen
 static const char *vic_type(VicKind k) {
   return k == VIC_SOLAR ? "solar" : k == VIC_SHUNT ? "shunt" : k == VIC_DCDC ? "dcdc" : k == VIC_GRID ? "grid"
-       : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter" : "other";
+       : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter"
+       : k == VIC_PSTATION ? "pstation" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -260,6 +261,17 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
       put(st, "aux", v.aux);
     }
     if (v.alarm) st["alarm"] = v.alarm;
+  } else if (v.kind == VIC_PSTATION) {
+    put(st, "soc", v.soc, 10);
+    put(st, "in_w", v.ps_in_w, 1);
+    put(st, "out_w", v.ps_out_w, 1);
+    put(st, "ac_in", v.ps_ac_in_w, 1);
+    put(st, "dc_in", v.ps_dc_in_w, 1);
+    put(st, "ac_out", v.ps_ac_out_w, 1);
+    put(st, "dc_out", v.ps_dc_out_w, 1);
+    if (v.ac_on >= 0) st["ac_on"] = v.ac_on == 1;
+    if (v.dc_on >= 0) st["dc_on"] = v.dc_on == 1;
+    if (v.remaining_min >= 0) st["remaining"] = v.remaining_min;
   } else if (v.kind == VIC_DCDC) {
     put(st, "in_v", v.in_v);
     put(st, "in_i", v.in_i, 10);
@@ -1104,6 +1116,10 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
   d["enabled"] = true;
   d["on"] = ble_proto_on(BLE_P_BMS);
   d["scanning"] = bms_discovery_running();
+  d["ef_uid_set"] = bms_ef_uid_set();
+  d["ef_uid_hint"] = bms_ef_uid_hint();
+  d["ef_login_state"] = bms_ef_login_state();
+  d["ef_login_text"] = bms_ef_login_text();
   d["max"] = BMS_MAX;
   JsonArray bd = d["devices"].to<JsonArray>();
   for (auto &b : bms_list()) {
@@ -1179,6 +1195,14 @@ static esp_err_t h_bms_post(httpd_req_t *req) {
   }
   if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (d["ef_uid"].is<const char *>()) bms_ef_set_uid(d["ef_uid"].as<const char *>());
+  if (!d["ef_login"].isNull()) {
+    std::string err = bms_ef_login_start(d["ef_login"]["email"] | "", d["ef_login"]["password"] | "");
+    if (!err.empty()) return send_err(req, "400 Bad Request", err);
+  }
+  if (!d["output"].isNull() &&
+      !bms_set_output(d["output"]["mac"] | "", d["output"]["ac"] | true, d["output"]["on"] | false))
+    return send_err(req, "400 Bad Request", "Dieses Gerät lässt sich nicht schalten");
   return send_ok(req);
 }
 #endif

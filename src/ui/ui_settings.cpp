@@ -1537,6 +1537,8 @@ static void vic_scan_cb(lv_event_t *) {
 #if WITH_BMS
 static std::vector<BmsFound> s_bms_found;
 static std::vector<lv_obj_t *> s_bms_vals;
+static std::vector<std::string> s_bms_keys;   // Schluessel zu s_bms_vals (Akkus bzw. Power Stations)
+static bool is_ps(BmsModel m) { return bms_dev_of(m) == BMS_DEV_PSTATION; }
 static uint32_t s_bms_sig = 0;
 
 static uint32_t bms_struct_sig() {
@@ -1557,8 +1559,7 @@ static std::string bms_summary(const BmsInfo &b) { return bms_value_text(b); }  
 
 static void bms_row_cb(lv_event_t *e) {
   size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
-  auto list = bms_list();
-  if (i < list.size()) ui_vic_open(list[i].key);
+  if (i < s_bms_keys.size()) ui_vic_open(s_bms_keys[i]);
 }
 
 static void bms_found_cb(lv_event_t *e) {
@@ -1566,18 +1567,18 @@ static void bms_found_cb(lv_event_t *e) {
   if (i >= s_bms_found.size()) return;
   BmsFound f = s_bms_found[i];
   if (f.configured) {
-    ui_toast("Dieser Akku ist schon eingerichtet.");
+    ui_toast("Dieses Gerät ist schon eingerichtet.");
     return;
   }
   InputOptions o;
-  o.title = "Name des Akkus";
+  o.title = is_ps(f.model) ? "Name der Power Station" : "Name des Akkus";
   o.hint = "Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.";
   o.initial = f.name.empty() ? std::string(bms_model_text(f.model)) : f.name;
   o.max_len = 32;
   o.on_ok = [f](const std::string &t, bool) {
     std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
     ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
-    if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string("Akku") : t);
+    if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string(bms_model_text(f.model)) : t);
   };
   ui_input_open(o);
 }
@@ -1591,33 +1592,68 @@ static void bms_scan_cb(lv_event_t *) {
   ui_toast("Suche läuft (1 Minute). Die App des Herstellers vorher schließen.");
 }
 
-static void build_bms() {
-  heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
-                         "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
+static void ef_uid_cb(lv_event_t *) {
+  InputOptions o;
+  o.title = "EcoFlow-Benutzer-ID";
+  o.hint = "Die Benutzer-ID des EcoFlow-Kontos, an das die Power Station gebunden ist. Bequemer: im Editor unter "
+           "„Power Stations“ mit E-Mail und Passwort anmelden – dann wird sie automatisch eingetragen. Leer = löschen.";
+  o.initial = "";
+  o.max_len = 32;
+  o.on_ok = [](const std::string &t, bool) {
+    bms_ef_set_uid(t);
+    ui_toast(t.empty() ? "Benutzer-ID gelöscht." : "Benutzer-ID gespeichert.");
+    show_section(SEC_PSTATION);
+  };
+  ui_input_open(o);
+}
+
+// ps = false: Akkus, Shunts, Renogy-Laderegler usw.; ps = true: Power Stations (eigener Menuepunkt, gleiches Modul)
+static void build_bms(bool ps) {
+  if (ps)
+    heading("Power Stations", "Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers "
+                              "vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. "
+                              "Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.");
+  else
+    heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
+                           "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
   proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), "
-                 "Eco-Worthy, ANT, Vatrer – nur lesen", BLE_P_BMS);
+                 "Eco-Worthy, ANT, Vatrer, Power Stations – Akkus nur lesen", BLE_P_BMS);
   s_bms_vals.clear();
+  s_bms_keys.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
     s_bms_sig = 0;
     return;
   }
-  auto list = bms_list();
   Layout lay = layout_get();
   lv_obj_t *g = group();
-  if (list.empty()) ui_label(g, "Noch kein Akku eingerichtet.", F_BODY, C_TEXT2);
-  for (size_t i = 0; i < list.size(); i++) {
-    auto it = lay.names.find(list[i].key);
-    std::string label = it != lay.names.end() && !it->second.empty() ? it->second : list[i].name;
-    s_bms_vals.push_back(ui_row(g, label.c_str(), bms_summary(list[i]).c_str(), bms_row_cb, (void *)(intptr_t)i));
+  for (auto &b : bms_list()) {
+    if ((b.dev == BMS_DEV_PSTATION) != ps) continue;
+    auto it = lay.names.find(b.key);
+    std::string label = it != lay.names.end() && !it->second.empty() ? it->second : b.name;
+    s_bms_vals.push_back(ui_row(g, label.c_str(), bms_summary(b).c_str(), bms_row_cb, (void *)(intptr_t)s_bms_keys.size()));
+    s_bms_keys.push_back(b.key);
+  }
+  if (s_bms_keys.empty())
+    ui_label(g, ps ? "Noch keine Power Station eingerichtet." : "Noch kein Akku eingerichtet.", F_BODY, C_TEXT2);
+  if (ps && BMS_ECOFLOW_ON) {   // EcoFlow braucht die Benutzer-ID des Kontos
+    lv_obj_t *eg = group();
+    std::string v = bms_ef_uid_set() ? std::string(tr("gespeichert ")) + bms_ef_uid_hint() : std::string(tr("nicht eingetragen"));
+    ui_row(eg, "EcoFlow-Benutzer-ID", v.c_str(), ef_uid_cb, nullptr);
   }
   lv_obj_t *row = button_row();
   bool running = bms_discovery_running();
-  ui_button(row, ICON_SEARCH, running ? "Suche läuft …" : "Akkus suchen", true, bms_scan_cb, nullptr);
-  s_bms_found = bms_found();
+  ui_button(row, ICON_SEARCH, running ? "Suche läuft …" : ps ? "Power Stations suchen" : "Akkus suchen", true, bms_scan_cb,
+            nullptr);
+  s_bms_found.clear();
+  for (auto &f : bms_found())
+    if (is_ps(f.model) == ps) s_bms_found.push_back(f);
   if (running || !s_bms_found.empty()) {
-    subheading(running ? "Gefundene Akkus (Suche läuft …)" : "Gefundene Akkus");
+    subheading(running ? "Gefunden (Suche läuft …)" : "Gefunden");
     lv_obj_t *fg = group();
-    if (s_bms_found.empty()) ui_label(fg, "Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", F_BODY, C_TEXT2);
+    if (s_bms_found.empty())
+      ui_label(fg, ps ? "Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?"
+                      : "Noch nichts gefunden. Akku eingeschaltet und in der Nähe?",
+               F_BODY, C_TEXT2);
     for (size_t i = 0; i < s_bms_found.size(); i++) {
       const BmsFound &f = s_bms_found[i];
       std::string title = (f.name.empty() ? std::string(bms_model_text(f.model)) : f.name) + "  ·  " + bms_model_text(f.model);
@@ -1752,14 +1788,16 @@ static void build_victron() {
 void ui_settings_tick_victron() {
   if (!s_scr || ui_input_is_open()) return;
 #if WITH_BMS
-  if (s_sec == SEC_BMS) {   // eigener Abschnitt "Akkus (BMS)"
+  if (s_sec == SEC_BMS || s_sec == SEC_PSTATION) {   // eigene Abschnitte "Akkus (BMS)" und "Power Stations"
     if (!ble_proto_on(BLE_P_BMS)) return;
     if (bms_struct_sig() != s_bms_sig) {
-      show_section(SEC_BMS);
+      show_section(s_sec);
       return;
     }
-    auto bl = bms_list();
-    for (size_t i = 0; i < bl.size() && i < s_bms_vals.size(); i++) lv_label_set_text(s_bms_vals[i], bms_summary(bl[i]).c_str());
+    for (size_t i = 0; i < s_bms_keys.size() && i < s_bms_vals.size(); i++) {
+      BmsInfo b;
+      if (bms_get(s_bms_keys[i], b)) lv_label_set_text(s_bms_vals[i], bms_summary(b).c_str());
+    }
     return;
   }
 #endif
@@ -1968,8 +2006,8 @@ static void build_backup() {
 }
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_HOUSE, ICON_LOCK, ICON_INFO};
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Hymer", "Sicherung", "Info"};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_LOCK, ICON_INFO};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Sicherung", "Info"};
 
 static void show_section(int sec) {
   s_sec = sec;
@@ -1993,7 +2031,8 @@ static void show_section(int sec) {
     case SEC_GAS: build_gas(); break;
     case SEC_VICTRON: build_victron(); break;
 #if WITH_BMS
-    case SEC_BMS: build_bms(); break;
+    case SEC_BMS: build_bms(false); break;
+    case SEC_PSTATION: build_bms(true); break;
 #endif
     case SEC_HYMER: build_hymer(); break;
     case SEC_BACKUP: build_backup(); break;
@@ -2048,7 +2087,7 @@ void ui_settings_open(int section) {
     lv_obj_t *it = lv_obj_create(nav);
     ui_plain(it);
     lv_obj_add_flag(it, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(it, lv_pct(100), 46);   // 10 Punkte muessen in 600 px passen
+    lv_obj_set_size(it, lv_pct(100), 42);   // 11 Punkte muessen in 600 px passen
     lv_obj_set_style_radius(it, 12, 0);
     lv_obj_set_style_bg_color(it, C_FIELD, 0);
     lv_obj_set_style_border_side(it, LV_BORDER_SIDE_LEFT, 0);
@@ -2060,7 +2099,7 @@ void ui_settings_open(int section) {
     lv_obj_add_event_cb(it, nav_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     s_nav_items[i] = it;
     if (i == SEC_HYMER && !hymer_enabled()) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);   // nicht eingebaut
-    if (i == SEC_BMS && !WITH_BMS) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);
+    if ((i == SEC_BMS || i == SEC_PSTATION) && !WITH_BMS) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);
   }
 
   s_content = lv_obj_create(s_scr);

@@ -110,7 +110,11 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
-<div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button><button id="bReboot" style="flex:none">Neu starten</button></div>
+<p class="hint">Update: „Update-Modus starten“ – das Display startet in den kleinen Updater (gleiche Adresse, gleiches
+Passwort). Dort die neue <b>firmware.bin</b> hochladen; danach startet die neue Firmware von selbst.</p>
+<div class="row"><button id="bUpd" style="flex:none">Update-Modus starten</button><button id="bReboot" style="flex:none">Neu starten</button></div>
+<details style="margin-top:8px"><summary class="hint">Updater selbst erneuern (updater.bin, max. 1 MB)</summary>
+<div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button></div></details>
 </div>
 </div>
 </main><div id="toast"></div>
@@ -137,7 +141,7 @@ function render(){
  if(S.truma.sensors.length)c.push(['ok','Gas: '+S.truma.sensors.length+' Sensor(en)']);
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#cbStatus').textContent=(S.cerbo.connected?'Verbunden mit '+S.cerbo.host:S.cerbo.host?'Adresse '+S.cerbo.host+' – '+(S.cerbo.status||'nicht verbunden'):'Noch keine Adresse.')+(S.cerbo.find?' · '+S.cerbo.find:'');
- $('#fwInfo').textContent='Version '+S.fw+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
+ $('#fwInfo').textContent='Version '+S.fw+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.'+(S.upd_slot?(S.upd_ok?' · Updater vorhanden':' · Updater fehlt (einmal per USB aufspielen)'):' · alte Speicheraufteilung (einmal per USB neu aufspielen)');$('#bUpd').disabled=!S.upd_ok;
  if(document.activeElement&&document.activeElement.closest('#viList,#trList,#bmList'))return;
  const T=S.truma;
  $('#trList').innerHTML=T.sensors.length?T.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-trn="${x.mac}" maxlength="32">
@@ -150,7 +154,7 @@ function render(){
    <div class="v">${esc(x.model)} · ${x.has&&x.dev?esc(x.sum)+' · '+(x.connected?age(x.age):'getrennt'):x.has?[x.soc+' %',x.v!=null?num(x.v,2,'V'):'',x.a!=null?num(x.a,1,'A'):'',x.soh!=null?'SoH '+x.soh+' %':'',x.chg?'lädt':x.dis?'entlädt':'',x.low?'Ladung niedrig':'',x.ok?'':'BMS meldet Alarm',x.t!=null?num(x.t,0,'°C'):'',x.cyc!=null?x.cyc+' Zyklen':'',x.cells?'Zellen '+x.cells.map(c=>(c/1000).toFixed(3)).join(' / ')+' V':'',x.ttg>0?'leer in '+Math.floor(x.ttg/3600)+' h '+Math.floor(x.ttg%3600/60)+' min':'',x.connected?age(x.age):'getrennt'].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
    <button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
   $('#bBmScan').disabled=B.scanning||B.devices.length>=B.max;$('#bBmScan').textContent=B.scanning?'Suche läuft …':'Akkus suchen';
-  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro',18:'Bluetti',19:'Allpowers',20:'Anker SOLIX',21:'Anker SOLIX C300',22:'Anker SOLIX Gen 2',23:'Anker SOLIX F3800',24:'EcoFlow',25:'EcoFlow'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
   $('#bmLog').textContent=(B.log||[]).join('\n')||'–'}
  const V=S.victron;
  $('#viList').innerHTML=V.devices.length?V.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-vin="${x.mac}" maxlength="32">
@@ -217,8 +221,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.vik){const k=prompt('Schlüssel (32 Zeichen)');if(k)act('/api/victron',{key:{mac:d.vik,key:k.replace(/[\s:-]/g,'')}},'Schlüssel gespeichert.')}
  if(d.via){const f=S.victron.found[+d.via];const k=prompt('Schlüssel (32 Zeichen) für '+(f.name||f.mac));if(k){const n=prompt('Name',f.name||'Victron');act('/api/victron',{add:{mac:f.mac,key:k.replace(/[\s:-]/g,''),name:n||''}},'Eingerichtet.')}}
 });
-$('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
- try{const r=await fetch('/api/update',{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
+$('#bUpd').onclick=async()=>{if(!confirm('In den Update-Modus starten? Die Anzeige ist bis zum Update (oder 15 Minuten) aus.'))return;
+ try{await post('/api/updater',{});toast('Starte den Updater … die Seite lädt gleich neu.');setTimeout(()=>location.reload(),12000)}catch(e){toast(e.message,true)}};
+$('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);if(S.upd_slot&&f.size>S.upd_slot)return toast('Zu groß für den Updater-Bereich – die Firmware bitte über den Update-Modus aufspielen.',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
+ try{const r=await fetch('/api/update?size='+f.size,{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Display neu starten?')&&act('/api/reboot',{},'Startet neu …');
 let DP=null;
 function ldrShow(){const l=S.light;if(!l||l.ldr<0)return;$('#ldrNow').textContent='Lichtsensor zurzeit: '+l.ldr+' – '+(l.night?'dunkel':'hell')+(l.auto?'.':' (Automatik aus).')}

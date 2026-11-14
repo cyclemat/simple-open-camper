@@ -400,6 +400,22 @@ bool victron_from_bms(const BmsInfo &b, VictronInfo &v) {
       v.pv_w = b.pv_w;
       v.yield_kwh = b.yield_wh >= 0 ? b.yield_wh / 1000.0f : NAN;
       return true;
+    case BMS_DEV_PSTATION:
+      v.kind = VIC_PSTATION;
+      v.soc = b.soc >= 0 ? (float)b.soc : NAN;
+      v.ps_in_w = b.ps_in_w;
+      v.ps_out_w = b.ps_out_w;
+      v.ps_ac_in_w = b.ps_ac_in_w;
+      v.ps_dc_in_w = b.ps_dc_in_w;
+      v.ps_ac_out_w = b.ps_ac_out_w;
+      v.ps_dc_out_w = b.ps_dc_out_w;
+      v.ac_on = b.ac_on;
+      v.dc_on = b.dc_on;
+      v.can_ac = b.can_ac;
+      v.can_dc = b.can_dc;
+      v.remaining_min = b.remain_min;
+      v.power_w = isfinite(b.ps_in_w) && isfinite(b.ps_out_w) ? b.ps_in_w - b.ps_out_w : NAN;
+      return true;
     case BMS_DEV_INVERTER:
       v.kind = VIC_INVERTER;
       v.ac_v = b.ac_v;
@@ -570,6 +586,7 @@ const char *victron_kind_text(VicKind k) {
     case VIC_CHARGER: return "Ladegerät";
     case VIC_DCSYS: return "DC-System";
     case VIC_INVERTER: return "Wechselrichter";
+    case VIC_PSTATION: return "Power Station";
     default: return "Victron-Gerät";
   }
 }

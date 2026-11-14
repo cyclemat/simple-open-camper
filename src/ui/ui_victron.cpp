@@ -49,6 +49,7 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_CHARGER: return ICON_LIGHTNING;
     case VIC_DCSYS: return ICON_BULB;
     case VIC_INVERTER: return ICON_POWER;
+    case VIC_PSTATION: return ICON_BATTERY;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -127,6 +128,16 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (big && !isnan(v.ac_i)) t.sub += "  ·  " + ui_num(v.ac_i, 1, "A");
       break;
     }
+    case VIC_PSTATION: {   // Power Station: Ladezustand, darunter rein/raus
+      t.value = isnan(v.soc) ? "–" : std::to_string((int)lroundf(v.soc)) + "\xE2\x80\xAF%";
+      if (!isnan(v.soc)) {
+        t.fill = (int)lroundf(v.soc);
+        t.accent = ui_gas_color(t.fill);
+      }
+      t.sub = small ? tr("raus ") + watt(v.ps_out_w) : tr("rein ") + watt(v.ps_in_w) + tr("  ·  raus ") + watt(v.ps_out_w);
+      if (big && v.ac_on >= 0) t.sub += v.ac_on ? tr("  ·  AC ein") : tr("  ·  AC aus");
+      break;
+    }
     case VIC_DCSYS:   // Cerbo GX: DC-Verbraucher; per Bluetooth: SmartShunt als DC-Energiezaehler
       t.value = watt(v.power_w);
       t.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
@@ -158,6 +169,8 @@ std::string ui_vic_summary(const VictronInfo &v) {
     case VIC_CHARGER: return ui_num(v.power_w, 0, "W") + ", " + tr(victron_state_text(v.state));
     case VIC_DCSYS: return ui_num(v.power_w, 0, "W") + ", " + ui_num(v.bat_i, 1, "A");
     case VIC_INVERTER: return ui_num(v.ac_w, 0, "W") + ", " + tr(victron_state_text(v.state));
+    case VIC_PSTATION:
+      return ui_num(v.soc, 0, "%") + tr(", rein ") + ui_num(v.ps_in_w, 0, "W") + tr(", raus ") + ui_num(v.ps_out_w, 0, "W");
     default: return v.status;
   }
 }
@@ -179,6 +192,8 @@ struct VicDlg {
   lv_obj_t *mode_btn[4] = {nullptr};
   int mode_val[4] = {0};
   int nmode = 0;
+  // Power Station: AC-/DC-Ausgang schalten (bms_set_output)
+  lv_obj_t *ps_btn[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
 };
 static VicDlg *s_v = nullptr;
 
@@ -295,6 +310,51 @@ static void ctl_build(lv_obj_t *card, const VictronInfo &v) {
     }
     ctl_show_mode(v.mode);
   }
+}
+
+// ---------------------------------------------------------------- Power Station: Ausgaenge schalten
+static void ps_show(int which, int8_t on) {
+  if (!s_v) return;
+  for (int k = 0; k < 2; k++) {
+    lv_obj_t *b = s_v->ps_btn[which][k];
+    if (!b) continue;
+    bool sel = on >= 0 && (k == 0) == (on == 1);
+    lv_obj_set_style_bg_color(b, sel ? C_AMBER : C_FIELD, 0);
+    lv_obj_t *l = lv_obj_get_child(b, 0);
+    if (l) lv_obj_set_style_text_color(l, sel ? C_INK : C_TEXT, 0);
+  }
+}
+
+static void ps_cb(lv_event_t *e) {
+  if (!s_v) return;
+  int x = (int)(intptr_t)lv_event_get_user_data(e);   // Ausgang * 2 + (0 ein, 1 aus)
+  int which = x / 2;
+  bool on = (x % 2) == 0;
+  if (bms_set_output(s_v->mac, which == 0, on)) {
+    ps_show(which, on ? 1 : 0);
+    ui_toast("Wird geschaltet – die Power Station meldet den neuen Zustand gleich.");
+  } else {
+    ui_toast("Dieses Gerät lässt sich nicht schalten.");
+  }
+}
+
+static void ps_build(lv_obj_t *card, const VictronInfo &v) {
+  const char *name[2] = {"AC-Ausgang", "DC-Ausgang"};
+  bool can[2] = {v.can_ac, v.can_dc};
+  for (int w = 0; w < 2; w++) {
+    if (!can[w]) continue;
+    lv_obj_t *r = lv_obj_create(card);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 60);
+    lv_obj_t *t = ui_label(r, name[w], F_BODY, C_TEXT2);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 0, 0);
+    s_v->ps_btn[w][1] = ctl_btn(r, "Aus", 120, ps_cb, w * 2 + 1);
+    lv_obj_align(s_v->ps_btn[w][1], LV_ALIGN_RIGHT_MID, 0, 0);
+    s_v->ps_btn[w][0] = ctl_btn(r, "Ein", 120, ps_cb, w * 2);
+    lv_obj_align(s_v->ps_btn[w][0], LV_ALIGN_RIGHT_MID, -128, 0);
+  }
+  ps_show(0, v.ac_on);
+  ps_show(1, v.dc_on);
 }
 
 // einmal pro Aktualisierung: Werte vom GX uebernehmen, ausser direkt nach einer eigenen Eingabe
@@ -423,6 +483,12 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 6;
     }
+    case VIC_PSTATION: {
+      static const char *a[] = {"Eingang gesamt", "Ausgang gesamt", "AC-Ausgang", "DC-Ausgang",
+                                "AC-Eingang (Netz)", "DC-Eingang (Solar/Auto)", "Restlaufzeit", "Empfang"};
+      memcpy(t, a, sizeof(a));
+      return 8;
+    }
     case VIC_DCSYS: {
       if (!v.gx) {   // SmartShunt als DC-Energiezaehler per Bluetooth
         static const char *b[] = {"Art", "Leistung", "Strom", "Spannung", "Empfang"};
@@ -548,6 +614,18 @@ void ui_vic_update() {
       val[4] = ui_num(v.bat_v, 2, "V");
       val[5] = reception(v);
       break;
+    case VIC_PSTATION: {
+      auto sw = [](int8_t on) { return on < 0 ? std::string() : std::string(on ? tr("  ·  ein") : tr("  ·  aus")); };
+      val[0] = ui_num(v.ps_in_w, 0, "W");
+      val[1] = ui_num(v.ps_out_w, 0, "W");
+      val[2] = ui_num(v.ps_ac_out_w, 0, "W") + sw(v.ac_on);
+      val[3] = ui_num(v.ps_dc_out_w, 0, "W") + sw(v.dc_on);
+      val[4] = ui_num(v.ps_ac_in_w, 0, "W");
+      val[5] = ui_num(v.ps_dc_in_w, 0, "W");
+      val[6] = remaining_text(v.remaining_min);
+      val[7] = reception(v);
+      break;
+    }
     case VIC_DCSYS:
       if (!v.gx) {
         val[0] = *victron_meter_text(v.meter) ? std::string(tr(victron_meter_text(v.meter))) : std::string("–");
@@ -574,6 +652,10 @@ void ui_vic_update() {
   if (v.error > 0) st = tr("Gerät meldet Fehler ") + std::to_string(v.error) + tr(" – Details in VictronConnect.");
   lv_label_set_text(s_v->status, st.c_str());
   ctl_sync(v);
+  if (v.kind == VIC_PSTATION) {
+    ps_show(0, v.ac_on);
+    ps_show(1, v.dc_on);
+  }
 }
 
 void ui_vic_open(const std::string &key) {
@@ -636,7 +718,7 @@ void ui_vic_open(const std::string &key) {
   d->big = ui_label(hdr, "", F_BIG, C_TEXT);
   lv_obj_align(d->big, LV_ALIGN_RIGHT_MID, -136, 0);
 
-  if (v.kind == VIC_SHUNT) {
+  if (v.kind == VIC_SHUNT || v.kind == VIC_PSTATION) {
     d->bar = lv_bar_create(card);
     lv_obj_set_size(d->bar, lv_pct(100), 14);
     lv_bar_set_range(d->bar, 0, 100);
@@ -662,6 +744,7 @@ void ui_vic_open(const std::string &key) {
   lv_label_set_long_mode(d->status, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(d->status, lv_pct(100));
   if (v.gx && (v.can_limit || v.can_mode)) ctl_build(card, v);   // MultiPlus/Ladegeraet ueber den GX bedienen
+  if (v.bms && v.kind == VIC_PSTATION && (v.can_ac || v.can_dc)) ps_build(card, v);   // Power Station: Ausgaenge
 
   lv_obj_t *row = lv_obj_create(card);
   ui_plain(row);

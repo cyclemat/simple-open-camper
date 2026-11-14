@@ -64,6 +64,19 @@
 #ifndef BMS_RENOGY_DEV_ON
 #define BMS_RENOGY_DEV_ON 1
 #endif
+// Power Stations (bms_ps.inc) – UNGETESTET: Bluetti (Modbus, neuere verschluesselt), Allpowers
+#ifndef BMS_BLUETTI_ON
+#define BMS_BLUETTI_ON 1
+#endif
+#ifndef BMS_ALLPOWERS_ON
+#define BMS_ALLPOWERS_ON 1
+#endif
+#ifndef BMS_ANKER_ON
+#define BMS_ANKER_ON 1         // Anker SOLIX C300/C800/C1000/C1000 Gen 2/F2600/F3800
+#endif
+#ifndef BMS_ECOFLOW_ON
+#define BMS_ECOFLOW_ON 1       // EcoFlow Delta 2/River 2/River 3/Delta 3 (braucht die EcoFlow-Benutzer-ID, ~80 KB Flash)
+#endif
 
 #define BMS_MAX 6
 #define BMS_KEY_PREFIX "bms:"
@@ -75,11 +88,16 @@ enum BmsModel : uint8_t {
   // Renogy: BT-TH-… (BT-1/BT-2-Modul) sagt nicht, was dahinter haengt – die erste Verbindung klaert es
   // (Laderegler, DC-DC-Lader oder Akku) und speichert das Ergebnis
   BMS_RENOGY_BT = 12, BMS_RENOGY_SOLAR = 13, BMS_RENOGY_DCC = 14, BMS_RENOGY_INV = 15, BMS_RENOGY_SHUNT = 16,
-  BMS_RENOGY_PRO = 17   // Renogy-Akku "Pro" (RNGRBP…/RNGC…, Hersteller-ID 0xE14C): Adresse 0xFF, Strom in 0,1 A
+  BMS_RENOGY_PRO = 17,  // Renogy-Akku "Pro" (RNGRBP…/RNGC…, Hersteller-ID 0xE14C): Adresse 0xFF, Strom in 0,1 A
+  BMS_BLUETTI = 18, BMS_ALLPOWERS = 19,  // Power Stations (bms_ps.inc)
+  BMS_ANKER = 20 /*C1000, C800, F2600*/, BMS_ANKER_C300 = 21, BMS_ANKER_G2 = 22 /*C1000 Gen 2*/, BMS_ANKER_F3800 = 23,
+  BMS_ECOFLOW = 24 /*Delta 2, River 2*/, BMS_ECOFLOW_PB = 25 /*River 3, Delta 3*/
 };
 
 // Geraeteart (bestimmt die Kachel: Akku/Shunt = Batteriewaechter, sonst Solar, Ladebooster, Wechselrichter)
-enum BmsDev : uint8_t { BMS_DEV_BATTERY = 0, BMS_DEV_SOLAR = 1, BMS_DEV_DCDC = 2, BMS_DEV_INVERTER = 3, BMS_DEV_SHUNT = 4 };
+enum BmsDev : uint8_t {
+  BMS_DEV_BATTERY = 0, BMS_DEV_SOLAR = 1, BMS_DEV_DCDC = 2, BMS_DEV_INVERTER = 3, BMS_DEV_SHUNT = 4, BMS_DEV_PSTATION = 5
+};
 BmsDev bms_dev_of(BmsModel m);
 // Abgleich/Erweiterung nach patman15/aiobmsble (Apache-2.0): Daly-Varianten und -Erkennung, JK-Aufbau nach
 // Firmware-Version, LiTime/Redodo-Hersteller-ID 0x585A, Renogy (BT-TH-…), Eco-Worthy (ECO-WORTHY…/DCHOUSE…).
@@ -112,6 +130,11 @@ struct BmsInfo {
   float starter_v = NAN;              // Smart Shunt: Starterbatterie
   int yield_wh = -1;                  // Ertrag heute
   int chg_state = -1;                 // Ladephase bzw. Zustand in Victron-Nummerierung (victron_state_text)
+  // Power Stations: Leistungen in W, Schalter -1 unbekannt / 0 aus / 1 an
+  float ps_in_w = NAN, ps_out_w = NAN, ps_ac_in_w = NAN, ps_dc_in_w = NAN, ps_ac_out_w = NAN, ps_dc_out_w = NAN;
+  int8_t ac_on = -1, dc_on = -1;
+  bool can_ac = false, can_dc = false;   // Ausgang schaltbar (bms_set_output)
+  int remain_min = -1;                // Restzeit laut Geraet
 };
 
 struct BmsFound {
@@ -123,6 +146,8 @@ struct BmsFound {
   std::string product;                // z. B. "VB101" (Power Quarry)
   int capacity_ah = 0, cells = 0;     // aus der Produkttabelle (Power Quarry)
   bool configured = false;
+  std::string serial;                 // EcoFlow: Seriennummer aus den Werbedaten
+  uint8_t enc = 7;                    // EcoFlow: Verschluesselungsart
 };
 
 // Waehrend der Suche gesehenes Bluetooth-Geraet, das keinem Akku-Typ zugeordnet werden konnte – zum Zuordnen von Hand
@@ -159,6 +184,14 @@ void bms_poll_now();                                  // Abfrage ausfuehren, blo
 void bms_remove(const std::string &mac);
 void bms_rename(const std::string &mac, const std::string &name);
 std::vector<std::string> bms_log();                   // letzte Meldungen (Fehlersuche ueber die Weboberflaeche)
+bool bms_set_output(const std::string &mac, bool ac, bool on);   // Power Station: AC- bzw. DC-Ausgang schalten
+// EcoFlow: Benutzer-ID des Kontos (fuer die Anmeldung an der Power Station). Anmeldung holt sie per HTTPS.
+bool bms_ef_uid_set();
+std::string bms_ef_uid_hint();                        // "…1234" (nur die letzten Stellen)
+void bms_ef_set_uid(const std::string &uid);
+std::string bms_ef_login_start(const std::string &email, const std::string &password);   // "" = gestartet
+int bms_ef_login_state();                             // 0 nichts, 1 laeuft, 2 ok, 3 Fehler
+std::string bms_ef_login_text();
 std::string bms_value_text(const BmsInfo &b);         // Kurzfassung ("78 %  ·  13,25 V  ·  40 W", Solar: W · V · Phase)
 std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b);   // alle Werte (Bezeichnung, Wert)
 #else
@@ -167,4 +200,5 @@ inline uint32_t bms_version() { return 0; }
 inline bool bms_has_devices() { return false; }
 inline std::vector<BmsInfo> bms_list() { return {}; }
 inline bool bms_get(const std::string &, BmsInfo &) { return false; }
+inline bool bms_set_output(const std::string &, bool, bool) { return false; }
 #endif

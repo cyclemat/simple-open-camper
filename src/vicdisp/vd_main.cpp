@@ -5,6 +5,7 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <Update.h>
+#include "../updater_link.h"
 #include <WebServer.h>
 #include <WiFi.h>
 #include <algorithm>
@@ -261,6 +262,8 @@ void h_state() {
   d["id"] = s_id;
   d["name"] = s_cfg.name;
   d["fw"] = VD_FW_VERSION;
+  d["upd_slot"] = (uint32_t)updater_slot_size();   // 0 = alte Speicheraufteilung ohne Updater
+  d["upd_ok"] = updater_available();
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
   sat_display_light(d["light"].to<JsonObject>());
@@ -580,11 +583,21 @@ void h_update_done() {
   }
 }
 
+// In den kleinen Updater starten (WLAN-Daten werden uebergeben)
+void h_updater() {
+  String err = updater_start(s_cfg.ssid, s_cfg.pass, s_id);
+  send_err(err.c_str());   // kommt nur bei Fehler zurueck
+}
+
+// Upload in den Bereich neben der laufenden Firmware: mit neuer Aufteilung nur der Updater (max. 1 MB, Groesse vorher
+// pruefen, sonst waere der Updater halb ueberschrieben); mit alter Aufteilung (min_spiffs) wie bisher die Firmware.
 void h_update_data() {
   HTTPUpload &u = s_srv.upload();
   if (u.status == UPLOAD_FILE_START) {
     s_upl_ok = devsetup::upload_allowed();
-    if (s_upl_ok) Update.begin(UPDATE_SIZE_UNKNOWN);
+    size_t want = s_srv.hasArg("size") ? (size_t)s_srv.arg("size").toInt() : 0, slot = updater_slot_size();
+    if (s_upl_ok && slot && (!want || want > slot)) s_upl_ok = false;
+    if (s_upl_ok) Update.begin(want ? want : UPDATE_SIZE_UNKNOWN);
   } else if (!s_upl_ok) {
     return;
   } else if (u.status == UPLOAD_FILE_WRITE) {
@@ -614,6 +627,7 @@ void web_begin() {
              ESP.restart();
            }));
   s_srv.on("/api/update", HTTP_POST, h_update_done, h_update_data);
+  s_srv.on("/api/updater", HTTP_POST, devsetup::guard(h_updater));
   s_srv.begin();
 }
 }  // namespace

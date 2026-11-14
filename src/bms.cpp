@@ -16,6 +16,14 @@ const char *bms_model_text(BmsModel m) {
     case BMS_RENOGY_DCC: return "Renogy DC-DC-Lader";
     case BMS_RENOGY_INV: return "Renogy Wechselrichter";
     case BMS_RENOGY_SHUNT: return "Renogy Smart Shunt";
+    case BMS_BLUETTI: return "Bluetti";
+    case BMS_ALLPOWERS: return "Allpowers";
+    case BMS_ANKER: return "Anker SOLIX";
+    case BMS_ANKER_C300: return "Anker SOLIX C300";
+    case BMS_ANKER_G2: return "Anker SOLIX Gen 2";
+    case BMS_ANKER_F3800: return "Anker SOLIX F3800";
+    case BMS_ECOFLOW: return "EcoFlow Delta 2/River 2";
+    case BMS_ECOFLOW_PB: return "EcoFlow River 3/Delta 3";
     case BMS_ECOWORTHY: return "Eco-Worthy";
     case BMS_ANT: return "ANT";
     case BMS_VATRER: return "Vatrer";
@@ -33,6 +41,14 @@ BmsDev bms_dev_of(BmsModel m) {
     case BMS_RENOGY_DCC: return BMS_DEV_DCDC;
     case BMS_RENOGY_INV: return BMS_DEV_INVERTER;
     case BMS_RENOGY_SHUNT: return BMS_DEV_SHUNT;
+    case BMS_BLUETTI:
+    case BMS_ALLPOWERS:
+    case BMS_ANKER:
+    case BMS_ANKER_C300:
+    case BMS_ANKER_G2:
+    case BMS_ANKER_F3800:
+    case BMS_ECOFLOW:
+    case BMS_ECOFLOW_PB: return BMS_DEV_PSTATION;
     default: return BMS_DEV_BATTERY;
   }
 }
@@ -90,7 +106,29 @@ struct Extra {
   float pv_v = NAN, pv_w = NAN, in_v = NAN, in_a = NAN, in_w = NAN, load_a = NAN, load_w = NAN;
   float ac_v = NAN, ac_a = NAN, ac_w = NAN, ac_hz = NAN, grid_v = NAN, starter_v = NAN;
   int yield_wh = -1, state = -1;
+  // Power Stations
+  float ps_ac_in = NAN, ps_dc_in = NAN, ps_ac_out = NAN, ps_dc_out = NAN, ps_in = NAN, ps_out = NAN;
+  int8_t ac_on = -1, dc_on = -1;
+  int remain = -1;
 };
+
+// Anker SOLIX: Sitzung der Dauerverbindung (bms_ps.inc)
+struct AkSess {
+  bool enc_outer = false, keyed = false, authorized = false, replied = false;
+  uint8_t key[16] = {0}, iv[16] = {0};
+  uint16_t mtu = 0;
+  int auth = -1;
+};
+// EcoFlow: Sitzung der Dauerverbindung (bms_ps.inc)
+struct EfSess {
+  uint8_t enc = 7;
+  bool keyed = false, authed = false;
+  uint8_t key[16] = {0}, iv[16] = {0};
+};
+static bool is_ecoflow(BmsModel m) { return m == BMS_ECOFLOW || m == BMS_ECOFLOW_PB; }
+static bool is_anker(BmsModel m) {
+  return m == BMS_ANKER || m == BMS_ANKER_C300 || m == BMS_ANKER_G2 || m == BMS_ANKER_F3800;
+}
 
 struct Bat {
   std::string mac, name;
@@ -124,12 +162,24 @@ struct Bat {
   uint8_t silent = 0;     // Abfragen hintereinander ganz ohne Empfang
   // Abgefragte Akkus (Power Quarry, Bulltron) nur kurz verbinden: verbinden, abfragen, trennen. Die Dauer-
   // verbindung riss beim Power Quarry immer nach ~13 s ab ("Grund 520", Funkverbindung verloren).
-  bool polled() const { return model != BMS_SUPERB && model != BMS_UNKNOWN; }
+  bool polled() const { return model != BMS_SUPERB && model != BMS_UNKNOWN && !is_anker(model) && !is_ecoflow(model); }
   int8_t daly_x81 = -1;    // Daly: -1 noch unbekannt, 0 Protokoll D2, 1 Protokoll 0x81 (Antwort 0x51)
   int jk_sw = -1;          // JK: Firmware-Hauptversion (ab 11 Aufbau 32S)
   std::string eco_a1, eco_a2;   // Eco-Worthy: letzte Rahmen A1/A2 (je ein Notify)
   uint8_t rid = 0;              // Renogy: Modbus-Adresse, die geantwortet hat (0 = noch unbekannt)
-  Extra ex;                     // Renogy-Geraete
+  Extra ex;                     // Renogy-Geraete, Power Stations
+  int8_t bl_enc = -1;           // Bluetti: -1 unbekannt, 0 Klartext, 1 verschluesselt (rid = Register-Generation 1/2)
+  int8_t want_ac = -1, want_dc = -1;   // Power Station: Ausgang schalten (bei der naechsten Verbindung)
+  std::string ap_frame;         // Allpowers: letzter Datensatz
+  AkSess ak;                    // Anker: Sitzung (Dauerverbindung)
+  int8_t ak_outer = -1;         // Anker: -1 unbekannt (offen probieren), 0 offen, 1 verschluesselt
+  std::deque<std::string> ak_q; // Anker: empfangene Pakete
+  std::string ak_frag;          // Anker: Bruchstuecke
+  EfSess ef;                    // EcoFlow: Sitzung (Dauerverbindung)
+  uint8_t ef_enc = 7;           // EcoFlow: Verschluesselungsart (aus den Werbedaten, gespeichert)
+  std::string ef_rx;            // EcoFlow: Empfangspuffer
+  Extra ef_ex;                  // EcoFlow: gesammelte Werte (Meldungen bringen nur Teile)
+  float ef_soc = NAN, ef_temp = NAN, ef_volt = NAN;
 };
 
 class ClientCB : public NimBLEClientCallbacks {
@@ -200,6 +250,10 @@ static void save() {
     snprintf(k, sizeof(k), "a%u", n); p.putString(k, b.name.c_str());
     snprintf(k, sizeof(k), "c%u", n); p.putUShort(k, b.cap_ah);
     snprintf(k, sizeof(k), "z%u", n); p.putUChar(k, b.cells);
+    if (!b.serial.empty()) {
+      snprintf(k, sizeof(k), "s%u", n); p.putString(k, b.serial.c_str());
+      snprintf(k, sizeof(k), "e%u", n); p.putUChar(k, b.ef_enc);
+    }
     n++;
   }
   p.putUChar("n", n);
@@ -219,6 +273,8 @@ static void load() {
     snprintf(k, sizeof(k), "a%u", i); b.name = p.getString(k, "Akku").c_str();
     snprintf(k, sizeof(k), "c%u", i); b.cap_ah = p.getUShort(k, 0);
     snprintf(k, sizeof(k), "z%u", i); b.cells = p.getUChar(k, 4);
+    snprintf(k, sizeof(k), "s%u", i); b.serial = p.getString(k, "").c_str();
+    snprintf(k, sizeof(k), "e%u", i); b.ef_enc = p.getUChar(k, 7);
     if (!b.mac.empty()) s_bats.push_back(b);
   }
   p.end();
@@ -704,6 +760,8 @@ static bool rshunt_connect(Bat &b, NimBLEClient *c) {
   return true;
 }
 
+#include "bms_ps.inc"   // Power Stations (Bluetti, Allpowers, Anker, EcoFlow)
+
 // Eco-Worthy: jeder Notify ist ein ganzer Rahmen, beginnend mit A1/A2 (Version 1) oder MAC + A1/A2 (Version 2),
 // am Ende CRC-16/Modbus (Little Endian). Version 2 wird um 2 Byte vorne aufgefuellt, dann gelten dieselben Positionen.
 static void eco_rx(const std::string &mac, const uint8_t *d, size_t n) {
@@ -846,6 +904,8 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   for (const char *h : SB_HINTS) hint |= ln.find(h) != std::string::npos;
   BmsModel model = BMS_SUPERB;
   const PqProduct *prod = nullptr;
+  std::string ef_sn;   // EcoFlow: Seriennummer und Verschluesselungsart aus den Werbedaten
+  uint8_t ef_enc = 7;
   if (!svc && !hint) {
     model = pq_detect(name, dev->haveManufacturerData() ? dev->getManufacturerData() : std::string(), &prod);
     std::string un = name;
@@ -862,6 +922,12 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       model = BMS_BULLTRON;   // Daly
     if (model == BMS_UNKNOWN && mid == 0x585A) model = BMS_LITIME;   // LiTime/Redodo
     if (model == BMS_UNKNOWN) model = renogy_detect(un, mid);
+    if (model == BMS_UNKNOWN && bluetti_name(un)) model = BMS_BLUETTI;   // vor JBD (gleicher Dienst 0xFF00)
+    if (model == BMS_UNKNOWN && un.find("ALLPOWERS") != std::string::npos) model = BMS_ALLPOWERS;
+    if (model == BMS_UNKNOWN) model = anker_detect(un, dev->haveManufacturerData() ? dev->getManufacturerData() : std::string());
+#if BMS_ECOFLOW_ON
+    if (model == BMS_UNKNOWN && mid == 0xB5B5) model = ecoflow_detect(dev->getManufacturerData(), ef_sn, ef_enc);
+#endif
     if (model == BMS_UNKNOWN && (un.rfind("ECO-WORTHY", 0) == 0 || un.rfind("DCHOUSE", 0) == 0)) model = BMS_ECOWORTHY;
     if (model == BMS_UNKNOWN && un.rfind("JK", 0) == 0) model = BMS_JK;   // "JK-B2A24S…", "JK_…"
     // ANT: "ANT-BLE24…", "ANT-BLE3…" (Zeichen 4 beliebig)
@@ -938,6 +1004,14 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       case BMS_RENOGY_DCC:
       case BMS_RENOGY_INV:
       case BMS_RENOGY_SHUNT: on = BMS_RENOGY_DEV_ON; break;
+      case BMS_BLUETTI: on = BMS_BLUETTI_ON; break;
+      case BMS_ALLPOWERS: on = BMS_ALLPOWERS_ON; break;
+      case BMS_ANKER:
+      case BMS_ANKER_C300:
+      case BMS_ANKER_G2:
+      case BMS_ANKER_F3800: on = BMS_ANKER_ON; break;
+      case BMS_ECOFLOW:
+      case BMS_ECOFLOW_PB: on = BMS_ECOFLOW_ON; break;
       case BMS_ECOWORTHY: on = BMS_ECOWORTHY_ON; break;
       case BMS_ANT: on = BMS_ANT_ON; break;
       case BMS_VATRER: on = BMS_VATRER_ON; break;
@@ -962,6 +1036,8 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   f.rssi = dev->getRSSI();
   f.model = model;
   f.service = svc;
+  f.serial = ef_sn;
+  f.enc = ef_enc;
   if (prod) {
     f.product = prod->name;
     f.capacity_ah = prod->ah;
@@ -1118,6 +1194,22 @@ void bms_connect_now() {
 #endif
 #if BMS_RENOGY_DEV_ON
     case BMS_RENOGY_SHUNT: good = rshunt_connect(copy, c); break;
+#endif
+#if BMS_BLUETTI_ON
+    case BMS_BLUETTI: good = bluetti_connect(copy, c); break;
+#endif
+#if BMS_ALLPOWERS_ON
+    case BMS_ALLPOWERS: good = allpowers_connect(copy, c); break;
+#endif
+#if BMS_ANKER_ON
+    case BMS_ANKER:
+    case BMS_ANKER_C300:
+    case BMS_ANKER_G2:
+    case BMS_ANKER_F3800: good = anker_connect(copy, c); break;
+#endif
+#if BMS_ECOFLOW_ON
+    case BMS_ECOFLOW:
+    case BMS_ECOFLOW_PB: good = ecoflow_connect(copy, c); break;
 #endif
 #if BMS_ECOWORTHY_ON
     case BMS_ECOWORTHY: good = eco_connect(copy, c); break;
@@ -1639,6 +1731,252 @@ void bms_poll_now() {
     }
     if (!ok) pq_note(nullptr, 0, true, f);
 #endif
+#if BMS_BLUETTI_ON
+  } else if (model == BMS_BLUETTI) {
+    // Bluetti (bms_ps.inc): Schluesseltausch falls noetig, Generation erkennen, Leistungen und Schalter lesen
+    int8_t enc = -1, wac = -1, wdc = -1;
+    uint8_t iot = 0;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        enc = b->bl_enc;
+        iot = b->rid;
+        wac = b->want_ac;
+        wdc = b->want_dc;
+      }
+    }
+    BlSess bs;
+    if (bl_handshake(mac, wr, bs, enc)) {
+      if (enc < 0) {
+        logf(bs.enc ? "%s: Bluetti verschluesselt, Schluesseltausch ok" : "%s: Bluetti ohne Verschluesselung", mac.c_str());
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) b->bl_enc = bs.enc ? 1 : 0;
+      }
+      auto be = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
+      std::string type;
+      bool got = false;
+      if (iot != 1 && bl_ask(mac, wr, bs, 0x03, 100, 48, d) && d.size() >= 96) {   // Generation 2: Register 100..147
+        type = bl_text(d.substr(20, 12), true);
+        if (iot == 2 || bluetti_type_ok(type)) {
+          iot = 2;
+          got = true;
+          soc = be(4);
+          ex.ps_dc_out = be(80);
+          ex.ps_ac_out = be(84);
+          ex.ps_dc_in = be(88);
+          ex.ps_ac_in = be(92);
+        }
+      }
+      if (!got && iot != 2 && bl_ask(mac, wr, bs, 0x03, 10, 34, d) && d.size() >= 68) {   // Generation 1: 10..43
+        type = bl_text(d.substr(0, 12), false);
+        if (iot == 1 || bluetti_type_ok(type)) {
+          iot = 1;
+          got = true;
+          soc = be(66);
+          ex.ps_dc_in = be(52);
+          ex.ps_ac_in = be(54);
+          ex.ps_ac_out = be(56);
+          ex.ps_dc_out = be(58);
+        }
+      }
+      if (got) {
+        if (soc > 100) soc = NAN;
+        uint16_t sw = iot == 2 ? 2011 : 3007;   // AC-Ausgang, danach DC-Ausgang
+        if (wac >= 0) bl_ask(mac, wr, bs, 0x06, sw, wac ? 1 : 0, d);
+        if (wdc >= 0) bl_ask(mac, wr, bs, 0x06, sw + 1, wdc ? 1 : 0, d);
+        if (bl_ask(mac, wr, bs, 0x03, sw, 2, d) && d.size() >= 4) {
+          ex.ac_on = be(0) != 0;
+          ex.dc_on = be(2) != 0;
+        } else {
+          if (wac >= 0) ex.ac_on = wac;
+          if (wdc >= 0) ex.dc_on = wdc;
+        }
+        ok = true;
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) {
+          if (wac >= 0 || wdc >= 0) logf("%s: Ausgang geschaltet (AC %d, DC %d)", b->name.c_str(), wac, wdc);
+          if (b->want_ac == wac) b->want_ac = -1;
+          if (b->want_dc == wdc) b->want_dc = -1;
+          if (b->rid != iot) logf("%s: Bluetti %s, Register-Generation %u", b->name.c_str(), type.c_str(), iot);
+          b->rid = iot;
+          if (!type.empty()) b->model_text = "Bluetti " + type;
+        }
+      }
+    }
+#endif
+#if BMS_ALLPOWERS_ON
+  } else if (model == BMS_ALLPOWERS) {
+    // Allpowers (bms_ps.inc): Datensatz abwarten, ggf. schalten
+    int8_t wac = -1, wdc = -1;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        b->ap_frame.clear();
+        wac = b->want_ac;
+        wdc = b->want_dc;
+      }
+    }
+    std::string f;
+    for (uint32_t t0 = millis(); millis() - t0 < 6000 && f.empty();) {
+      delay(50);
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (!b) break;
+      f = b->ap_frame;
+    }
+    if (f.size() >= 15) {
+      const uint8_t *q = (const uint8_t *)f.data();
+      bool dc = q[7] & 0x01, ac = q[7] & 0x02, light = q[7] & 0x10;
+      if (wac >= 0 || wdc >= 0) {
+        if (wac >= 0) ac = wac;
+        if (wdc >= 0) dc = wdc;
+        ap_switch(wr, ac, dc, light);
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) {
+          logf("%s: Ausgang geschaltet (AC %d, DC %d)", b->name.c_str(), wac, wdc);
+          if (b->want_ac == wac) b->want_ac = -1;
+          if (b->want_dc == wdc) b->want_dc = -1;
+        }
+      }
+      soc = q[8] <= 100 ? q[8] : NAN;
+      ex.ps_in = q[9] << 8 | q[10];
+      ex.ps_out = q[11] << 8 | q[12];
+      ex.remain = q[13] << 8 | q[14];
+      ex.ac_on = ac;
+      ex.dc_on = dc;
+      ok = true;
+    } else {
+      pq_note(nullptr, 0, true, f);
+    }
+#endif
+#if BMS_ANKER_ON
+  } else if (is_anker(model)) {
+    // Anker SOLIX (bms_ps.inc): Dauerverbindung – beim ersten Mal anmelden, dann schalten, Werte anfordern und auswerten
+    AkSess s;
+    int8_t wac = -1, wdc = -1;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        s = b->ak;
+        wac = b->want_ac;
+        wdc = b->want_dc;
+      }
+    }
+    if (!s.authorized) {
+      bool okn = ak_negotiate(mac, wr, s);
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        b->ak = s;
+        if (okn) {
+          b->ak_outer = s.enc_outer ? 1 : 0;
+          logf("%s: Anker angemeldet (%s)", b->name.c_str(), s.enc_outer ? "verschluesselt" : "offen");
+        } else if (!s.replied) {
+          b->ak_outer = s.enc_outer ? 0 : 1;   // abgelehnt: beim naechsten Verbinden die andere Huelle
+        }
+      }
+    }
+    if (s.authorized) {
+      const AkLayout &L = ak_layout(model);
+      if (wac >= 0 && L.cmd_ac) ak_command(mac, wr, s, L.cmd_ac, wac);
+      if (wdc >= 0 && L.cmd_dc) ak_command(mac, wr, s, L.cmd_dc, wdc);
+      if (L.cmd_sub) ak_command(mac, wr, s, L.cmd_sub, -1);   // Werte anfordern bzw. abonnieren
+      ok = ak_telemetry(mac, s, model, soc, temp, ex, 8000);
+      if (ok && (wac >= 0 || wdc >= 0)) {
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) {
+          logf("%s: Ausgang geschaltet (AC %d, DC %d)", b->name.c_str(), wac, wdc);
+          if (b->want_ac == wac) b->want_ac = -1;
+          if (b->want_dc == wdc) b->want_dc = -1;
+        }
+      }
+    }
+    if (!ok) pq_note(nullptr, 0, true, s.authorized ? "x" : "");
+#endif
+#if BMS_ECOFLOW_ON
+  } else if (is_ecoflow(model)) {
+    // EcoFlow (bms_ps.inc): Dauerverbindung – beim ersten Mal anmelden, dann schalten und Meldungen auswerten
+    EfSess s;
+    std::string sn;
+    int8_t wac = -1, wdc = -1;
+    Extra acc;
+    float esoc = NAN, etemp = NAN, evolt = NAN;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        s = b->ef;
+        sn = b->serial;
+        wac = b->want_ac;
+        wdc = b->want_dc;
+        acc = b->ef_ex;
+        esoc = b->ef_soc;
+        etemp = b->ef_temp;
+        evolt = b->ef_volt;
+      }
+    }
+    bool fresh = false;
+    if (s_ef_uid.empty() || sn.size() < 8) {
+      static uint32_t last_hint = 0;
+      if (!last_hint || millis() - last_hint > 300000) {
+        last_hint = millis();
+        logf("%s: %s", mac.c_str(), sn.size() < 8 ? "EcoFlow-Seriennummer fehlt – bitte ueber die Suche neu hinzufuegen"
+                                                   : "EcoFlow-Benutzer-ID fehlt – im Editor (Power Stations) anmelden");
+      }
+    } else {
+      if (!s.authed) {
+        bool oka = ef_auth(mac, wr, s, model, sn, acc, esoc, etemp, evolt);
+        if (oka) logf("%s: EcoFlow angemeldet", mac.c_str());
+        fresh = oka && !isnan(esoc);
+      }
+      if (s.authed) {
+        if (wac >= 0) ef_switch(wr, s, model, sn, true, wac);
+        if (wdc >= 0) ef_switch(wr, s, model, sn, false, wdc);
+        std::vector<EfPkt> pk;
+        for (uint32_t t0 = millis(); millis() - t0 < 5000;) {
+          pk.clear();
+          ef_drain(mac, s, model == BMS_ECOFLOW_PB, nullptr, pk);
+          for (auto &p : pk) fresh |= ef_values(model, p, acc, esoc, etemp, evolt);
+          if (fresh && millis() - t0 > 1500) break;
+          delay(100);
+        }
+        if (wac >= 0) acc.ac_on = wac;
+        if (wdc >= 0) acc.dc_on = wdc;
+      }
+    }
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) {
+        b->ef = s;
+        b->ef_ex = acc;
+        b->ef_soc = esoc;
+        b->ef_temp = etemp;
+        b->ef_volt = evolt;
+        if (s.authed && (wac >= 0 || wdc >= 0)) {
+          logf("%s: Ausgang geschaltet (AC %d, DC %d)", b->name.c_str(), wac, wdc);
+          if (b->want_ac == wac) b->want_ac = -1;
+          if (b->want_dc == wdc) b->want_dc = -1;
+        }
+      }
+    }
+    if (fresh && !isnan(esoc)) {
+      ok = true;
+      soc = esoc;
+      temp = etemp;
+      v = evolt;
+      ex = acc;
+    } else if (s.authed) {
+      pq_note(nullptr, 0, true, "x");
+    }
+#endif
 #if BMS_ECOWORTHY_ON
   } else if (model == BMS_ECOWORTHY) {
     // Eco-Worthy: zwei Startbefehle, danach schickt der Akku die Rahmen A1 (Werte) und A2 (Zellen, Temperaturen)
@@ -1876,6 +2214,15 @@ void bms_begin() {
   if (s_mtx) return;
   s_mtx = xSemaphoreCreateRecursiveMutex();
   load();
+#if BMS_ECOFLOW_ON
+  {
+    Preferences p;
+    if (p.begin("bms", true)) {
+      s_ef_uid = p.getString("efuid", "").c_str();
+      p.end();
+    }
+  }
+#endif
   uint32_t now = millis();
   for (auto &b : s_bats) b.next_try = now + 15000;   // erst nach dem Start von WLAN und Display
 }
@@ -1933,6 +2280,23 @@ static BmsInfo info_of(const Bat &b) {
   i.starter_v = b.ex.starter_v;
   i.yield_wh = b.ex.yield_wh;
   i.chg_state = b.ex.state;
+  i.ps_ac_in_w = b.ex.ps_ac_in;
+  i.ps_dc_in_w = b.ex.ps_dc_in;
+  i.ps_ac_out_w = b.ex.ps_ac_out;
+  i.ps_dc_out_w = b.ex.ps_dc_out;
+  i.ps_in_w = isfinite(b.ex.ps_in) ? b.ex.ps_in
+              : isfinite(b.ex.ps_ac_in) || isfinite(b.ex.ps_dc_in)
+                  ? (isfinite(b.ex.ps_ac_in) ? b.ex.ps_ac_in : 0) + (isfinite(b.ex.ps_dc_in) ? b.ex.ps_dc_in : 0)
+                  : NAN;
+  i.ps_out_w = isfinite(b.ex.ps_out) ? b.ex.ps_out
+               : isfinite(b.ex.ps_ac_out) || isfinite(b.ex.ps_dc_out)
+                   ? (isfinite(b.ex.ps_ac_out) ? b.ex.ps_ac_out : 0) + (isfinite(b.ex.ps_dc_out) ? b.ex.ps_dc_out : 0)
+                   : NAN;
+  i.ac_on = b.want_ac >= 0 ? b.want_ac : b.ex.ac_on;   // gewuenschter Zustand sofort anzeigen
+  i.dc_on = b.want_dc >= 0 ? b.want_dc : b.ex.dc_on;
+  i.can_ac = i.can_dc =
+      (b.model == BMS_BLUETTI && b.rid) || ((b.model == BMS_ALLPOWERS || is_anker(b.model) || is_ecoflow(b.model)) && b.has);
+  i.remain_min = b.ex.remain;
   return i;
 }
 
@@ -1998,6 +2362,14 @@ std::string bms_add(const std::string &mac_in, uint8_t addr_type, const std::str
   b.cap_ah = capacity_ah > 0 ? capacity_ah : 0;
   b.cells = cells > 0 && cells <= 32 ? cells : 4;
   b.model_text = bms_model_text(b.model);
+  if (is_ecoflow(b.model)) {   // Seriennummer/Verschluesselungsart aus der Suche (Werbedaten)
+    for (auto &f : s_found)
+      if (f.mac == mac) {
+        b.serial = f.serial;
+        b.ef_enc = f.enc;
+      }
+    if (b.serial.size() < 8) return "EcoFlow bitte über „Power Stations suchen“ hinzufügen (Seriennummer nötig)";
+  }
   b.next_try = millis() + 2000;
   s_bats.push_back(b);
   save();
@@ -2005,6 +2377,91 @@ std::string bms_add(const std::string &mac_in, uint8_t addr_type, const std::str
   s_ver++;
   logf("Eingerichtet: %s \"%s\"", mac.c_str(), b.name.c_str());
   return "";
+}
+
+// ---------------------------------------------------------------- EcoFlow-Benutzer-ID
+bool bms_ef_uid_set() {
+#if BMS_ECOFLOW_ON
+  return !s_ef_uid.empty();
+#else
+  return false;
+#endif
+}
+std::string bms_ef_uid_hint() {
+#if BMS_ECOFLOW_ON
+  return s_ef_uid.size() > 4 ? "…" + s_ef_uid.substr(s_ef_uid.size() - 4) : s_ef_uid;
+#else
+  return "";
+#endif
+}
+void bms_ef_set_uid(const std::string &uid_in) {
+#if BMS_ECOFLOW_ON
+  std::string uid;
+  for (char c : uid_in)
+    if (c != ' ') uid += c;
+  {
+    Lock l;
+    s_ef_uid = uid;
+    for (auto &b : s_bats) b.ef.authed = false;   // neu anmelden
+  }
+  Preferences p;
+  p.begin("bms", false);
+  if (uid.empty()) p.remove("efuid");
+  else p.putString("efuid", uid.c_str());
+  p.end();
+  s_ver++;
+#else
+  (void)uid_in;
+#endif
+}
+std::string bms_ef_login_start(const std::string &email, const std::string &password) {
+#if BMS_ECOFLOW_ON
+  if (email.empty() || password.empty()) return "E-Mail und Passwort eingeben";
+  if (s_ef_login_state == 1) return "Anmeldung läuft schon";
+  auto *r = new EfLoginReq{email, password};
+  s_ef_login_state = 1;
+  s_ef_login_text = "Melde an …";
+  if (xTaskCreatePinnedToCore(ef_login_task, "ef_login", 8192, r, 2, nullptr, 1) != pdPASS) {
+    delete r;
+    s_ef_login_state = 3;
+    s_ef_login_text = "Zu wenig Speicher für die Anmeldung";
+    return s_ef_login_text;
+  }
+  return "";
+#else
+  (void)email;
+  (void)password;
+  return "EcoFlow ist in dieser Firmware nicht eingebaut";
+#endif
+}
+int bms_ef_login_state() {
+#if BMS_ECOFLOW_ON
+  return s_ef_login_state;
+#else
+  return 0;
+#endif
+}
+std::string bms_ef_login_text() {
+#if BMS_ECOFLOW_ON
+  Lock l;
+  return s_ef_login_text;
+#else
+  return "";
+#endif
+}
+
+bool bms_set_output(const std::string &mac, bool ac, bool on) {
+  if (!s_mtx) return false;
+  Lock l;
+  Bat *b = find_mac(lower(mac));
+  if (!b || bms_dev_of(b->model) != BMS_DEV_PSTATION) return false;
+  (ac ? b->want_ac : b->want_dc) = on ? 1 : 0;
+  uint32_t now = millis();
+  if (b->connected) b->next_poll = now;
+  else b->next_try = now;   // gleich verbinden statt bis zur naechsten Abfrage zu warten
+  s_ver++;
+  logf("%s: %s-Ausgang %s angefordert", b->name.c_str(), ac ? "AC" : "DC", on ? "ein" : "aus");
+  return true;
 }
 
 void bms_remove(const std::string &mac) {
@@ -2052,6 +2509,9 @@ std::string bms_value_text(const BmsInfo &b) {
     case BMS_DEV_SOLAR: return fnum(b.pv_w, 0, "W") + dot + fnum(b.volt, 1, "V") + dot + victron_state_text(b.chg_state);
     case BMS_DEV_DCDC: return fnum(b.amp, 1, "A") + dot + fnum(b.volt, 1, "V") + dot + victron_state_text(b.chg_state);
     case BMS_DEV_INVERTER: return fnum(b.ac_w, 0, "W") + dot + fnum(b.ac_v, 0, "V") + dot + fnum(b.volt, 1, "V");
+    case BMS_DEV_PSTATION:
+      return (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + "rein " + fnum(b.ps_in_w, 0, "W") + dot +
+             "raus " + fnum(b.ps_out_w, 0, "W");
     default: {
       std::string s = (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + fnum(b.volt, 2, "V");
       if (isfinite(b.volt) && isfinite(b.amp)) s += dot + fnum(b.volt * b.amp, 0, "W");
@@ -2096,6 +2556,22 @@ std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b) {
       add("Ladezustand", soc);
       add("Temperatur", temp);
       break;
+    case BMS_DEV_PSTATION: {
+      auto sw = [](int8_t on) { return on < 0 ? std::string() : on ? std::string("ein") : std::string("aus"); };
+      add("Ladezustand", soc);
+      add("Eingang", fnum(b.ps_in_w, 0, "W"));
+      add("Ausgang", fnum(b.ps_out_w, 0, "W"));
+      add("AC-Ausgang", both(fnum(b.ps_ac_out_w, 0, "W"), b.ac_on < 0 ? std::string("–") : sw(b.ac_on)));
+      add("DC-Ausgang", both(fnum(b.ps_dc_out_w, 0, "W"), b.dc_on < 0 ? std::string("–") : sw(b.dc_on)));
+      add("AC-Eingang", fnum(b.ps_ac_in_w, 0, "W"));
+      add("DC-Eingang", fnum(b.ps_dc_in_w, 0, "W"));
+      if (b.remain_min > 0) {
+        char t[24];
+        snprintf(t, sizeof(t), "%d h %02d min", b.remain_min / 60, b.remain_min % 60);
+        add("Restzeit", t);
+      }
+      break;
+    }
     case BMS_DEV_SHUNT:
       add("Ladezustand", soc);
       add("Spannung", fnum(b.volt, 2, "V"));

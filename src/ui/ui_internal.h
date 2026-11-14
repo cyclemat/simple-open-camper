@@ -11,7 +11,7 @@
 #include "../truma_heat.h"
 struct Layout;
 
-enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_BMS, SEC_HYMER, SEC_BACKUP, SEC_INFO, SEC_COUNT };
+enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_BMS, SEC_PSTATION, SEC_HYMER, SEC_BACKUP, SEC_INFO, SEC_COUNT };
 
 // ui_main.cpp
 void ui_main_rebuild();
