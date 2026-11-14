@@ -1139,6 +1139,16 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
     o["cells"] = f.cells;
     o["configured"] = f.configured;
   }
+  JsonArray bs = d["seen"].to<JsonArray>();
+  for (auto &x : bms_seen()) {
+    JsonObject o = bs.add<JsonObject>();
+    o["mac"] = x.mac;
+    o["name"] = x.name;
+    o["addr_type"] = x.addr_type;
+    o["rssi"] = x.rssi;
+    if (x.mid) o["mid"] = x.mid;
+    if (!x.svc.empty()) o["svc"] = x.svc;
+  }
   JsonArray bl = d["log"].to<JsonArray>();
   for (auto &line : bms_log()) bl.add(line);
   std::string s;

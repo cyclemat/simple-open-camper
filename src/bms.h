@@ -68,6 +68,14 @@ struct BmsFound {
   bool configured = false;
 };
 
+// Waehrend der Suche gesehenes Bluetooth-Geraet, das keinem Akku-Typ zugeordnet werden konnte – zum Zuordnen von Hand
+struct BmsSeen {
+  std::string mac, name, svc;   // svc: beworbene Dienste (kurz, z. B. "ffe0 fff0")
+  uint8_t addr_type = 0;
+  int rssi = 0;
+  uint16_t mid = 0;             // Hersteller-ID (0 = keine)
+};
+
 const char *bms_model_text(BmsModel m);
 
 #if WITH_BMS
@@ -86,6 +94,7 @@ bool bms_get(const std::string &key, BmsInfo &out);
 void bms_discovery_start();                           // 60 s aktiv suchen
 bool bms_discovery_running();
 std::vector<BmsFound> bms_found();
+std::vector<BmsSeen> bms_seen();                      // nicht zugeordnete Geraete der letzten Suche
 std::string bms_add(const std::string &mac, uint8_t addr_type, const std::string &name, BmsModel model,
                     int capacity_ah = 0, int cells = 0);   // "" = ok
 bool bms_want_poll();                                 // Power Quarry: Abfrage faellig (Scan-Task)

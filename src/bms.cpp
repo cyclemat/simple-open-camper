@@ -20,6 +20,7 @@ const char *bms_model_text(BmsModel m) {
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <Preferences.h>
+#include <algorithm>
 #include <atomic>
 #include <ctype.h>
 #include <deque>
@@ -109,6 +110,7 @@ class ClientCB : public NimBLEClientCallbacks {
 static SemaphoreHandle_t s_mtx = nullptr;
 static std::vector<Bat> s_bats;
 static std::vector<BmsFound> s_found;
+static std::vector<BmsSeen> s_seen;   // nicht zugeordnet (nur waehrend/nach der Suche)
 static uint32_t s_disc_until = 0;
 static std::atomic<uint32_t> s_ver{1};
 static std::deque<std::string> s_log;
@@ -771,8 +773,37 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       if (name.find("DL") != std::string::npos || name.find("JHB") != std::string::npos ||
           raw.find("JHB") != std::string::npos || (fff0 && raw.find("DL") != std::string::npos))
         model = BMS_BULLTRON;
-      else
+      else {
+        // unbekannt: merken, damit es von Hand einem Typ zugeordnet werden kann (nur verbindbare Geraete mit Name
+        // oder mit einem der ueblichen Akku-Dienste)
+        std::string svcs;
+        for (int i = 0; i < dev->getServiceUUIDCount() && i < 4; i++) {
+          std::string u = dev->getServiceUUID(i).toString();
+          if (u.rfind("0x", 0) == 0) u = u.substr(2);
+          svcs += (svcs.empty() ? "" : " ") + u.substr(0, 8);
+        }
+        if (!dev->isConnectable() || (name.empty() && svcs.empty())) return false;
+        std::string mac = lower(dev->getAddress().toString());
+        Lock l;
+        for (auto &x : s_seen)
+          if (x.mac == mac) {
+            x.rssi = dev->getRSSI();
+            if (!name.empty()) x.name = name;
+            return false;
+          }
+        if (s_seen.size() < 24) {
+          BmsSeen x;
+          x.mac = mac;
+          x.name = name;
+          x.svc = svcs;
+          x.addr_type = dev->getAddress().getType();
+          x.rssi = dev->getRSSI();
+          x.mid = mid;
+          s_seen.push_back(x);
+          s_ver++;
+        }
         return false;
+      }
     }
   }
   std::string mac = lower(dev->getAddress().toString());
@@ -1455,12 +1486,20 @@ bool bms_get(const std::string &key, BmsInfo &out) {
 void bms_discovery_start() {
   Lock l;
   s_found.clear();
+  s_seen.clear();
   s_disc_until = (millis() + DISCOVERY_MS) | 1;
   s_ver++;
   logf("Suche gestartet (60 s)");
 }
 
 bool bms_discovery_running() { return s_disc_until != 0; }
+
+std::vector<BmsSeen> bms_seen() {
+  Lock l;
+  std::vector<BmsSeen> out = s_seen;
+  std::sort(out.begin(), out.end(), [](const BmsSeen &a, const BmsSeen &b) { return a.rssi > b.rssi; });
+  return out;
+}
 
 std::vector<BmsFound> bms_found() {
   Lock l;
