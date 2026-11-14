@@ -56,6 +56,7 @@ struct VictronInfo {
   bool can_limit = false;   // Eingangsstrom-Begrenzung (ac_limit, A)
   bool can_mode = false;    // Schalter (mode)
   uint8_t mode_set = 0;     // 0 MultiPlus/Quattro (1 nur Laden, 2 nur Wechselrichter, 3 ein, 4 aus), 1 Ladegeraet (1 ein, 4 aus)
+  bool bms = false;         // Akku mit eigenem BMS (bms.cpp), Schluessel "bms:<mac>"
 };
 
 struct VictronFound {
@@ -70,7 +71,10 @@ void victron_begin();
 uint32_t victron_version();                        // aendert sich bei neuen Werten/Konfiguration
 bool victron_has_devices();
 // Auch die Werte des Cerbo GX ("cerbo:...") laufen als Victron-Kacheln
-static inline bool victron_is_key(const std::string &k) { return k.rfind(VICTRON_KEY_PREFIX, 0) == 0 || k.rfind("cerbo:", 0) == 0; }
+// "bms:<mac>": Akku mit eigenem BMS (bms.cpp) – erscheint im Panel wie ein Batteriewaechter (VIC_SHUNT)
+static inline bool victron_is_key(const std::string &k) {
+  return k.rfind(VICTRON_KEY_PREFIX, 0) == 0 || k.rfind("cerbo:", 0) == 0 || k.rfind("bms:", 0) == 0;
+}
 
 // Vom Bluetooth-Scan (truma.cpp) fuer jedes Paket mit Hersteller-ID 0x02E1 aufgerufen.
 // md = komplette Herstellerdaten inkl. der zwei Bytes Hersteller-ID.
@@ -78,6 +82,8 @@ void victron_on_adv(const std::string &mac, const uint8_t *md, size_t len, int r
 
 std::vector<VictronInfo> victron_list();
 bool victron_get(const std::string &key, VictronInfo &out);
+struct BmsInfo;
+bool victron_from_bms(const BmsInfo &b, VictronInfo &v);   // Akku (bms.cpp) als Batteriewaechter
 
 void victron_discovery_start();                    // 3 Minuten nach Victron-Geraeten suchen
 bool victron_discovery_running();

@@ -1,5 +1,6 @@
 // Gasflaschen und Tanks (Truma LevelControl, Mopeka): Detailansicht, Hilfsfunktionen fuer Kacheln und Einrichtung
 #include "../cerbo.h"
+#include "../bms.h"
 #include "ui_internal.h"
 #include "../i18n/i18n.h"
 #include "theme.h"
@@ -148,6 +149,12 @@ std::vector<ControlView> ui_arrange_items() {
     ControlView v;
     v.key = x.key;
     v.name = x.name;
+    all.push_back(v);
+  }
+  for (auto &b : bms_list()) {   // Akkus mit BMS (Bluetooth)
+    ControlView v;
+    v.key = b.key;
+    v.name = b.name;
     all.push_back(v);
   }
   for (auto &h : ui_heat_list()) {

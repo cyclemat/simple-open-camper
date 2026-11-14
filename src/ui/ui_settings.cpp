@@ -12,6 +12,7 @@
 #include "../victron.h"
 #include "../cerbo.h"
 #include "../gx_find.h"
+#include "../bms.h"
 #include "../panelsat.h"
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
@@ -1492,6 +1493,106 @@ static void vic_scan_cb(lv_event_t *) {
   // Seite baut ui_settings_tick_victron neu auf (nicht hier: der Knopf wuerde im eigenen Ereignis geloescht)
 }
 
+// ---------------------------------------------------------------- Akkus mit BMS (Bluetooth)
+#if WITH_BMS
+static std::vector<BmsFound> s_bms_found;
+static std::vector<lv_obj_t *> s_bms_vals;
+static uint32_t s_bms_sig = 0;
+
+static uint32_t bms_struct_sig() {
+  uint32_t h = bms_discovery_running() ? 11 : 5;
+  auto mix = [&h](uint32_t x) { h = h * 31 + x; };
+  for (auto &b : bms_list()) {
+    for (char c : b.mac) mix(c);
+    for (char c : b.name) mix(c);
+  }
+  for (auto &f : bms_found()) {
+    for (char c : f.mac) mix(c);
+    mix(f.configured);
+  }
+  return h;
+}
+
+static std::string bms_summary(const BmsInfo &b) {
+  if (!b.has) return b.status.empty() ? std::string("–") : b.status;
+  std::string s = std::to_string(b.soc) + " %  ·  " + ui_num(b.volt, 2, "V");
+  if (isfinite(b.volt) && isfinite(b.amp)) s += "  ·  " + ui_num(b.volt * b.amp, 0, "W");
+  return s;
+}
+
+static void bms_row_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  auto list = bms_list();
+  if (i < list.size()) ui_vic_open(list[i].key);
+}
+
+static void bms_found_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_bms_found.size()) return;
+  BmsFound f = s_bms_found[i];
+  if (f.configured) {
+    ui_toast("Dieser Akku ist schon eingerichtet.");
+    return;
+  }
+  InputOptions o;
+  o.title = "Name des Akkus";
+  o.hint = "Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.";
+  o.initial = f.name.empty() ? std::string(bms_model_text(f.model)) : f.name;
+  o.max_len = 32;
+  o.on_ok = [f](const std::string &t, bool) {
+    std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
+    ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
+  };
+  ui_input_open(o);
+}
+
+static void bms_scan_cb(lv_event_t *) {
+  if (bms_list().size() >= BMS_MAX) {
+    ui_toast("Es sind schon vier Akkus eingerichtet.");
+    return;
+  }
+  bms_discovery_start();
+  ui_toast("Suche läuft (1 Minute). Die App des Herstellers vorher schließen.");
+}
+
+static void build_bms() {
+  subheading("Akkus mit BMS (Bluetooth)");
+  proto_switch("Akkus auswerten", "Super B, Power Quarry, Bulltron, JBD, JK-BMS, LiTime – das Panel liest nur Werte", BLE_P_BMS);
+  s_bms_vals.clear();
+  if (!ble_proto_on(BLE_P_BMS)) {
+    s_bms_sig = 0;
+    return;
+  }
+  auto list = bms_list();
+  Layout lay = layout_get();
+  lv_obj_t *g = group();
+  if (list.empty()) ui_label(g, "Noch kein Akku eingerichtet.", F_BODY, C_TEXT2);
+  for (size_t i = 0; i < list.size(); i++) {
+    auto it = lay.names.find(list[i].key);
+    std::string label = it != lay.names.end() && !it->second.empty() ? it->second : list[i].name;
+    s_bms_vals.push_back(ui_row(g, label.c_str(), bms_summary(list[i]).c_str(), bms_row_cb, (void *)(intptr_t)i));
+  }
+  lv_obj_t *row = button_row();
+  bool running = bms_discovery_running();
+  ui_button(row, ICON_SEARCH, running ? "Suche läuft …" : "Akkus suchen", true, bms_scan_cb, nullptr);
+  s_bms_found = bms_found();
+  if (running || !s_bms_found.empty()) {
+    subheading(running ? "Gefundene Akkus (Suche läuft …)" : "Gefundene Akkus");
+    lv_obj_t *fg = group();
+    if (s_bms_found.empty()) ui_label(fg, "Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", F_BODY, C_TEXT2);
+    for (size_t i = 0; i < s_bms_found.size(); i++) {
+      const BmsFound &f = s_bms_found[i];
+      std::string title = (f.name.empty() ? std::string(bms_model_text(f.model)) : f.name) + "  ·  " + bms_model_text(f.model);
+      const char *q = f.rssi > -65 ? "stark" : f.rssi > -80 ? "mittel" : "schwach";
+      char v[64];
+      snprintf(v, sizeof(v), "%s%s", f.configured ? tr("eingerichtet, ") : "", q);
+      ui_row(fg, title.c_str(), v, bms_found_cb, (void *)(intptr_t)i);
+    }
+  }
+  s_bms_sig = bms_struct_sig();
+}
+#endif
+
 // ---------------------------------------------------------------- Cerbo GX (MQTT)
 static uint32_t gx_struct_sig() {
   return ((cerbo_configured() ? 5 : 3) * 31 + (cerbo_connected() ? 1 : 0)) * 2 + (gx_find_running() ? 1 : 0);
@@ -1581,6 +1682,9 @@ static void build_victron() {
   proto_switch("Victron auswerten", "Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", BLE_P_VICTRON);
   if (!ble_proto_on(BLE_P_VICTRON)) {
     s_vic_sig = 0;
+#if WITH_BMS
+    build_bms();
+#endif
     return;
   }
   auto list = victron_list();
@@ -1608,6 +1712,9 @@ static void build_victron() {
     }
   }
   s_vic_sig = vic_struct_sig();
+#if WITH_BMS
+  build_bms();
+#endif
 }
 
 void ui_settings_tick_victron() {
@@ -1623,6 +1730,16 @@ void ui_settings_tick_victron() {
       for (size_t i = 0; i < gl.size() && i + 1 < s_gx_vals.size(); i++) lv_label_set_text(s_gx_vals[i + 1], ui_vic_summary(gl[i]).c_str());
     }
   }
+#if WITH_BMS
+  if (ble_proto_on(BLE_P_BMS)) {
+    if (bms_struct_sig() != s_bms_sig) {
+      show_section(SEC_VICTRON);
+      return;
+    }
+    auto bl = bms_list();
+    for (size_t i = 0; i < bl.size() && i < s_bms_vals.size(); i++) lv_label_set_text(s_bms_vals[i], bms_summary(bl[i]).c_str());
+  }
+#endif
   if (!ble_proto_on(BLE_P_VICTRON)) return;
   if (vic_struct_sig() != s_vic_sig) {
     show_section(SEC_VICTRON);

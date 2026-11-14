@@ -1,5 +1,6 @@
 #include "victron.h"
 #include "cerbo.h"
+#include "bms.h"
 #include "i18n/i18n.h"
 
 #include <Arduino.h>
@@ -368,8 +369,36 @@ std::vector<VictronInfo> victron_list() {
   return out;
 }
 
+// Akku mit eigenem BMS als Batteriewaechter darstellen (Kachel, Detailfenster, Editor wie beim SmartShunt)
+bool victron_from_bms(const BmsInfo &b, VictronInfo &v) {
+  v = VictronInfo();
+  v.key = b.key;
+  v.mac = b.mac;
+  v.name = b.name;
+  v.kind = VIC_SHUNT;
+  v.record = 0x02;
+  v.bms = true;
+  v.has = b.has;
+  v.age_s = b.age_s;
+  v.status = b.status;
+  v.soc = b.soc >= 0 ? (float)b.soc : NAN;
+  v.bat_v = b.volt;
+  v.bat_i = b.amp;
+  v.consumed_ah = NAN;
+  v.remaining_min = b.ttg_s > 0 ? b.ttg_s / 60 : -1;
+  v.aux_mode = isfinite(b.temp) ? 2 : 3;
+  v.aux = b.temp;
+  v.alarm = b.ok ? 0 : 1;
+  v.power_w = isfinite(b.volt) && isfinite(b.amp) ? b.volt * b.amp : NAN;
+  return true;
+}
+
 bool victron_get(const std::string &key, VictronInfo &out) {
   if (cerbo_is_key(key)) return cerbo_get(key, out);
+  if (key.rfind(BMS_KEY_PREFIX, 0) == 0) {
+    BmsInfo b;
+    return bms_get(key, b) && victron_from_bms(b, out);
+  }
   if (!victron_is_key(key)) return false;
   std::string mac = key.substr(strlen(VICTRON_KEY_PREFIX));
   Lock l;

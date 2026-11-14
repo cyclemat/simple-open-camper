@@ -10,6 +10,7 @@
 #include "victron.h"
 #include "cerbo.h"
 #include "gx_find.h"
+#include "bms.h"
 #include "panelsat.h"
 #include "mopeka.h"
 #include "power.h"
@@ -404,6 +405,23 @@ static esp_err_t h_devices(httpd_req_t *req) {
     o["kind"] = "victron";
     o["vtype"] = vic_type(v.kind);
     o["online"] = v.has && v.age_s >= 0 && v.age_s < 120;
+    vic_state(o["state"].to<JsonObject>(), v);
+  }
+  // Akkus mit BMS (Bluetooth): wie ein Batteriewaechter
+  for (auto &b : bms_list()) {
+    VictronInfo v;
+    victron_from_bms(b, v);
+    JsonObject o = arr.add<JsonObject>();
+    o["key"] = v.key;
+    o["ieee"] = v.mac;
+    o["name"] = v.name;
+    auto it = lay.names.find(v.key);
+    o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : v.name;
+    o["model"] = b.model_text.empty() ? std::string(bms_model_text(b.model)) : b.model_text;
+    o["vendor"] = bms_model_text(b.model);
+    o["kind"] = "victron";
+    o["vtype"] = "shunt";
+    o["online"] = b.connected && b.has;
     vic_state(o["state"].to<JsonObject>(), v);
   }
   // Satelliten: Gasflaschen, Tanks und Victron von eigenen ESP32 (MQTT/UDP/Bluetooth)
@@ -1079,6 +1097,80 @@ static esp_err_t h_victron_get(httpd_req_t *req) {
 }
 
 // Aktionen: {"scan":true} {"add":{"mac","key","name"}} {"key":{"mac","key"}} {"remove":"mac"} {"rename":{"mac","name"}}
+// ---------------------------------------------------------------- Akkus mit BMS
+#if WITH_BMS
+static esp_err_t h_bms_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  d["enabled"] = true;
+  d["on"] = ble_proto_on(BLE_P_BMS);
+  d["scanning"] = bms_discovery_running();
+  d["max"] = BMS_MAX;
+  JsonArray bd = d["devices"].to<JsonArray>();
+  for (auto &b : bms_list()) {
+    JsonObject o = bd.add<JsonObject>();
+    o["key"] = b.key;
+    o["mac"] = b.mac;
+    o["name"] = b.name;
+    o["model"] = b.model_text;
+    o["connected"] = b.connected;
+    o["has"] = b.has;
+    o["age"] = b.age_s;
+    if (b.has) {
+      o["soc"] = b.soc;
+      if (isfinite(b.volt)) o["v"] = b.volt;
+      if (isfinite(b.amp)) o["a"] = b.amp;
+      if (isfinite(b.temp)) o["t"] = b.temp;
+      if (b.cycles >= 0) o["cyc"] = b.cycles;
+      if (b.soh >= 0) o["soh"] = b.soh;
+      o["ok"] = b.ok;
+    }
+    o["status"] = b.status;
+  }
+  JsonArray bf = d["found"].to<JsonArray>();
+  for (auto &f : bms_found()) {
+    JsonObject o = bf.add<JsonObject>();
+    o["mac"] = f.mac;
+    o["name"] = f.name;
+    o["addr_type"] = f.addr_type;
+    o["rssi"] = f.rssi;
+    o["model"] = (int)f.model;
+    o["model_text"] = bms_model_text(f.model);
+    o["cap"] = f.capacity_ah;
+    o["cells"] = f.cells;
+    o["configured"] = f.configured;
+  }
+  JsonArray bl = d["log"].to<JsonArray>();
+  for (auto &line : bms_log()) bl.add(line);
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"on":bool} | {"scan":true} | {"add":{mac,addr_type,name,model,cap,cells}} | {"remove":mac} | {"rename":{mac,name}}
+static esp_err_t h_bms_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>()) ble_proto_set(BLE_P_BMS, d["on"].as<bool>());
+  if (d["scan"] | false) {
+    ble_proto_set(BLE_P_BMS, true);   // Suchen schaltet die Auswertung ein
+    bms_discovery_start();
+  }
+  if (!d["add"].isNull()) {
+    std::string err = bms_add(d["add"]["mac"] | "", d["add"]["addr_type"] | 0, d["add"]["name"] | "",
+                              (BmsModel)(int)(d["add"]["model"] | 1), d["add"]["cap"] | 0, d["add"]["cells"] | 0);
+    if (!err.empty()) return send_err(req, "400 Bad Request", err);
+  }
+  if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  return send_ok(req);
+}
+#endif
+
 static esp_err_t h_victron_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
@@ -1391,6 +1483,10 @@ void web_start() {
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);
   reg("/api/victron", HTTP_GET, h_victron_get);
   reg("/api/victron", HTTP_POST, h_victron_post);
+#if WITH_BMS
+  reg("/api/bms", HTTP_GET, h_bms_get);
+  reg("/api/bms", HTTP_POST, h_bms_post);
+#endif
   reg("/api/cerbo", HTTP_GET, h_cerbo_get);
   reg("/api/cerbo", HTTP_POST, h_cerbo_post);
   reg("/api/satellites", HTTP_GET, h_sat_get);

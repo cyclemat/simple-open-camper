@@ -17,6 +17,7 @@
 #include "victron.h"
 #include "cerbo.h"
 #include "gx_find.h"
+#include "bms.h"
 #include "panelsat.h"
 #include "mopeka.h"
 #include "truma_cpplus.h"
@@ -125,6 +126,7 @@ void setup() {
   debug_mark("hymer");
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
+  bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
   debug_mark("bluetooth");
   ui_init();

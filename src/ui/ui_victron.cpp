@@ -5,6 +5,7 @@
 #include "../layout.h"
 #include "../victron.h"
 #include "../cerbo.h"
+#include "../bms.h"
 #include "../panelsat.h"
 #include <Arduino.h>
 #include <math.h>
@@ -336,8 +337,16 @@ static void v_rename_cb(lv_event_t *) {
   o.hint = "Zum Beispiel „Solar Dach“ oder „Bordbatterie“.";
   o.initial = v.name;
   o.max_len = 32;
-  o.on_ok = [mac](const std::string &t, bool) {
-    if (!t.empty()) victron_rename(mac, t);
+  bool bms = v.bms;
+  o.on_ok = [mac, bms](const std::string &t, bool) {
+    if (t.empty()) return;
+#if WITH_BMS
+    if (bms) {
+      bms_rename(mac, t);
+      return;
+    }
+#endif
+    victron_rename(mac, t);
   };
   ui_vic_close();
   ui_input_open(o);
@@ -361,9 +370,19 @@ static void v_key_cb(lv_event_t *) {
 static void v_remove_cb(lv_event_t *) {
   if (!s_v) return;
   std::string mac = s_v->mac;
+  bool bms = s_v->key.rfind(BMS_KEY_PREFIX, 0) == 0;
   ui_vic_close();
-  ui_confirm("Gerät entfernen?", "Das Panel wertet dieses Victron-Gerät dann nicht mehr aus. Die Kachel bleibt leer, bis du sie im Editor entfernst.",
-             "Entfernen", true, [mac] { victron_remove(mac); });
+  ui_confirm("Gerät entfernen?", "Das Panel wertet dieses Gerät dann nicht mehr aus. Die Kachel bleibt leer, bis du sie im Editor entfernst.",
+             "Entfernen", true, [mac, bms] {
+#if WITH_BMS
+               if (bms) {
+                 bms_remove(mac);
+                 return;
+               }
+#endif
+               (void)bms;
+               victron_remove(mac);
+             });
 }
 
 static int row_titles(const VictronInfo &v, const char **t) {
@@ -423,6 +442,12 @@ static int row_titles(const VictronInfo &v, const char **t) {
 }
 
 static std::string reception(const VictronInfo &v) {
+  if (v.bms) {   // Akku mit BMS: Zustand der Verbindung aus bms.cpp
+    if (v.age_s < 0) return v.status.empty() ? std::string("noch nichts empfangen") : v.status;
+    char ago[32];
+    snprintf(ago, sizeof(ago), tr("vor %d s"), (int)v.age_s);
+    return v.age_s < 5 ? std::string(tr("gerade eben")) : v.age_s < 60 ? std::string(ago) : ui_age_text(v.age_s);
+  }
   if (v.gx) {
     if (v.age_s == 0) return std::string(tr("Cerbo GX verbunden"));
     return v.status.empty() ? std::string("–") : v.status;
@@ -647,7 +672,7 @@ void ui_vic_open(const std::string &key) {
   if (remote(key, v)) {   // Cerbo GX/Satellit: eingerichtet wird dort
     lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
   } else {
-    ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);
+    if (!v.bms) ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);   // Akku (BMS): kein Schluessel
     lv_obj_t *rm = ui_button(row, ICON_CLOSE, "Entfernen", false, v_remove_cb, nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_cnt(rm); i++) lv_obj_set_style_text_color(lv_obj_get_child(rm, i), C_RED, 0);
   }

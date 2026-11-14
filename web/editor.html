@@ -1760,7 +1760,14 @@ async function openSettings(tab = 'net') {
     if (tab === 'vic' && body.isConnected && !body.contains(document.activeElement)) render();
   };
   loadGx();
-  const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); } }, 2500);
+  let bmsData = null;
+  const loadBms = async () => {
+    try { bmsData = S.demo ? null : await api('/api/bms'); } catch (e) { bmsData = null; }
+    if (tab === 'vic' && body.isConnected && !body.contains(document.activeElement)) render();
+  };
+  loadBms();
+  const bmsPost = data => (S.demo ? Promise.resolve() : post('/api/bms', data));
+  const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); loadBms(); } }, 2500);
   const gxPost = async data => {
     if (S.demo) { Object.assign(S.demoCerbo, data, {has_pass: data.clear_pass ? false : (S.demoCerbo.has_pass || !!data.pass)}); delete S.demoCerbo.pass; return; }
     await post('/api/cerbo', data);
@@ -1783,6 +1790,26 @@ async function openSettings(tab = 'net') {
         ${tiles.length ? `<dl class="kv">${tiles.map(x => `<dt data-notr>${esc(labelOf(x))}</dt><dd>${esc(vicSummary(x))}</dd>`).join('')}</dl>
           <p class="hint">Die fünf Kacheln stehen in der Geräteliste und lassen sich wie andere Geräte aufs Panel ziehen.</p>` : ''}` : ''}
       <h3 style="font-size:13px;margin:18px 0 8px">Bluetooth (Instant Readout)</h3>`;
+  };
+  const bmsHTML = b => {
+    if (!b) return '';
+    const sumOf = x => x.has ? [x.soc + ' %', x.v != null ? x.v.toFixed(2).replace('.', ',') + ' V' : '', x.v != null && x.a != null ? Math.round(x.v * x.a) + ' W' : '', x.t != null ? Math.round(x.t) + ' °C' : '', x.ok === false ? T('Alarm') : ''].filter(Boolean).join(' · ') : (x.status || '–');
+    return `<h3 style="font-size:13px;margin:22px 0 8px">Akkus mit BMS (Bluetooth)</h3>
+      <p class="hint" style="margin-top:0">Super B, Power Quarry, Bulltron, JBD/Xiaoxiang, JK-BMS und LiTime (Redodo, PowerQueen). Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.</p>
+      <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
+      ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
+          <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
+          <button class="btn small danger" data-bmsremove="${esc(x.mac)}">Entfernen</button>
+          <div class="st" data-notr>${esc(x.mac)} – ${esc(sumOf(x))}</div></div>`).join('') : '<p class="hint">Noch kein Akku eingerichtet.</p>'}
+        <div class="row" style="margin-top:14px">
+          <button class="btn small primary" id="bBmsScan" ${b.devices.length >= (b.max || 4) || b.scanning ? 'disabled' : ''} style="flex:none">${icon('search', 16)}${b.scanning ? 'Suche läuft …' : 'Akkus suchen'}</button>
+        </div>
+        ${b.scanning || b.found.length ? `<h3 style="font-size:13px;margin:16px 0 6px">Gefundene Akkus${b.scanning ? ' (Suche läuft, 1 Minute)' : ''}</h3>
+          ${b.found.length ? b.found.map((f, i) => `<div class="gasrow" style="grid-template-columns:1fr auto">
+              <div><b data-notr>${esc(f.name || f.model_text)}</b><div class="hint" style="margin:0" data-notr>${esc(f.model_text)} · ${esc(f.mac)}, Signal ${f.rssi > -65 ? 'stark' : f.rssi > -80 ? 'mittel' : 'schwach'}${f.configured ? ', schon eingerichtet' : ''}</div></div>
+              <button class="btn small" data-bmsadd="${i}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
+            : '<p class="hint">Noch nichts gefunden. Akku eingeschaltet und in der Nähe?</p>'}` : ''}
+        ${(b.log || []).length ? `<details style="margin-top:10px"><summary class="hint">Protokoll (für die Fehlersuche)</summary><pre class="hint" style="white-space:pre-wrap" data-notr>${esc(b.log.join('\n'))}</pre></details>` : ''}` : ''}`;
   };
   const vicPost = async data => {
     if (S.demo) {
@@ -1922,6 +1949,7 @@ async function openSettings(tab = 'net') {
               : '<p class="hint">Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?</p>'}` : ''}`;
       }
       if ((draft.ble || {}).victron === false) html = gxHTML(gxData) + bleHTML(draft.ble, [['victron', 'Victron']]);
+      html += bmsHTML(bmsData);
     } else if (tab === 'sat') {
       html = satHTML(satData);
     } else if (tab === 'sd') {
@@ -2067,6 +2095,18 @@ async function openSettings(tab = 'net') {
     }
     if (e.target.closest('#bGxFind')) { gxPost({find: true}).then(() => { gxDraft = null; toast('Suche den Cerbo GX im Netz …'); loadGx(); }).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bGxClear')) { gxPost({clear_pass: true}).then(() => { toast('Passwort gelöscht.'); loadGx(); }).catch(er => toast(er.message, 'error')); return; }
+    if (e.target.closest('#bBmsScan')) { bmsPost({scan: true}).then(() => { toast('Suche gestartet (1 Minute).'); loadBms(); }).catch(er => toast(er.message, 'error')); return; }
+    const br = e.target.closest('[data-bmsremove]');
+    if (br) { confirmDlg('Akku entfernen?', 'Das Panel wertet diesen Akku dann nicht mehr aus.', 'Entfernen', true).then(ok => ok && bmsPost({remove: br.dataset.bmsremove}).then(loadBms)); return; }
+    const ba = e.target.closest('[data-bmsadd]');
+    if (ba && bmsData) {
+      const f = bmsData.found[+ba.dataset.bmsadd];
+      promptDlg('Akku hinzufügen', 'Name, z. B. „Bordbatterie“', f.name || f.model_text).then(name => {
+        if (name == null) return;
+        bmsPost({add: {mac: f.mac, addr_type: f.addr_type, name, model: f.model, cap: f.cap, cells: f.cells}}).then(() => { toast('Eingerichtet – das Panel verbindet sich gleich.'); loadBms(); setTimeout(pollDevices, 5000); }).catch(er => toast(er.message, 'error'));
+      });
+      return;
+    }
     if (e.target.closest('#bVicScan')) { vicPost({scan: true}).then(() => { toast('Suche gestartet.'); loadVic(); }).catch(er => toast(er.message, 'error')); return; }
     const vr = e.target.closest('[data-vremove]');
     if (vr) { confirmDlg('Gerät entfernen?', 'Das Panel wertet dieses Victron-Gerät dann nicht mehr aus.', 'Entfernen', true).then(ok => ok && vicPost({remove: vr.dataset.vremove}).then(loadVic)); return; }
@@ -2096,6 +2136,8 @@ async function openSettings(tab = 'net') {
   });
   body.addEventListener('change', e => {
     if (e.target.id === 'logoFile' && e.target.files[0]) uploadLogo(e.target.files[0]).then(render).catch(er => toast(er.message, 'error'));
+    if (e.target.id === 'bmsOn') bmsPost({on: e.target.checked}).then(loadBms).catch(er => toast(er.message, 'error'));
+    if (e.target.dataset.bmsname) bmsPost({rename: {mac: e.target.dataset.bmsname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.vname) vicPost({rename: {mac: e.target.dataset.vname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.gname) gasPost({rename: {mac: e.target.dataset.gname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.ble) {
