@@ -13,6 +13,10 @@
 #include "../cerbo.h"
 #include "../gx_find.h"
 #include "../bms.h"
+#include "../mopeka.h"
+
+static void offer_tile(const std::string &key, const std::string &name);   // nach dem Hinzufuegen Kachel anbieten
+static std::string lower_mac(std::string s);
 #include "../panelsat.h"
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
@@ -941,6 +945,7 @@ static void gas_found_cb(lv_event_t *e) {
     std::string err = truma_add(f.mac, f.addr_type, name);
     ui_toast(err.empty() ? "Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet." : err.c_str());
     ui_settings_refresh();
+    if (err.empty()) offer_tile(TRUMA_KEY_PREFIX + lower_mac(f.mac), name);
   };
   ui_input_open(o);
 }
@@ -993,6 +998,7 @@ static void mop_found_cb(lv_event_t *e) {
     } else {
       ui_toast("Eingerichtet. Antippen, um den Flaschentyp zu wählen (vorgegeben: 11 kg).");
       ui_settings_refresh();
+      offer_tile(MOPEKA_KEY_PREFIX + lower_mac(f.mac), name);
     }
   };
   ui_input_open(o);
@@ -1438,6 +1444,37 @@ void ui_settings_tick_mopeka() {
   for (size_t i = 0; i < list.size() && i < s_mop_vals.size(); i++) lv_label_set_text(s_mop_vals[i], mop_value(list[i]).c_str());
 }
 
+// ---------------------------------------------------------------- Nach dem Hinzufuegen: Kachel anbieten
+// Fragt (kurz nach dem Schliessen des Eingabefensters), ob die passende Kachel auf dem Hauptbildschirm angelegt werden
+// soll; "Ja" setzt sie auf den ersten freien Platz (wie "Fehlende ergaenzen", nur fuer dieses eine Geraet).
+struct TileOffer {
+  std::string key, name;
+};
+static void offer_tile_cb(lv_timer_t *t) {
+  TileOffer *o = (TileOffer *)t->user_data;
+  lv_timer_del(t);
+  std::string key = o->key, name = o->name;
+  delete o;
+  for (auto &p : layout_get().pages)
+    for (auto &tl : p.tiles)
+      if (tl.key == key) return;   // liegt schon auf dem Panel
+  ui_confirm("Kachel anlegen?", (std::string(tr("Soll „")) + name + tr("“ als Kachel auf den Hauptbildschirm?")).c_str(),
+             "Kachel anlegen", false, [key, name] {
+               ControlView v;
+               v.key = key;
+               v.name = name;
+               layout_auto_arrange({v}, true);
+               ui_toast("Kachel angelegt. Position und Größe änderst du im Editor.");
+             });
+}
+static void offer_tile(const std::string &key, const std::string &name) {
+  lv_timer_create(offer_tile_cb, 400, new TileOffer{key, name});
+}
+static std::string lower_mac(std::string s) {
+  for (auto &c : s) c = tolower((unsigned char)c);
+  return s;
+}
+
 // ---------------------------------------------------------------- Victron (Instant Readout)
 static std::vector<VictronFound> s_vic_found;
 
@@ -1479,6 +1516,9 @@ static void vic_found_cb(lv_event_t *e) {
   o.on_ok = [f](const std::string &key, bool) {
     std::string err = victron_add(f.mac, key, f.name);
     ui_toast(err.empty() ? "Eingerichtet. Die Werte erscheinen in wenigen Sekunden." : err.c_str());
+    if (err.empty())
+      offer_tile(VICTRON_KEY_PREFIX + lower_mac(f.mac),
+                 f.name.empty() ? std::string(victron_kind_text(victron_kind_of_record(f.record))) : f.name);
   };
   ui_input_open(o);
 }
@@ -1542,6 +1582,7 @@ static void bms_found_cb(lv_event_t *e) {
   o.on_ok = [f](const std::string &t, bool) {
     std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
     ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
+    if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string("Akku") : t);
   };
   ui_input_open(o);
 }
