@@ -54,6 +54,8 @@ jbd = 1
 jk = 1
 litime = 1
 renogy = 1
+; Renogy-Geraete ausser Akkus: Laderegler, DC-DC-Lader, Wechselrichter, Smart Shunt
+renogy_dev = 1
 ecoworthy = 1
 ant = 1
 vatrer = 1
@@ -89,6 +91,7 @@ build_flags =
     -DBMS_JK_ON=${bms.jk}
     -DBMS_LITIME_ON=${bms.litime}
     -DBMS_RENOGY_ON=${bms.renogy}
+    -DBMS_RENOGY_DEV_ON=${bms.renogy_dev}
     -DBMS_ECOWORTHY_ON=${bms.ecoworthy}
     -DBMS_ANT_ON=${bms.ant}
     -DBMS_VATRER_ON=${bms.vatrer}

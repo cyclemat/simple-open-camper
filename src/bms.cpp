@@ -10,6 +10,12 @@ const char *bms_model_text(BmsModel m) {
     case BMS_PQ_ASCII: return "Power Quarry";
     case BMS_BULLTRON: return "Daly/Bulltron";
     case BMS_RENOGY: return "Renogy";
+    case BMS_RENOGY_PRO: return "Renogy Pro";
+    case BMS_RENOGY_BT: return "Renogy BT-1/BT-2";
+    case BMS_RENOGY_SOLAR: return "Renogy Laderegler";
+    case BMS_RENOGY_DCC: return "Renogy DC-DC-Lader";
+    case BMS_RENOGY_INV: return "Renogy Wechselrichter";
+    case BMS_RENOGY_SHUNT: return "Renogy Smart Shunt";
     case BMS_ECOWORTHY: return "Eco-Worthy";
     case BMS_ANT: return "ANT";
     case BMS_VATRER: return "Vatrer";
@@ -17,6 +23,17 @@ const char *bms_model_text(BmsModel m) {
     case BMS_JK: return "JK-BMS";
     case BMS_LITIME: return "LiTime";
     default: return "Akku";
+  }
+}
+
+BmsDev bms_dev_of(BmsModel m) {
+  switch (m) {
+    case BMS_RENOGY_BT:   // noch nicht erkannt: meist ein Laderegler
+    case BMS_RENOGY_SOLAR: return BMS_DEV_SOLAR;
+    case BMS_RENOGY_DCC: return BMS_DEV_DCDC;
+    case BMS_RENOGY_INV: return BMS_DEV_INVERTER;
+    case BMS_RENOGY_SHUNT: return BMS_DEV_SHUNT;
+    default: return BMS_DEV_BATTERY;
   }
 }
 
@@ -32,6 +49,7 @@ const char *bms_model_text(BmsModel m) {
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "victron.h"   // victron_state_text (Ladephase der Renogy-Geraete)
 
 namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 
@@ -66,6 +84,13 @@ const uint32_t DISCOVERY_MS = 60000;
 const uint32_t RETRY_MS = 20000;        // nach fehlgeschlagener Verbindung
 const uint32_t RECONNECT_MS = 8000;     // nach Abbruch einer bestehenden Verbindung
 const uint32_t STALE_MS = 90000;        // so lange ohne Statuspaket: Verbindung neu aufbauen
+
+// Renogy-Geraete: Werte ausser Akku (NAN/-1 = unbekannt), siehe BmsInfo
+struct Extra {
+  float pv_v = NAN, pv_w = NAN, in_v = NAN, in_a = NAN, in_w = NAN, load_a = NAN, load_w = NAN;
+  float ac_v = NAN, ac_a = NAN, ac_w = NAN, ac_hz = NAN, grid_v = NAN, starter_v = NAN;
+  int yield_wh = -1, state = -1;
+};
 
 struct Bat {
   std::string mac, name;
@@ -103,6 +128,8 @@ struct Bat {
   int8_t daly_x81 = -1;    // Daly: -1 noch unbekannt, 0 Protokoll D2, 1 Protokoll 0x81 (Antwort 0x51)
   int jk_sw = -1;          // JK: Firmware-Hauptversion (ab 11 Aufbau 32S)
   std::string eco_a1, eco_a2;   // Eco-Worthy: letzte Rahmen A1/A2 (je ein Notify)
+  uint8_t rid = 0;              // Renogy: Modbus-Adresse, die geantwortet hat (0 = noch unbekannt)
+  Extra ex;                     // Renogy-Geraete
 };
 
 class ClientCB : public NimBLEClientCallbacks {
@@ -448,12 +475,12 @@ static uint16_t mb_crc(const uint8_t *d, size_t n) {
   }
   return c;
 }
-static uint8_t s_mb_addr = 0xD2;   // erwartete Antwortadresse (Daly D2: 0xD2, Daly 0x81: 0x51, Renogy: 0x30)
+static uint8_t s_mb_addr = 0xD2;   // erwartete Antwortadresse (Daly D2: 0xD2, Daly 0x81: 0x51, Renogy: 0x30; 0 = jede)
 static bool mb_frame(const std::string &rx, uint8_t len, std::string &data) {
   const uint8_t *b = (const uint8_t *)rx.data();
   size_t n = rx.size();
   for (size_t i = 0; i + 2 < n; i++) {
-    if (b[i] != s_mb_addr || b[i + 1] != 0x03 || b[i + 2] != len) continue;
+    if ((s_mb_addr && b[i] != s_mb_addr) || b[i + 1] != 0x03 || b[i + 2] != len) continue;
     size_t total = (size_t)len + 5;
     if (i + total > n) continue;
     uint16_t c = mb_crc(b + i, total - 2);
@@ -648,7 +675,32 @@ static bool renogy_connect(Bat &b, NimBLEClient *c) {
   b.wr = wr;
   b.wr_resp = !wr->canWriteNoResponse() && wr->canWrite();
   b.next_poll = millis() + 300;
-  if (!b.has) logf("%s: verbunden (Renogy)", b.name.c_str());
+  if (b.model == BMS_RENOGY_INV) {   // Wechselrichter: wie renogy-ble zuerst 0xFFD4 lesen (weckt die Schnittstelle)
+    NimBLERemoteCharacteristic *ini = ts->getCharacteristic(NimBLEUUID((uint16_t)0xFFD4));
+    delay(300);
+    if (ini && ini->canRead()) ini->readValue();
+  }
+  if (!b.has) logf("%s: verbunden (%s)", b.name.c_str(), bms_model_text(b.model));
+  return true;
+}
+
+// Renogy Smart Shunt 300: schickt seine Werte von selbst (Notify 0xC411), geschrieben wird nichts
+static bool rshunt_connect(Bat &b, NimBLEClient *c) {
+  NimBLERemoteCharacteristic *nt = nullptr;
+  for (auto *s : c->getServices(true)) {
+    nt = s->getCharacteristic(NimBLEUUID((uint16_t)0xC411));
+    if (nt) break;
+  }
+  if (!nt) {
+    logf("%s: Smart-Shunt-Kanal C411 fehlt", b.name.c_str());
+    return false;
+  }
+  std::string mac = b.mac;
+  if (!nt->subscribe(true, [mac](NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) { pq_rx(mac, d, n); }, true))
+    return false;
+  b.wr = nt;   // nur Merker "bereit zur Abfrage"
+  b.next_poll = millis() + 300;
+  if (!b.has) logf("%s: verbunden (Renogy Smart Shunt)", b.name.c_str());
   return true;
 }
 
@@ -774,6 +826,16 @@ static void kill(NimBLEClient *c) {
   NimBLEDevice::deleteClient(c);
 }
 
+// Renogy (Merkmale nach IAmTheMitchell/renogy-ble): Name bzw. Hersteller-ID -> Geraeteart
+static BmsModel renogy_detect(const std::string &un, uint16_t mid) {
+  if (un.rfind("RNGRIU", 0) == 0 || un.rfind("BTRIC", 0) == 0) return BMS_RENOGY_INV;
+  if (un.rfind("RTMSHUNT", 0) == 0) return BMS_RENOGY_SHUNT;
+  if (un.rfind("RNGPRO", 0) == 0) return BMS_RENOGY;   // Strom in 0,01 A wie der alte Akku (Adresse 0xFF probiert er)
+  if (un.rfind("RNGRBP", 0) == 0 || un.rfind("RNGC", 0) == 0 || mid == 0xE14C) return BMS_RENOGY_PRO;
+  if (un.rfind("BT-TH-", 0) == 0) return un.find("BATT", 6) != std::string::npos ? BMS_RENOGY : BMS_RENOGY_BT;
+  return BMS_UNKNOWN;
+}
+
 // ---------------------------------------------------------------- Bluetooth-Ablauf (Scan-Task von truma.cpp)
 bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   if (!s_disc_until) return false;
@@ -799,7 +861,7 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
                                  mid == 0x302 || mid == 0x303 || mid == 0x402))
       model = BMS_BULLTRON;   // Daly
     if (model == BMS_UNKNOWN && mid == 0x585A) model = BMS_LITIME;   // LiTime/Redodo
-    if (model == BMS_UNKNOWN && un.rfind("BT-TH-", 0) == 0) model = BMS_RENOGY;
+    if (model == BMS_UNKNOWN) model = renogy_detect(un, mid);
     if (model == BMS_UNKNOWN && (un.rfind("ECO-WORTHY", 0) == 0 || un.rfind("DCHOUSE", 0) == 0)) model = BMS_ECOWORTHY;
     if (model == BMS_UNKNOWN && un.rfind("JK", 0) == 0) model = BMS_JK;   // "JK-B2A24S…", "JK_…"
     // ANT: "ANT-BLE24…", "ANT-BLE3…" (Zeichen 4 beliebig)
@@ -869,7 +931,13 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       case BMS_JBD: on = BMS_JBD_ON; break;
       case BMS_JK: on = BMS_JK_ON; break;
       case BMS_LITIME: on = BMS_LITIME_ON; break;
-      case BMS_RENOGY: on = BMS_RENOGY_ON; break;
+      case BMS_RENOGY:
+      case BMS_RENOGY_PRO: on = BMS_RENOGY_ON; break;
+      case BMS_RENOGY_BT: on = BMS_RENOGY_ON || BMS_RENOGY_DEV_ON; break;
+      case BMS_RENOGY_SOLAR:
+      case BMS_RENOGY_DCC:
+      case BMS_RENOGY_INV:
+      case BMS_RENOGY_SHUNT: on = BMS_RENOGY_DEV_ON; break;
       case BMS_ECOWORTHY: on = BMS_ECOWORTHY_ON; break;
       case BMS_ANT: on = BMS_ANT_ON; break;
       case BMS_VATRER: on = BMS_VATRER_ON; break;
@@ -1037,7 +1105,19 @@ void bms_connect_now() {
     case BMS_LITIME: good = litime_connect(copy, c); break;
 #endif
 #if BMS_RENOGY_ON
-    case BMS_RENOGY: good = renogy_connect(copy, c); break;
+    case BMS_RENOGY:
+    case BMS_RENOGY_PRO:
+#endif
+#if BMS_RENOGY_DEV_ON
+    case BMS_RENOGY_SOLAR:
+    case BMS_RENOGY_DCC:
+    case BMS_RENOGY_INV:
+#endif
+#if BMS_RENOGY_ON || BMS_RENOGY_DEV_ON
+    case BMS_RENOGY_BT: good = renogy_connect(copy, c); break;
+#endif
+#if BMS_RENOGY_DEV_ON
+    case BMS_RENOGY_SHUNT: good = rshunt_connect(copy, c); break;
 #endif
 #if BMS_ECOWORTHY_ON
     case BMS_ECOWORTHY: good = eco_connect(copy, c); break;
@@ -1073,6 +1153,83 @@ void bms_connect_now() {
     }
   }
   kill(dead);
+}
+
+// Renogy-Modbus: Register lesen; Adresse 0xFF = Rundruf (das Geraet antwortet mit seiner eigenen Adresse)
+static bool renogy_rd(const std::string &mac, NimBLERemoteCharacteristic *wr, uint8_t dev, uint16_t reg, uint16_t cnt,
+                      std::string &d, int tries = 2) {
+  s_mb_addr = dev == 0xFF ? 0 : dev;
+  uint8_t req[8] = {dev, 0x03, (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(cnt >> 8), (uint8_t)cnt, 0, 0};
+  uint16_t c = mb_crc(req, 6);
+  req[6] = c & 0xFF;
+  req[7] = c >> 8;
+  for (int attempt = 0; attempt < tries; attempt++)
+    if (pq_ask(mac, wr, req, 8, 2, (uint8_t)(cnt * 2), d, 2500)) return true;
+  return false;
+}
+
+static std::string renogy_text(const std::string &d) {   // Modellname aus Registern (Leerzeichen/Nullen weg)
+  std::string s;
+  for (char ch : d)
+    if (ch > 0x20 && ch < 0x7F) s += ch;
+    else if (ch == ' ' && !s.empty()) s += ch;
+  while (!s.empty() && s.back() == ' ') s.pop_back();
+  return s;
+}
+
+// Ladephase Renogy -> Victron-Nummerierung (victron_state_text)
+static int renogy_state(uint8_t s) {
+  switch (s) {
+    case 0: return 0;   // aus
+    case 1:             // aktiv
+    case 2:             // MPPT
+    case 6:             // Strombegrenzung
+    case 8: return 3;   // Lichtmaschine direkt -> Bulk
+    case 3: return 7;   // Ausgleichsladung
+    case 4: return 4;   // Boost -> Absorption
+    case 5: return 5;   // Erhaltung
+    default: return -1;
+  }
+}
+
+static bool model_unread(const std::string &mac, BmsModel m) {   // Modellname noch nicht aus dem Geraet gelesen
+  Lock l;
+  Bat *b = find_mac(mac);
+  return b && (b->model_text.empty() || b->model_text == bms_model_text(m));
+}
+static void set_model_text(const std::string &mac, const std::string &t) {
+  if (t.empty()) return;
+  Lock l;
+  Bat *b = find_mac(mac);
+  if (b) b->model_text = "Renogy " + t;
+}
+
+// BT-1/BT-2 ohne eindeutigen Namen: Modell lesen (Register 12) -> Laderegler bzw. DC-DC-Lader (DCC…/RBC<Zahl>D…);
+// keine Antwort, aber Akku-Register 0x13B2 an Adresse 0x30 -> Akku. Ergebnis wird gespeichert.
+static BmsModel renogy_resolve(const std::string &mac, NimBLERemoteCharacteristic *wr, std::string &d) {
+  BmsModel m = BMS_RENOGY_BT;
+  std::string txt;
+  if (renogy_rd(mac, wr, 0xFF, 12, 8, d) && d.size() >= 16) {
+    txt = renogy_text(d.substr(0, 16));
+    std::string u = upper(txt);
+    size_t k = 3;
+    while (k < u.size() && isdigit((unsigned char)u[k])) k++;
+    bool dcc = u.rfind("DCC", 0) == 0 || (u.rfind("RBC", 0) == 0 && k > 3 && k < u.size() && u[k] == 'D');
+    m = dcc ? BMS_RENOGY_DCC : BMS_RENOGY_SOLAR;
+  } else if (renogy_rd(mac, wr, 0x30, 0x13B2, 7, d, 1)) {
+    m = BMS_RENOGY;
+  }
+  if (m == BMS_RENOGY_BT) return m;
+  Lock l;
+  Bat *b = find_mac(mac);
+  if (b) {
+    b->model = m;
+    b->model_text = txt.empty() ? std::string(bms_model_text(m)) : "Renogy " + txt;
+    save();
+    s_ver++;
+    logf("%s: erkannt als %s%s%s", b->name.c_str(), bms_model_text(m), txt.empty() ? "" : ", Modell ", txt.c_str());
+  }
+  return m;
 }
 
 bool bms_want_poll() {
@@ -1139,6 +1296,10 @@ void bms_poll_now() {
   }
   int state = 0;   // Bulltron: 1 laedt, 2 entlaedt
   float rem_ah = NAN;
+  Extra ex;   // Renogy-Geraete
+#if BMS_RENOGY_ON || BMS_RENOGY_DEV_ON
+  if (model == BMS_RENOGY_BT) model = renogy_resolve(mac, wr, d);
+#endif
   if (false) {
 #if BMS_JBD_ON
   } else if (model == BMS_JBD) {
@@ -1323,23 +1484,32 @@ void bms_poll_now() {
     }
 #endif
 #if BMS_RENOGY_ON
-  } else if (model == BMS_RENOGY) {
-    // Renogy (Modbus, Geraet 0x30): 0x13B2 x7 = Strom/Spannung/Ladung/Kapazitaet/Zyklen, 0x1388 x34 = Zellen/Temperaturen,
-    // 0x13EC x8 = Alarme und Schalter (Positionen nach aiobmsble, ohne den 3-Byte-Kopf)
-    auto rd = [&](uint16_t reg, uint16_t cnt) -> bool {
-      s_mb_addr = 0x30;
-      uint8_t req[8] = {0x30, 0x03, (uint8_t)(reg >> 8), (uint8_t)reg, (uint8_t)(cnt >> 8), (uint8_t)cnt, 0, 0};
-      uint16_t c = mb_crc(req, 6);
-      req[6] = c & 0xFF;
-      req[7] = c >> 8;
-      for (int attempt = 0; attempt < 2; attempt++)
-        if (pq_ask(mac, wr, req, 8, 2, (uint8_t)(cnt * 2), d, 2500)) return true;
-      return false;
-    };
+  } else if (model == BMS_RENOGY || model == BMS_RENOGY_PRO) {
+    // Renogy-Akku (Modbus): alt an Adresse 0x30, "Pro" an 0xFF (sonst die andere probieren). 0x13B2 x7 = Strom/Spannung/
+    // Ladung/Kapazitaet/Zyklen, 0x1388 x34 = Zellen/Temperaturen, 0x13EC x8 = Alarme und Schalter (Positionen nach
+    // aiobmsble bzw. renogy-ble, ohne den 3-Byte-Kopf)
+    uint8_t rid = 0;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) rid = b->rid;
+    }
+    uint8_t dev = rid ? rid : (model == BMS_RENOGY_PRO ? 0xFF : 0x30);
+    auto rd = [&](uint16_t reg, uint16_t cnt) -> bool { return renogy_rd(mac, wr, dev, reg, cnt, d); };
     auto be16 = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
     auto be32 = [&](int x) -> uint32_t { return (uint32_t)be16(x) << 16 | be16(x + 2); };
-    if (rd(0x13B2, 7) && d.size() >= 14) {
-      a = (int16_t)be16(0) / 100.0f;
+    bool got = rd(0x13B2, 7) && d.size() >= 14;
+    if (!got && !rid) {
+      dev = dev == 0x30 ? 0xFF : 0x30;
+      got = rd(0x13B2, 7) && d.size() >= 14;
+    }
+    if (got && rid != dev) {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) b->rid = dev;
+    }
+    if (got) {
+      a = (int16_t)be16(0) / (model == BMS_RENOGY_PRO ? 10.0f : 100.0f);
       v = be16(2) / 10.0f;
       float ah = be32(4) / 1000.0f, full = be32(8) / 1000.0f;
       cap = (int)lroundf(full);
@@ -1356,6 +1526,118 @@ void bms_poll_now() {
         alarms |= st & ~0x0E & 0xFF;
       }
     }
+#endif
+#if BMS_RENOGY_DEV_ON
+  } else if (model == BMS_RENOGY_SOLAR || model == BMS_RENOGY_DCC) {
+    // Laderegler (Rover/Wanderer/Adventurer) und DC-DC-Lader (DCC/RBC) am BT-1/BT-2, Rundruf-Adresse 0xFF (Einzelgeraet).
+    // 0x0100 x34: SoC, Batterie V/A, Temperaturen, Last bzw. Lichtmaschine, Solar, Tageswerte, 0x0120 Ladephase
+    // (nach cyrils/renogy-bt und renogy-ble). Nur lesen.
+    bool dcc = model == BMS_RENOGY_DCC;
+    if (model_unread(mac, model) && renogy_rd(mac, wr, 0xFF, 12, 8, d, 1) && d.size() >= 16)
+      set_model_text(mac, renogy_text(d.substr(0, 16)));
+    bool got = renogy_rd(mac, wr, 0xFF, 0x0100, 34, d) && d.size() >= 68;
+    if (!got) got = renogy_rd(mac, wr, 0xFF, 0x0100, 30, d, 1) && d.size() >= 60;   // aeltere Geraete: ohne Ladephase
+    if (got) {
+      auto be = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
+      auto tc = [](uint8_t r) -> float { return r & 0x80 ? -(float)(r & 0x7F) : (float)r; };   // Bit 7 = minus
+      soc = be(0);
+      v = be(2) / 10.0f;
+      a = be(4) / 100.0f;
+      temp = tc((uint8_t)d[7]);   // Batterie (d[6] = Regler)
+      if (dcc) {
+        ex.in_v = be(8) / 10.0f;
+        ex.in_a = be(10) / 100.0f;
+        ex.in_w = be(12);
+      } else {
+        ex.load_a = be(10) / 100.0f;
+        ex.load_w = be(12);
+      }
+      ex.pv_v = be(14) / 10.0f;
+      ex.pv_w = be(18);
+      ex.yield_wh = be(38);
+      if (d.size() >= 66) ex.state = renogy_state((uint8_t)d[65]);
+      ok = true;
+    }
+  } else if (model == BMS_RENOGY_INV) {
+    // Wechselrichter (RNGRIU…/BTRIC…): Adresse 0x20 (sonst 0xFF). 4000 x10 Netz/Ausgang/Batterie/Temperatur, 4408 x6 Last,
+    // 4327 x7 Laden/Solar (nach renogy-ble). Nur lesen.
+    uint8_t rid = 0;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) rid = b->rid;
+    }
+    uint8_t dev = rid ? rid : 0x20;
+    bool got = renogy_rd(mac, wr, dev, 4000, 10, d) && d.size() >= 20;
+    if (!got && !rid) {
+      dev = 0xFF;
+      got = renogy_rd(mac, wr, dev, 4000, 10, d) && d.size() >= 20;
+    }
+    if (got && rid != dev) {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) b->rid = dev;
+    }
+    if (got) {
+      auto be = [&](int x) -> uint16_t { return (uint8_t)d[x] << 8 | (uint8_t)d[x + 1]; };
+      ex.grid_v = be(0) / 10.0f;
+      ex.ac_v = be(4) / 10.0f;
+      ex.ac_a = be(6) / 100.0f;
+      ex.ac_hz = be(8) / 100.0f;
+      v = be(10) / 10.0f;
+      temp = be(12) / 10.0f;
+      ok = true;
+      if (renogy_rd(mac, wr, dev, 4408, 6, d, 1) && d.size() >= 6) ex.ac_w = be(2);
+      if (renogy_rd(mac, wr, dev, 4327, 7, d, 1) && d.size() >= 14) {
+        soc = be(0);
+        a = (int16_t)be(2) / 10.0f;
+        ex.pv_v = be(4) / 10.0f;
+        ex.pv_w = be(8);
+      }
+      ex.state = ex.grid_v > 50 ? 8 : ex.ac_v > 50 ? 9 : 0;   // Durchleitung, Wechselrichter, aus
+      if (model_unread(mac, model) && renogy_rd(mac, wr, dev, 4311, 8, d, 1) && d.size() >= 16)
+        set_model_text(mac, renogy_text(d.substr(0, 16)));
+    }
+  } else if (model == BMS_RENOGY_SHUNT) {
+    // Smart Shunt 300: Werte kommen von selbst (Notify), Rahmen ab 42 57 01 19 (~110 Byte, ohne Pruefsumme): Strom s24 @21
+    // mA, Spannung u24 @25 mV, Starterbatterie u16 @30 mV, SoC u16 @34 x0,1 %, Temperatur u16 @66 x0,1 °C (nach
+    // renogy-ble, dort auch die Plausibilitaetsgrenzen)
+    static const char HDR[4] = {0x42, 0x57, 0x01, 0x19};
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (b) b->rx.clear();
+    }
+    std::string f;
+    for (uint32_t t0 = millis(); millis() - t0 < 5000 && f.empty();) {
+      delay(50);
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (!b) break;
+      size_t at = b->rx.find(std::string(HDR, 4));
+      if (at != std::string::npos && b->rx.size() >= at + 68) f = b->rx.substr(at, 68);
+      else if (b->rx.size() > 400) b->rx.erase(0, 200);
+    }
+    if (f.size() >= 68) {
+      auto u = [&](int x, int n) -> uint32_t {
+        uint32_t r = 0;
+        for (int i = 0; i < n; i++) r = r << 8 | (uint8_t)f[x + i];
+        return r;
+      };
+      int32_t ma = (int32_t)(u(21, 3) << 8) >> 8;   // 24 Bit mit Vorzeichen
+      float sv = u(25, 3) / 1000.0f, sa = ma / 1000.0f;
+      if (sv >= 6 && sv <= 80 && fabsf(sa) <= 500 && fabsf(sv * sa) <= 10000) {
+        v = sv;
+        a = sa;
+        ex.starter_v = u(30, 2) / 1000.0f;
+        float s = u(34, 2) / 10.0f;
+        if (s <= 100) soc = s;
+        float t = u(66, 2) / 10.0f;
+        if (t >= -40 && t <= 100) temp = t;
+        ok = true;
+      }
+    }
+    if (!ok) pq_note(nullptr, 0, true, f);
 #endif
 #if BMS_ECOWORTHY_ON
   } else if (model == BMS_ECOWORTHY) {
@@ -1564,6 +1846,7 @@ void bms_poll_now() {
   alarms = b->alarms;
   b->chg_on = chg_on;
   b->dis_on = dis_on;
+  b->ex = ex;
   // Restzeit wie die App: ab 0,5 A, mit Kapazitaet
   b->ttg = -1;
   if (b->cap_ah > 0 && isfinite(a) && a <= -0.5f) b->ttg = (int32_t)(soc / 100.0f * b->cap_ah / -a * 3600.0f);
@@ -1634,6 +1917,22 @@ static BmsInfo info_of(const Bat &b) {
   i.cells_mv = b.cell_mv;
   i.alarms = b.alarms;
   i.status = b.status;
+  i.dev = bms_dev_of(b.model);
+  i.pv_v = b.ex.pv_v;
+  i.pv_w = b.ex.pv_w;
+  i.in_v = b.ex.in_v;
+  i.in_a = b.ex.in_a;
+  i.in_w = b.ex.in_w;
+  i.load_a = b.ex.load_a;
+  i.load_w = b.ex.load_w;
+  i.ac_v = b.ex.ac_v;
+  i.ac_a = b.ex.ac_a;
+  i.ac_w = b.ex.ac_w;
+  i.ac_hz = b.ex.ac_hz;
+  i.grid_v = b.ex.grid_v;
+  i.starter_v = b.ex.starter_v;
+  i.yield_wh = b.ex.yield_wh;
+  i.chg_state = b.ex.state;
   return i;
 }
 
@@ -1687,10 +1986,10 @@ std::string bms_add(const std::string &mac_in, uint8_t addr_type, const std::str
   std::string mac = lower(mac_in);
   if (mac.size() != 17) return "Ungültige Adresse";
   Lock l;
-  if (find_mac(mac)) return "Dieser Akku ist schon eingerichtet";
+  if (find_mac(mac)) return "Dieses Gerät ist schon eingerichtet";
   size_t n = 0;
   for (auto &b : s_bats) n += !b.remove;
-  if (n >= BMS_MAX) return "Es sind höchstens vier Akkus möglich";
+  if (n >= BMS_MAX) return "Es sind höchstens sechs Geräte möglich";
   Bat b;
   b.mac = mac;
   b.type = addr_type;
@@ -1729,5 +2028,116 @@ void bms_rename(const std::string &mac, const std::string &name) {
 std::vector<std::string> bms_log() {
   Lock l;
   return std::vector<std::string>(s_log.begin(), s_log.end());
+}
+
+// ---------------------------------------------------------------- Texte (Panel-Einstellungen, Mini-Display)
+static std::string fnum(float v, int dec, const char *unit) {
+  if (!isfinite(v)) return "–";
+  char t[32];
+  snprintf(t, sizeof(t), "%.*f %s", dec, v, unit);
+  for (char *q = t; *q; q++)
+    if (*q == '.') *q = ',';
+  return t;
+}
+static std::string both(const std::string &a, const std::string &b) {
+  if (a == "–") return b;
+  if (b == "–") return a;
+  return a + " · " + b;
+}
+
+std::string bms_value_text(const BmsInfo &b) {
+  if (!b.has) return b.status.empty() ? std::string("–") : b.status;
+  const char *dot = "  ·  ";
+  switch (b.dev) {
+    case BMS_DEV_SOLAR: return fnum(b.pv_w, 0, "W") + dot + fnum(b.volt, 1, "V") + dot + victron_state_text(b.chg_state);
+    case BMS_DEV_DCDC: return fnum(b.amp, 1, "A") + dot + fnum(b.volt, 1, "V") + dot + victron_state_text(b.chg_state);
+    case BMS_DEV_INVERTER: return fnum(b.ac_w, 0, "W") + dot + fnum(b.ac_v, 0, "V") + dot + fnum(b.volt, 1, "V");
+    default: {
+      std::string s = (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + fnum(b.volt, 2, "V");
+      if (isfinite(b.volt) && isfinite(b.amp)) s += dot + fnum(b.volt * b.amp, 0, "W");
+      return s;
+    }
+  }
+}
+
+std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b) {
+  std::vector<std::pair<std::string, std::string>> r;
+  bool h = b.has;
+  auto add = [&](const char *k, const std::string &v) { r.emplace_back(k, h ? v : std::string("–")); };
+  std::string soc = b.soc >= 0 ? std::to_string(b.soc) + " %" : "–";
+  std::string pw = isfinite(b.volt) && isfinite(b.amp) ? fnum(b.volt * b.amp, 0, "W") : "–";
+  std::string temp = fnum(b.temp, 0, "°C");
+  std::string today = b.yield_wh >= 0 ? fnum((float)b.yield_wh, 0, "Wh") : "–";
+  bool bat = b.dev == BMS_DEV_BATTERY || b.dev == BMS_DEV_SHUNT;
+  switch (b.dev) {
+    case BMS_DEV_SOLAR:
+      add("Solar", both(fnum(b.pv_w, 0, "W"), fnum(b.pv_v, 1, "V")));
+      add("Batterie", both(fnum(b.volt, 2, "V"), fnum(b.amp, 1, "A")));
+      add("Ladephase", victron_state_text(b.chg_state));
+      add("Heute", today);
+      add("Last", both(fnum(b.load_w, 0, "W"), fnum(b.load_a, 1, "A")));
+      add("Temperatur", temp);
+      break;
+    case BMS_DEV_DCDC:
+      add("Ladestrom", fnum(b.amp, 1, "A"));
+      add("Batterie", fnum(b.volt, 2, "V"));
+      add("Eingang", both(fnum(b.in_v, 1, "V"), fnum(b.in_w, 0, "W")));
+      add("Solar", both(fnum(b.pv_w, 0, "W"), fnum(b.pv_v, 1, "V")));
+      add("Ladephase", victron_state_text(b.chg_state));
+      add("Heute", today);
+      add("Temperatur", temp);
+      break;
+    case BMS_DEV_INVERTER:
+      add("Leistung", fnum(b.ac_w, 0, "W"));
+      add("Ausgang", both(fnum(b.ac_v, 0, "V"), fnum(b.ac_hz, 1, "Hz")));
+      add("Netz", fnum(b.grid_v, 0, "V"));
+      add("Batterie", both(fnum(b.volt, 2, "V"), fnum(b.amp, 1, "A")));
+      add("Solar", fnum(b.pv_w, 0, "W"));
+      add("Ladezustand", soc);
+      add("Temperatur", temp);
+      break;
+    case BMS_DEV_SHUNT:
+      add("Ladezustand", soc);
+      add("Spannung", fnum(b.volt, 2, "V"));
+      add("Strom", fnum(b.amp, 2, "A"));
+      add("Leistung", pw);
+      add("Starter", fnum(b.starter_v, 2, "V"));
+      add("Temperatur", temp);
+      break;
+    default: {   // Akku: Super B ohne Temperatur/Zyklen, die anderen ohne Gesundheit (SoH)
+      bool sb = b.model == BMS_SUPERB;
+      add("Ladezustand", soc);
+      add("Spannung", fnum(b.volt, 2, "V"));
+      add("Strom", fnum(b.amp, 2, "A"));
+      add("Leistung", pw);
+      if (!sb) add("Temperatur", temp);
+      std::string rest = "–";
+      if (b.ttg_s > 0) {
+        char t[24];
+        snprintf(t, sizeof(t), "%ld h %02ld min", (long)(b.ttg_s / 3600), (long)(b.ttg_s % 3600 / 60));
+        rest = t;
+      } else if (isfinite(b.amp) && b.amp > 0.2f) {
+        rest = "lädt";
+      }
+      add("Restzeit", rest);
+      if (!sb) add("Zyklen", b.cycles >= 0 ? std::to_string(b.cycles) : "–");
+      if (sb) add("Gesundheit", b.soh >= 0 ? std::to_string(b.soh) + " %" : "–");
+    }
+  }
+  std::string z;
+  if (!b.connected) {
+    z = b.status.empty() ? std::string("getrennt") : b.status;
+  } else if (!h) {
+    z = "–";
+  } else if (bat) {
+    z = !b.ok ? "Alarm" : b.charging ? "lädt" : b.discharging ? "entlädt" : "Ruhe";
+    if (b.low) z += ", niedrig";
+    if (!b.charge_allowed) z += ", Laden aus";
+    if (!b.discharge_allowed) z += ", Entladen aus";
+  } else {
+    z = b.ok ? "in Ordnung" : "Fehler";
+  }
+  r.emplace_back("Zustand", z);
+  return r;
 }
 #endif

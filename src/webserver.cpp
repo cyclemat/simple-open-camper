@@ -420,7 +420,7 @@ static esp_err_t h_devices(httpd_req_t *req) {
     o["model"] = b.model_text.empty() ? std::string(bms_model_text(b.model)) : b.model_text;
     o["vendor"] = bms_model_text(b.model);
     o["kind"] = "victron";
-    o["vtype"] = "shunt";
+    o["vtype"] = vic_type(v.kind);
     o["online"] = b.connected && b.has;
     vic_state(o["state"].to<JsonObject>(), v);
   }
@@ -1125,6 +1125,8 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
       o["ok"] = b.ok;
     }
     o["status"] = b.status;
+    o["dev"] = b.dev;
+    o["sum"] = bms_value_text(b);
   }
   JsonArray bf = d["found"].to<JsonArray>();
   for (auto &f : bms_found()) {

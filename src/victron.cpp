@@ -369,27 +369,60 @@ std::vector<VictronInfo> victron_list() {
   return out;
 }
 
-// Akku mit eigenem BMS als Batteriewaechter darstellen (Kachel, Detailfenster, Editor wie beim SmartShunt)
+// Geraet aus bms.cpp als Victron-Kachel darstellen (Kachel, Detailfenster, Editor): Akku/Shunt wie ein SmartShunt,
+// Renogy-Laderegler als Solarregler, DC-DC-Lader als Ladebooster, Wechselrichter als Wechselrichter
 bool victron_from_bms(const BmsInfo &b, VictronInfo &v) {
   v = VictronInfo();
   v.key = b.key;
   v.mac = b.mac;
   v.name = b.name;
-  v.kind = VIC_SHUNT;
-  v.record = 0x02;
   v.bms = true;
   v.has = b.has;
   v.age_s = b.age_s;
   v.status = b.status;
-  v.soc = b.soc >= 0 ? (float)b.soc : NAN;
   v.bat_v = b.volt;
   v.bat_i = b.amp;
+  v.power_w = isfinite(b.volt) && isfinite(b.amp) ? b.volt * b.amp : NAN;
+  v.state = b.chg_state;
+  switch (b.dev) {
+    case BMS_DEV_SOLAR:
+      v.kind = VIC_SOLAR;
+      v.record = 0x01;
+      v.pv_w = b.pv_w;
+      v.yield_kwh = b.yield_wh >= 0 ? b.yield_wh / 1000.0f : NAN;
+      v.load_i = b.load_a;
+      return true;
+    case BMS_DEV_DCDC:
+      v.kind = VIC_DCDC;
+      v.record = 0x04;
+      v.in_v = b.in_v;
+      v.in_i = b.in_a;
+      v.pv_w = b.pv_w;
+      v.yield_kwh = b.yield_wh >= 0 ? b.yield_wh / 1000.0f : NAN;
+      return true;
+    case BMS_DEV_INVERTER:
+      v.kind = VIC_INVERTER;
+      v.ac_v = b.ac_v;
+      v.ac_i = b.ac_a;
+      v.ac_w = b.ac_w;
+      v.power_w = b.ac_w;
+      return true;
+    default:
+      break;
+  }
+  v.kind = VIC_SHUNT;
+  v.record = 0x02;
+  v.soc = b.soc >= 0 ? (float)b.soc : NAN;
   v.consumed_ah = NAN;
   v.remaining_min = b.ttg_s > 0 ? b.ttg_s / 60 : -1;
-  v.aux_mode = isfinite(b.temp) ? 2 : 3;
-  v.aux = b.temp;
+  if (isfinite(b.starter_v) && b.starter_v > 1) {   // Renogy Smart Shunt: Starterbatterie
+    v.aux_mode = 0;
+    v.aux = b.starter_v;
+  } else {
+    v.aux_mode = isfinite(b.temp) ? 2 : 3;
+    v.aux = b.temp;
+  }
   v.alarm = b.ok ? 0 : 1;
-  v.power_w = isfinite(b.volt) && isfinite(b.amp) ? b.volt * b.amp : NAN;
   return true;
 }
 

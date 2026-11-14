@@ -109,8 +109,8 @@ int led_battery() {
   for (auto &v : victron_list()) take(v);
   if (s_cfg.cerbo_on)
     for (auto &v : cerbo_list()) take(v);
-  for (auto &b : bms_list())   // Akkus mit eigenem BMS (Super B …): nur frische Werte
-    if (b.has && b.soc >= 0 && b.soc <= 100 && b.age_s >= 0 && b.age_s <= 600 && (best < 0 || b.soc < best)) best = b.soc;
+  for (auto &b : bms_list())   // Akkus mit eigenem BMS (Super B …) und Shunts: nur frische Werte
+    if ((b.dev == BMS_DEV_BATTERY || b.dev == BMS_DEV_SHUNT) && b.has && b.soc >= 0 && b.soc <= 100 && b.age_s >= 0 && b.age_s <= 600 && (best < 0 || b.soc < best)) best = b.soc;
   return best < 0 ? -1 : (int)lroundf(best);
 }
 
@@ -363,6 +363,8 @@ void h_state() {
     o["serial"] = b.serial;
     o["fw"] = b.firmware;
     o["status"] = b.status;
+    o["dev"] = b.dev;
+    o["sum"] = bms_value_text(b);
   }
   JsonArray bf = bm["found"].to<JsonArray>();
   for (auto &f : bms_found()) {

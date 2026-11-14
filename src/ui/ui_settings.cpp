@@ -1553,12 +1553,7 @@ static uint32_t bms_struct_sig() {
   return h;
 }
 
-static std::string bms_summary(const BmsInfo &b) {
-  if (!b.has) return b.status.empty() ? std::string("–") : b.status;
-  std::string s = std::to_string(b.soc) + " %  ·  " + ui_num(b.volt, 2, "V");
-  if (isfinite(b.volt) && isfinite(b.amp)) s += "  ·  " + ui_num(b.volt * b.amp, 0, "W");
-  return s;
-}
+static std::string bms_summary(const BmsInfo &b) { return bms_value_text(b); }   // je Geraeteart (bms.cpp)
 
 static void bms_row_cb(lv_event_t *e) {
   size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
@@ -1589,7 +1584,7 @@ static void bms_found_cb(lv_event_t *e) {
 
 static void bms_scan_cb(lv_event_t *) {
   if (bms_list().size() >= BMS_MAX) {
-    ui_toast("Es sind schon vier Akkus eingerichtet.");
+    ui_toast("Es sind schon sechs Geräte eingerichtet.");
     return;
   }
   bms_discovery_start();
@@ -1599,7 +1594,8 @@ static void bms_scan_cb(lv_event_t *) {
 static void build_bms() {
   heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
                          "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
-  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy, Eco-Worthy, ANT, Vatrer – nur lesen", BLE_P_BMS);
+  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), "
+                 "Eco-Worthy, ANT, Vatrer – nur lesen", BLE_P_BMS);
   s_bms_vals.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
     s_bms_sig = 0;

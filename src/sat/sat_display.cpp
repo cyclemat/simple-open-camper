@@ -275,6 +275,11 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
       it.value = num(v.ac_w, 0, "W") + "  ·  " + victron_state_text(v.state);
       it.accent = (!isnan(v.ac_w) && v.ac_w > 5) ? C_AMBER : C_TEXT2;
       break;
+    case VIC_DCDC:
+      it.value = isnan(v.bat_i) ? num(v.bat_v, 2, "V") + "  ·  " + victron_state_text(v.state)
+                                : num(v.bat_i, 1, "A") + "  ·  " + num(v.bat_v, 1, "V");
+      it.accent = (!isnan(v.bat_i) && v.bat_i > 0.2f) ? C_GREEN : C_TEXT2;
+      break;
     case VIC_DCSYS:
       it.value = num(v.power_w, 0, "W") + "  ·  " + num(v.bat_i, 1, "A");
       it.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
@@ -341,6 +346,12 @@ static void collect_raw(std::vector<Item> &s_items) {
   // Akkus mit eigenem BMS (Super B …): erst mit Werten eine Kachel
   for (auto &b : bms_list()) {
     if (!b.has) continue;
+    if (b.dev == BMS_DEV_SOLAR || b.dev == BMS_DEV_DCDC || b.dev == BMS_DEV_INVERTER) {   // Renogy-Geraete wie Victron
+      VictronInfo v;
+      victron_from_bms(b, v);
+      s_items.push_back(vic_item(v, "b:" + b.mac));
+      continue;
+    }
     Item it;
     it.key = "b:" + b.mac;
     it.name = b.name.empty() ? "Akku" : b.name;
@@ -622,10 +633,8 @@ static void info_open() {
 // Nur waehrend es offen ist im Speicher.
 static lv_obj_t *s_bat = nullptr;
 static std::string s_bat_key;
-static const int BAT_N = 9;
-static lv_obj_t *s_bat_title = nullptr, *s_bat_val[BAT_N] = {nullptr};
-static const char *BAT_ROWS[BAT_N] = {"Ladezustand", "Spannung", "Strom", "Leistung", "Temperatur",
-                                      "Restzeit", "Zyklen", "Gesundheit", "Zustand"};
+static const int BAT_N = 9;   // Zeilen je Geraeteart aus bms_rows() (Akku, Shunt, Laderegler, DC-DC-Lader, Wechselrichter)
+static lv_obj_t *s_bat_title = nullptr, *s_bat_lbl[BAT_N] = {nullptr}, *s_bat_val[BAT_N] = {nullptr};
 
 static void bat_close_cb(lv_event_t *) {
   if (!s_bat) return;
@@ -641,34 +650,18 @@ static void bat_sync() {
     return;
   }
   (lv_label_set_text)(s_bat_title, b.name.c_str());
-  std::string v[BAT_N];
-  bool h = b.has;
-  v[0] = h ? std::to_string(b.soc) + " %" : "–";
-  v[1] = h ? num(b.volt, 2, "V") : "–";
-  v[2] = h ? num(b.amp, 2, "A") : "–";
-  v[3] = h && isfinite(b.volt) && isfinite(b.amp) ? num(b.volt * b.amp, 0, "W") : "–";
-  v[4] = isfinite(b.temp) ? num(b.temp, 0, "°C") : "–";
-  if (b.ttg_s > 0) {
-    char t[24];
-    snprintf(t, sizeof(t), "%ld h %02ld min", (long)(b.ttg_s / 3600), (long)(b.ttg_s % 3600 / 60));
-    v[5] = t;
-  } else {
-    v[5] = h && isfinite(b.amp) && b.amp > 0.2f ? "lädt" : "–";
+  auto rows = bms_rows(b);
+  for (int i = 0; i < BAT_N; i++) {
+    if (i < (int)rows.size()) {
+      (lv_label_set_text)(s_bat_lbl[i], rows[i].first.c_str());
+      (lv_label_set_text)(s_bat_val[i], rows[i].second.c_str());
+      lv_obj_clear_flag(s_bat_lbl[i], LV_OBJ_FLAG_HIDDEN);
+      lv_obj_clear_flag(s_bat_val[i], LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(s_bat_lbl[i], LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(s_bat_val[i], LV_OBJ_FLAG_HIDDEN);
+    }
   }
-  v[6] = b.cycles >= 0 ? std::to_string(b.cycles) : "–";
-  v[7] = b.soh >= 0 ? std::to_string(b.soh) + " %" : "–";
-  if (!b.connected) {
-    v[8] = b.status.empty() ? std::string("getrennt") : b.status;
-  } else if (h) {
-    std::string z = !b.ok ? "Alarm" : b.charging ? "lädt" : b.discharging ? "entlädt" : "Ruhe";
-    if (b.low) z += ", niedrig";
-    if (!b.charge_allowed) z += ", Laden aus";
-    if (!b.discharge_allowed) z += ", Entladen aus";
-    v[8] = z;
-  } else {
-    v[8] = "–";
-  }
-  for (int i = 0; i < BAT_N; i++) (lv_label_set_text)(s_bat_val[i], v[i].c_str());
 }
 
 static void bat_open(const std::string &key) {
@@ -688,30 +681,19 @@ static void bat_open(const std::string &key) {
   lv_obj_set_width(s_bat_title, W - 20);
   lv_label_set_long_mode(s_bat_title, LV_LABEL_LONG_DOT);
   lv_obj_set_pos(s_bat_title, 10, 4);
-  // nur Zeilen, die das Modell liefert: Super B ohne Temperatur/Zyklen, Power Quarry ohne Gesundheit (SoH)
-  BmsInfo bi;
-  bms_get(key, bi);
-  bool sb = bi.model == BMS_SUPERB;
-  int lh = lv_font_get_line_height(&font_ui_16) + 4, row = 0;
+  int lh = lv_font_get_line_height(&font_ui_16) + 4;
   for (int i = 0; i < BAT_N; i++) {
-    bool show = !((sb && (i == 4 || i == 6)) || (!sb && i == 7));
-    int y = 32 + row * lh;
-    if (show) row++;
-    lv_obj_t *l = lv_label_create(s_bat);
-    lv_obj_set_style_text_font(l, &font_ui_16, 0);
-    lv_obj_set_style_text_color(l, C_TEXT2, 0);
-    lv_label_set_text(l, BAT_ROWS[i]);
-    lv_obj_set_pos(l, 10, y);
+    int y = 32 + i * lh;
+    s_bat_lbl[i] = lv_label_create(s_bat);
+    lv_obj_set_style_text_font(s_bat_lbl[i], &font_ui_16, 0);
+    lv_obj_set_style_text_color(s_bat_lbl[i], C_TEXT2, 0);
+    lv_obj_set_pos(s_bat_lbl[i], 10, y);
     s_bat_val[i] = lv_label_create(s_bat);
     lv_obj_set_style_text_font(s_bat_val[i], &font_ui_16, 0);
     lv_obj_set_style_text_color(s_bat_val[i], C_TEXT, 0);
     lv_obj_set_width(s_bat_val[i], W - 136);
     lv_label_set_long_mode(s_bat_val[i], LV_LABEL_LONG_DOT);
     lv_obj_set_pos(s_bat_val[i], 126, y);   // rechts von der laengsten Bezeichnung ("Ladezustand")
-    if (!show) {
-      lv_obj_add_flag(l, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_add_flag(s_bat_val[i], LV_OBJ_FLAG_HIDDEN);
-    }
   }
   bat_sync();
 }

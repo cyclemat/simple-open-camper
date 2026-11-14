@@ -19,6 +19,7 @@
 #include <math.h>
 #include <stdint.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifndef WITH_BMS
@@ -57,15 +58,29 @@
 #ifndef BMS_VATRER_ON
 #define BMS_VATRER_ON 1
 #endif
+// Renogy-Geraete ausser Akkus: Laderegler (Rover/Wanderer/Adventurer ueber BT-1/BT-2), DC-DC-Lader (DCC/RBC),
+// Wechselrichter (RNGRIU…/BTRIC…), Smart Shunt 300 – nach cyrils/renogy-bt (GPL-3.0) und IAmTheMitchell/renogy-ble
+// (Apache-2.0). Nur lesen.
+#ifndef BMS_RENOGY_DEV_ON
+#define BMS_RENOGY_DEV_ON 1
+#endif
 
-#define BMS_MAX 4
+#define BMS_MAX 6
 #define BMS_KEY_PREFIX "bms:"
 
 enum BmsModel : uint8_t {
   BMS_UNKNOWN = 0, BMS_SUPERB = 1, BMS_PQ_HEX = 2, BMS_PQ_ASCII = 3,
   BMS_BULLTRON = 4,   // Daly (Bulltron verbaut Daly): Modbus D2, zweite Variante 0x81/0x51
-  BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7, BMS_RENOGY = 8, BMS_ECOWORTHY = 9, BMS_ANT = 10, BMS_VATRER = 11
+  BMS_JBD = 5, BMS_JK = 6, BMS_LITIME = 7, BMS_RENOGY = 8, BMS_ECOWORTHY = 9, BMS_ANT = 10, BMS_VATRER = 11,
+  // Renogy: BT-TH-… (BT-1/BT-2-Modul) sagt nicht, was dahinter haengt – die erste Verbindung klaert es
+  // (Laderegler, DC-DC-Lader oder Akku) und speichert das Ergebnis
+  BMS_RENOGY_BT = 12, BMS_RENOGY_SOLAR = 13, BMS_RENOGY_DCC = 14, BMS_RENOGY_INV = 15, BMS_RENOGY_SHUNT = 16,
+  BMS_RENOGY_PRO = 17   // Renogy-Akku "Pro" (RNGRBP…/RNGC…, Hersteller-ID 0xE14C): Adresse 0xFF, Strom in 0,1 A
 };
+
+// Geraeteart (bestimmt die Kachel: Akku/Shunt = Batteriewaechter, sonst Solar, Ladebooster, Wechselrichter)
+enum BmsDev : uint8_t { BMS_DEV_BATTERY = 0, BMS_DEV_SOLAR = 1, BMS_DEV_DCDC = 2, BMS_DEV_INVERTER = 3, BMS_DEV_SHUNT = 4 };
+BmsDev bms_dev_of(BmsModel m);
 // Abgleich/Erweiterung nach patman15/aiobmsble (Apache-2.0): Daly-Varianten und -Erkennung, JK-Aufbau nach
 // Firmware-Version, LiTime/Redodo-Hersteller-ID 0x585A, Renogy (BT-TH-…), Eco-Worthy (ECO-WORTHY…/DCHOUSE…).
 
@@ -88,6 +103,15 @@ struct BmsInfo {
   std::vector<uint16_t> cells_mv;     // Zellspannungen (Power Quarry)
   uint32_t alarms = 0;                // Alarmbits (Power Quarry binaer), 0 = keine
   std::string status;                 // "Verbunden", "Verbinde …", "Nicht erreichbar" …
+  // Renogy-Geraete (dev != Akku): volt/amp = Batterie bzw. Ladestrom; NAN/-1 = unbekannt
+  uint8_t dev = BMS_DEV_BATTERY;      // BmsDev
+  float pv_v = NAN, pv_w = NAN;       // Solar-Eingang
+  float in_v = NAN, in_a = NAN, in_w = NAN;   // Lichtmaschine (DC-DC-Lader)
+  float load_a = NAN, load_w = NAN;   // Lastausgang (Laderegler)
+  float ac_v = NAN, ac_a = NAN, ac_w = NAN, ac_hz = NAN, grid_v = NAN;   // Wechselrichter: Ausgang, Netz-Eingang
+  float starter_v = NAN;              // Smart Shunt: Starterbatterie
+  int yield_wh = -1;                  // Ertrag heute
+  int chg_state = -1;                 // Ladephase bzw. Zustand in Victron-Nummerierung (victron_state_text)
 };
 
 struct BmsFound {
@@ -135,6 +159,8 @@ void bms_poll_now();                                  // Abfrage ausfuehren, blo
 void bms_remove(const std::string &mac);
 void bms_rename(const std::string &mac, const std::string &name);
 std::vector<std::string> bms_log();                   // letzte Meldungen (Fehlersuche ueber die Weboberflaeche)
+std::string bms_value_text(const BmsInfo &b);         // Kurzfassung ("78 %  ·  13,25 V  ·  40 W", Solar: W · V · Phase)
+std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b);   // alle Werte (Bezeichnung, Wert)
 #else
 inline void bms_begin() {}
 inline uint32_t bms_version() { return 0; }
