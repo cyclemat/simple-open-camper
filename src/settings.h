@@ -3,9 +3,9 @@
 #include <Arduino.h>
 
 enum NetMode : uint8_t {
-  NET_STA = 0,    // Netzwerk-Modus: Panel im Heim-WLAN
+  NET_STA = 0,    // Netzwerk-Modus: Panel im Camp-WLAN
   NET_AP = 1,     // Router-Modus: Panel spannt eigenes WLAN mit DHCP auf
-  NET_APSTA = 2,  // Kombi: eigenes WLAN + Heim-WLAN mit Weiterleitung ins Internet
+  NET_APSTA = 2,  // Kombi: eigenes WLAN + Camp-WLAN mit Weiterleitung ins Internet
   NET_OFF = 3,    // WLAN ganz aus: spart internen RAM (~40 KB) und stoert Bluetooth nicht
 };
 
@@ -47,6 +47,11 @@ struct Settings {
   uint8_t saver = 0;           // SaverMode: Ruhezustand
   bool saver_recolor = true;   // Huepfendes Logo: Farbe beim Abprallen wechseln
   String tz;
+  // LED-Ring (nur Boards mit UI_LEDRING, z. B. CrowPanel 1.46")
+  bool ring_knob = true;       // beim Drehen zeigt ein Lichtpunkt die Stelle in der Geraeteliste
+  bool ring_warn = true;       // rot pulsieren, wenn eine Gasflasche/Batterie auf dem Panel knapp wird
+  uint8_t ring_warn_pct = 10;  // Grenze in %
+  uint8_t ring_bri = 30;       // Helligkeit in %
 };
 
 extern Settings g_settings;

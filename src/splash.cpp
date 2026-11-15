@@ -15,7 +15,7 @@ bool splash_show() { return false; }
 #include "esp32s3/rom/tjpgd.h"   // JPEG-Decoder im ROM des ESP32-S3: kostet keinen Flash
 #endif
 
-static const uint32_t SHOW_MS = 3000;
+static const uint32_t SHOW_MS = 6000;   // 6 s (Wunsch 2026-11-15)
 static uint16_t *s_px = nullptr;
 
 #if BOARD_P4

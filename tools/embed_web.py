@@ -34,6 +34,16 @@ print("Editor eingebettet: %d Bytes (gzip: %d)" % (len(raw), len(data)))
 splash = os.path.join(root, "splash.jpg")
 if not os.path.exists(splash):
     splash = os.path.join(root, "assets", "splash.jpg")
+# Rundes Display (CrowPanel 1.46"): eigenes 360x360-Bild splash_round.jpg (Projektordner bzw. assets/)
+try:
+    _defs = str(env.get("CPPDEFINES", "")) + str(env.GetProjectOption("build_flags", ""))  # noqa: F821
+except NameError:
+    _defs = ""
+if "BOARD_CROWPANEL146" in _defs:
+    for _c in (os.path.join(root, "splash_round.jpg"), os.path.join(root, "assets", "splash_round.jpg")):
+        if os.path.exists(_c):
+            splash = _c
+            break
 sdst = os.path.join(root, "src", "generated", "splash_jpg.h")
 head = "// Automatisch erzeugt von tools/embed_web.py aus splash.jpg bzw. assets/splash.jpg - nicht bearbeiten.\n#pragma once\n#include <stdint.h>\n#include <stddef.h>\n\n"
 if os.path.exists(splash):

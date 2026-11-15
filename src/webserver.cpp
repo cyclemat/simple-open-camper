@@ -12,6 +12,7 @@
 #include "gx_find.h"
 #include "bms.h"
 #include "panelsat.h"
+#include "panelsat_pair.h"
 #include "mopeka.h"
 #include "power.h"
 #include "truma_cpplus.h"
@@ -122,6 +123,12 @@ static esp_err_t h_info(httpd_req_t *req) {
   Settings st = settings_copy();
   JsonDocument d(&s_ps);
   d["fw"] = FW_VERSION;
+  d["round"] = (bool)UI_ROUND;   // rundes Display (CrowPanel 1.46"): der Editor zeigt dann Kreis und Reihenfolge
+  d["lcd_w"] = LCD_H_RES;
+  d["lcd_h"] = LCD_V_RES;
+  d["knob"] = (bool)UI_KNOB;
+  d["ledring"] = UI_LEDRING;          // Anzahl LEDs im Ring, 0 = keiner
+  d["web_setup"] = (bool)UI_WEB_SETUP; // kein Einstellungsmenue am Display: alles hier im Browser
   d["lang"] = i18n_lang();   // Sprache der Oberflaeche – der Editor folgt ihr
   d["hostname"] = st.hostname;
   d["ip"] = net_ip();
@@ -677,7 +684,6 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   ble["victron"] = (st.ble_protos & BLE_P_VICTRON) != 0;
   if (inetx_enabled()) ble["inetx"] = (st.ble_protos & BLE_P_INETX) != 0;
   if (hymer_enabled()) ble["hymer"] = (st.ble_protos & BLE_P_HYMER) != 0;
-  if (panelsat_enabled()) ble["sat"] = (st.ble_protos & BLE_P_SAT) != 0;
   d["mqtt"]["on"] = st.mqtt_on;
   d["mqtt"]["host"] = st.mqtt_host;
   d["mqtt"]["port"] = st.mqtt_port;
@@ -696,6 +702,13 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   d["display"]["saver"] = st.saver;
   d["display"]["saver_recolor"] = st.saver_recolor;
   d["display"]["saver_logo"] = LittleFS.exists("/saver_logo.bin");
+#if UI_LEDRING
+  d["display"]["ring_knob"] = st.ring_knob;
+  d["display"]["ring_warn"] = st.ring_warn;
+  d["display"]["ring_warn_pct"] = st.ring_warn_pct;
+  d["display"]["ring_bri"] = st.ring_bri;
+#endif
+  d["net"]["web_mode"] = st.web_mode;
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -721,7 +734,6 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     set_proto("victron", BLE_P_VICTRON);
     set_proto("inetx", BLE_P_INETX);
     set_proto("hymer", BLE_P_HYMER);
-    set_proto("sat", BLE_P_SAT);
   }
   JsonObject m = d["mqtt"];
   if (!m.isNull()) {
@@ -748,6 +760,7 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
       if (pw.length() >= 8) st->ap_pass = pw;
     }
     if (n["ap_channel"].is<int>()) st->ap_channel = constrain((int)n["ap_channel"], 1, 13);
+    if (n["web_mode"].is<int>()) st->web_mode = UI_WEB_SETUP ? 0 : ((int)n["web_mode"] ? 1 : 0);   // ohne Menue immer an
   }
   JsonObject di = d["display"];
   if (!di.isNull()) {
@@ -756,6 +769,12 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     if (di["dim_level"].is<int>()) st->dim_level = constrain((int)di["dim_level"], 0, 100);
     if (di["saver"].is<int>()) st->saver = constrain((int)di["saver"], 0, 4);
     if (di["saver_recolor"].is<bool>()) st->saver_recolor = di["saver_recolor"].as<bool>();
+#if UI_LEDRING
+    if (di["ring_knob"].is<bool>()) st->ring_knob = di["ring_knob"].as<bool>();
+    if (di["ring_warn"].is<bool>()) st->ring_warn = di["ring_warn"].as<bool>();
+    if (di["ring_warn_pct"].is<int>()) st->ring_warn_pct = constrain((int)di["ring_warn_pct"], 1, 90);
+    if (di["ring_bri"].is<int>()) st->ring_bri = constrain((int)di["ring_bri"], 0, 100);
+#endif
   }
   st->hostname.trim();
   st->mqtt_host.trim();
@@ -784,10 +803,15 @@ static esp_err_t h_time_post(httpd_req_t *req) {
 }
 
 // Im Panel-WLAN ohne Internet: alle unbekannten Adressen auf den Editor umleiten (Anmeldeseite am Handy)
+// Unbekannte Adresse im Panel-WLAN: auf die Panel-Seite umleiten. Das faengt auch die Pruefadressen der Handys ab
+// (Android /generate_204, Apple /hotspot-detect.html, Windows /connecttest.txt …) – das Handy zeigt dann die
+// Anmeldeseite des WLANs, also den Editor (Captive Portal wie bei WLED).
 static esp_err_t h_not_found(httpd_req_t *req, httpd_err_code_t) {
   if (net_ap_active()) {
+    static char loc[40];
+    snprintf(loc, sizeof(loc), "http://%s/", net_ap_ip().c_str());
     httpd_resp_set_status(req, "302 Found");
-    httpd_resp_set_hdr(req, "Location", "http://192.168.4.1/");
+    httpd_resp_set_hdr(req, "Location", loc);
     return httpd_resp_send(req, nullptr, 0);
   }
   httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "Nicht gefunden");
@@ -801,6 +825,10 @@ static esp_err_t h_wifi_post(httpd_req_t *req) {
   JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
+  if (!e && (d["scan"] | false)) {   // {"scan":true}: WLAN-Suche anstossen, Ergebnis per GET /api/wifi
+    net_web_scan_request();
+    return send_ok(req);
+  }
   if (e || !d["ssid"].is<const char *>()) return send_err(req, "400 Bad Request", "SSID fehlt");
   Settings *st = new Settings(settings_copy());
   st->wifi_ssid = (const char *)d["ssid"];
@@ -810,6 +838,28 @@ static esp_err_t h_wifi_post(httpd_req_t *req) {
     return send_err(req, "503 Service Unavailable", "Panel ist beschäftigt");
   }
   return send_ok(req);
+}
+
+// Ergebnis der WLAN-Suche: {"running":true} oder {"running":false,"failed":false,"nets":[{"ssid","rssi","secure"}]}
+static esp_err_t h_wifi_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  std::vector<WifiNet> nets;
+  bool failed = false;
+  bool done = net_web_scan_result(nets, failed);
+  d["running"] = !done;
+  if (done) {
+    d["failed"] = failed;
+    JsonArray a = d["nets"].to<JsonArray>();
+    for (auto &n : nets) {
+      JsonObject o = a.add<JsonObject>();
+      o["ssid"] = n.ssid.c_str();
+      o["rssi"] = n.rssi;
+      o["secure"] = n.secure;
+    }
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
 }
 
 // {"devices":true}: Geraeteliste neu holen, sonst Zustaende neu abfragen
@@ -976,6 +1026,17 @@ static esp_err_t h_hymer_get(httpd_req_t *req) {
   d["cloud_state"] = hymer_cloud_state();
   d["cloud_text"] = hymer_cloud_text();
   d["online"] = net_connected();
+  if (d["enabled"] && !hymer_paired()) {   // Geraete in der Naehe: antippen = genau mit diesem koppeln
+    hymer_browse();
+    JsonArray ca = d["cands"].to<JsonArray>();
+    for (auto &c : hymer_candidates()) {
+      JsonObject o = ca.add<JsonObject>();
+      o["mac"] = c.mac;
+      o["name"] = c.name;
+      o["rssi"] = c.rssi;
+      o["hymer"] = c.score >= 2;
+    }
+  }
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -996,8 +1057,21 @@ static esp_err_t h_hymer_post(httpd_req_t *req) {
     hymer_cloud_forget();
     return send_ok(req);
   }
+  // Kopplung wie am Panel (Einstellungen > Hymer): danach am Bedienteil "CONNECTION" druecken
+  if (d["pair_with"].is<const char *>()) {
+    hymer_pair_with(d["pair_with"].as<const char *>());
+    return send_ok(req);
+  }
+  if (d["pair"] | false) {
+    hymer_pair_start();
+    return send_ok(req);
+  }
+  if (d["forget"] | false) {
+    hymer_forget();
+    return send_ok(req);
+  }
   if (!d["login"].isNull()) {
-    if (!net_connected()) return send_err(req, "400 Bad Request", "Das Panel hat kein Internet – Heim-WLAN mit Internet nötig");
+    if (!net_connected()) return send_err(req, "400 Bad Request", "Das Panel hat kein Internet – Camp-WLAN mit Internet nötig");
     HymerCloudReq r;
     r.user = d["login"]["user"] | "";
     r.pass = d["login"]["pass"] | "";
@@ -1250,6 +1324,21 @@ static esp_err_t h_sat_get(httpd_req_t *req) {
     o["age"] = n.age_s;
     o["devices"] = n.devices;
   }
+  // Satelliten im Einrichtungsmodus (BOOT 3 s am Satelliten) und Stand der Einrichtung
+  JsonObject pr = d["pair"].to<JsonObject>();
+  pr["wifi_off"] = settings_copy().net_mode == NET_OFF;
+  pr["searching"] = satpair_searching();
+  pr["left"] = satpair_search_left();
+  pr["state"] = satpair_state();
+  pr["status"] = satpair_status();
+  pr["ip"] = satpair_ip();
+  JsonArray pc = pr["cands"].to<JsonArray>();
+  for (auto &c : satpair_candidates()) {
+    JsonObject o = pc.add<JsonObject>();
+    o["mac"] = c.mac;
+    o["name"] = c.name;
+    o["rssi"] = c.rssi;
+  }
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -1266,6 +1355,16 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
   if (d["forget"].is<const char *>()) panelsat_forget(d["forget"].as<const char *>());
   if (d["password"].is<const char *>()) panelsat_set_password(d["password"].as<const char *>());
+  // Neuen Satelliten hinzufuegen: {"search":true} sucht 3 Minuten per Bluetooth
+  if (d["search"] | false) {
+    if (settings_copy().net_mode == NET_OFF) return send_err(req, "409 Conflict", "Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.");
+    satpair_search_start();
+  }
+  // Neuen Satelliten einrichten: {"pair":"<mac>"} – WLAN-Daten je Betriebsart und Passwort per Bluetooth
+  if (d["pair"].is<const char *>()) {
+    std::string err = satpair_start(d["pair"].as<const char *>());
+    if (!err.empty()) return send_err(req, "409 Conflict", err.c_str());
+  }
   // Schalter am Satelliten: {"switch":"satio:<sat>/switch1","on":true}
   if (d["switch"].is<const char *>()) {
     std::string err;
@@ -1504,6 +1603,7 @@ void web_start() {
   reg("/api/settings", HTTP_GET, h_settings_get);
   reg("/api/settings", HTTP_POST, h_settings_post);
   reg("/api/wifi", HTTP_POST, h_wifi_post);
+  reg("/api/wifi", HTTP_GET, h_wifi_get);
   reg("/api/refresh", HTTP_POST, h_refresh);
   reg("/api/reboot", HTTP_POST, h_reboot);
   reg("/api/ota", HTTP_POST, h_ota);

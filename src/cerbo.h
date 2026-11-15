@@ -48,3 +48,8 @@ bool cerbo_set_mode(const std::string &key, int mode);
 
 const char *cerbo_mode_text(int mode);             // Schalter des Wechselrichters/Laders: "Ein", "Nur Laden", ...
 const char *cerbo_source_text(int src);            // aktiver AC-Eingang: "Netz", "Landstrom", "Generator", ...
+// Ein-/Ausgaenge des GX (Relais, Tanks, Temperatursensoren, Digitaleingaenge) – nur was am GX eingerichtet ist.
+// Erscheinen im Panel wie die Anschluesse eines Satelliten "GX" (panelsat.cpp, Schluessel "satio:GX/<punkt>").
+struct SatPoint;
+std::vector<SatPoint> cerbo_points();
+bool cerbo_set_relay(int idx, bool on);   // idx = Punktnummer (Relais 1 = 1); nur Relais mit Funktion "manuell"

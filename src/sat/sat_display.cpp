@@ -1104,7 +1104,7 @@ void sat_display_begin() {
 #if SAT_SPLASH
   if (SPLASH_CYD_JPG_LEN) {   // direkt aufs Display, der Decoder braucht nur kurz ~4 KB
     s_lcd.drawJpg(SPLASH_CYD_JPG, SPLASH_CYD_JPG_LEN, 0, 0);
-    s_splash_until = (millis() + 3000) | 1;
+    s_splash_until = (millis() + 6000) | 1;   // 6 s wie bei den Panels
   }
 #endif
 

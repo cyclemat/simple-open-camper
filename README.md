@@ -87,9 +87,9 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 
 | Modus | Beschreibung |
 |---|---|
-| Netzwerk | Panel und Hub im Heim-WLAN |
+| Netzwerk | Panel und Hub im Camp-WLAN |
 | Router | Panel öffnet ein eigenes WLAN mit DHCP; der SMHUB Nano bucht sich ein, das Panel findet den Broker automatisch |
-| Kombi | Eigenes WLAN für den Hub **und** Heim-WLAN, mit Internet-Weiterleitung (NAT) |
+| Kombi | Eigenes WLAN für den Hub **und** Camp-WLAN, mit Internet-Weiterleitung (NAT) |
 
 ---
 
@@ -111,6 +111,20 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
    Einstellungen neu gebaut wird (XIP aus PSRAM gegen Bildflackern, NAT für den Kombi-Modus).
 4. Vor dem Hochladen fragt das Terminal nach **Enter** – Zeit zum Anstecken.
 5. Danach führt das Panel durch die Einrichtung.
+
+### 📁 Fertige Firmware ohne neu zu bauen
+
+Jeder Build legt seine Dateien zusätzlich in **`release/lokal/`** ab (nicht im Git) – je Umgebung immer nur die
+neueste:
+
+| Datei | Wofür |
+|---|---|
+| `<umgebung>.bin` | Komplettdatei (Bootloader, Partitionen, App) – mit esptool ab Adresse `0x0` schreiben |
+| `<umgebung>-update.bin` | nur die App – für Updates über die Weboberfläche des Geräts |
+| `esp32-updater@0x2F0000.bin` | kleiner Updater der 4-MB-Geräte, an die angegebene Adresse |
+| `stand.txt` | Version und Zeitpunkt je Umgebung |
+
+Beispiel: `esptool --port COM11 write-flash 0x0 release/lokal/esp32-relay16.bin`
 
 ### 🛠 Wartung und Diagnose
 
@@ -217,7 +231,7 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 - **Router-Modus:** Am Panel **Netzwerk → Router** wählen (Panel startet neu). Am Nano unter WLAN das Panel-WLAN
   wählen (2,4 GHz) – Name und Passwort stehen am Panel. Der Editor ist dann unter `http://192.168.4.1/` erreichbar.
 - **Funkkanäle:** WLAN und Zigbee teilen sich 2,4 GHz. Zigbee2MQTT nutzt standardmäßig Kanal 11 → Panel-WLAN
-  auf 13 lassen. Im Kombi-Modus folgt das Panel-WLAN dem Kanal des Heim-WLANs.
+  auf 13 lassen. Im Kombi-Modus folgt das Panel-WLAN dem Kanal des Camp-WLANs.
 
 ---
 
@@ -253,7 +267,14 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 - Fünf Kacheln: **Solar** (PV-Leistung, Ladephase, Ertrag heute), **Netz** (Leistung, Spannung, Strombegrenzung),
   **Ladegerät** (Multi/Quattro oder Netzladegerät: Zustand, Schalter, Leistung), **Batterie** (SOC, Spannung,
   Leistung, Restlaufzeit) und **DC-System** (Verbraucher-Leistung).
-- Nur Anzeige – Schalten (z. B. Wechselrichter-Modus) ist noch nicht eingebaut.
+- **MultiPlus/Quattro und Ladegeräte bedienen:** im Detailfenster (Kachel lange drücken) Netzstrom-Begrenzung und
+  Schalter (Ein, Aus, Nur Laden, Nur Wechselrichter) – nur wenn der GX das erlaubt.
+- **DC-DC-Lader am GX** (Orion XS, Orion Smart) und **Lichtmaschinenregler** (z. B. Wakespeed): je Gerät eine eigene
+  Kachel mit Zustand, Eingang und Ausgang (Name vom GX). Per Bluetooth ohne GX gehen Orion XS/Smart sowieso.
+- **Ein- und Ausgänge des GX** – nur was dort eingerichtet ist: **Relais** (schaltbar, wenn am GX die Funktion
+  „Manuell“ gewählt ist), **Tanks** (Füllstand, Inhalt in Litern), **Temperatursensoren** (auch Luftfeuchte, z. B.
+  Ruuvi) und **Digitaleingänge** (Tür, Bilge, Alarm, Generator). Sie erscheinen im Editor wie die Anschlüsse eines
+  Satelliten namens **„GX“** und lassen sich aufs Panel ziehen.
 
 ### 🔥 Truma-Heizung
 
@@ -282,7 +303,7 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 
 ### 🖼️ Startbild
 
-Beim Start zeigt das Panel 3 Sekunden lang ein Startbild und gibt den Speicher danach wieder frei. Standard ist das
+Beim Start zeigt das Panel 6 Sekunden lang ein Startbild und gibt den Speicher danach wieder frei. Standard ist das
 Banner (`assets/splash.jpg`); eine eigene **`splash.jpg`** im Projektordner hat beim Bauen Vorrang. Das Bild als JPEG „baseline“ speichern (nicht „progressive“), am besten 1024×600 –
 größere Bilder werden um 1/2, 1/4 oder 1/8 verkleinert.
 
@@ -321,16 +342,19 @@ Alle brauchen mindestens 4 MB Flash. Das Web-IF zeigt nur die Pins, die der jewe
 | 🌡️ DS18B20 | bis 8 Fühler an einem GPIO | 1-Wire, Fühler per Knopf suchen, Korrektur je Fühler |
 | 📈 Analog | bis 4 Eingänge (ADC1, siehe oben) | zwei Punkte zum Umrechnen von mV in den Wert |
 | 📐 MPU-6050 (GY-521) | Neigung längs und quer | Nullpunkt per Knopf, Beruhigung siehe unten |
-| 🔌 Schalter | bis 8 Ausgänge (Relais) | aktiv Low wählbar, Zustand nach dem Start: aus / an / wie zuletzt |
+| 🔌 Schalter | bis 8 Ausgänge (Relais), 16 mit der Relaisplatine (`satellite-relay16`, 2× 74HC595) | aktiv Low wählbar, Zustand nach dem Start: aus / an / wie zuletzt |
 | 🔘 Eingänge | bis 8 Kontakte oder Taster | Pull-up und Umkehren wählbar |
 
-**Drei Wege zum Panel** – am Satelliten einzeln einschaltbar:
+**Zwei Wege zum Panel** – am Satelliten einzeln einschaltbar (ab Werk ist beides aus):
 
-- **Bluetooth** direkt ans Panel, ohne WLAN. Verschlüsselt (AES-CTR) mit einem gemeinsamen Passwort für alle
-  Satelliten. Das Panel nimmt Satelliten mit passendem Passwort automatisch auf.
-- **MQTT** über den Broker, mit **Home-Assistant-Discovery** – die Werte erscheinen also auch in Home Assistant.
+- **UDP** im WLAN direkt ans Panel (Port 47811, Rundruf oder feste Panel-IP) – **ohne Server**. Werte und
+  Schaltbefehle sind mit dem gemeinsamen **Satelliten-Passwort** verschlüsselt (AES-CTR). Die Einrichtung per Knopf
+  (unten) schaltet UDP automatisch ein.
+- **MQTT** über einen Broker, mit **Home-Assistant-Discovery** – die Werte erscheinen dann auch in Home Assistant.
   Topics: `panelsat/<id>/sensor/<punkt>`, schalten mit `panelsat/<id>/switch/<punkt>/set` (`ON` / `OFF` / `TOGGLE`).
-- **UDP** (Port 47811) als Broadcast oder an eine feste Panel-IP.
+
+Bluetooth dient nur noch zum **Einrichten** – als Datenweg war es zu langsam. Auch die ausgewerteten
+Bluetooth-Geräte (Truma, Mopeka, Victron) sind ab Werk aus: am Satelliten nur einschalten, was er lesen soll.
 
 Im Panel muss dafür `satellites = 1` unter `[features]` in der `platformio.ini` stehen (Standard).
 
@@ -340,10 +364,46 @@ Im Panel muss dafür `satellites = 1` unter `[features]` in der `platformio.ini`
    **Upload** klicken – oder `pio run -e satellite-c3 -t upload`. Der Satellit ist intern ein eigenes
    PlatformIO-Projekt im Ordner `satellite/` mit eigenem Paketordner; die Einträge im Panel-Menü reichen nur
    weiter. So installieren sich Panel und Satellit nicht gegenseitig das Framework neu.
-2. Ohne WLAN-Zugang öffnet der Satellit das WLAN **„SOC-Satellite-…“** (Passwort `panelsat`).
-   Verbinden und **http://192.168.4.1/** öffnen.
-3. Im Web-IF WLAN, Weg zum Panel und Bluetooth-Passwort einstellen, dann die Bluetooth-Geräte und die GPIOs belegen.
-   Das Web-IF zeigt zu jedem Pin, was er kann, warnt bei Startpins, Boot-Taste und LED und bei doppelter Belegung.
+2. Mit dem Panel verbinden – am einfachsten **per Knopf** (siehe unten), sonst über das eigene WLAN des Satelliten.
+3. Im Web-IF des Satelliten die Bluetooth-Geräte und die GPIOs belegen. Das Web-IF zeigt zu jedem Pin, was er kann,
+   warnt bei Startpins, Boot-Taste und LED und bei doppelter Belegung.
+
+#### 🔘 Per Knopf mit dem Panel verbinden (empfohlen)
+
+So kommt ein neuer Satellit ohne Tippen von WLAN-Daten ins Netz – ähnlich wie bei Shelly oder Hue:
+
+1. Am Panel unter **Einstellungen → Geräte → Satelliten** auf **„Neuen Satelliten hinzufügen“** tippen (im Editor:
+   Reiter **Satelliten → „Neuen Satelliten suchen“**). Das Panel sucht dann 3 Minuten lang per Bluetooth.
+2. Am Satelliten die **BOOT-Taste 3 Sekunden halten** (ESP32/S3: GPIO 0, C3/C6: GPIO 9). Hat er keine Taste:
+   **3× schnell hintereinander Strom aus/an**. Er ist dann **3 Minuten** lang per Bluetooth zum Einrichten sichtbar.
+3. Er erscheint als **„Satellite-…“** – antippen bzw. **„Einrichten“**.
+4. Das Panel verbindet sich **verschlüsselt** (Bluetooth LE Secure Connections) und überträgt:
+   - den **WLAN-Zugang** – passend zur Betriebsart des Panels:
+
+     | Panel-Betriebsart | Der Satellit bekommt |
+     |---|---|
+     | Camp-WLAN (Panel ist Teilnehmer) | Zugang zu **diesem** Netz |
+     | Router (Panel spannt das Netz auf) | Zugang zum **Panel-WLAN** |
+     | Kombi | das **Panel-WLAN** (bleibt gleich, auch auf einem anderen Campingplatz) |
+     | WLAN aus | **keine Einrichtung** – Satelliten brauchen ein WLAN |
+
+   - das **Satelliten-Passwort** des Panels, damit beide sofort zusammenpassen.
+5. Der Satellit verbindet sich, **meldet seine IP-Adresse** zurück (das Panel zeigt sie an), startet neu und spricht
+   das Panel ab dann per **UDP** an.
+
+Die Daten gehen nur nach dem Tastendruck am Gerät und nur verschlüsselt über die Luft – aus der Ferne lässt sich
+einem Satelliten so kein fremdes WLAN unterschieben. Ändert sich am Panel die Betriebsart oder das Netz: am
+Satelliten einfach erneut BOOT halten und neu einrichten. Abschaltbar beim Bauen mit `-DSAT_PAIR=0` (spart Flash).
+
+#### Über das eigene WLAN des Satelliten
+
+Ohne WLAN-Zugang öffnet der Satellit das WLAN **„SOC-Satellite-…“** (Passwort `panelsat`). Verbinden – die Seite
+öffnet sich meist von selbst, sonst **http://4.3.2.1/**. Beim ersten Öffnen ein eigenes Zugangspasswort vergeben, dann
+WLAN, Weg zum Panel (UDP) und das Satelliten-Passwort einstellen (dasselbe wie am Panel). Das eigene WLAN des
+Satelliten öffnet sich auch jederzeit mit 3× schnell aus/an.
+
+Am Panel nimmt **Antippen** eines Satelliten in der Liste ihn auch wieder heraus (**Entfernen**), im Editor heißt das
+**Vergessen**.
 
 ### 💧 Tanksonden
 

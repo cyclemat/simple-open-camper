@@ -21,7 +21,8 @@
 #include "../gx_find.h"
 #include "../bms.h"
 
-#define VD_FW_VERSION "1.0.0"
+#include "../soc_version.h"
+#define VD_FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
 
 static const uint32_t AP_AFTER_MS = 30000;   // so lange ohne WLAN: Einrichtungs-WLAN dazuschalten
 static const uint32_t AP_OFF_MS = 120000;    // verbunden und niemand im Einrichtungs-WLAN: abschalten

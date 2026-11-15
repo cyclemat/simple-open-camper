@@ -3,6 +3,8 @@
 #include "settings.h"
 #include "app_config.h"
 #include <WiFi.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include <ESPmDNS.h>
 #include <DNSServer.h>
 #include <sys/time.h>
@@ -16,7 +18,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-static const IPAddress AP_IP(192, 168, 4, 1);
+#if UI_WEB_SETUP
+// Einrichtung nur ueber den Browser (UI_WEB_SETUP, z. B. CrowPanel 1.46"): wie WLED 4.3.2.1 – Android zeigt die Anmeldeseite des WLANs nur
+// bei einer Adresse, die nicht nach Heimnetz aussieht (bei 192.168.x.x meldet es nur "kein Internet")
+static const IPAddress AP_IP(4, 3, 2, 1);
+#else
+static const IPAddress AP_IP(192, 168, 4, 1);   // grosse Panels: Router-Modus mit Hubs, Adresse bleibt
+#endif
 static const IPAddress AP_MASK(255, 255, 255, 0);
 
 static uint8_t s_mode = NET_STA;
@@ -31,7 +39,7 @@ static bool s_scanning = false;
 static bool s_scan_req = false, s_scan_failed = false, s_scan_paused_sta = false;
 static bool s_scan_fail_pending = false;  // gescheiterte Suche noch nicht an net_scan_take gemeldet
 static uint32_t s_scan_req_at = 0, s_scan_try_at = 0;
-static uint32_t s_last_ok = 0;  // millis(), zu dem das Heim-WLAN zuletzt verbunden war
+static uint32_t s_last_ok = 0;  // millis(), zu dem das Camp-WLAN zuletzt verbunden war
 static char s_status[80] = "Nicht eingerichtet";
 static DNSServer s_dns;
 static bool s_dns_on = false;
@@ -59,10 +67,14 @@ static void start_ap() {
   WiFi.softAPConfig(AP_IP, AP_IP, AP_MASK);
   String pass = g_settings.ap_pass.length() >= 8 ? g_settings.ap_pass : String("");
   s_ap = WiFi.softAP(g_settings.ap_ssid.c_str(), pass.length() ? pass.c_str() : nullptr, g_settings.ap_channel, 0, 8);
-  log_i("Panel-WLAN %s auf Kanal %u: %s", g_settings.ap_ssid.c_str(), g_settings.ap_channel, s_ap ? "aktiv" : "FEHLER");
-  if (s_ap && s_mode == NET_AP) {
-    // Ohne Internet: alle DNS-Anfragen auf das Panel lenken (Handy oeffnet den Editor als Anmeldeseite)
-    s_dns_on = s_dns.start(53, "*", AP_IP);
+  log_w("Panel-WLAN %s auf Kanal %u: %s", g_settings.ap_ssid.c_str(), g_settings.ap_channel, s_ap ? "aktiv" : "FEHLER");
+  // Ohne Internet ueber das Panel-WLAN: alle DNS-Anfragen auf das Panel lenken und per DHCP (Option 114) die Anmelde-
+  // seite nennen – das Handy oeffnet dann den Editor von selbst (Captive Portal). Router-Modus der grossen Panels und
+  // Geraete ohne Einstellungsmenue (UI_WEB_SETUP: Panel-WLAN nur zum Einrichten). Im Kombi-Modus nicht: dort gibt es Internet.
+  if (s_ap && (s_mode == NET_AP || UI_WEB_SETUP)) {
+    WiFi.AP.enableDhcpCaptivePortal();
+    s_dns.setErrorReplyCode(DNSReplyCode::NoError);
+    if (!s_dns_on) s_dns_on = s_dns.start(53, "*", AP_IP);
   }
   start_mdns();
 }
@@ -101,6 +113,11 @@ static void on_ntp_sync(struct timeval *) {
 void net_begin() {
   s_mode = g_settings.net_mode;
   s_last_ok = millis();
+#if UI_WEB_SETUP
+  // Kein Einstellungsmenue am Display: ohne Camp-WLAN gleich das Panel-WLAN dazu, damit man die Weboberflaeche
+  // erreicht (nicht gespeichert – nach dem Eintragen des Camp-WLANs und einem Neustart wieder reiner Client)
+  if (s_mode == NET_STA && g_settings.wifi_ssid.isEmpty()) s_mode = NET_APSTA;
+#endif
   if (s_mode == NET_OFF) {
     // Nur den TCP/IP-Stack (Webserver/UDP brauchen ihn), aber keinen WLAN-Treiber: der kostet den meisten internen RAM
     Network.begin();
@@ -144,7 +161,7 @@ void net_reconnect() {
   WiFi.disconnect(false, false);
   s_got_ip = false;
   if (g_settings.wifi_ssid.isEmpty()) {
-    snprintf(s_status, sizeof(s_status), "Heim-WLAN nicht eingerichtet");
+    snprintf(s_status, sizeof(s_status), "Camp-WLAN nicht eingerichtet");
     return;
   }
   WiFi.setHostname(g_settings.hostname.c_str());
@@ -155,8 +172,55 @@ void net_reconnect() {
 static void scan_try();
 static void scan_resume_sta();
 
+// ---- WLAN-Suche fuer die Weboberflaeche: der Web-Task setzt nur Merker, gesucht wird in net_loop()
+static volatile bool s_web_scan_req = false, s_web_scanning = false, s_web_failed = false;
+static std::vector<WifiNet> s_web_nets;
+static SemaphoreHandle_t s_web_mtx = nullptr;
+static uint32_t s_web_scan_at = 0;
+
+void net_web_scan_request() { s_web_scan_req = true; }
+
+bool net_web_scan_result(std::vector<WifiNet> &out, bool &failed) {
+  if (s_web_scan_req || s_web_scanning || !s_web_mtx) return false;
+  xSemaphoreTake(s_web_mtx, portMAX_DELAY);
+  out = s_web_nets;
+  failed = s_web_failed;
+  xSemaphoreGive(s_web_mtx);
+  return true;
+}
+
+static void web_scan_loop() {
+  if (s_web_scan_req) {
+    s_web_scan_req = false;
+    if (!s_web_mtx) s_web_mtx = xSemaphoreCreateMutex();
+    s_web_scanning = true;
+    s_web_scan_at = millis();
+    net_scan_start();
+  }
+  if (!s_web_scanning) return;
+  std::vector<WifiNet> v;
+  bool timeout = millis() - s_web_scan_at > 20000;   // z. B. hat die Einstellungsseite am Panel das Ergebnis abgeholt
+  if (!net_scan_take(v) && !timeout) return;
+  xSemaphoreTake(s_web_mtx, portMAX_DELAY);
+  s_web_nets.swap(v);
+  s_web_failed = net_scan_failed() || (timeout && v.empty());
+  xSemaphoreGive(s_web_mtx);
+  s_web_scanning = false;
+}
+
 void net_loop() {
   if (s_mode == NET_OFF) return;
+  web_scan_loop();
+#if UI_WEB_SETUP
+  // Camp-WLAN eingerichtet, aber 3 Minuten nicht erreichbar: Panel-WLAN zuschalten (sonst kaeme man nicht mehr an die
+  // Weboberflaeche, um es zu aendern)
+  if (s_mode == NET_STA && !net_connected() && millis() - s_last_ok > 180000UL) {
+    s_mode = NET_APSTA;
+    WiFi.mode(WIFI_AP_STA);
+    start_ap();
+    log_w("Camp-WLAN nicht erreichbar – Panel-WLAN %s zugeschaltet", g_settings.ap_ssid.c_str());
+  }
+#endif
   if (s_dns_on) s_dns.processNextRequest();
   if (s_scan_req) scan_try();
   // Nach der Suche wieder verbinden – auch wenn niemand die Ergebnisse abholt (Seite verlassen)
@@ -199,7 +263,7 @@ void net_loop() {
       retry_at = millis() + iv;
     } else if ((int32_t)(millis() - retry_at) > 0) {
       retry_at = millis() + iv;
-      log_w("Heim-WLAN seit %lu s getrennt – neuer Verbindungsversuch", (unsigned long)((millis() - s_last_ok) / 1000));
+      log_w("Camp-WLAN seit %lu s getrennt – neuer Verbindungsversuch", (unsigned long)((millis() - s_last_ok) / 1000));
       WiFi.disconnect(false, false);
       WiFi.begin(g_settings.wifi_ssid.c_str(), g_settings.wifi_pass.c_str());
     }
@@ -274,7 +338,7 @@ uint32_t net_offline_ms() {
 }
 
 // Die Suche wird in net_loop() gestartet: Solange das Panel noch versucht, sich mit dem gespeicherten
-// Heim-WLAN zu verbinden, lehnt der WLAN-Treiber jede Suche ab. Dann den Verbindungsversuch kurz
+// Camp-WLAN zu verbinden, lehnt der WLAN-Treiber jede Suche ab. Dann den Verbindungsversuch kurz
 // anhalten und es erneut probieren; nach der Suche verbindet sich das Panel wieder.
 void net_scan_start() {
   if (s_scanning || s_scan_req) return;

@@ -70,7 +70,7 @@
 {"Internet", "Internet"},  // src/net.cpp:97
 {"Uhrenchip", "Puce RTC"},  // src/net.cpp:117
 {"Panel-WLAN %s aktiv", "Wi-Fi du panneau %s actif"},  // src/net.cpp:122
-{"Heim-WLAN nicht eingerichtet", "Wi-Fi domestique non configuré"},  // src/net.cpp:134
+{"Camp-WLAN nicht eingerichtet", "Wi-Fi domestique non configuré"},  // src/net.cpp:134
 {"Panel-WLAN %s aktiv, %d %s verbunden", "Wi-Fi du panneau %s actif, %d %s connectés"},  // src/net.cpp:155
 {"Gerät", "appareil"},  // src/net.cpp:156
 {"Geräte", "appareils"},  // src/net.cpp:156
@@ -302,7 +302,7 @@
 {"Noch keine Verbindung zum MQTT-Broker.", "Pas encore de connexion au broker MQTT."},  // src/ui/ui_main.cpp:586
 {"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Les appareils ont été répartis. Peaufinez dans l'éditeur du navigateur."},  // src/ui/ui_main.cpp:590
 {"Willkommen", "Bienvenue"},  // src/ui/ui_main.cpp:613
-{"Verbinde das Panel mit deinem Heim-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connectez le panneau à votre Wi-Fi domestique – ou laissez-le ouvrir son propre Wi-Fi pour votre hub Zigbee en mode routeur."},  // src/ui/ui_main.cpp:614
+{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connectez le panneau à votre Wi-Fi domestique – ou laissez-le ouvrir son propre Wi-Fi pour votre hub Zigbee en mode routeur."},  // src/ui/ui_main.cpp:614
 {"MQTT-Broker eintragen", "Saisir le broker MQTT"},  // src/ui/ui_main.cpp:619
 {"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "Le panneau dialogue directement avec Zigbee2MQTT. Il a besoin pour cela de l'adresse de votre broker MQTT."},  // src/ui/ui_main.cpp:620
 {"Panel-WLAN ist bereit", "Le Wi-Fi du panneau est prêt"},  // src/ui/ui_main.cpp:624
@@ -349,9 +349,9 @@
 {"Netzwerk", "Réseau"},  // src/ui/ui_settings.cpp:182
 {"Router", "Routeur"},  // src/ui/ui_settings.cpp:182
 {"Kombi", "Combiné"},  // src/ui/ui_settings.cpp:182
-{"Panel und Hub hängen beide im Heim-WLAN.", "Le panneau et le hub sont tous deux sur le Wi-Fi domestique."},  // src/ui/ui_settings.cpp:183
+{"Panel und Hub hängen beide im Camp-WLAN.", "Le panneau et le hub sont tous deux sur le Wi-Fi domestique."},  // src/ui/ui_settings.cpp:183
 {"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "Le panneau ouvre son propre Wi-Fi pour le hub. Aucun réseau domestique nécessaire."},  // src/ui/ui_settings.cpp:184
-{"Eigenes WLAN für den Hub plus Heim-WLAN mit Internet-Weiterleitung.", "Wi-Fi propre pour le hub plus Wi-Fi domestique avec accès à internet."},  // src/ui/ui_settings.cpp:185
+{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Wi-Fi propre pour le hub plus Wi-Fi domestique avec accès à internet."},  // src/ui/ui_settings.cpp:185
 {"Das Panel wechselt in den %s-Modus und startet dafür neu.", "Le panneau passe en mode %s et redémarre."},  // src/ui/ui_settings.cpp:193
 {"Betriebsart wechseln?", "Changer de mode de fonctionnement ?"},  // src/ui/ui_settings.cpp:194
 {"Wechseln und neu starten", "Changer et redémarrer"},  // src/ui/ui_settings.cpp:194
@@ -365,12 +365,12 @@
 {"Bitte einen Kanal zwischen 1 und 13 wählen.", "Choisissez un canal entre 1 et 13."},  // src/ui/ui_settings.cpp:238
 {"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "Le nouveau mode est enregistré et prend effet après le redémarrage."},  // src/ui/ui_settings.cpp:280
 {"Panel-WLAN", "Wi-Fi du panneau"},  // src/ui/ui_settings.cpp:284
-{" (folgt dem Heim-WLAN)", " (suit le Wi-Fi domestique)"},  // src/ui/ui_settings.cpp:288
+{" (folgt dem Camp-WLAN)", " (suit le Wi-Fi domestique)"},  // src/ui/ui_settings.cpp:288
 {"Name", "Nom"},  // src/ui/ui_settings.cpp:289
 {"Passwort", "Mot de passe"},  // src/ui/ui_settings.cpp:290
 {"Kanal", "Canal"},  // src/ui/ui_settings.cpp:291
 {"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "Sur le SMHUB Nano, choisissez ce réseau dans Paramètres > Wi-Fi (2,4 GHz). L'éditeur est alors accessible sous http://192.168.4.1/ si votre téléphone est aussi connecté."},  // src/ui/ui_settings.cpp:293
-{"Heim-WLAN", "Wi-Fi domestique"},  // src/ui/ui_settings.cpp:300
+{"Camp-WLAN", "Wi-Fi domestique"},  // src/ui/ui_settings.cpp:300
 {"Netzwerke suchen", "Rechercher des réseaux"},  // src/ui/ui_settings.cpp:310
 {"Verborgenes Netz", "Réseau masqué"},  // src/ui/ui_settings.cpp:311
 {"nicht gesetzt", "non défini"},  // src/ui/ui_settings.cpp:325

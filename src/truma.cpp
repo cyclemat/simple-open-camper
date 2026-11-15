@@ -17,6 +17,7 @@ __attribute__((weak)) bool web_busy() { return false; }
 #include <stdarg.h>
 #include <NimBLEDevice.h>
 #include "bms.h"
+#include "panelsat_pair.h"
 #if CONFIG_ESP_HOSTED_ENABLED || BOARD_P4
 #include "esp32-hal-hosted.h"
 #endif
@@ -375,6 +376,13 @@ void truma_ble_census(uint16_t seconds) {
   s_cen_until = (millis() + seconds * 1000UL) | 1;
 }
 
+// Satelliten im Einrichtungsmodus: nur das Panel wertet sie aus (panelsat_pair.cpp); Satellit und Victron-Display
+// bauen diese Datei ohne Panel-Teil – dort gelten die leeren Fassungen.
+__attribute__((weak)) bool satpair_searching() { return false; }
+__attribute__((weak)) bool satpair_on_adv(const NimBLEAdvertisedDevice *) { return false; }
+__attribute__((weak)) bool satpair_want_connect() { return false; }
+__attribute__((weak)) void satpair_connect_now() {}
+
 class ScanCB : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice *dev) override {
     if (s_cen_until) {
@@ -385,6 +393,7 @@ class ScanCB : public NimBLEScanCallbacks {
       Lock l;
       diag_adv(dev);
     }
+    if (satpair_on_adv(dev)) return;   // Satellit wartet aufs Einrichten (nur waehrend der Suche am Panel)
     // Nur die in den Einstellungen gewaehlten Protokolle auswerten
 #if WITH_BMS
     if (ble_proto_on(BLE_P_BMS) && bms_on_adv(dev)) return;
@@ -538,7 +547,7 @@ static void worker(void *) {
     bool want_active = (p_truma && s_setup_scan) || (p_vic && victron_discovery_running()) ||
                        (p_mop && mopeka_discovery_running()) || s_cen_until != 0;
     bool want_passive = (p_truma && any_due) || (p_vic && victron_has_devices()) || (p_mop && mopeka_has_devices()) ||
-                        ble_proto_on(BLE_P_SAT);
+                        ble_proto_on(BLE_P_SAT) || satpair_searching();   // Panel: "Neuen Satelliten hinzufuegen"
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) {
       inetx_scan_wanted(want_passive, want_active);
       // iNet X gefunden: Verbindung hier im Scan-Task aufbauen, solange der Scan pausiert
@@ -554,6 +563,13 @@ static void worker(void *) {
         scan_stop();
         hymer_connect_now();
       }
+    }
+    // Satellit einrichten (Knopf am Panel): verbinden und WLAN-Daten uebertragen, solange der Scan pausiert
+    if (satpair_want_connect()) {
+      ble_init();
+      scan_stop();
+      satpair_connect_now();
+      scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
     }
 #if WITH_BMS
     // Akkus (BMS): bleiben verbunden; Verbindung hier aufbauen, solange der Scan pausiert

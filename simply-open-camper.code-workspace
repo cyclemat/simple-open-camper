@@ -11,6 +11,14 @@
 		{
 			"name": "Display-Tests",
 			"path": "display-testing"
+		},
+		{
+			"name": "Panel CrowPanel P4",
+			"path": "p4"
+		},
+		{
+			"name": "Panel CrowPanel 1.46\"",
+			"path": "crowpanel146"
 		}
 	],
 	"settings": {}

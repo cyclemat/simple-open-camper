@@ -1,12 +1,41 @@
 // Zentrale Hardware- und Projektkonstanten
 #pragma once
 
-#define FW_VERSION "1.0.0"
+#include "soc_version.h"
+#define FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
 #define FW_NAME    "Simply Open Camper"
 
-// ---------- Display (Waveshare ESP32-S3-Touch-LCD-7B) ----------
+// ---------- Display und Bedienung je Board ----------
+// Merkmale, die jedes Board einzeln setzt (weitere Geraete, z. B. andere runde Displays, kombinieren sie neu):
+//   UI_ROUND      runde Oberflaeche (ui_main.cpp): eine Kachel je Bildschirm, links/rechts = Geraet, hoch/runter =
+//                 Datenseiten, Info-Seite; Editor zeigt einen Kreis. Groesse kommt aus LCD_H_RES/LCD_V_RES.
+//   UI_KNOB       Drehknopf mit Taster (board_knob_take/board_knob_button): drehen = Geraet, druecken = schalten
+//   UI_LEDRING    Anzahl LEDs im Ring (WS2812, board_ring_show): Drehen anzeigen, Warnung, mit dem Display dimmen
+//   UI_WEB_SETUP  kein Einstellungsmenue am Display, eingerichtet wird nur im Browser: ohne Camp-WLAN gleich das
+//                 Panel-WLAN (4.3.2.1, Captive Portal, Kanal 6), nach 3 min ohne Camp-WLAN wieder zuschalten
+#if BOARD_CROWPANEL146   // ELECROW CrowPanel 1.46" Rotary (DHR55146D): rund 360x360, Drehknopf
+#define LCD_H_RES 360
+#define LCD_V_RES 360
+#define UI_ROUND 1
+#define UI_KNOB 1
+#define UI_WEB_SETUP 1
+#define UI_LEDRING 8
+#else                    // Waveshare ESP32-S3-Touch-LCD-7B, CrowPanel Advanced 7" (P4)
 #define LCD_H_RES 1024
 #define LCD_V_RES 600
+#endif
+#ifndef UI_ROUND
+#define UI_ROUND 0
+#endif
+#ifndef UI_KNOB
+#define UI_KNOB 0
+#endif
+#ifndef UI_WEB_SETUP
+#define UI_WEB_SETUP 0
+#endif
+#ifndef UI_LEDRING
+#define UI_LEDRING 0
+#endif
 // 30 MHz ist das Maximum fuer dieses Panel; bei Flackern/Bilddrift auf 21 oder 18 MHz senken.
 // Die Werte mit #ifndef lassen sich per -D ueberschreiben (Display-Tests: display-testing/platformio.ini)
 #ifndef LCD_PCLK_HZ

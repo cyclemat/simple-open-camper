@@ -28,6 +28,7 @@ static std::string lower_mac(std::string s);
 #include "../shelly.h"
 #include "../wled.h"
 #include "../sdcard.h"
+#include "../panelsat_pair.h"
 #include <Arduino.h>
 #include <functional>
 #include <vector>
@@ -49,6 +50,7 @@ static lv_obj_t *s_info_url = nullptr, *s_info_url2 = nullptr;
 static std::vector<lv_obj_t *> s_vic_vals;
 static uint32_t s_vic_sig = 0;
 static std::vector<lv_obj_t *> s_sat_vals;   // Satelliten in "Geraete"
+static lv_obj_t *s_pair_status = nullptr;     // Stand der Satelliten-Einrichtung in "Geraete"
 static uint32_t s_sat_sig = 0;
 static std::vector<lv_obj_t *> s_gx_vals;     // Cerbo GX: Status + fuenf Werte
 static uint32_t s_gx_sig = 0;
@@ -70,6 +72,7 @@ static void reset_dynamic() {
   s_vic_vals.clear();
   s_gx_vals.clear();
   s_sat_vals.clear();
+  s_pair_status = nullptr;
 }
 
 static lv_obj_t *heading(const char *title, const char *hint) {
@@ -190,9 +193,9 @@ static void restart_soon() {
 }
 
 static const char *MODE_TITLES[4] = {"Netzwerk", "Router", "Kombi", "WLAN aus"};
-static const char *MODE_TEXT[4] = {"Panel und Hub hängen beide im Heim-WLAN.",
+static const char *MODE_TEXT[4] = {"Panel und Hub hängen beide im Camp-WLAN.",
                                    "Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.",
-                                   "Eigenes WLAN für den Hub plus Heim-WLAN mit Internet-Weiterleitung.",
+                                   "Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.",
                                    "Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor."};
 
 static void mode_cb(lv_event_t *e) {
@@ -340,7 +343,7 @@ static void build_wifi() {
     lv_obj_t *g = group();
     char ch[40];
     snprintf(ch, sizeof(ch), "%u%s", g_settings.ap_channel,
-             g_settings.net_mode == NET_APSTA ? tr(" (folgt dem Heim-WLAN)") : "");
+             g_settings.net_mode == NET_APSTA ? tr(" (folgt dem Camp-WLAN)") : "");
     ui_row(g, "Name", g_settings.ap_ssid.c_str(), ap_edit_cb, (void *)(intptr_t)0);
     ui_row(g, "Passwort", g_settings.ap_pass.c_str(), ap_edit_cb, (void *)(intptr_t)1);
     ui_row(g, "Kanal", ch, ap_edit_cb, (void *)(intptr_t)2);
@@ -352,7 +355,7 @@ static void build_wifi() {
     lv_obj_set_width(h, lv_pct(100));
   }
   if (g_settings.net_mode == NET_STA || g_settings.net_mode == NET_APSTA) {
-    subheading("Heim-WLAN");
+    subheading("Camp-WLAN");
     lv_obj_t *card = group();
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(card, C_CARD, 0);
@@ -1210,6 +1213,10 @@ static void proto_switch(const char *title, const char *hint, uint8_t p) {
 // ---------------------------------------------------------------- Satelliten
 static uint32_t sat_struct_sig() {
   uint32_t h = 17;
+  for (auto &c : satpair_candidates())   // Satelliten im Einrichtungsmodus (verschwinden nach 15 s ohne Signal)
+    for (char ch : c.mac) h = h * 31 + ch;
+  h = h * 31 + (uint32_t)satpair_state();
+  h = h * 31 + (uint32_t)satpair_searching();
   for (auto &n : panelsat_nodes()) {
     for (char c : n.id) h = h * 31 + c;
     h = h * 31 + (uint32_t)n.devices;
@@ -1227,18 +1234,33 @@ static std::string sat_summary(const SatNode &n) {
   return b;
 }
 
+// Satellit im Einrichtungsmodus antippen: WLAN-Daten und Passwort uebertragen (panelsat_pair.cpp)
+static std::vector<std::string> s_pair_macs;
+static void sat_pair_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_pair_macs.size()) return;
+  std::string err = satpair_start(s_pair_macs[i]);
+  if (!err.empty()) ui_toast(err.c_str());
+  else show_section(SEC_DEVICES);
+}
+
 static void sat_row_cb(lv_event_t *e) {
   size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
   auto nodes = panelsat_nodes();
   if (i >= nodes.size()) return;
   const SatNode &n = nodes[i];
-  if (n.ip.empty()) {
-    ui_toast("Der Satellit hat keine IP-Adresse gemeldet – Einrichten über sein eigenes WLAN „SOC-Satellite-…“.");
-    return;
-  }
-  char b[128];
-  snprintf(b, sizeof(b), tr("Einrichten im Browser: http://%s/"), n.ip.c_str());
-  ui_toast(b);
+  // Antippen: wo seine Weboberflaeche liegt, und "Entfernen" (aus der Liste nehmen)
+  std::string txt;
+  if (!n.ip.empty()) txt = std::string(tr("Weboberfläche: http://")) + n.ip + "/";
+  else if (n.via & 4) txt = tr("Per Bluetooth verbunden (ohne IP). Seine Weboberfläche: WLAN „SOC-Satellite-…“, dann 4.3.2.1.");
+  else txt = tr("Keine IP gemeldet – Weboberfläche über sein eigenes WLAN „SOC-Satellite-…“.");
+  txt += tr("\n\nEntfernen nimmt ihn aus der Liste, seine Kacheln bleiben leer. Sendet er weiter, taucht er wieder auf – "
+            "dann am Satelliten die Sendewege abschalten oder ein anderes Bluetooth-Passwort setzen.");
+  std::string id = n.id;
+  ui_confirm(n.name.c_str(), txt.c_str(), "Entfernen", true, [id] {
+    panelsat_forget(id);
+    show_section(SEC_DEVICES);
+  });
 }
 
 static void sat_pw_cb(lv_event_t *) {
@@ -1256,22 +1278,64 @@ static void sat_pw_cb(lv_event_t *) {
   ui_input_open(o);
 }
 
+static void sat_search_cb(lv_event_t *) {
+  if (g_settings.net_mode == NET_OFF) {
+    ui_toast("Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.");
+    return;
+  }
+  satpair_search_start();
+  show_section(SEC_DEVICES);
+}
+
+static std::string sat_search_text() {
+  uint32_t left = satpair_search_left();
+  char b[120];
+  snprintf(b, sizeof(b), tr("Suche läuft – noch %u:%02u. Am Satelliten die BOOT-Taste 3 s halten (oder 3× schnell aus/ein)."),
+           (unsigned)(left / 60), (unsigned)(left % 60));
+  return b;
+}
+
 static void build_sats() {
   if (!panelsat_enabled()) return;
   subheading("Satelliten");
   lv_obj_t *h = ui_label(s_content,
-                         "Eigene ESP32 mit Bluetooth-Sensoren (Truma LevelControl, Mopeka, Victron). Sie senden per MQTT, "
-                         "UDP oder Bluetooth – ihre Geräte erscheinen hier und im Editor wie eigene.",
+                         "Eigene ESP32 mit Sensoren und Relais im Fahrzeug. Sie senden per UDP im WLAN direkt ans Panel "
+                         "(oder über einen MQTT-Broker) – ihre Geräte erscheinen hier und im Editor wie eigene.",
                          F_SMALL, C_TEXT2);
   lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(h, lv_pct(100));
-  proto_switch("Satelliten per Bluetooth", "Werte direkt per Funk empfangen, ohne WLAN", BLE_P_SAT);
   auto nodes = panelsat_nodes();
   lv_obj_t *g = group();
-  if (ble_proto_on(BLE_P_SAT)) ui_row(g, "Bluetooth-Passwort", panelsat_password().c_str(), sat_pw_cb, nullptr);
+  ui_row(g, "Satelliten-Passwort", panelsat_password().c_str(), sat_pw_cb, nullptr);
   if (nodes.empty()) ui_label(g, "Noch kein Satellit gehört.", F_BODY, C_TEXT2);
   for (size_t i = 0; i < nodes.size(); i++)
     s_sat_vals.push_back(ui_row(g, nodes[i].name.c_str(), sat_summary(nodes[i]).c_str(), sat_row_cb, (void *)(intptr_t)i));
+  // Neuen Satelliten hinzufuegen: 3 Minuten per Bluetooth suchen; am Satelliten BOOT 3 s halten -> erscheint hier,
+  // antippen uebertraegt WLAN-Zugang (je nach Betriebsart) und Passwort, danach spricht er per UDP
+  s_pair_macs.clear();
+  s_pair_status = nullptr;
+  bool searching = satpair_searching();
+  int st = satpair_state();
+  if (!searching) {
+    lv_obj_t *row = button_row();
+    ui_button(row, ICON_PLUS, "Neuen Satelliten hinzufügen", true, sat_search_cb, nullptr);
+  }
+  if (searching || st != 0) {
+    lv_obj_t *pg = group();
+    for (auto &c : satpair_candidates()) {
+      char v[40];
+      snprintf(v, sizeof(v), tr("%d dBm · Einrichten"), c.rssi);
+      ui_row(pg, c.name.c_str(), v, sat_pair_cb, (void *)(intptr_t)s_pair_macs.size());
+      s_pair_macs.push_back(c.mac);
+    }
+    std::string t = st != 0 ? satpair_status() : sat_search_text();
+    s_pair_status = ui_row(pg, st != 0 ? "Stand" : "Suche", t.c_str(), nullptr, nullptr);
+  }
+  if (g_settings.net_mode == NET_OFF) {
+    lv_obj_t *ph = ui_label(s_content, "Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(ph, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ph, lv_pct(100));
+  }
   s_sat_sig = sat_struct_sig();
 }
 
@@ -1283,6 +1347,8 @@ void ui_settings_tick_sat() {
   }
   auto nodes = panelsat_nodes();
   for (size_t i = 0; i < nodes.size() && i < s_sat_vals.size(); i++) lv_label_set_text(s_sat_vals[i], sat_summary(nodes[i]).c_str());
+  if (s_pair_status)
+    lv_label_set_text(s_pair_status, (satpair_state() != 0 ? satpair_status() : sat_search_text()).c_str());
 }
 
 static void build_truma_lc(const Layout &lay) {
@@ -2147,4 +2213,5 @@ void ui_settings_tick() {
   if (s_clock_val) lv_label_set_text(s_clock_val, clock_text().c_str());
   info_fill();
   ui_settings_tick_victron();  // Ende der Suche, Alter der Werte
+  ui_settings_tick_sat();      // Satelliten im Einrichtungsmodus kommen und gehen, Stand der Einrichtung
 }

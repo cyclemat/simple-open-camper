@@ -526,30 +526,8 @@ static std::string reception(const VictronInfo &v) {
   return s + tr(", Signal ") + q;
 }
 
-void ui_vic_update() {
-  if (!s_v) return;
-  VictronInfo v;
-  if (!ui_vic_get(s_v->key, v)) {
-    ui_vic_close();
-    return;
-  }
-  if (v.kind != s_v->kind) {  // Geraeteart erst jetzt bekannt: neu aufbauen
-    std::string key = s_v->key;
-    lv_obj_del(s_v->ov);
-    ui_vic_open(key);
-    return;
-  }
-  Layout lay = layout_get();
-  (lv_label_set_text)(s_v->title, ui_vic_label(lay, v).c_str());
-  VicTileText tt = ui_vic_tile_text(v, false, false);
-  lv_obj_set_style_bg_color(s_v->hdr_bg, v.has ? tt.accent : C_FIELD, 0);
-  lv_obj_set_style_text_color(s_v->hdr_icon, v.has ? C_INK : C_TEXT2, 0);
-  lv_label_set_text(s_v->big, tt.value.c_str());
-  if (s_v->bar) {
-    lv_bar_set_value(s_v->bar, tt.fill < 0 ? 0 : tt.fill, LV_ANIM_ON);
-    lv_obj_set_style_bg_color(s_v->bar, tt.accent, LV_PART_INDICATOR);
-  }
-  std::string val[MAX_ROWS];
+// Werte zu row_titles() (gleiche Reihenfolge); ohne Messwert "–", nur "Empfang" bleibt
+static void row_values(const VictronInfo &v, std::string *val, int n) {
   switch (v.kind) {
     case VIC_SOLAR:
       val[0] = ui_num(v.bat_v, 2, "V");
@@ -595,7 +573,7 @@ void ui_vic_update() {
         val[2] = ui_num(v.bat_v, 2, "V");
         val[3] = ui_num(v.bat_i, 1, "A");
         val[4] = ui_num(v.ac_i, 1, "A");
-        val[5] = ui_num(v.aux, 0, "Â°" "C");
+        val[5] = ui_num(v.aux, 0, "°C");
         val[6] = reception(v);
         break;
       }
@@ -645,7 +623,45 @@ void ui_vic_update() {
       break;
   }
   if (!v.has)
-    for (int i = 0; i < s_v->nrows - 1; i++) val[i] = "–";
+    for (int i = 0; i < n - 1; i++) val[i] = "–";
+}
+
+// Bezeichnung und Wert aller Zeilen des Detailfensters (rundes Panel: eine Zeile je Datenseite)
+std::vector<std::pair<std::string, std::string>> ui_vic_rows(const VictronInfo &v) {
+  const char *titles[MAX_ROWS];
+  std::string val[MAX_ROWS];
+  int n = row_titles(v, titles);
+  row_values(v, val, n);
+  std::vector<std::pair<std::string, std::string>> out;
+  for (int i = 0; i < n; i++) out.push_back({tr(titles[i]), val[i]});
+  return out;
+}
+
+void ui_vic_update() {
+  if (!s_v) return;
+  VictronInfo v;
+  if (!ui_vic_get(s_v->key, v)) {
+    ui_vic_close();
+    return;
+  }
+  if (v.kind != s_v->kind) {  // Geraeteart erst jetzt bekannt: neu aufbauen
+    std::string key = s_v->key;
+    lv_obj_del(s_v->ov);
+    ui_vic_open(key);
+    return;
+  }
+  Layout lay = layout_get();
+  (lv_label_set_text)(s_v->title, ui_vic_label(lay, v).c_str());
+  VicTileText tt = ui_vic_tile_text(v, false, false);
+  lv_obj_set_style_bg_color(s_v->hdr_bg, v.has ? tt.accent : C_FIELD, 0);
+  lv_obj_set_style_text_color(s_v->hdr_icon, v.has ? C_INK : C_TEXT2, 0);
+  lv_label_set_text(s_v->big, tt.value.c_str());
+  if (s_v->bar) {
+    lv_bar_set_value(s_v->bar, tt.fill < 0 ? 0 : tt.fill, LV_ANIM_ON);
+    lv_obj_set_style_bg_color(s_v->bar, tt.accent, LV_PART_INDICATOR);
+  }
+  std::string val[MAX_ROWS];
+  row_values(v, val, s_v->nrows);
   for (int i = 0; i < s_v->nrows; i++) lv_label_set_text(s_v->rows[i], val[i].c_str());
   std::string st = v.status == "OK" ? "" : v.status;
   if (v.gx) st = (v.status == "OK" || v.age_s == 0) ? "" : v.status;

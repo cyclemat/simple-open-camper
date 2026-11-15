@@ -53,6 +53,11 @@ bool sd_begin() {
   }
   return sd_mounted();
 }
+#elif BOARD_CROWPANEL146   // keine SD-Karte
+bool sd_begin() {
+  s_status = "keine SD-Karte am Gerät";
+  return false;
+}
 #else
 bool sd_begin() {
   spi_bus_config_t bus = {};

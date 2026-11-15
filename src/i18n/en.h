@@ -70,7 +70,7 @@
 {"Internet", "Internet"},  // src/net.cpp:97
 {"Uhrenchip", "RTC chip"},  // src/net.cpp:117
 {"Panel-WLAN %s aktiv", "Panel Wi-Fi %s active"},  // src/net.cpp:122
-{"Heim-WLAN nicht eingerichtet", "Home Wi-Fi not set up"},  // src/net.cpp:134
+{"Camp-WLAN nicht eingerichtet", "Camp Wi-Fi not set up"},  // src/net.cpp:134
 {"Panel-WLAN %s aktiv, %d %s verbunden", "Panel Wi-Fi %s active, %d %s connected"},  // src/net.cpp:155
 {"Gerät", "device"},  // src/net.cpp:156
 {"Geräte", "devices"},  // src/net.cpp:156
@@ -302,7 +302,7 @@
 {"Noch keine Verbindung zum MQTT-Broker.", "No connection to the MQTT broker yet."},  // src/ui/ui_main.cpp:586
 {"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Devices have been arranged. Fine-tune in the browser editor."},  // src/ui/ui_main.cpp:590
 {"Willkommen", "Welcome"},  // src/ui/ui_main.cpp:613
-{"Verbinde das Panel mit deinem Heim-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connect the panel to your home Wi-Fi – or let it open its own Wi-Fi for your Zigbee hub in router mode."},  // src/ui/ui_main.cpp:614
+{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connect the panel to your camp Wi-Fi – or let it open its own Wi-Fi for your Zigbee hub in router mode."},  // src/ui/ui_main.cpp:614
 {"MQTT-Broker eintragen", "Enter MQTT broker"},  // src/ui/ui_main.cpp:619
 {"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "The panel talks directly to Zigbee2MQTT. It needs the address of your MQTT broker."},  // src/ui/ui_main.cpp:620
 {"Panel-WLAN ist bereit", "Panel Wi-Fi is ready"},  // src/ui/ui_main.cpp:624
@@ -349,9 +349,9 @@
 {"Netzwerk", "Network"},  // src/ui/ui_settings.cpp:182
 {"Router", "Router"},  // src/ui/ui_settings.cpp:182
 {"Kombi", "Combined"},  // src/ui/ui_settings.cpp:182
-{"Panel und Hub hängen beide im Heim-WLAN.", "Panel and hub are both on the home Wi-Fi."},  // src/ui/ui_settings.cpp:183
+{"Panel und Hub hängen beide im Camp-WLAN.", "Panel and hub are both on the camp Wi-Fi."},  // src/ui/ui_settings.cpp:183
 {"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "The panel opens its own Wi-Fi for the hub. No home network needed."},  // src/ui/ui_settings.cpp:184
-{"Eigenes WLAN für den Hub plus Heim-WLAN mit Internet-Weiterleitung.", "Own Wi-Fi for the hub plus home Wi-Fi with internet forwarding."},  // src/ui/ui_settings.cpp:185
+{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Own Wi-Fi for the hub plus camp Wi-Fi with internet forwarding."},  // src/ui/ui_settings.cpp:185
 {"Das Panel wechselt in den %s-Modus und startet dafür neu.", "The panel switches to %s mode and restarts."},  // src/ui/ui_settings.cpp:193
 {"Betriebsart wechseln?", "Change operating mode?"},  // src/ui/ui_settings.cpp:194
 {"Wechseln und neu starten", "Change and restart"},  // src/ui/ui_settings.cpp:194
@@ -365,12 +365,12 @@
 {"Bitte einen Kanal zwischen 1 und 13 wählen.", "Please choose a channel between 1 and 13."},  // src/ui/ui_settings.cpp:238
 {"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "New operating mode is saved and takes effect after the restart."},  // src/ui/ui_settings.cpp:280
 {"Panel-WLAN", "Panel Wi-Fi"},  // src/ui/ui_settings.cpp:284
-{" (folgt dem Heim-WLAN)", " (follows the home Wi-Fi)"},  // src/ui/ui_settings.cpp:288
+{" (folgt dem Camp-WLAN)", " (follows the camp Wi-Fi)"},  // src/ui/ui_settings.cpp:288
 {"Name", "Name"},  // src/ui/ui_settings.cpp:289
 {"Passwort", "Password"},  // src/ui/ui_settings.cpp:290
 {"Kanal", "Channel"},  // src/ui/ui_settings.cpp:291
 {"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "On the SMHUB Nano, choose this network under Settings > Wi-Fi (2.4 GHz). The editor is then reachable at http://192.168.4.1/ if your phone is connected too."},  // src/ui/ui_settings.cpp:293
-{"Heim-WLAN", "Home Wi-Fi"},  // src/ui/ui_settings.cpp:300
+{"Camp-WLAN", "Camp Wi-Fi"},  // src/ui/ui_settings.cpp:300
 {"Netzwerke suchen", "Search networks"},  // src/ui/ui_settings.cpp:310
 {"Verborgenes Netz", "Hidden network"},  // src/ui/ui_settings.cpp:311
 {"nicht gesetzt", "not set"},  // src/ui/ui_settings.cpp:325

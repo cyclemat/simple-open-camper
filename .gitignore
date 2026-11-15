@@ -26,3 +26,6 @@ a-*.d
 
 # Screenshots von tools/screenshot.py
 screenshot_*.bmp
+
+# Lokale Kopien der zuletzt gebauten Firmware (tools/upload_wait.py)
+release/lokal/

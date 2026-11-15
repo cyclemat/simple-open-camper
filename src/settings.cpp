@@ -50,7 +50,11 @@ void settings_load() {
   g_settings.mqtt_on = prefs.getBool("mqtt_on", true);
   g_settings.ap_ssid = prefs.getString("ap_ssid", "");
   g_settings.ap_pass = prefs.getString("ap_pass", "");
+#if UI_WEB_SETUP
+  g_settings.ap_channel = prefs.getUChar("ap_ch", 6);   // Kanal 6: sehen alle Handys (12/13 nicht ueberall)
+#else
   g_settings.ap_channel = prefs.getUChar("ap_ch", 13);
+#endif
   g_settings.mqtt_auto = prefs.getBool("mqtt_auto", true);
   g_settings.wifi_ssid = prefs.getString("wifi_ssid", "");
   g_settings.wifi_pass = prefs.getString("wifi_pass", "");
@@ -67,6 +71,14 @@ void settings_load() {
   g_settings.saver_recolor = prefs.getBool("saver_rc", true);
   g_settings.tz = prefs.getString("tz", DEFAULT_TZ);
   g_settings.ble_protos = prefs.getUChar("ble", BLE_P_DEFAULT);
+  // Satelliten senden nur noch per UDP/MQTT (Bluetooth als Datenweg entfallen, 2026-11-15): alten Schalter loeschen
+  g_settings.ble_protos &= ~BLE_P_SAT;
+#if UI_LEDRING
+  g_settings.ring_knob = prefs.getBool("rg_knob", true);
+  g_settings.ring_warn = prefs.getBool("rg_warn", true);
+  g_settings.ring_warn_pct = prefs.getUChar("rg_wpct", 10);
+  g_settings.ring_bri = prefs.getUChar("rg_bri", 30);
+#endif
   s_ble = g_settings.ble_protos;
   prefs.end();
   // Leer oder noch ein alter Standardname ("zigbee-panel..." aus der Zeit vor der Umbenennung, "simply-open-camper"):
@@ -83,7 +95,13 @@ void settings_load() {
   if (g_settings.mqtt_base.isEmpty()) g_settings.mqtt_base = DEFAULT_MQTT_BASE;
   if (g_settings.net_mode > NET_OFF) g_settings.net_mode = NET_STA;
   if (g_settings.saver > SAVER_DUEL) g_settings.saver = SAVER_BLACK;
+#if UI_WEB_SETUP
+  g_settings.web_mode = 0;   // ohne Einstellungsmenue am Display liesse sich das Webinterface sonst nicht mehr einschalten
+#endif
   if (g_settings.ap_channel < 1 || g_settings.ap_channel > 13) g_settings.ap_channel = 13;
+#if UI_WEB_SETUP
+  if (g_settings.ap_channel >= 12) g_settings.ap_channel = 6;   // Einrichtung per Handy: Kanal 12/13 sehen nicht alle Geraete
+#endif
   if (g_settings.ap_ssid.isEmpty()) {
     char b[32];
     snprintf(b, sizeof(b), "SOC-Panel-%04X", (unsigned)(ESP.getEfuseMac() >> 32) & 0xFFFF);
@@ -127,6 +145,12 @@ void settings_save() {
   prefs.putBool("saver_rc", g_settings.saver_recolor);
   prefs.putString("tz", g_settings.tz);
   prefs.putUChar("ble", g_settings.ble_protos);
+#if UI_LEDRING
+  prefs.putBool("rg_knob", g_settings.ring_knob);
+  prefs.putBool("rg_warn", g_settings.ring_warn);
+  prefs.putUChar("rg_wpct", g_settings.ring_warn_pct);
+  prefs.putUChar("rg_bri", g_settings.ring_bri);
+#endif
   prefs.end();
   unlock();
 }

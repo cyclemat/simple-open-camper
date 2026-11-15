@@ -24,7 +24,7 @@ Danach startet das Gerät mit der neuen Firmware.</p>
 <script>
 const $=s=>document.querySelector(s);let INFO={};
 const show=(id)=>{['login','setup','up'].forEach(x=>$('#'+x).style.display=x===id?'':'none')};
-async function info(){try{INFO=await (await fetch('/api/info')).json();$('#n').textContent=INFO.name+' · '+INFO.ip+' · '+(INFO.fw?'Firmware: '+INFO.ver:'keine gültige Firmware');}catch(e){}}
+async function info(){try{INFO=await (await fetch('/api/info')).json();$('#n').textContent='Updater '+INFO.upd+' · '+INFO.name+' · '+INFO.ip+' · '+(INFO.fw?'Firmware: '+INFO.ver:'keine gültige Firmware');}catch(e){}}
 async function auth(){const a=await (await fetch('/api/auth')).json();show(a.setup?'setup':a.authed?'up':'login')}
 $('#bl').onclick=async()=>{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:$('#pw').value})});
  if(r.ok)auth();else $('#st').textContent='Passwort falsch.'};

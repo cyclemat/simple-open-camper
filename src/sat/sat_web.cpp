@@ -245,7 +245,6 @@ static void h_config() {
     };
     set_bit("mqtt", SAT_M_MQTT);
     set_bit("udp", SAT_M_UDP);
-    set_bit("ble", SAT_M_BLE);
   }
   if (d["ble_pw"].is<const char *>()) {
     g_sat.ble_pw = (const char *)d["ble_pw"];

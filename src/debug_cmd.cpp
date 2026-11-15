@@ -15,6 +15,7 @@
 #include "hymer.h"
 #include "truma.h"
 #include "cerbo.h"
+#include "board_crowpanel146.h"
 
 #ifndef DISPLAY_TESTING
 #define DISPLAY_TESTING 0
@@ -137,6 +138,8 @@ static void print_info() {
   ram_line("DMA", MALLOC_CAP_DMA);
   ram_line("PSRAM", MALLOC_CAP_SPIRAM);
   log_printf("Netz: %s, WLAN \"%s\" %d dBm, IP %s\n", net_status_text(), net_ssid().c_str(), net_rssi(), net_ip().c_str());
+  log_printf("Panel-WLAN: %s \"%s\", Kanal %u, %d Teilnehmer, %s\n", net_ap_active() ? "an" : "aus", g_settings.ap_ssid.c_str(),
+             g_settings.ap_channel, net_ap_clients(), net_ap_ip().c_str());
   log_printf("MQTT: %s (%s), %u Geraete\n", z2m_connected() ? "verbunden" : "getrennt", z2m_status_text(), (unsigned)z2m_count());
   log_printf("Bluetooth-Protokolle:%s%s%s%s%s%s\n", ble_proto_on(BLE_P_TRUMA) ? " Truma" : "", ble_proto_on(BLE_P_MOPEKA) ? " Mopeka" : "",
              ble_proto_on(BLE_P_VICTRON) ? " Victron" : "", ble_proto_on(BLE_P_INETX) ? " iNetX" : "",
@@ -162,6 +165,11 @@ static void run(const char *cmd) {
 #if WITH_HYMER
   } else if (!strcmp(cmd, "hymer")) {
     hymer_print_debug();
+#endif
+#if BOARD_CROWPANEL146
+  } else if (!strcmp(cmd, "touch")) {
+    log_printf("Touch: 20 s lang Rohwerte und Gesten ausgeben - jetzt wischen/tippen\n");
+    board_touch_debug(20000);
 #endif
 #if DISPLAY_TESTING
   } else if (!strcmp(cmd, "screenshot")) {

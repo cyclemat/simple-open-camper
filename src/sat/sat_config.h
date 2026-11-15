@@ -3,7 +3,8 @@
 #include <Arduino.h>
 #include "../settings.h"   // BleProto-Bits und ble_proto_on() – hier im Satelliten umgesetzt
 
-#define SAT_FW_VERSION "1.1.0"
+#include "../soc_version.h"
+#define SAT_FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
 #define SAT_DEFAULT_BASE "panelsat"
 #define SAT_AP_PASS "panelsat"      // Passwort des Einrichtungs-WLANs
 
@@ -23,10 +24,10 @@ struct SatConfig {
   String base = SAT_DEFAULT_BASE;
   bool ha = true;               // Home-Assistant-Discovery
   String ha_prefix = "homeassistant";
-  uint8_t ble = BLE_P_DEFAULT;  // ausgewertete Bluetooth-Protokolle
-  uint8_t modes = SAT_M_MQTT;   // SatMode-Bits
+  uint8_t ble = 0;              // ausgewertete Bluetooth-Protokolle (ab Werk keine)
+  uint8_t modes = 0;            // SatMode-Bits (ab Werk keine; Einrichtung per Knopf schaltet UDP ein)
   String udp_target;            // leer = Broadcast, sonst IP des Panels
-  String ble_pw;                // Bluetooth-Passwort (wie im Panel), leer = Standard "panelsat"
+  String ble_pw;                // Satelliten-Passwort (wie im Panel, verschluesselt die Pakete), leer = "panelsat"
 };
 
 extern SatConfig g_sat;

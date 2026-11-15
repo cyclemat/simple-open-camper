@@ -67,10 +67,9 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <label class="f"><span>Home-Assistant-Präfix</span><input id="qHa" class="mono"></label></div>
 <label class="ck"><input type="checkbox" id="qHaOn">Home-Assistant-Discovery (Sensoren erscheinen automatisch in HA)</label>
 </div>
-<label class="ck"><input type="checkbox" id="mUdp">UDP ins WLAN (ohne Broker)</label>
+<label class="ck"><input type="checkbox" id="mUdp">UDP direkt ans Panel (im WLAN, ohne Broker)</label>
 <div id="udpBox" style="margin-left:28px"><label class="f"><span>Panel-IP (leer = an alle im Netz)</span><input id="uIp" placeholder="leer = Broadcast" class="mono"></label></div>
-<label class="ck"><input type="checkbox" id="mBle">Bluetooth direkt ans Panel (ohne WLAN, nur Kurzwerte)</label>
-<div id="bleBox" style="margin-left:28px"><label class="f"><span>Bluetooth-Passwort (wie im Panel unter Einstellungen → Geräte → Satelliten)</span><input id="bPw" maxlength="32" autocomplete="off"></label>
+<div id="bleBox"><label class="f"><span>Satelliten-Passwort (wie im Panel unter Einstellungen → Geräte → Satelliten, verschlüsselt die Pakete)</span><input id="sBlePw" maxlength="32" autocomplete="off"></label>
 <p class="hint" id="bleName"></p></div>
 
 <h2 style="margin-top:14px">Bluetooth-Geräte auswerten</h2>
@@ -141,13 +140,13 @@ const sig=r=>r>-65?'stark':r>-80?'mittel':'schwach';
 const num=(v,d,u)=>v==null?'–':v.toFixed(d).replace('.',',')+' '+u;
 function fill(){
  $('#cName').value=S.name;$('#cId').value=S.id;$('#cSsid').value=S.wifi.ssid;
- $('#mMqtt').checked=S.modes.mqtt;$('#mUdp').checked=S.modes.udp;$('#mBle').checked=S.modes.ble;
+ $('#mMqtt').checked=S.modes.mqtt;$('#mUdp').checked=S.modes.udp;
  $('#qHost').value=S.mqtt.host;$('#qPort').value=S.mqtt.port;$('#qUser').value=S.mqtt.user;$('#qBase').value=S.mqtt.base;
  $('#qHa').value=S.mqtt.ha_prefix;$('#qHaOn').checked=S.mqtt.ha;$('#qPass').placeholder=S.mqtt.has_pass?'unverändert':'kein Passwort';
- $('#uIp').value=S.udp_target;$('#bPw').value=S.ble_pw;$('#pTruma').checked=S.ble.truma;$('#pMopeka').checked=S.ble.mopeka;$('#pVictron').checked=S.ble.victron;if('hymer' in S.ble){$('#pHymerL').style.display='';$('#pHymer').checked=S.ble.hymer}
+ $('#uIp').value=S.udp_target;$('#sBlePw').value=S.ble_pw;$('#pTruma').checked=S.ble.truma;$('#pMopeka').checked=S.ble.mopeka;$('#pVictron').checked=S.ble.victron;if('hymer' in S.ble){$('#pHymerL').style.display='';$('#pHymer').checked=S.ble.hymer}
  $('#trInt').value=S.truma.interval;boxes();
 }
-function boxes(){$('#mqttBox').style.display=$('#mMqtt').checked?'':'none';$('#udpBox').style.display=$('#mUdp').checked?'':'none';$('#bleBox').style.display=$('#mBle').checked?'':'none'}
+function boxes(){$('#mqttBox').style.display=$('#mMqtt').checked?'':'none';$('#udpBox').style.display=$('#mUdp').checked?'':'none'}
 function render(){
  $('#hName').textContent=S.name;document.title=S.name+' – PanelSat';
  $('#hSub').textContent='Kennung '+S.id+(S.wifi.ip?' · '+S.wifi.ip:'');
@@ -155,7 +154,7 @@ function render(){
  if(S.wifi.ap)c.push(['','Einrichtungs-WLAN '+S.wifi.ap_ssid]);
  if(S.modes.mqtt)c.push([S.mqtt.connected?'ok':'err','MQTT: '+S.mqtt.status]);
  if(S.modes.udp)c.push(['ok','UDP: '+S.udp_sent+' Pakete']);
- if(S.modes.ble)c.push(['ok','Bluetooth: '+S.adv_count+' Gerät(e)']);
+
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#bleName').textContent='Per Bluetooth heißt dieser Satellit „'+S.ble_name+'“. Das Panel nimmt ihn automatisch auf, wenn das Passwort passt.';
  $('#fwInfo').textContent='Version '+S.fw+(S.chip?' ('+S.chip+')':'')+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
@@ -307,11 +306,11 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||
  if(d.ioact)act('/api/io/action',JSON.parse(d.ioact),'Erledigt.').then(()=>ioLoad());
  if(d.iosw)act('/api/io/action',{switch:+d.iosw});
 });
-$('#mMqtt').onchange=$('#mUdp').onchange=$('#mBle').onchange=boxes;
+$('#mMqtt').onchange=$('#mUdp').onchange=boxes;
 $('#bSave').onclick=()=>{
  const d={name:$('#cName').value.trim(),id:$('#cId').value.trim(),wifi:{ssid:$('#cSsid').value.trim()},
   mqtt:{host:$('#qHost').value.trim(),port:+$('#qPort').value||1883,user:$('#qUser').value.trim(),base:$('#qBase').value.trim(),ha:$('#qHaOn').checked,ha_prefix:$('#qHa').value.trim()},
-  modes:{mqtt:$('#mMqtt').checked,udp:$('#mUdp').checked,ble:$('#mBle').checked},udp_target:$('#uIp').value.trim(),ble_pw:$('#bPw').value.trim(),
+  modes:{mqtt:$('#mMqtt').checked,udp:$('#mUdp').checked},udp_target:$('#uIp').value.trim(),ble_pw:$('#sBlePw').value.trim(),
   ble:{truma:$('#pTruma').checked,mopeka:$('#pMopeka').checked,victron:$('#pVictron').checked,...('hymer' in S.ble?{hymer:$('#pHymer').checked}:{})}};
  if($('#cWpass').value)d.wifi.pass=$('#cWpass').value;if($('#qPass').value)d.mqtt.pass=$('#qPass').value;
  post('/api/config',d).then(r=>{toast(r.restart?'Gespeichert – der Satellit startet neu und verbindet sich mit dem WLAN.':'Gespeichert.');$('#cWpass').value='';$('#qPass').value='';loaded=false;setTimeout(load,r.restart?8000:500)}).catch(e=>toast(e.message,true));

@@ -1,6 +1,7 @@
 #include "panelsat.h"
 #include "sat_proto.h"
 #include "hymer.h"
+#include "cerbo.h"
 #include "net.h"
 #include "settings.h"
 
@@ -546,7 +547,7 @@ static bool sat_point_get_raw(const std::string &key, SatPoint &out) {
 }
 
 // Schaltbefehl per Bluetooth: 3 s lang ein verschluesseltes Werbepaket senden
-static void ble_send(const uint8_t *md, size_t len) {
+[[maybe_unused]] static void ble_send(const uint8_t *md, size_t len) {
   truma_ble_init();
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
   adv->stop();
@@ -598,10 +599,9 @@ static bool sat_switch_raw(const std::string &key, bool on, std::string *err) {
     ip = n.ip;
     ble = n.ble;
     memcpy(key16, s_key, 16);
-    // Weg waehlen: MQTT (zuverlaessig, mit Broker) > UDP (WLAN) > Bluetooth
+    // Weg waehlen: MQTT (mit Broker) > UDP (WLAN). Bluetooth als Datenweg ist entfallen (zu langsam).
     if (n.mqtt_online == 1 && z2m_connected()) via = 1;
     else if ((x->via & VIA_UDP) && !ip.empty() && !ble.empty()) via = 2;
-    else if ((x->via & VIA_BLE) && !ble.empty() && ble_proto_on(BLE_P_SAT)) via = 4;
   }
   if (!via) {
     if (err) *err = tr("Der Satellit ist gerade nicht erreichbar.");
@@ -613,8 +613,7 @@ static bool sat_switch_raw(const std::string &key, bool on, std::string *err) {
     uint8_t md[20];
     size_t len = sat_cmd_seal(md, sizeof(md), key16, ble, ++counter, SP_SWITCH, idx, on ? 1 : 0, nonce);
     bool sent = len > 0;
-    if (sent && via == 2) sent = udp_send_to(ip, md, len);
-    else if (sent) ble_send(md, len);
+    if (sent) sent = udp_send_to(ip, md, len);
     if (!sent) {
       if (err) *err = tr("Senden fehlgeschlagen.");
       return false;
@@ -718,16 +717,44 @@ static SatPoint hy_local(SatPoint p) {
   return p;
 }
 
-uint32_t panelsat_version() { return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0); }
+// ---------------------------------------------------------------- Victron GX: Relais, Tanks, Temperaturen, Eingaenge
+// Was am GX eingerichtet ist, erscheint wie die Anschluesse eines Satelliten "GX": Schluessel "satio:GX/<punkt>".
+#define GX_SAT_ID "GX"
+static const std::string &gx_prefix() {
+  static const std::string p = std::string(SATIO_KEY_PREFIX) + GX_SAT_ID + "/";
+  return p;
+}
+static bool gx_key(const std::string &k) { return cerbo_enabled() && k.rfind(gx_prefix(), 0) == 0; }
+static bool gx_on() { return cerbo_enabled() && cerbo_configured(); }
+static SatPoint gx_local(SatPoint p) {
+  p.sat = GX_SAT_ID;
+  p.key = gx_prefix() + p.id;
+  return p;
+}
+
+uint32_t panelsat_version() {
+  return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0);
+}
 
 std::vector<SatPoint> panelsat_point_list() {
   std::vector<SatPoint> r = sat_point_list_raw();
   if (hy_on())
     for (auto &p : hymer_points()) r.push_back(hy_local(p));
+  if (gx_on())
+    for (auto &p : cerbo_points()) r.push_back(gx_local(p));
   return r;
 }
 
 bool panelsat_point_get(const std::string &key, SatPoint &out) {
+  if (gx_key(key)) {
+    if (!gx_on()) return false;
+    for (auto &p : cerbo_points())
+      if (gx_prefix() + p.id == key) {
+        out = gx_local(p);
+        return true;
+      }
+    return false;
+  }
   if (!hy_key(key)) return sat_point_get_raw(key, out);
   if (!hy_on()) return false;
   for (auto &p : hymer_points())
@@ -739,9 +766,15 @@ bool panelsat_point_get(const std::string &key, SatPoint &out) {
 }
 
 bool panelsat_switch(const std::string &key, bool on, std::string *err) {
-  if (!hy_key(key)) return sat_switch_raw(key, on, err);
   SatPointKind k;
   uint8_t idx;
+  if (gx_key(key)) {
+    if (gx_on() && sat_point_parse(key.substr(gx_prefix().size()), k, idx) && k == SP_SWITCH && cerbo_set_relay(idx, on))
+      return true;
+    if (err) *err = tr("Der GX ist nicht verbunden oder das Relais steht nicht auf „manuell“.");
+    return false;
+  }
+  if (!hy_key(key)) return sat_switch_raw(key, on, err);
   if (hy_on() && sat_point_parse(key.substr(hy_prefix().size()), k, idx) && k == SP_SWITCH && hymer_switch(idx, on ? 1 : 0))
     return true;
   if (err) *err = tr("Hymer ist gerade nicht verbunden.");
@@ -749,6 +782,7 @@ bool panelsat_switch(const std::string &key, bool on, std::string *err) {
 }
 
 std::string panelsat_via_text(const std::string &key) {
+  if (gx_key(key)) return tr("Victron GX (MQTT)");
   if (hy_key(key)) return tr("Hymer Connect (Bluetooth)");
   return sat_via_text_raw(key);
 }

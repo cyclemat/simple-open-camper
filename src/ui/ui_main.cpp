@@ -14,6 +14,13 @@
 #include "../victron.h"
 #include "../panelsat.h"
 #include "../power.h"
+#include "../board.h"
+#include "../board_crowpanel146.h"
+#if UI_ROUND
+#include <WiFi.h>
+#include "../bms.h"
+#include "../truma_heat.h"
+#endif
 
 #include <Arduino.h>
 #include <time.h>
@@ -34,7 +41,7 @@ struct TileUi {
 
 static lv_obj_t *s_scr, *s_bg, *s_bar, *s_tabs, *s_clock, *s_ic_wifi, *s_ic_mqtt, *s_content;
 static lv_obj_t *s_ic_batt, *s_batt;   // Akkuanzeige in der Leiste
-static lv_obj_t *s_wifi_banner, *s_wifi_banner_txt;  // Hinweis: Heim-WLAN nicht erreichbar
+static lv_obj_t *s_wifi_banner, *s_wifi_banner_txt;  // Hinweis: Camp-WLAN nicht erreichbar
 static std::vector<TileUi> s_tiles;
 static Layout s_lay;
 static int s_page = 0;
@@ -261,7 +268,8 @@ static SioText sio_text(const SatPoint &p, bool small) {
         for (int i = 0; i < 8; i++) wet += (p.probes >> i) & 1;
         char b[48];
         snprintf(b, sizeof(b), tr("Sonden %d/%d"), wet, p.probes_n);
-        r.sub = p.odd ? std::string(tr("Sonden unplausibel")) : std::string(b);
+        if (!p.probes_n) r.sub = p.status == "OK" ? std::string() : p.status;   // ohne Sonden (z. B. Tank am GX): Inhalt
+        else r.sub = p.odd ? std::string(tr("Sonden unplausibel")) : std::string(b);
       }
       break;
     }
@@ -458,6 +466,9 @@ static void tile_event(lv_event_t *e) {
   }
   if (s_tiles[idx].gas || s_tiles[idx].vic || s_tiles[idx].heat) {
     if (millis() - s_last_gesture < 500) return;
+#if UI_ROUND
+    return;   // Detailfenster sind fuer 1024x600 gebaut – auf dem runden Display nur anzeigen
+#endif
     if (code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED) {
       if (s_tiles[idx].heat) ui_heat_open(key);
       else if (s_tiles[idx].vic) ui_vic_open(key);
@@ -479,7 +490,9 @@ static void tile_event(lv_event_t *e) {
     z2m_toggle(key);
   } else if (code == LV_EVENT_LONG_PRESSED) {
     if (millis() - s_last_gesture < 500) return;
+#if !UI_ROUND
     ui_detail_open(key);
+#endif
   }
 }
 
@@ -617,7 +630,7 @@ static void build_onboarding(int mode) {
     case OB_WIFI:
       icon = ICON_WIFI;
       title = "Willkommen";
-      text = "Verbinde das Panel mit deinem Heim-WLAN – oder lass es im Router-Modus ein eigenes WLAN für "
+      text = "Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für "
              "deinen Zigbee-Hub öffnen.";
       break;
     case OB_MQTT:
@@ -697,6 +710,387 @@ static void build_tabs() {
   }
 }
 
+#if UI_ROUND
+// ---------------------------------------------------------------- Runde Oberflaeche (CrowPanel 1.46")
+// Eine grosse Kachel pro Bildschirm in der Reihenfolge des Layouts (alle Seiten hintereinander), danach eine
+// Info-Seite (WLAN, Adresse der Weboberflaeche). Drehknopf/Wischen blaettert, Antippen/Knopfdruck schaltet.
+// Eingerichtet wird nur ueber die Weboberflaeche (Editor).
+static int s_ri = 0;                 // aktuelle Kachel
+static lv_obj_t *s_rpos = nullptr;   // "3 / 7" unten
+static const int R_TILE = LCD_H_RES; // runde Kachel = ganzer Bildschirm, ohne Rand (wirkt wie der Hintergrund)
+
+// Inhalt einer Kachel fuer die Kreisform mittig anordnen (die Panel-Kacheln legen Symbol/Name in die Ecken)
+static void round_center(lv_obj_t *l, int y, int w) {
+  if (!l) return;
+  if (w > 0) lv_obj_set_width(l, w);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(l, LV_ALIGN_CENTER, 0, y);
+}
+static void round_style(TileUi &t) {
+  lv_obj_t *o = t.obj;
+  if (!o) return;
+  lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_clip_corner(o, true, 0);   // Fuellstand (gas/vic) wird zum Pegel im Kreis
+  lv_obj_set_style_border_width(o, 0, 0);     // kein Rand: die Kachel ist der Hintergrund
+  lv_obj_set_style_outline_width(o, 0, 0);
+  lv_obj_set_style_outline_width(o, 0, LV_STATE_PRESSED);
+  int h = t.h;
+  if (t.icon) lv_obj_align(t.icon, LV_ALIGN_TOP_MID, 0, 54);
+  if (t.pct) {   // Gas, Victron, Heizung, Satellit: grosser Wert in der Mitte
+    round_center(t.pct, -18, 0);
+    round_center(t.name, 42, 230);
+    round_center(t.sub, 78, 210);
+  } else {       // Licht, Schalter
+    round_center(t.name, -4, 240);
+    round_center(t.sub, 36, 220);
+    if (t.track) lv_obj_set_pos(t.track, 14, h * 72 / 100);
+  }
+  if (t.name) lv_label_set_long_mode(t.name, LV_LABEL_LONG_DOT);
+  if (t.sub) lv_label_set_long_mode(t.sub, LV_LABEL_LONG_DOT);
+}
+
+static void round_label(lv_obj_t *p, const char *t, const lv_font_t *f, lv_color_t c, int y, int w = 260) {
+  lv_obj_t *l = ui_label(p, "", f, c);
+  (lv_label_set_text)(l, t);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(l, w);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(l, LV_ALIGN_TOP_MID, 0, y);
+}
+
+static void round_info() {
+  lv_obj_t *c = s_content;
+  round_label(c, FW_NAME, F_BODY, C_TEXT2, 62);
+  std::string ssid, url;
+  if (net_connected()) {
+    ssid = net_ssid().c_str();
+    url = std::string("http://") + net_ip().c_str() + "/";
+  } else if (net_ap_active()) {
+    ssid = std::string(tr("WLAN: ")) + WiFi.softAPSSID().c_str() + "\n" + tr("Passwort: ") + g_settings.ap_pass.c_str();
+    url = std::string("http://") + net_ap_ip().c_str() + "/";
+  } else {
+    ssid = net_status_text();
+  }
+  round_label(c, ssid.c_str(), F_BODY, C_TEXT, 92, 280);
+  if (!url.empty()) {
+    round_label(c, "Einrichten im Browser:", F_SMALL, C_TEXT2, 176);
+    round_label(c, url.c_str(), F_TITLE, C_AMBER, 200, 300);
+  }
+  round_label(c, z2m_connected() ? "MQTT verbunden" : g_settings.mqtt_on ? "MQTT nicht verbunden" : "MQTT aus", F_SMALL,
+              z2m_connected() ? C_TEXT2 : C_TEXT3, 250);
+}
+
+// ---- Datenseiten: nach oben/unten wischen zeigt die Werte des aktuellen Geraets einzeln und gross
+// (dieselben Zeilen wie im Detailfenster der grossen Panels). Seite 0 = die Kachel selbst.
+typedef std::vector<std::pair<std::string, std::string>> RoundRows;
+static int s_rd = 0;                   // aktuelle Datenseite (0 = Kachel)
+static int s_rd_n = 0;                 // Anzahl Datenseiten des Geraets beim Aufbau
+static bool s_rinfo = false;           // Info-Seite wird gezeigt
+static std::string s_rkey;             // Geraet auf dem Bildschirm
+static lv_obj_t *s_rd_lab = nullptr, *s_rd_val = nullptr;
+
+static std::string round_onoff(bool on) { return tr(on ? "an" : "aus"); }
+
+static RoundRows round_rows(const std::string &key, std::string *name = nullptr) {
+  RoundRows r;
+  std::string nm;
+#if WITH_BMS
+  BmsInfo b;
+  if (bms_get(key, b)) {
+    VictronInfo v;
+    if (name && ui_vic_get(key, v)) *name = ui_vic_label(s_lay, v);
+    return bms_rows(b);
+  }
+#endif
+  VictronInfo v;
+  if (victron_is_key(key) && ui_vic_get(key, v)) {
+    if (name) *name = ui_vic_label(s_lay, v);
+    return ui_vic_rows(v);
+  }
+  GasView g;
+  if (ui_gas_is_key(key) && ui_gas_get(key, g)) {
+    if (name) *name = ui_gas_label(s_lay, g);
+    if (!g.has) {
+      r.push_back({tr("Zustand"), g.status.empty() ? std::string("–") : g.status});
+      return r;
+    }
+    char b[48];
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.percent);
+    r.push_back({tr("Füllstand"), b});
+    if (!g.amount.empty()) r.push_back({tr("Inhalt"), g.amount});
+    if (g.level_mm >= 0) {
+      snprintf(b, sizeof(b), "%d\xE2\x80\xAFmm", g.level_mm);
+      r.push_back({tr("Füllhöhe"), b});
+    }
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF°C", g.temperature);
+    r.push_back({tr("Temperatur"), b});
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.battery);
+    r.push_back({tr("Sensor-Batterie"), b});
+    snprintf(b, sizeof(b), tr("%d von 3"), g.quality);
+    r.push_back({tr("Messqualität"), b});
+    r.push_back({tr("Letzte Messung"), ui_age_text(g.age_s)});
+    return r;
+  }
+  TrumaHeatInfo h;
+  if (truma_heat_is_key(key) && ui_heat_get(key, h)) {
+    if (name) *name = ui_heat_label(s_lay, h);
+    r.push_back({tr("Raum"), ui_num(h.room_actual, 1, "°C")});
+    r.push_back({tr("Solltemperatur"), ui_num(h.room_target, 1, "°C")});
+    r.push_back({tr("Heizung"), round_onoff(h.heat_on)});
+    if (!isnan(h.water_actual)) r.push_back({tr("Boiler"), ui_num(h.water_actual, 0, "°C")});
+    if (!isnan(h.outdoor)) r.push_back({tr("Außen"), ui_num(h.outdoor, 1, "°C")});
+    if (!isnan(h.battery_v)) r.push_back({tr("Batterie"), ui_num(h.battery_v, 1, "V")});
+    if (h.error) r.push_back({tr("Fehler"), std::to_string(h.error)});
+    r.push_back({tr("Verbindung"), h.connected ? h.source : (h.status.empty() ? std::string("–") : h.status)});
+    return r;
+  }
+  ControlView c;
+  if (z2m_get(key, c)) {
+    if (name) *name = layout_label(s_lay, c);
+    r.push_back({tr("Zustand"), !c.online ? std::string(tr("nicht erreichbar")) : round_onoff(c.on)});
+    if (c.has_bri && c.bri_pct() >= 0) r.push_back({tr("Helligkeit"), std::to_string(c.bri_pct()) + "\xE2\x80\xAF%"});
+    if (c.has_ct && c.ct > 0) r.push_back({tr("Farbtemperatur"), std::to_string(1000000 / c.ct) + "\xE2\x80\xAFK"});
+    if (!c.model.empty()) r.push_back({tr("Modell"), c.vendor.empty() ? c.model : c.vendor + " " + c.model});
+  }
+  return r;
+}
+
+// Punkte am rechten Rand: wo man in den Datenseiten steht (oben = Kachel)
+static void round_dots(int count, int cur) {
+  int sp = count > 12 ? 180 / count : 15;
+  int y0 = -(count - 1) * sp / 2;
+  for (int i = 0; i < count; i++) {
+    lv_obj_t *d = lv_obj_create(s_content);
+    ui_plain(d);
+    lv_obj_clear_flag(d, LV_OBJ_FLAG_CLICKABLE);
+    int sz = i == cur ? 9 : 6;
+    lv_obj_set_size(d, sz, sz);
+    lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(d, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(d, i == cur ? C_AMBER : C_TEXT3, 0);
+    lv_obj_align(d, LV_ALIGN_RIGHT_MID, -20 + (sz - 6) / 2, y0 + i * sp);
+  }
+}
+
+static void round_data_click(lv_event_t *) {
+  if (millis() - s_last_gesture < 400) return;   // Wischen ist kein Antippen
+  s_rd = 0;                                       // Antippen: zurueck zur Kachel
+  ui_main_rebuild();
+}
+
+static void round_data(const std::string &name, const RoundRows &rows) {
+  lv_obj_t *pg = lv_obj_create(s_content);
+  ui_plain(pg);
+  lv_obj_set_size(pg, LCD_H_RES, LCD_V_RES);
+  lv_obj_add_flag(pg, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(pg, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(pg, round_data_click, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *n = ui_label(pg, "", F_SMALL, C_TEXT2);
+  (lv_label_set_text)(n, name.c_str());   // Geraetename: nicht uebersetzen
+  lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(n, 220);
+  lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(n, LV_ALIGN_TOP_MID, 0, 62);
+  s_rd_lab = ui_label(pg, "", F_BODY, C_TEXT2);
+  lv_label_set_long_mode(s_rd_lab, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(s_rd_lab, 260);
+  lv_obj_set_style_text_align(s_rd_lab, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_rd_lab, LV_ALIGN_CENTER, 0, -46);
+  s_rd_val = ui_label(pg, "", F_BIG, C_TEXT);
+  lv_label_set_long_mode(s_rd_val, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(s_rd_val, 290);
+  lv_obj_set_style_text_align(s_rd_val, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_rd_val, LV_ALIGN_TOP_MID, 0, LCD_V_RES / 2 - 18);
+  const auto &row = rows[s_rd - 1];
+  (lv_label_set_text)(s_rd_lab, row.first.c_str());   // schon uebersetzt
+  (lv_label_set_text)(s_rd_val, row.second.c_str());
+}
+
+// Jede Sekunde: Werte der offenen Datenseite neu; andere Zeilenzahl (z. B. Geraeteart erst jetzt bekannt) = neu aufbauen
+static void round_data_refresh() {
+  if (s_rinfo || s_rkey.empty()) return;
+  RoundRows rows = round_rows(s_rkey);
+  if ((int)rows.size() != s_rd_n) {
+    if (s_rd > (int)rows.size()) s_rd = 0;
+    ui_main_rebuild();
+    return;
+  }
+  if (s_rd > 0 && s_rd_val) {
+    (lv_label_set_text)(s_rd_lab, rows[s_rd - 1].first.c_str());
+    (lv_label_set_text)(s_rd_val, rows[s_rd - 1].second.c_str());
+  }
+}
+
+void ui_main_rebuild() {
+  s_lay = layout_get();
+  lv_obj_clean(s_content);
+  s_tiles.clear();
+  s_rd_lab = s_rd_val = nullptr;
+  std::vector<Tile> all;
+  for (auto &p : s_lay.pages)
+    for (auto &t : p.tiles) all.push_back(t);
+  int total = (int)all.size() + 1;   // + Info-Seite
+  s_ri = (s_ri % total + total) % total;
+  s_onboard_mode = OB_NONE;
+  s_rinfo = s_ri == (int)all.size();
+  s_rd_n = 0;
+  s_rkey.clear();
+  if (s_rinfo) {
+    s_rd = 0;
+    round_info();
+  } else {
+    Tile t = all[s_ri];
+    s_rkey = t.key;
+    std::string name;
+    RoundRows rows = round_rows(t.key, &name);
+    s_rd_n = (int)rows.size();
+    if (s_rd > s_rd_n || s_rd < 0) s_rd = 0;
+    if (s_rd == 0) {
+      t.x = 0;
+      t.y = 0;
+      t.w = R_TILE;
+      t.h = R_TILE;
+      create_tile(t);
+      if (!s_tiles.empty()) round_style(s_tiles.back());
+      tiles_update(true);
+    } else {
+      if (name.empty()) name = s_lay.names.count(t.key) ? s_lay.names[t.key] : std::string();
+      round_data(name, rows);
+    }
+    if (s_rd_n) round_dots(s_rd_n + 1, s_rd);
+  }
+  s_rpos = ui_label(s_content, "", F_SMALL, C_TEXT3);
+  char b[24];
+  snprintf(b, sizeof(b), "%d / %d", s_ri + 1, total);
+  lv_label_set_text(s_rpos, b);
+  lv_obj_align(s_rpos, LV_ALIGN_BOTTOM_MID, 0, -18);
+}
+
+// Anderes Geraet: beginnt immer auf der Kachel
+static void set_page(int p) {
+  s_ri = p;
+  s_rd = 0;
+  ui_main_rebuild();
+}
+
+// Links/rechts wischen = anderes Geraet, nach oben/unten = Datenseiten des Geraets
+static void gesture_cb(lv_event_t *) {
+  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+#if BOARD_CROWPANEL146   // serieller Befehl "touch"
+  if (board_touch_debug_on())
+    log_printf("Geste %s, Datenseiten %d, Seite %d\n",
+               d == LV_DIR_LEFT ? "links" : d == LV_DIR_RIGHT ? "rechts" : d == LV_DIR_TOP ? "hoch" : d == LV_DIR_BOTTOM ? "runter" : "?",
+               s_rd_n, s_rd);
+#endif
+  if (d == LV_DIR_LEFT || d == LV_DIR_RIGHT) {
+    s_last_gesture = millis();
+    lv_indev_wait_release(lv_indev_get_act());
+    set_page(s_ri + (d == LV_DIR_LEFT ? 1 : -1));
+  } else if (d == LV_DIR_TOP || d == LV_DIR_BOTTOM) {
+    s_last_gesture = millis();
+    lv_indev_wait_release(lv_indev_get_act());
+    if (!s_rd_n) return;
+    int n = s_rd_n + 1;
+    s_rd = (s_rd + (d == LV_DIR_TOP ? 1 : -1) + n) % n;
+    ui_main_rebuild();
+  }
+}
+
+// Ruhezustand des runden Panels (der Bildschirmschoner der grossen Panels ist fuer 1024x600 gebaut): nach
+// "Starten nach" abdunkeln (Anzeige "Abdunkeln") bzw. Licht aus (alle anderen). Beruehrung/Drehknopf weckt.
+static void round_dim_tick() {
+  static uint32_t t = 0;
+  if (millis() - t < 500) return;
+  t = millis();
+  uint16_t after = g_settings.dim_after;
+  if (!board_is_dimmed() && after && lv_disp_get_inactive_time(nullptr) > (uint32_t)after * 1000)
+    board_dim(g_settings.saver == SAVER_DIM ? g_settings.dim_level : 0);
+}
+
+#if UI_LEDRING
+// ---- LED-Ring: Lichtpunkt beim Drehen (Stelle in der Geraeteliste), rot pulsieren bei knapper Gasflasche/Batterie
+// (nur Geraete mit Kachel auf dem Panel), im Ruhezustand nur noch die Warnung, gedimmt. Kein eigener Task.
+static uint32_t s_ring_knob_ms = 0;   // letzte Drehung
+static bool s_ring_warn = false;
+
+static void ring_check_warn() {
+  s_ring_warn = false;
+  if (!g_settings.ring_warn) return;
+  int lim = g_settings.ring_warn_pct;
+  for (auto &p : s_lay.pages)
+    for (auto &t : p.tiles) {
+      GasView g;
+      if (ui_gas_is_key(t.key) && ui_gas_get(t.key, g) && g.has && g.percent <= lim) s_ring_warn = true;
+      VictronInfo v;
+      if (victron_is_key(t.key) && ui_vic_get(t.key, v) && v.has) {
+        VicTileText tt = ui_vic_tile_text(v, false, false);   // fill = Ladezustand wie auf der Kachel, -1 = keiner
+        if (!tt.stale && tt.fill >= 0 && tt.fill <= lim) s_ring_warn = true;
+      }
+    }
+}
+
+static void round_ring_loop() {
+  static uint32_t t_frame = 0, t_warn = 0;
+  uint32_t now = millis();
+  if (now - t_warn > 5000) {
+    t_warn = now;
+    ring_check_warn();
+  }
+  if (now - t_frame < 40) return;
+  t_frame = now;
+  uint32_t c[UI_LEDRING] = {0};
+  bool dim = board_is_dimmed();
+  float bri = g_settings.ring_bri / 100.0f * (dim ? 0.25f : 1.0f);
+  if (s_ring_warn) {
+    float ph = (now % 2500) / 2500.0f;
+    float lv = 0.12f + 0.88f * (0.5f - 0.5f * cosf(ph * 6.2831853f));
+    uint32_t r = (uint32_t)(255 * bri * lv);
+    for (int i = 0; i < UI_LEDRING; i++) c[i] = r << 16;
+  }
+  uint32_t since = now - s_ring_knob_ms;
+  if (!dim && g_settings.ring_knob && s_ring_knob_ms && since < 2500) {
+    int total = 1;
+    for (auto &p : s_lay.pages) total += (int)p.tiles.size();
+    int led = s_ri * UI_LEDRING / total % UI_LEDRING;
+    float f = since < 2000 ? 1.0f : 1.0f - (since - 2000) / 500.0f;
+    uint32_t w = (uint32_t)(255 * bri * f);
+    c[led] = w << 16 | (w * 3 / 4) << 8 | (w * 3 / 10);   // warmweiss
+  }
+  board_ring_show(c, UI_LEDRING);
+}
+#endif
+
+// Drehknopf (UI_KNOB): Geraet waehlen; Knopfdruck = Antippen der Kachel (Licht/Schalter schalten) bzw. auf einer
+// Datenseite zurueck zur Kachel; lang = zur Info-Seite. Runde Displays ohne Knopf: nur Touch.
+#if UI_KNOB
+static void round_knob() {
+  int n = board_knob_take();
+  int b = board_knob_button();
+  if (!n && !b) return;
+  if (board_is_dimmed()) {   // im Ruhezustand weckt der Knopf nur
+    board_wake();
+    return;
+  }
+  lv_disp_trig_activity(nullptr);
+  if (n) {
+    set_page(s_ri + n);
+#if UI_LEDRING
+    s_ring_knob_ms = millis();
+#endif
+  }
+  if (b == 1 && s_rd > 0) {
+    s_rd = 0;
+    ui_main_rebuild();
+  } else if (b == 1 && !s_tiles.empty() && s_tiles[0].obj) {
+    lv_event_send(s_tiles[0].obj, LV_EVENT_SHORT_CLICKED, nullptr);
+  } else if (b == 2) {
+    std::vector<Tile> all;
+    for (auto &p : s_lay.pages) all.insert(all.end(), p.tiles.begin(), p.tiles.end());
+    set_page((int)all.size());
+  }
+}
+#endif   // UI_KNOB
+#else
 void ui_main_rebuild() {
   s_lay = layout_get();
   if (s_page >= (int)s_lay.pages.size()) s_page = 0;
@@ -742,12 +1136,16 @@ static void gesture_cb(lv_event_t *) {
     if (s_lay.pages.size() > 1) set_page(s_page + (d == LV_DIR_LEFT ? 1 : -1));
   }
 }
+#endif   // UI_ROUND
 
 static void gear_cb(lv_event_t *) { ui_settings_open(SEC_WIFI); }
 static void wifi_banner_cb(lv_event_t *) { ui_settings_open(SEC_WIFI); }
 
-// Gespeichertes Heim-WLAN laenger nicht erreichbar: unten einen antippbaren Hinweis zeigen
+// Gespeichertes Camp-WLAN laenger nicht erreichbar: unten einen antippbaren Hinweis zeigen
 static void wifi_banner_update() {
+#if UI_ROUND
+  return;
+#endif
   bool show = net_mode() == NET_STA && !g_settings.wifi_ssid.isEmpty() && net_offline_ms() > 30000;
   if (!show) {
     lv_obj_add_flag(s_wifi_banner, LV_OBJ_FLAG_HIDDEN);
@@ -848,10 +1246,22 @@ void ui_init() {
 
   s_content = lv_obj_create(s_scr);
   ui_plain(s_content);
+#if UI_ROUND
+  lv_obj_add_flag(s_bar, LV_OBJ_FLAG_HIDDEN);   // keine Leiste: der runde Bildschirm zeigt nur Kacheln
+  lv_obj_set_style_bg_color(s_scr, C_TILE, 0);   // gleiche Farbe wie eine ausgeschaltete Kachel: alles eine Flaeche
+  lv_obj_set_pos(s_content, 0, 0);
+  lv_obj_set_size(s_content, LCD_H_RES, LCD_V_RES);
+#else
   lv_obj_set_pos(s_content, 0, UI_TOPBAR_H);
   lv_obj_set_size(s_content, LCD_H_RES, UI_CONTENT_H);
+#endif
   lv_obj_add_flag(s_content, LV_OBJ_FLAG_CLICKABLE);
+#if UI_ROUND
+  // LVGL reicht Gesten an das Elternobjekt weiter (GESTURE_BUBBLE ist Standard), sie kommen also beim Bildschirm an
+  lv_obj_add_event_cb(s_scr, gesture_cb, LV_EVENT_GESTURE, nullptr);
+#else
   lv_obj_add_event_cb(s_content, gesture_cb, LV_EVENT_GESTURE, nullptr);
+#endif
 
   s_wifi_banner = lv_obj_create(s_scr);
   ui_plain(s_wifi_banner);
@@ -875,6 +1285,9 @@ void ui_init() {
   lv_obj_align(s_wifi_banner, LV_ALIGN_BOTTOM_MID, 0, -20);
   lv_obj_add_event_cb(s_wifi_banner, wifi_banner_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_flag(s_wifi_banner, LV_OBJ_FLAG_HIDDEN);
+#if UI_ROUND
+  lv_obj_add_flag(s_wifi_banner, LV_OBJ_FLAG_HIDDEN);
+#endif
 
   s_seen_layout = layout_version();
   s_seen_devs = z2m_devices_version();
@@ -894,7 +1307,17 @@ void ui_settings_changed() { ui_settings_refresh(); }
 void ui_loop() {
   static uint32_t t_fast = 0, t_slow = 0;
   uint32_t now = millis();
-  ui_saver_tick();
+#if UI_ROUND
+#if UI_KNOB
+  round_knob();
+#endif
+  round_dim_tick();
+#if UI_LEDRING
+  round_ring_loop();
+#endif
+#else
+  ui_saver_tick();   // Bildschirmschoner ist fuer 1024x600 gebaut
+#endif
   if (now - t_fast >= 100) {
     t_fast = now;
     if (layout_version() != s_seen_layout || z2m_devices_version() != s_seen_devs) {
@@ -948,8 +1371,19 @@ void ui_loop() {
     static std::string last_status;
     bool router_wait_changed = s_onboard_mode == OB_ROUTER_WAIT && last_status != z2m_status_text();
     last_status = z2m_status_text();
+#if UI_ROUND
+    (void)router_wait_changed;
+    tiles_update(false);
+    round_data_refresh();
+    static uint32_t t_info = 0;   // Info-Seite: Verbindung alle 3 s neu
+    if (s_rinfo && now - t_info > 3000) {
+      t_info = now;
+      ui_main_rebuild();
+    }
+#else
     if (onboard_mode() != s_onboard_mode || router_wait_changed) ui_main_rebuild();
     if (s_onboard_mode == OB_NONE) tiles_update(false);
+#endif
     ui_settings_tick();
   }
 }

@@ -1,4 +1,5 @@
 #include "cerbo.h"
+#include "sat_proto.h"   // SatPoint (Ein-/Ausgaenge des GX)
 
 #if WITH_CERBO
 #include <Arduino.h>
@@ -54,11 +55,47 @@ static const char *SUBS[] = {
     "multi/+/Dc/0/Voltage",
     "multi/+/CustomName",
     "multi/+/ProductName",
+    // Ein-/Ausgaenge des GX, nur wenn dort eingerichtet (erscheinen als Satellit "GX", cerbo_points)
+    "system/0/Relay/+/State",
+    "settings/0/Settings/Relay/#",      // Function (2 = manuell -> schaltbar), CustomName
+    "tank/+/Level",
+    "tank/+/Remaining",
+    "tank/+/Capacity",
+    "tank/+/FluidType",
+    "tank/+/CustomName",
+    "tank/+/ProductName",
+    "temperature/+/Temperature",
+    "temperature/+/Humidity",
+    "temperature/+/TemperatureType",
+    "temperature/+/CustomName",
+    "temperature/+/ProductName",
+    "digitalinput/+/State",
+    "digitalinput/+/Type",
+    "digitalinput/+/CustomName",
+    "digitalinput/+/ProductName",
+    // DC-DC-Lader (Orion XS, Orion Smart am GX) und Lichtmaschinenregler: je Geraet eine Kachel "cerbo:dcdc<n>"
+    "dcdc/+/State",
+    "dcdc/+/Dc/#",
+    "dcdc/+/CustomName",
+    "dcdc/+/ProductName",
+    "alternator/+/State",
+    "alternator/+/Dc/#",
+    "alternator/+/CustomName",
+    "alternator/+/ProductName",
 };
 
 enum { T_SOLAR, T_GRID, T_CHARGER, T_BATTERY, T_DC, T_INVERTER, T_COUNT };
 static const char *TILE_ID[T_COUNT] = {"solar", "grid", "charger", "battery", "dc", "inverter"};
 static const char *MPPT_PREFIX = "mppt";   // je Solarregler: "cerbo:mppt<Instanz>"
+static const char *DCDC_PREFIX = "dcdc";   // je DC-DC-Lader: "cerbo:dcdc<Instanz>", Lichtmaschinenregler: Instanz + 1000
+static const int ALT_OFFSET = 1000;
+
+struct Dcdc {
+  float in_v = NAN, in_i = NAN, in_p = NAN, out_v = NAN, out_i = NAN, out_p = NAN;
+  int state = -1;
+  bool alt = false;   // Lichtmaschinenregler (Dienst alternator)
+  std::string custom, product;
+};
 
 struct Mppt {
   float pv_w = NAN, v = NAN, i = NAN, yield = NAN;
@@ -66,7 +103,32 @@ struct Mppt {
   std::string custom, product;
 };
 
+// Ein-/Ausgaenge des GX
+struct GxRelay {
+  int state = -1, func = -1;   // Function: 0 Alarm, 1 Generator, 2 manuell, 3 Tankpumpe, 4 Temperatur
+  std::string name;
+};
+struct GxTank {
+  float level = NAN, remaining = NAN, capacity = NAN;   // %, m3, m3
+  int fluid = -1;
+  std::string custom, product;
+};
+struct GxTemp {
+  float t = NAN, hum = NAN;
+  int type = -1;
+  std::string custom, product;
+};
+struct GxInput {
+  int state = -1, type = -1;   // Type 0 aus, 1 Impulszaehler, 2 Tuer, 3 Bilgepumpe, ...
+  std::string custom, product;
+};
+
 struct Data {
+  std::map<int, GxRelay> relay;
+  std::map<int, GxTank> tank;
+  std::map<int, GxTemp> temp;
+  std::map<int, GxInput> din;
+  std::map<int, Dcdc> dcdc;
   float pv_w = NAN, pv_i = NAN;
   float soc = NAN, bat_v = NAN, bat_i = NAN, bat_w = NAN, ttg_s = NAN, consumed = NAN;
   float dcsys_w = NAN, dc_charger_w = NAN;
@@ -270,6 +332,60 @@ static void handle(const std::string &topic, const char *payload, size_t len) {
       (grid ? d.grid_w : d.genset_w) = sum;
       if (!isnan(sum)) d.seen[T_GRID] = true;
     }
+    else if (path.rfind("Relay/", 0) == 0 && path.size() > 12 && path.compare(path.size() - 6, 6, "/State") == 0)
+      d.relay[atoi(path.c_str() + 6)].state = to_int(v);
+    else return;
+  } else if (svc == "settings") {
+    // Settings/Relay/Function (Relais 1), Settings/Relay/<n>/Function, Settings/Relay/<n>/CustomName
+    if (path.rfind("Settings/Relay/", 0) != 0) return;
+    const char *r = path.c_str() + 15;
+    int n = 0;
+    if (*r >= '0' && *r <= '9') {
+      n = atoi(r);
+      const char *sl = strchr(r, '/');
+      if (!sl) return;
+      r = sl + 1;
+    }
+    if (!strcmp(r, "Function")) d.relay[n].func = to_int(v);
+    else if (!strcmp(r, "CustomName")) d.relay[n].name = str;
+    else return;
+  } else if (svc == "tank") {
+    GxTank &t = d.tank[inst];
+    if (path == "Level") t.level = v;
+    else if (path == "Remaining") t.remaining = v;
+    else if (path == "Capacity") t.capacity = v;
+    else if (path == "FluidType") t.fluid = to_int(v);
+    else if (path == "CustomName") t.custom = str;
+    else if (path == "ProductName") t.product = str;
+    else return;
+  } else if (svc == "temperature") {
+    GxTemp &t = d.temp[inst];
+    if (path == "Temperature") t.t = v;
+    else if (path == "Humidity") t.hum = v;
+    else if (path == "TemperatureType") t.type = to_int(v);
+    else if (path == "CustomName") t.custom = str;
+    else if (path == "ProductName") t.product = str;
+    else return;
+  } else if (svc == "digitalinput") {
+    GxInput &t = d.din[inst];
+    if (path == "State") t.state = to_int(v);
+    else if (path == "Type") t.type = to_int(v);
+    else if (path == "CustomName") t.custom = str;
+    else if (path == "ProductName") t.product = str;
+    else return;
+  } else if (svc == "dcdc" || svc == "alternator") {
+    bool alt = svc == "alternator";
+    Dcdc &x = d.dcdc[inst + (alt ? ALT_OFFSET : 0)];
+    x.alt = alt;
+    if (path == "State") x.state = to_int(v);
+    else if (path == "Dc/0/Voltage") x.out_v = v;
+    else if (path == "Dc/0/Current") x.out_i = v;
+    else if (path == "Dc/0/Power") x.out_p = v;
+    else if (path == "Dc/In/V") x.in_v = v;
+    else if (path == "Dc/In/I") x.in_i = v;
+    else if (path == "Dc/In/P") x.in_p = v;
+    else if (path == "CustomName") x.custom = str;
+    else if (path == "ProductName") x.product = str;
     else return;
   } else if (svc == "vebus") {
     d.vebus = true;
@@ -669,10 +785,42 @@ static bool mppt_tile(int inst, VictronInfo &v) {
   return true;
 }
 
+// DC-DC-Lader bzw. Lichtmaschinenregler am GX als DC-DC-Kachel (wie Orion per Bluetooth)
+static bool dcdc_tile(int id, VictronInfo &v) {
+  Lock l;
+  if (s_cfg.host.empty()) return false;
+  v = VictronInfo();
+  blank(v);
+  v.key = std::string(CERBO_KEY_PREFIX) + DCDC_PREFIX + std::to_string(id);
+  v.mac = "Cerbo GX " + s_cfg.host;
+  v.gx = true;
+  v.kind = VIC_DCDC;
+  v.age_s = s_connected ? 0 : (s_disc_ms ? (int32_t)((millis() - s_disc_ms) / 1000) : -1);
+  v.status = s_status;
+  bool alt = id >= ALT_OFFSET;
+  std::string def = std::string(tr(alt ? "Lichtmaschinenregler" : "DC-DC-Lader")) + " " + std::to_string(alt ? id - ALT_OFFSET : id);
+  auto it = s_d.dcdc.find(id);
+  if (it == s_d.dcdc.end()) {
+    v.name = def;
+    return true;
+  }
+  const Dcdc &x = it->second;
+  v.has = !isnan(x.out_v) || !isnan(x.in_v);
+  v.name = !x.custom.empty() ? x.custom : !x.product.empty() ? x.product : def;
+  v.in_v = x.in_v;
+  v.in_i = !isnan(x.in_i) ? x.in_i : (!isnan(x.in_p) && !isnan(x.in_v) && x.in_v > 1) ? x.in_p / x.in_v : NAN;
+  v.bat_v = x.out_v;
+  v.bat_i = !isnan(x.out_i) ? x.out_i : (!isnan(x.out_p) && !isnan(x.out_v) && x.out_v > 1) ? x.out_p / x.out_v : NAN;
+  v.power_w = !isnan(x.out_p) ? x.out_p : (!isnan(x.out_v) && !isnan(x.out_i)) ? x.out_v * x.out_i : NAN;
+  v.state = x.state;
+  return true;
+}
+
 bool cerbo_get(const std::string &key, VictronInfo &out) {
   if (!cerbo_is_key(key)) return false;
   std::string id = key.substr(strlen(CERBO_KEY_PREFIX));
   if (id.rfind(MPPT_PREFIX, 0) == 0) return mppt_tile(atoi(id.c_str() + strlen(MPPT_PREFIX)), out);
+  if (id.rfind(DCDC_PREFIX, 0) == 0) return dcdc_tile(atoi(id.c_str() + strlen(DCDC_PREFIX)), out);
   for (int t = 0; t < T_COUNT; t++)
     if (id == TILE_ID[t]) return tile(t, out);
   return false;
@@ -698,6 +846,15 @@ std::vector<VictronInfo> cerbo_list() {
       VictronInfo v;
       if (mppt_tile(i, v)) r.push_back(v);
     }
+  std::vector<int> dc;
+  {
+    Lock l;
+    for (auto &e : s_d.dcdc) dc.push_back(e.first);
+  }
+  for (int i : dc) {   // jeder DC-DC-Lader / Lichtmaschinenregler eine Kachel
+    VictronInfo v;
+    if (dcdc_tile(i, v)) r.push_back(v);
+  }
   return r;
 }
 
@@ -764,6 +921,108 @@ bool cerbo_set_mode(const std::string &key, int mode) {
   return queue_write(path, std::to_string(mode));
 }
 
+// ---------------------------------------------------------------- Ein-/Ausgaenge als Punkte eines Satelliten "GX"
+static const char *fluid_text(int f) {
+  static const char *T[] = {"Kraftstoff", "Frischwasser", "Grauwasser", "Livewell", "Öl", "Schwarzwasser", "Benzin",
+                            "Diesel", "Flüssiggas", "LNG", "Hydrauliköl", "Rohwasser"};
+  return f >= 0 && f < (int)(sizeof(T) / sizeof(T[0])) ? T[f] : "Tank";
+}
+static const char *temp_text(int t) {
+  static const char *T[] = {"Batterie", "Kühlschrank", "Temperatur", "Raum", "Außen", "Warmwasser", "Gefrierfach"};
+  return t >= 0 && t < (int)(sizeof(T) / sizeof(T[0])) ? T[t] : "Temperatur";
+}
+static const char *input_text(int t) {
+  static const char *T[] = {"", "", "Tür", "Bilgepumpe", "Bilgealarm", "Einbruchalarm", "Rauchmelder", "Feueralarm",
+                            "CO2-Alarm", "Generator"};
+  return t >= 2 && t < (int)(sizeof(T) / sizeof(T[0])) ? T[t] : "Digitaleingang";
+}
+// Name: eigener Name am GX, sonst Art + Nummer ("Frischwasser 20" waere verwirrend: Nummer nur ohne eigenen Namen,
+// wenn es mehrere gleicher Art gibt, entscheidet der Nutzer per Umbenennen im Editor)
+static std::string gx_name(const std::string &custom, const char *what) { return custom.empty() ? std::string(tr(what)) : custom; }
+
+std::vector<SatPoint> cerbo_points() {
+  std::vector<SatPoint> r;
+  if (!s_mtx) return r;
+  Lock l;
+  int32_t age = s_connected ? 0 : -1;
+  auto mk = [&](SatPointKind k, const char *kname, int idx, const std::string &name, uint8_t cls, const char *unit) {
+    SatPoint p;
+    p.kind = k;
+    p.idx = (uint8_t)idx;
+    p.id = std::string(kname) + std::to_string(idx);
+    p.name = name;
+    p.cls = cls;
+    p.unit = unit;
+    p.age_s = age;
+    p.status = s_connected ? "OK" : tr("GX nicht verbunden");
+    return p;
+  };
+  for (auto &it : s_d.relay) {
+    const GxRelay &x = it.second;
+    if (x.state < 0 || it.first > 50) continue;
+    bool manual = x.func == 2;   // nur "manuell" darf das Panel schalten, sonst steuert der GX selbst
+    std::string nm = !x.name.empty() ? x.name : std::string(tr("Relais ")) + std::to_string(it.first + 1);
+    SatPoint p = manual ? mk(SP_SWITCH, "switch", it.first + 1, nm, SC_ONOFF, "")
+                        : mk(SP_INPUT, "input", 200 + it.first, nm, SC_ONOFF, "");
+    p.ok = true;
+    p.on = x.state == 1;
+    p.value = p.on ? 1 : 0;
+    r.push_back(p);
+  }
+  for (auto &it : s_d.tank) {
+    const GxTank &x = it.second;
+    if (isnan(x.level) || it.first < 0 || it.first > 198) continue;
+    SatPoint p = mk(SP_TANK, "tank", it.first + 1, gx_name(x.custom, fluid_text(x.fluid)), SC_LEVEL, "%");
+    p.ok = true;
+    p.value = x.level;
+    if (!isnan(x.remaining) && !isnan(x.capacity) && x.capacity > 0) {
+      char b[48];
+      snprintf(b, sizeof(b), "%d von %d l", (int)lroundf(x.remaining * 1000), (int)lroundf(x.capacity * 1000));
+      p.status = b;
+    }
+    r.push_back(p);
+  }
+  for (auto &it : s_d.temp) {
+    const GxTemp &x = it.second;
+    if (isnan(x.t) || it.first < 0 || it.first > 198) continue;
+    std::string nm = gx_name(x.custom, temp_text(x.type));
+    SatPoint p = mk(SP_TEMP, "temp", it.first + 1, nm, SC_TEMP, "°C");
+    p.ok = true;
+    p.value = x.t;
+    r.push_back(p);
+    if (!isnan(x.hum)) {
+      SatPoint h = mk(SP_ANALOG, "analog", it.first + 1, nm + tr(" Feuchte"), SC_HUMIDITY, "%");
+      h.ok = true;
+      h.value = x.hum;
+      r.push_back(h);
+    }
+  }
+  for (auto &it : s_d.din) {
+    const GxInput &x = it.second;
+    if (x.state < 0 || x.type <= 1 || it.first < 0 || it.first > 198) continue;   // aus bzw. Impulszaehler
+    bool door = x.type == 2;
+    SatPoint p = mk(SP_INPUT, "input", it.first + 1, gx_name(x.custom, input_text(x.type)), door ? SC_BINARY : SC_ONOFF, "");
+    p.ok = true;
+    // State: 0 low, 1 high, 2 aus, 3 an, 4 nein, 5 ja, 6 offen, 7 zu, 8 ok, 9 Alarm, 10 laeuft, 11 steht
+    p.on = door ? x.state == 7 : (x.state == 1 || x.state == 3 || x.state == 5 || x.state == 9 || x.state == 10);
+    p.value = p.on ? 1 : 0;
+    r.push_back(p);
+  }
+  return r;
+}
+
+bool cerbo_set_relay(int idx, bool on) {
+  int n = idx - 1;
+  {
+    Lock l;
+    auto it = s_d.relay.find(n);
+    if (it == s_d.relay.end() || it->second.func != 2) return false;
+    it->second.state = on ? 1 : 0;   // gleich anzeigen, der GX bestaetigt
+    s_ver++;
+  }
+  return queue_write("system/0/Relay/" + std::to_string(n) + "/State", on ? "1" : "0");
+}
+
 std::string cerbo_debug_text() {
   char b[160];
   if (!s_disc_count) snprintf(b, sizeof(b), "keine Trennung seit dem Start");
@@ -788,6 +1047,8 @@ bool cerbo_get(const std::string &, VictronInfo &) { return false; }
 std::vector<VictronInfo> cerbo_list() { return {}; }
 bool cerbo_set_limit(const std::string &, float) { return false; }
 bool cerbo_set_mode(const std::string &, int) { return false; }
+std::vector<SatPoint> cerbo_points() { return {}; }
+bool cerbo_set_relay(int, bool) { return false; }
 
 #endif
 

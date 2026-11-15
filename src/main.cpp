@@ -99,7 +99,7 @@ void setup() {
     log_e("Display-Initialisierung fehlgeschlagen");
   }
   debug_mark("display");
-  // Startbild (splash.jpg im Projektordner): gleich zeigen, waehrend der Rest startet; verschwindet nach 3 s
+  // Startbild (splash.jpg im Projektordner): gleich zeigen, waehrend der Rest startet; verschwindet nach 6 s
   if (splash_show()) {
     lv_timer_handler();
     board_set_backlight(g_settings.brightness);

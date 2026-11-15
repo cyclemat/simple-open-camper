@@ -1,6 +1,7 @@
 # Simply Open Camper – Firmware auf GitHub bauen
-# Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel (S3 und P4), Satelliten, Victron-Display
-# und Display-Test. Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf (Actions -> Lauf -> unten).
+# Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel (S3, P4, CrowPanel 1.46"), Satelliten,
+# Victron-Display, Updater und Display-Test. Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf und
+# liegen nach jedem Push auf main zusaetzlich im Ordner release/ (je Board eine Komplettdatei, dazu release/ota/).
 #   Panel per Web-Editor aktualisieren: firmware.bin unter Info -> Firmware aktualisieren
 #   Per USB: bootloader.bin @0x0 (P4: @0x2000), partitions.bin @0x8000, firmware.bin @0x10000 (esptool)
 # Pakete und Framework liegen im Cache; der erste Lauf dauert laenger (Framework-Neubau wegen custom_sdkconfig).
@@ -9,7 +10,7 @@ name: Firmware bauen
 on:
   push:
     branches: [main]
-    paths-ignore: ['**.md', 'docs/**', 'assets/banner.png']
+    paths-ignore: ['**.md', 'docs/**', 'assets/banner.png', 'release/**']
   pull_request:
   workflow_dispatch:
 
@@ -36,6 +37,11 @@ jobs:
             envs: crowpanel-p4
             artifact: panel-crowpanel-p4
             out: p4/.pio/build/crowpanel-p4
+          - name: CrowPanel 1.46
+            dir: crowpanel146
+            envs: crowpanel-146
+            artifact: panel-crowpanel-146
+            out: crowpanel146/.pio/build/crowpanel-146
           - name: Satelliten
             dir: satellite
             envs: esp32 esp32-c3 esp32-s3 esp32-c6 esp32-relay16 esp32-cyd
@@ -43,9 +49,9 @@ jobs:
             out: satellite/.pio/build
           - name: Victron-Display
             dir: satellite
-            envs: esp32-cyd-victron
+            envs: esp32-cyd-victron esp32-updater
             artifact: victron-display
-            out: satellite/.pio/build/esp32-cyd-victron
+            out: satellite/.pio/build
           - name: Display-Test
             dir: display-testing
             envs: waveshare-7b-display-testing
@@ -84,6 +90,7 @@ jobs:
             ~/.platformio/packages
             ~/.platformio/.cache
             ${{ matrix.dir }}/.pio
+            satellite/.pio/packages
           key: pio2-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-${{ github.sha }}
           restore-keys: |
             pio2-${{ matrix.artifact }}-${{ hashFiles(format('{0}/platformio.ini', matrix.dir)) }}-
@@ -107,17 +114,19 @@ jobs:
           done
           df -h /
 
+      # je Umgebung ein Ordner dist/<umgebung>/ (Satelliten/Victron-Display: mehrere Umgebungen unter .pio/build)
       - name: Firmware einsammeln
         run: |
           mkdir -p dist
-          if [ "${{ matrix.name }}" = "Satelliten" ]; then
-            for e in ${{ matrix.envs }}; do
-              mkdir -p "dist/$e"
-              cp "${{ matrix.out }}/$e/"{firmware,bootloader,partitions}.bin "dist/$e/" 2>/dev/null || true
-            done
-          else
-            cp "${{ matrix.out }}/"{firmware,bootloader,partitions}.bin dist/ 2>/dev/null || true
-          fi
+          for e in ${{ matrix.envs }}; do
+            [ "$e" = "check-all" ] && continue
+            src="${{ matrix.out }}"
+            [ -f "$src/firmware.bin" ] || src="${{ matrix.out }}/$e"
+            [ -f "$src/firmware.bin" ] || continue
+            mkdir -p "dist/$e"
+            cp "$src/"{firmware,bootloader,partitions}.bin "dist/$e/" 2>/dev/null || true
+            cp "$src/firmware.factory.bin" "dist/$e/" 2>/dev/null || true
+          done
           ls -lR dist
 
       - uses: actions/upload-artifact@v4
@@ -125,3 +134,158 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist/
           retention-days: 30
+
+  # Nach jedem Push auf main: pro Board eine Datei in release/ (Komplettdatei fuer USB, Adresse 0x0) und die reine
+  # Firmware fuer das Update ueber die Weboberflaeche in release/ota/. Commit nur, wenn sich etwas geaendert hat.
+  publish:
+    name: Firmware nach release/ legen
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VTOKEN: ${{ secrets.VICTRON_SYNC_TOKEN }}   # fuer die Victron-Display-Dateien im Victron-Repo (leer = auslassen)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+      - name: esptool installieren
+        run: pip install esptool
+      - name: Dateien je Board zusammenstellen
+        run: |
+          set -e
+          VER=$(sed -n 's/.*SOC_VERSION "\([^"]*\)".*/\1/p' src/soc_version.h)
+          SHA=${GITHUB_SHA::7}
+          echo "Version $VER ($SHA)"
+          mkdir -p new/ota release/ota release/vorher/ota
+          # Umgebung -> Dateiname in release/
+          declare -A NAME=(
+            [waveshare-7b]=panel-waveshare-7b
+            [crowpanel-p4]=panel-crowpanel-p4
+            [crowpanel-146]=panel-crowpanel-146
+            [esp32-cyd-victron]=victron-display-cyd
+            [esp32]=satellit-esp32
+            [esp32-c3]=satellit-esp32-c3
+            [esp32-s3]=satellit-esp32-s3
+            [esp32-c6]=satellit-esp32-c6
+            [esp32-relay16]=satellit-relay16
+            [esp32-cyd]=satellit-cyd
+          )
+          UPD=$(ls art/*/esp32-updater/firmware.bin 2>/dev/null | head -1 || true)
+          for d in art/*/*/; do
+            e=$(basename "$d")
+            n=${NAME[$e]:-}
+            [ -n "$n" ] || continue
+            [ -f "$d/firmware.bin" ] && cp "$d/firmware.bin" "new/ota/$n.bin"
+            if [ -f "$d/firmware.factory.bin" ]; then
+              if [ "$e" = "esp32-cyd-victron" ] && [ -n "$UPD" ]; then
+                # Victron-Display: Updater (app1, 0x2F0000) gleich mit in die Komplettdatei
+                python -m esptool --chip esp32 merge-bin -o "new/$n.bin" 0x0 "$d/firmware.factory.bin" 0x2F0000 "$UPD"
+              else
+                cp "$d/firmware.factory.bin" "new/$n.bin"
+              fi
+            fi
+          done
+          [ -n "$UPD" ] && cp "$UPD" new/ota/updater-esp32.bin
+          # bisherige Fassung nach release/vorher/, neue nach release/ – nur fuer Dateien, die sich geaendert haben
+          declare -A CUR PREV
+          [ -f release/versionen.txt ] && while read -r k v; do [ -n "$k" ] && CUR[$k]="$v"; done < release/versionen.txt
+          [ -f release/vorher/versionen.txt ] && while read -r k v; do [ -n "$k" ] && PREV[$k]="$v"; done < release/vorher/versionen.txt
+          for f in $(cd new && find . -name '*.bin' | sed 's|^\./||' | sort); do
+            if [ -f "release/$f" ] && cmp -s "release/$f" "new/$f"; then continue; fi
+            if [ -f "release/$f" ]; then
+              mv "release/$f" "release/vorher/$f"
+              PREV[$f]="${CUR[$f]:-unbekannt}"
+            fi
+            cp "new/$f" "release/$f"
+            CUR[$f]="$VER ($SHA)"
+          done
+          : > release/versionen.txt
+          for k in $(printf '%s\n' "${!CUR[@]}" | sort); do echo "$k ${CUR[$k]}" >> release/versionen.txt; done
+          : > release/vorher/versionen.txt
+          for k in $(printf '%s\n' "${!PREV[@]}" | sort); do echo "$k ${PREV[$k]}" >> release/vorher/versionen.txt; done
+          kb() { [ -f "$1" ] && echo "$(( $(stat -c %s "$1") / 1024 )) KB" || echo "–"; }
+          {
+            echo "# Fertige Firmware – Version $VER"
+            echo
+            echo "Automatisch von GitHub gebaut (zuletzt aus Commit $SHA, $(date -u '+%Y-%m-%d %H:%M') UTC)."
+            echo "Die jeweils vorige Fassung liegt in [\`vorher/\`](vorher/)."
+            echo
+            echo "**Per USB (komplett, Adresse 0x0):** die Datei des Boards in diesem Ordner, z. B."
+            echo "\`esptool.py write_flash 0x0 panel-waveshare-7b.bin\`. Die Einstellungen (NVS) bleiben erhalten, solange der"
+            echo "Flash vorher nicht geloescht wird."
+            echo
+            echo "**Ueber die Weboberflaeche (Update):** die gleichnamige Datei in \`ota/\`."
+            echo
+            echo "| Board | Version | Komplett (USB) | Update (Weboberflaeche) | vorige Fassung |"
+            echo "|---|---|---|---|---|"
+            for f in $(ls release/ota/*.bin 2>/dev/null | sort); do
+              b=$(basename "$f" .bin)
+              full="–"; [ -f "release/$b.bin" ] && full="[$b.bin]($b.bin) ($(kb "release/$b.bin"))"
+              prev="–"; [ -f "release/vorher/ota/$b.bin" ] && prev="${PREV[ota/$b.bin]:-?}: [komplett](vorher/$b.bin), [Update](vorher/ota/$b.bin)"
+              echo "| $b | ${CUR[ota/$b.bin]:-?} | $full | [ota/$b.bin](ota/$b.bin) ($(kb "$f")) | $prev |"
+            done
+          } > release/README.md
+          ls -lR release
+      - name: Committen (nur bei Aenderungen)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A release
+          if git diff --cached --quiet -- release; then
+            echo "Keine geaenderte Firmware – nichts zu committen"
+            exit 0
+          fi
+          git commit -q -m "Firmware-Dateien aus ${GITHUB_SHA::7} [skip ci]"
+          for i in 1 2 3; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1
+      # Victron-Display: die fertigen Dateien zusaetzlich ins abgespeckte Repo (simply-open-camper-victron-beta), dort in
+      # release/ (komplett inkl. Updater, ota/ fuer die Weboberflaeche, vorher/ = vorige Fassung). Braucht das Secret
+      # VICTRON_SYNC_TOKEN (wie der Quellcode-Abgleich, sync-victron.yml).
+      - name: Victron-Repo holen
+        if: ${{ env.VTOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: cyclemat/simply-open-camper-victron-beta
+          token: ${{ secrets.VICTRON_SYNC_TOKEN }}
+          path: victron
+      - name: Victron-Display-Dateien ins Victron-Repo
+        if: ${{ env.VTOKEN != '' }}
+        run: |
+          set -e
+          [ -d victron ] || { echo "Victron-Repo nicht geholt"; exit 0; }
+          mkdir -p victron/release/ota victron/release/vorher/ota
+          n=victron-display-cyd
+          for p in "$n.bin" "ota/$n.bin" "ota/updater-esp32.bin" "vorher/$n.bin" "vorher/ota/$n.bin" "vorher/ota/updater-esp32.bin"; do
+            [ -f "release/$p" ] && cp "release/$p" "victron/release/$p"
+          done
+          VER=$(sed -n 's/.*SOC_VERSION "\([^"]*\)".*/\1/p' src/soc_version.h)
+          {
+            echo "# Fertige Firmware – Victron-Display (CYD), Version $VER"
+            echo
+            echo "Automatisch gebaut aus simply-open-camper ${GITHUB_SHA::7}. Die vorige Fassung liegt in [\`vorher/\`](vorher/)."
+            echo
+            echo "| Datei | Wofuer |"
+            echo "|---|---|"
+            echo "| [$n.bin]($n.bin) | **Erstes Aufspielen per USB**: komplett (Bootloader, Partitionen, Firmware, Updater) – \`esptool.py write_flash 0x0 $n.bin\` |"
+            echo "| [ota/$n.bin](ota/$n.bin) | **Update ueber die Weboberflaeche** des Displays |"
+            echo "| [ota/updater-esp32.bin](ota/updater-esp32.bin) | nur der kleine Updater (Adresse 0x2F0000), normalerweise nicht noetig |"
+          } > victron/release/README.md
+          cd victron
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A release
+          if git diff --cached --quiet; then echo "Keine Aenderungen"; exit 0; fi
+          git commit -q -m "Fertige Firmware aus simply-open-camper ${GITHUB_SHA::7}"
+          for i in 1 2 3; do
+            git pull -q --rebase && git push -q && exit 0
+            sleep 5
+          done
+          exit 1

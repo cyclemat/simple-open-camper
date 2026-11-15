@@ -94,6 +94,7 @@ const char *ui_vic_icon(VicKind k);
 std::string ui_vic_label(const Layout &lay, const VictronInfo &v);
 VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big);
 std::string ui_vic_summary(const VictronInfo &v);   // eine Zeile fuer Listen
+std::vector<std::pair<std::string, std::string>> ui_vic_rows(const VictronInfo &v);   // Zeilen des Detailfensters
 std::string ui_num(float v, int decimals, const char *unit);   // "12,84 V", NAN -> "–"
 
 // ui_saver.cpp

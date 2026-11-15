@@ -9,6 +9,7 @@
 #include "../devsetup.h"
 #include "esp_ota_ops.h"
 #include "updater_page.h"
+#include "../soc_version.h"
 
 static WebServer s_srv(80);
 static String s_name, s_status = "Bereit";
@@ -39,7 +40,7 @@ static void h_info() {
   s_active_ms = millis();
   String ver;
   bool ok = fw_valid(&ver);
-  String j = "{\"name\":\"" + s_name + "\",\"fw\":" + (ok ? "true" : "false") + ",\"ver\":\"" + ver + "\",\"status\":\"" +
+  String j = "{\"upd\":\"" SOC_VERSION "\",\"name\":\"" + s_name + "\",\"fw\":" + (ok ? "true" : "false") + ",\"ver\":\"" + ver + "\",\"status\":\"" +
              s_status + "\",\"ip\":\"" + (WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("4.3.2.1")) +
              "\",\"slot\":" + String(fw_slot() ? fw_slot()->size : 0) + "}";
   s_srv.send(200, "application/json", j);
@@ -111,7 +112,7 @@ void setup() {
     snprintf(b, sizeof(b), "SOC-Update-%02X%02X", m[4], m[5]);
     s_name = b;
   }
-  Serial.printf("Updater: %s, WLAN \"%s\"\n", s_name.c_str(), ssid.c_str());
+  Serial.printf("Updater %s: %s, WLAN \"%s\"\n", SOC_VERSION, s_name.c_str(), ssid.c_str());
   WiFi.persistent(false);
   WiFi.setHostname(s_name.c_str());
   bool sta = false;

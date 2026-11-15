@@ -1,0 +1,218 @@
+// Panel: Satelliten per Knopf einrichten – siehe panelsat_pair.h und sat_pair_proto.h
+#include "panelsat_pair.h"
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <NimBLEDevice.h>
+#include <algorithm>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "sat_pair_proto.h"
+#include "sat_proto.h"
+#include "panelsat.h"
+#include "settings.h"
+#include "i18n/i18n.h"
+
+namespace {
+struct Cand {
+  std::string mac;
+  uint8_t type = 0;
+  int rssi = 0;
+  uint32_t seen = 0;
+};
+SemaphoreHandle_t s_mtx = nullptr;
+struct Lock {
+  Lock() {
+    if (!s_mtx) s_mtx = xSemaphoreCreateRecursiveMutex();
+    xSemaphoreTakeRecursive(s_mtx, portMAX_DELAY);
+  }
+  ~Lock() { xSemaphoreGiveRecursive(s_mtx); }
+};
+}  // namespace
+
+static std::vector<Cand> s_cands;
+static std::string s_target, s_payload, s_status, s_ip;
+static uint8_t s_target_type = 0;
+static volatile bool s_want = false;
+static volatile int s_state = 0;
+static volatile uint32_t s_ver = 1;
+static const uint32_t CAND_TTL_MS = 15000;   // so lange ohne Werbepaket gilt ein Kandidat als weg
+static volatile uint32_t s_search_until = 0; // Suche laeuft bis (0 = aus); nur dann scannt das Panel dafuer
+
+bool satpair_searching() { return s_search_until && (int32_t)(s_search_until - millis()) > 0; }
+uint32_t satpair_search_left() { return satpair_searching() ? (s_search_until - millis()) / 1000 + 1 : 0; }
+void satpair_search_start() {
+  Lock l;
+  s_search_until = (millis() + SAT_PAIR_SECONDS * 1000UL) | 1;
+  if (s_state != 1) {
+    s_state = 0;
+    s_status.clear();
+  }
+  s_ver++;
+}
+void satpair_search_stop() {
+  Lock l;
+  s_search_until = 0;
+  s_cands.clear();
+  s_ver++;
+}
+
+static void set_state(int st, const std::string &txt) {
+  Lock l;
+  s_state = st;
+  s_status = txt;
+  s_ver++;
+}
+
+bool satpair_on_adv(const NimBLEAdvertisedDevice *dev) {
+  if (!satpair_searching() || !dev->isAdvertisingService(NimBLEUUID(SAT_PAIR_SVC))) return false;
+  std::string mac = dev->getAddress().toString();
+  for (auto &c : mac) c = tolower((unsigned char)c);
+  Lock l;
+  uint32_t now = millis();
+  for (auto &c : s_cands)
+    if (c.mac == mac) {
+      c.rssi = dev->getRSSI();
+      c.seen = now;
+      return true;
+    }
+  Cand c;
+  c.mac = mac;
+  c.type = dev->getAddress().getType();
+  c.rssi = dev->getRSSI();
+  c.seen = now;
+  s_cands.push_back(c);
+  s_ver++;
+  return true;
+}
+
+std::vector<SatPairCand> satpair_candidates() {
+  Lock l;
+  uint32_t now = millis();
+  if (!satpair_searching() && !s_cands.empty()) s_cands.clear();   // Suche vorbei
+  size_t before = s_cands.size();
+  s_cands.erase(std::remove_if(s_cands.begin(), s_cands.end(), [&](const Cand &c) { return now - c.seen > CAND_TTL_MS; }),
+                s_cands.end());
+  if (s_cands.size() != before) s_ver++;
+  std::vector<SatPairCand> out;
+  for (auto &c : s_cands) {
+    SatPairCand o;
+    o.mac = c.mac;
+    o.name = sat_ble_name(c.mac);
+    o.rssi = c.rssi;
+    out.push_back(o);
+  }
+  return out;
+}
+
+// WLAN-Daten je Betriebsart: Camp-WLAN -> dieses Netz, Router/Kombi -> Panel-WLAN, WLAN aus -> keine Einrichtung
+std::string satpair_start(const std::string &mac) {
+  Settings st = settings_copy();
+  std::string ssid, pass;
+  switch (st.net_mode) {
+    case NET_OFF: return tr("WLAN ist am Panel aus – Satelliten lassen sich nur mit WLAN einrichten.");
+    case NET_STA:
+      if (st.wifi_ssid.isEmpty()) return tr("Am Panel ist noch kein Camp-WLAN eingerichtet.");
+      ssid = st.wifi_ssid.c_str();
+      pass = st.wifi_pass.c_str();
+      break;
+    default:   // Router und Kombi: das Panel-WLAN bleibt gleich, auch wenn sich das Camp-WLAN aendert
+      ssid = st.ap_ssid.c_str();
+      pass = st.ap_pass.c_str();
+      break;
+  }
+  JsonDocument d;
+  d["s"] = ssid;
+  d["p"] = pass;
+  d["k"] = panelsat_password();
+  std::string payload;
+  serializeJson(d, payload);
+  Lock l;
+  if (s_want || s_state == 1) return tr("Es wird gerade schon ein Satellit eingerichtet.");
+  auto it = std::find_if(s_cands.begin(), s_cands.end(), [&](const Cand &c) { return c.mac == mac; });
+  if (it == s_cands.end()) return tr("Der Satellit ist nicht mehr im Einrichtungsmodus – am Satelliten erneut BOOT 3 s halten.");
+  s_search_until = 0;   // gefunden: Suche beenden
+  s_target = mac;
+  s_target_type = it->type;
+  s_payload = payload;
+  s_ip.clear();
+  s_state = 1;
+  s_status = tr("Verbinde mit dem Satelliten …");
+  s_want = true;
+  s_ver++;
+  return "";
+}
+
+bool satpair_want_connect() { return s_want; }
+
+// Laeuft im Bluetooth-Task von truma.cpp, waehrend der Scan pausiert
+void satpair_connect_now() {
+  std::string mac, payload;
+  uint8_t type;
+  {
+    Lock l;
+    s_want = false;
+    mac = s_target;
+    payload = s_payload;
+    type = s_target_type;
+  }
+  NimBLEClient *c = NimBLEDevice::createClient();
+  c->setConnectTimeout(10000);
+  auto done = [&](int st, const std::string &txt) {
+    if (c->isConnected()) {
+      NimBLEDevice::deleteBond(c->getConnInfo().getIdAddress());   // nichts dauerhaft koppeln
+      c->disconnect();
+    }
+    NimBLEDevice::deleteClient(c);
+    {
+      Lock l;
+      s_payload.assign(s_payload.size(), '\0');   // WLAN-Passwort nicht im Speicher liegen lassen
+      s_payload.clear();
+    }
+    set_state(st, txt);
+    log_w("Satellit einrichten %s: %s", mac.c_str(), txt.c_str());
+  };
+  if (!c->connect(NimBLEAddress(mac, type), true)) return done(3, tr("Verbindung zum Satelliten fehlgeschlagen."));
+  if (!c->secureConnection()) return done(3, tr("Verschlüsselung abgelehnt."));
+  NimBLERemoteService *svc = c->getService(NimBLEUUID(SAT_PAIR_SVC));
+  NimBLERemoteCharacteristic *cred = svc ? svc->getCharacteristic(NimBLEUUID(SAT_PAIR_CRED)) : nullptr;
+  NimBLERemoteCharacteristic *stat = svc ? svc->getCharacteristic(NimBLEUUID(SAT_PAIR_STAT)) : nullptr;
+  if (!cred || !stat) return done(3, tr("Der Satellit kennt die Einrichtung nicht (alte Firmware?)."));
+  set_state(1, tr("Übertrage WLAN-Daten …"));
+  if (!cred->writeValue((const uint8_t *)payload.data(), payload.size(), true)) return done(3, tr("Übertragen fehlgeschlagen."));
+  std::fill(payload.begin(), payload.end(), '\0');
+  // Ergebnis abfragen: der Satellit testet das WLAN (bis ~20 s) und meldet seine IP
+  uint32_t t0 = millis();
+  while (millis() - t0 < 30000 && c->isConnected()) {
+    std::string v = stat->readValue();
+    JsonDocument d;
+    if (!deserializeJson(d, v)) {
+      std::string st = d["st"] | "";
+      if (st == "verbinde") set_state(1, tr("Satellit verbindet sich mit dem WLAN …"));
+      if (st == "ok") {
+        std::string ip = d["ip"] | "";
+        {
+          Lock l;
+          s_ip = ip;
+        }
+        return done(2, ip.empty() ? std::string(tr("Eingerichtet.")) : std::string(tr("Eingerichtet – IP ")) + ip);
+      }
+      if (st == "fehler") {
+        std::string msg = d["msg"] | "";
+        return done(3, std::string(tr("Satellit meldet: ")) + (msg.empty() ? "Fehler" : msg));
+      }
+    }
+    delay(700);
+  }
+  done(3, tr("Keine Rückmeldung vom Satelliten (WLAN erreichbar?)."));
+}
+
+int satpair_state() { return s_state; }
+std::string satpair_status() {
+  Lock l;
+  return s_status;
+}
+std::string satpair_ip() {
+  Lock l;
+  return s_ip;
+}
+uint32_t satpair_version() { return s_ver; }

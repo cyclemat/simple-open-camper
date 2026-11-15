@@ -33,8 +33,6 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 | 🔋 **Cerbo GX** (optional) | Batterie, Solar (Summe und jeder Laderegler einzeln), Netz/Landstrom, Ladegerät, Wechselrichter, DC-System – per MQTT im WLAN, der GX wird automatisch gefunden |
 | 🔥 **Truma LevelControl** | Füllstand der Gasflaschen (%, kg, Akku des Sensors) per Bluetooth, bis zu 4 Sensoren |
 | 📶 **Victron Bluetooth** | SmartSolar, SmartShunt/BMV, Orion/DC-DC, Blue Smart/Phoenix Smart Ladegeräte – „Instant Readout“, auch ganz ohne Cerbo |
-| 🔋 **Akkus per Bluetooth** | Super B, Power Quarry, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime/Redodo/PowerQueen, Renogy, Eco-Worthy, ANT, Vatrer: Ladezustand, Spannung, Strom, Temperatur, Zellen – nur lesen |
-| ☀️ **Renogy per Bluetooth** | Laderegler (Rover/Wanderer/Adventurer mit BT-1/BT-2), DC-DC-Lader, Wechselrichter, Smart Shunt 300 – Solarleistung, Ladephase, Ertrag, Batterie – nur lesen |
 | 🎛️ **MultiPlus steuern** | Netzstrom-Begrenzung (− / +) und Schalter (Ein, Aus, Nur Laden, Nur Wechselrichter); eigenständige Ladegeräte: Begrenzung und Ein/Aus |
 | 🧩 **Nur echte Werte** | Kacheln entstehen automatisch – nur für Geräte, die wirklich Werte liefern. Keine leeren Kacheln |
 | 🚦 **Ampel-LED** | Die RGB-LED auf der Rückseite zeigt Batterie oder Gas: bis 10 % rot, bis 50 % orange, darüber grün |
@@ -110,17 +108,6 @@ Bluetooth startet erst, wenn ein Gerät eingerichtet ist oder gesucht wird.
 4. Gemessen wird automatisch alle 10 Minuten (einstellbar 2–240) oder per „Jetzt messen“.
    Die Kachel erscheint mit der ersten Messung.
 
-### Akkus per Bluetooth (BMS)
-
-1. **App des Herstellers schließen** (z. B. „Be in Charge“, „Power Quarry“, „BullTron“, „Xiaoxiang“, „JK BMS“, „LiTime“) – der Akku spricht nur mit einem Gerät.
-2. In der Weboberfläche bei **Akkus per Bluetooth**: „Akkus suchen“ (1 Minute).
-3. Gefundenen Akku „Hinzufügen“ und benennen, z. B. „Bordbatterie“.
-4. Das Display verbindet sich und bleibt verbunden. Super B bleibt verbunden und meldet seine Werte selbst. Alle anderen werden
-   alle 20 Sekunden kurz verbunden und abgefragt (Power Quarry: Ladezustand einmal pro Minute). Die Kachel erscheint mit den ersten Werten.
-
-Das Display liest nur – es schaltet am Akku nichts und ändert keine Einstellungen. Klappt die Verbindung nicht,
-steht unter „Protokoll“ in der Akku-Karte, woran es hängt.
-
 ### Ampel-LED auf der Rückseite
 
 Die farbige LED auf der Rückseite des Boards zeigt einen Füllstand auf einen Blick:
@@ -133,7 +120,7 @@ Die farbige LED auf der Rückseite des Boards zeigt einen Füllstand auf einen B
 | kein Messwert | aus |
 
 In der Weboberfläche unter **Ampel-LED** wählst du, was sie zeigt: **Automatisch** (Ladezustand der Batterie,
-ohne Batteriemonitor das Gas), **Batterie** (SmartShunt/BMV per Bluetooth, Cerbo GX oder Akku per Bluetooth), **Gas** (Truma
+ohne Batteriemonitor das Gas), **Batterie** (SmartShunt/BMV per Bluetooth oder Cerbo GX), **Gas** (Truma
 LevelControl, die leerste Flasche) oder **Aus**.
 
 ### MultiPlus / Ladegerät bedienen
@@ -151,7 +138,7 @@ Multi Control die Begrenzung festlegt). Dasselbe gibt es in der Weboberfläche b
 | Geste | Wirkung |
 |---|---|
 | Wischen links/rechts | nächste/vorige Seite (Punkte unten zeigen die Seite) |
-| Kachel 2 s gedrückt halten | MultiPlus/Ladegerät bedienen (wo möglich), Akku: Übersicht aller Werte |
+| Kachel 2 s gedrückt halten | MultiPlus/Ladegerät bedienen (wo möglich) |
 | Von oben nach unten wischen | Name, WLAN und Adresse der Weboberfläche groß anzeigen (antippen schließt) |
 | Berühren nach dem Dimmen | weckt nur auf |
 | Beim Einschalten **2 s** drücken, dann loslassen | **Touch kalibrieren** (vier Pfeilspitzen antippen) |
@@ -177,12 +164,13 @@ Auch ohne Touch und ohne Passwort kommst du immer wieder ran – über **schnell
 
 ## 🔧 Firmware aufspielen
 
-**Fertige Datei:** Im Repository unter *Actions → Build → (letzter Lauf) → Artifacts* liegt
-`victron-display-firmware` mit
+**Fertige Dateien** liegen im Ordner [`release/`](release/) dieses Repositorys – immer die neueste Fassung, die vorige
+in `release/vorher/`:
 
-- `firmware.factory.bin` – für das erste Aufspielen, an Adresse **0x0**, z. B. mit
-  `esptool.py --chip esp32 write_flash 0x0 firmware.factory.bin` oder einem ESP-Web-Flasher,
-- `firmware.bin` – für spätere Updates über die Weboberfläche (**Firmware → Hochladen**).
+- `release/victron-display-cyd.bin` – für das **erste Aufspielen per USB**, komplett (Bootloader, Partitionen,
+  Firmware und der kleine Updater) an Adresse **0x0**, z. B. mit
+  `esptool.py --chip esp32 write_flash 0x0 victron-display-cyd.bin` oder einem ESP-Web-Flasher,
+- `release/ota/victron-display-cyd.bin` – für spätere **Updates über die Weboberfläche** (**Firmware → Hochladen**).
 
 **Selbst bauen** mit [PlatformIO](https://platformio.org/) (VS Code):
 

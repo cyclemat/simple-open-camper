@@ -33,8 +33,11 @@ void sat_config_load() {
   g_sat.ha = p.getBool("ha", true);
   g_sat.ha_prefix = p.getString("hapre", "homeassistant");
   // iNet X gibt es im Satelliten (noch) nicht; Hymer nur mit WITH_HYMER
-  g_sat.ble = p.getUChar("ble", BLE_P_DEFAULT) & (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON | (WITH_HYMER ? BLE_P_HYMER : 0));
-  g_sat.modes = p.getUChar("modes", SAT_M_MQTT);
+  // ab Werk alles aus (Wunsch 2026-11-15): nur einschalten, was am Satelliten gebraucht wird
+  g_sat.ble = p.getUChar("ble", 0) & (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON | (WITH_HYMER ? BLE_P_HYMER : 0));
+  // Sendewege: MQTT und UDP (ab Werk aus; die Einrichtung per Knopf schaltet UDP ein). Bluetooth als Datenweg ist
+  // entfallen (zu langsam) – Bluetooth dient nur noch zum Einrichten (sat_pair.cpp)
+  g_sat.modes = p.getUChar("modes", 0) & (SAT_M_MQTT | SAT_M_UDP);
   g_sat.udp_target = p.getString("udpip", "");
   g_sat.ble_pw = p.getString("bpw", SAT_DEFAULT_PASSWORD);
   p.end();

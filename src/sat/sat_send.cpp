@@ -543,7 +543,15 @@ static void adv_stop() {
   s_adv_on = false;
 }
 
+static bool s_adv_suspended = false;   // Einrichtungsmodus (sat_pair.cpp) nutzt die Werbung selbst
+
+void sat_send_adv_suspend(bool on) {
+  s_adv_suspended = on;
+  if (on) adv_stop();
+}
+
 static void adv_next(const std::vector<Snap> &snaps, bool urgent) {
+  if (s_adv_suspended) return;
   std::vector<const Snap *> list;
   for (auto &s : snaps)
     if (s.adv_len) list.push_back(&s);

@@ -1,6 +1,6 @@
 // Hardware-Schicht Waveshare ESP32-S3-Touch-LCD-7B (RGB-Panel). ESP32-P4-Panels: board_p4_hw.cpp.
 #include "board.h"
-#if !BOARD_P4
+#if !BOARD_P4 && !BOARD_CROWPANEL146   // P4: board_p4_hw.cpp, CrowPanel 1.46: board_crowpanel146.cpp
 #include "app_config.h"
 
 #include <Arduino.h>

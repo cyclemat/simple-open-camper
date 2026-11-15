@@ -3,11 +3,27 @@
 // Abgeschaltete Akku-Typen (BMS_*_ON = 0) lassen ihre Hilfsfunktionen ungenutzt zurueck – das ist gewollt
 #pragma GCC diagnostic ignored "-Wunused-function"
 
+// Name fuer die Liste "andere Geraete": nur druckbare Zeichen und gueltiges UTF-8 (Truma-Sensoren senden z. B. ein
+// Steuerbyte vor dem Namen und Nullen dahinter)
+static std::string seen_name(const std::string &in) {
+  std::string out;
+  for (size_t i = 0; i < in.size(); i++) {
+    uint8_t c = (uint8_t)in[i];
+    if (c >= 0x20 && c < 0x7F) out += (char)c;
+    else if (c >= 0xC2 && c <= 0xDF && i + 1 < in.size() && ((uint8_t)in[i + 1] & 0xC0) == 0x80) {
+      out += in.substr(i, 2);
+      i++;
+    }
+  }
+  while (!out.empty() && out.back() == ' ') out.pop_back();
+  return out;
+}
+
 const char *bms_model_text(BmsModel m) {
   switch (m) {
     case BMS_SUPERB: return "Super B";
     case BMS_PQ_HEX:
-    case BMS_PQ_ASCII: return "Power Quarry";
+    case BMS_PQ_ASCII: return "Power Quarry / Shentec";   // CBT-BMS, App "Power Quarry" (auch Shentec-Akkus)
     case BMS_BULLTRON: return "Daly/Bulltron";
     case BMS_RENOGY: return "Renogy";
     case BMS_RENOGY_PRO: return "Renogy Pro";
@@ -965,6 +981,7 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
         }
         if (!dev->isConnectable() || (name.empty() && svcs.empty())) return false;
         std::string mac = lower(dev->getAddress().toString());
+        name = seen_name(name);
         Lock l;
         for (auto &x : s_seen)
           if (x.mac == mac) {
