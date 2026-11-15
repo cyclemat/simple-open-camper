@@ -101,9 +101,21 @@ jobs:
           PANEL_UPLOAD_NOWAIT: '1'
         run: |
           pio --version
+          mkdir -p dist
           for e in ${{ matrix.envs }}; do
             echo "::group::$e"
             pio run -d "${{ matrix.dir }}" -e "$e"
+            # gleich einsammeln: der naechste "pio run" kann den ganzen Build-Ordner leeren (PlatformIO-Pruefsumme
+            # ueber die Header in src/ – z. B. nach dem erzeugten Startbild), dann waeren die Dateien weg
+            if [ "$e" != "check-all" ]; then
+              src="${{ matrix.out }}"
+              [ -f "$src/firmware.bin" ] || src="${{ matrix.out }}/$e"
+              if [ -f "$src/firmware.bin" ]; then
+                mkdir -p "dist/$e"
+                cp "$src/"{firmware,bootloader,partitions}.bin "dist/$e/" 2>/dev/null || true
+                cp "$src/firmware.factory.bin" "dist/$e/" 2>/dev/null || true
+              fi
+            fi
             echo "::endgroup::"
           done
 
@@ -116,18 +128,7 @@ jobs:
 
       # je Umgebung ein Ordner dist/<umgebung>/ (Satelliten/Victron-Display: mehrere Umgebungen unter .pio/build)
       - name: Firmware einsammeln
-        run: |
-          mkdir -p dist
-          for e in ${{ matrix.envs }}; do
-            [ "$e" = "check-all" ] && continue
-            src="${{ matrix.out }}"
-            [ -f "$src/firmware.bin" ] || src="${{ matrix.out }}/$e"
-            [ -f "$src/firmware.bin" ] || continue
-            mkdir -p "dist/$e"
-            cp "$src/"{firmware,bootloader,partitions}.bin "dist/$e/" 2>/dev/null || true
-            cp "$src/firmware.factory.bin" "dist/$e/" 2>/dev/null || true
-          done
-          ls -lR dist
+        run: ls -lR dist   # eingesammelt wird schon beim Bauen (siehe dort)
 
       - uses: actions/upload-artifact@v4
         with:
