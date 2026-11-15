@@ -74,10 +74,11 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row"><button id="bTrScan" style="flex:none">Sensoren suchen</button><button id="bTrMeasure" style="flex:none">Jetzt messen</button></div>
 <div id="trFound"></div></div>
 
-<div class="card" id="bmCard" style="display:none"><h2>Akkus per Bluetooth</h2>
-<p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer – dazu Renogy-Laderegler, DC-DC-Lader, Wechselrichter und Smart Shunt. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Display liest nur Werte und schaltet am Akku nichts.</p>
+<div class="card" id="bmCard" style="display:none"><h2>Akkus und Power Stations per Bluetooth</h2>
+<p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer – dazu Renogy-Laderegler, DC-DC-Lader, Wechselrichter und Smart Shunt. Power Stations (ungetestet): Bluetti, Allpowers, Anker SOLIX und EcoFlow – mit Schalter für den AC- und DC-Ausgang. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem. Bei Akkus liest das Display nur Werte und schaltet nichts.</p>
 <div id="bmList"></div>
 <div class="row" style="margin-top:8px"><button id="bBmScan" style="flex:none">Akkus suchen</button></div>
+<div id="efBox" style="display:none;margin-top:10px"><h2 style="font-size:14px">EcoFlow-Konto</h2><p class="hint" id="efState"></p><div class="row"><label class="f"><span>E-Mail</span><input id="efMail" type="email" autocomplete="username"></label><label class="f"><span>Passwort (wird nicht gespeichert)</span><input id="efPw" type="password" autocomplete="current-password"></label></div><div class="row"><button id="bEfLogin" style="flex:none">Anmelden und Benutzer-ID holen</button></div><p class="hint">EcoFlow-Power-Stations verlangen die Benutzer-ID des Kontos. Das Display holt sie einmal über das Internet (WLAN mit Internet nötig).</p></div>
 <div id="bmFound"></div>
 <details style="margin-top:10px"><summary class="hint">Protokoll (für die Fehlersuche)</summary><pre id="bmLog" class="mono" style="white-space:pre-wrap;font-size:12px"></pre></details></div>
 
@@ -152,9 +153,10 @@ function render(){
  const B=S.bms;if(B){$('#bmCard').style.display='';
   $('#bmList').innerHTML=B.devices.length?B.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-bmn="${x.mac}" maxlength="32">
    <div class="v">${esc(x.model)} · ${x.has&&x.dev?esc(x.sum)+' · '+(x.connected?age(x.age):'getrennt'):x.has?[x.soc+' %',x.v!=null?num(x.v,2,'V'):'',x.a!=null?num(x.a,1,'A'):'',x.soh!=null?'SoH '+x.soh+' %':'',x.chg?'lädt':x.dis?'entlädt':'',x.low?'Ladung niedrig':'',x.ok?'':'BMS meldet Alarm',x.t!=null?num(x.t,0,'°C'):'',x.cyc!=null?x.cyc+' Zyklen':'',x.cells?'Zellen '+x.cells.map(c=>(c/1000).toFixed(3)).join(' / ')+' V':'',x.ttg>0?'leer in '+Math.floor(x.ttg/3600)+' h '+Math.floor(x.ttg%3600/60)+' min':'',x.connected?age(x.age):'getrennt'].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div></div>
-   <button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
+   ${x.ac!=null?`<button data-bmo="${x.mac}" data-ac="1" data-on="${x.ac==1?0:1}">AC ${x.ac==1?'aus':'ein'}</button>`:''}${x.dc!=null?`<button data-bmo="${x.mac}" data-ac="0" data-on="${x.dc==1?0:1}">DC ${x.dc==1?'aus':'ein'}</button>`:''}<button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
   $('#bBmScan').disabled=B.scanning||B.devices.length>=B.max;$('#bBmScan').textContent=B.scanning?'Suche läuft …':'Akkus suchen';
-  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro',18:'Bluetti',19:'Allpowers',20:'Anker SOLIX',21:'Anker SOLIX C300',22:'Anker SOLIX Gen 2',23:'Anker SOLIX F3800',24:'EcoFlow',25:'EcoFlow'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',2:'Power Quarry / Shentec',3:'Power Quarry / Shentec',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro',18:'Bluetti',19:'Allpowers',20:'Anker SOLIX',21:'Anker SOLIX C300',22:'Anker SOLIX Gen 2',23:'Anker SOLIX F3800',24:'EcoFlow',25:'EcoFlow'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#efBox').style.display=B.ecoflow?'':'none';if(B.ecoflow)$('#efState').textContent=(B.ef_uid_set?'Benutzer-ID gespeichert ('+(B.ef_uid_hint||'')+').':'Noch keine Benutzer-ID.')+(B.ef_login_text?' '+B.ef_login_text:'');
   $('#bmLog').textContent=(B.log||[]).join('\n')||'–'}
  const V=S.victron;
  $('#viList').innerHTML=V.devices.length?V.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-vin="${x.mac}" maxlength="32">
@@ -206,6 +208,7 @@ $('#bTrScan').onclick=()=>act('/api/truma',{scan:true},'Suche gestartet – jetz
 $('#bTrMeasure').onclick=()=>act('/api/truma',{measure:''},'Messung gestartet.');
 $('#bViScan').onclick=()=>act('/api/victron',{scan:true},'Suche gestartet (3 Minuten).');
 $('#bBmScan').onclick=()=>act('/api/bms',{scan:true},'Suche gestartet (1 Minute).');
+$('#bEfLogin').onclick=()=>{const m=$('#efMail').value.trim(),w=$('#efPw').value;if(!m||!w)return toast('E-Mail und Passwort eingeben.',true);act('/api/bms',{ef_login:{email:m,password:w}},'Anmeldung läuft …');$('#efPw').value=''};
 document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
  if(d.vin)act('/api/victron',{rename:{mac:d.vin,name:t.value}},'Name gespeichert.');
  if(d.trn)act('/api/truma',{rename:{mac:d.trn,name:t.value}},'Name gespeichert.');
@@ -216,6 +219,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.trm)act('/api/truma',{measure:d.trm},'Messung gestartet.');
  if(d.trr&&confirm('Sensor entfernen?'))act('/api/truma',{remove:d.trr});
  if(d.bmr&&confirm('Akku entfernen?'))act('/api/bms',{remove:d.bmr});
+ if(d.bmo)act('/api/bms',{output:{mac:d.bmo,ac:d.ac=='1',on:d.on=='1'}},'Gesendet.');
  if(d.bma){const f=S.bms.found[+d.bma];const n=prompt('Name, z. B. „Bordbatterie“',f.name||'Akku');if(n!=null)act('/api/bms',{add:{mac:f.mac,addr_type:f.addr_type,name:n,model:f.model,cap:f.cap,cells:f.cells}},'Eingerichtet – verbinde …')}
  if(d.tra){const f=S.truma.found[+d.tra];const n=prompt('Name, z. B. „Flasche links“','Gasflasche '+(S.truma.sensors.length+1));if(n!=null)act('/api/truma',{add:{mac:f.mac,addr_type:f.addr_type,name:n}},'Eingerichtet.')}
  if(d.vik){const k=prompt('Schlüssel (32 Zeichen)');if(k)act('/api/victron',{key:{mac:d.vik,key:k.replace(/[\s:-]/g,'')}},'Schlüssel gespeichert.')}

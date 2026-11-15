@@ -335,6 +335,12 @@ void h_state() {
   JsonObject bm = d["bms"].to<JsonObject>();
   bm["scanning"] = bms_discovery_running();
   bm["max"] = BMS_MAX;
+  // EcoFlow: Benutzer-ID des Kontos (Anmeldung ueber das Internet, Passwort wird nicht gespeichert)
+  bm["ecoflow"] = (bool)BMS_ECOFLOW_ON;
+  bm["ef_uid_set"] = bms_ef_uid_set();
+  bm["ef_uid_hint"] = bms_ef_uid_hint();
+  bm["ef_login_state"] = bms_ef_login_state();
+  bm["ef_login_text"] = bms_ef_login_text();
   JsonArray bd = bm["devices"].to<JsonArray>();
   for (auto &b : bms_list()) {
     JsonObject o = bd.add<JsonObject>();
@@ -369,6 +375,9 @@ void h_state() {
     o["status"] = b.status;
     o["dev"] = b.dev;
     o["sum"] = bms_value_text(b);
+    // Power Station: Ausgaenge (-1 = unbekannt)
+    if (b.can_ac) o["ac"] = b.ac_on;
+    if (b.can_dc) o["dc"] = b.dc_on;
   }
   JsonArray bf = bm["found"].to<JsonArray>();
   for (auto &f : bms_found()) {
@@ -462,6 +471,15 @@ void h_bms() {
   }
   if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  // Power Station: {"output":{mac,ac:true|false,on:true|false}}
+  if (!d["output"].isNull() && !bms_set_output(d["output"]["mac"] | "", d["output"]["ac"] | true, d["output"]["on"] | false))
+    return send_err("Dieses Gerät lässt sich nicht schalten");
+  // EcoFlow: {"ef_uid":"…"} von Hand oder {"ef_login":{email,password}} (holt die Benutzer-ID, Passwort wird nicht gespeichert)
+  if (d["ef_uid"].is<const char *>()) bms_ef_set_uid(d["ef_uid"].as<const char *>());
+  if (!d["ef_login"].isNull()) {
+    std::string err = bms_ef_login_start(d["ef_login"]["email"] | "", d["ef_login"]["password"] | "");
+    if (!err.empty()) return send_err(err.c_str());
+  }
   send_ok();
 }
 #endif

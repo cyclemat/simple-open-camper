@@ -23,6 +23,13 @@ FILES = [
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
     "src/fonts/font_icons_24.c",
     "src/ui/theme.h", "src/lv_psram_alloc.c",
+    # Power Stations (bms_ps.inc) mit EcoFlow-Verschluesselung (micro-ecc), Version, Updater, Satelliten-Kopfdateien
+    "src/bms_ps.inc", "src/soc_version.h", "src/updater_link.cpp", "src/updater_link.h", "src/panelsat_pair.h",
+    "src/sat/sat_config.h", "src/sat/sat_io.h",
+    "src/third_party/uecc_ef.c", "src/third_party/uecc_ef.h", "src/third_party/ecoflow/ef_keydata.h",
+    "src/third_party/micro-ecc/LICENSE.txt", "src/third_party/micro-ecc/curve-specific.inc",
+    "src/third_party/micro-ecc/platform-specific.inc", "src/third_party/micro-ecc/types.h",
+    "src/third_party/micro-ecc/uECC.c.inc", "src/third_party/micro-ecc/uECC.h", "src/third_party/micro-ecc/uECC_vli.h",
     "include/lv_conf.h", "include/lv_psram_alloc.h",
     "assets/splash_cyd.jpg", "assets/banner_small.jpg", "assets/van-left.svg", "assets/van-right.svg",
     "tools/embed_splash_cyd.py", "tools/upload_wait.py",
@@ -57,10 +64,10 @@ renogy = 1
 ; Renogy-Geraete ausser Akkus: Laderegler, DC-DC-Lader, Wechselrichter, Smart Shunt
 renogy_dev = 1
 ; Power Stations (ungetestet) – im Mini-Display ab Werk aus (Flash)
-bluetti = 0
-allpowers = 0
-anker = 0
-ecoflow = 0
+bluetti = 1
+allpowers = 1
+anker = 1
+ecoflow = 1
 ecoworthy = 1
 ant = 1
 vatrer = 1
@@ -88,7 +95,7 @@ build_flags =
     -DSAT_DISPLAY=1
     -DSAT_BOARD_CYD=1
     -DSAT_VICTRON_ONLY=1
-    -DWITH_BMS=0
+    -DWITH_BMS=1
     -DBMS_SUPERB_ON=${bms.superb}
     -DBMS_PQ_ON=${bms.power_quarry}
     -DBMS_DALY_ON=${bms.daly}
