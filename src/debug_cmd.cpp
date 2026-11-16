@@ -16,6 +16,15 @@
 #include "truma.h"
 #include "cerbo.h"
 #include "board_crowpanel146.h"
+#if defined(BOARD_P4) && BOARD_P4
+// P4: WLAN und Bluetooth laufen im ESP32-C6 (ESP-Hosted). Dessen Firmware laesst sich vom P4 aus aktualisieren:
+// Befehl "c6update" laedt sie von espressif.github.io (WLAN mit Internet noetig) und schreibt sie in den C6.
+#include "esp32-hal-hosted.h"
+#include "ESP_HostedOTA.h"
+#define HAS_C6 1
+#else
+#define HAS_C6 0
+#endif
 
 #ifndef DISPLAY_TESTING
 #define DISPLAY_TESTING 0
@@ -107,6 +116,56 @@ static void send_screenshot() {
 }
 #endif
 
+#if HAS_C6
+// Funkchip (ESP32-C6) aus einer Datei auf der SD-Karte aktualisieren – z. B. zurueck auf Elecrows Original
+// (network_adapter.bin, V2.12.3) als /sd/c6.bin. Prueft vorher, ob es wirklich eine C6-Firmware ist.
+static void c6_from_file(const char *path) {
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    log_printf("Datei %s nicht gefunden (SD-Karte eingesteckt?)\n", path);
+    return;
+  }
+  uint8_t hdr[16] = {0};
+  fread(hdr, 1, sizeof(hdr), f);
+  fseek(f, 0, SEEK_END);
+  long size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  // Abbild-Kopf: 0xE9, Chip-Kennung bei Byte 12 (13 = ESP32-C6)
+  if (hdr[0] != 0xE9 || (hdr[12] | hdr[13] << 8) != 13) {
+    log_printf("%s ist keine Firmware fuer den ESP32-C6 – abgebrochen\n", path);
+    fclose(f);
+    return;
+  }
+  if (!hostedIsInitialized()) {
+    log_printf("Funkchip nicht bereit\n");
+    fclose(f);
+    return;
+  }
+  log_printf("Funkchip-Update aus %s (%ld Byte) ...\n", path, size);
+  uint8_t *buf = (uint8_t *)heap_caps_malloc(1500, MALLOC_CAP_SPIRAM);
+  bool ok = buf && hostedBeginUpdate();
+  long done = 0, next = 0;
+  while (ok) {
+    size_t n = fread(buf, 1, 1500, f);
+    if (!n) break;
+    ok = hostedWriteUpdate(buf, n);
+    done += n;
+    if (done >= next) {
+      log_printf("  %ld %%\n", done * 100 / (size ? size : 1));
+      next += size / 10 + 1;
+    }
+  }
+  fclose(f);
+  heap_caps_free(buf);
+  ok = ok && done == size && hostedEndUpdate() && hostedActivateUpdate();
+  log_printf(ok ? "Funkchip-Update fertig – Panel startet neu.\n" : "Funkchip-Update fehlgeschlagen.\n");
+  if (ok) {
+    delay(1500);
+    ESP.restart();
+  }
+}
+#endif
+
 // ---------------------------------------------------------------- Status
 static void ram_line(const char *name, uint32_t caps) {
   log_printf("  %-8s frei %5u KB, Tiefstwert %5u KB, groesster Block %5u KB, gesamt %5u KB\n", name,
@@ -146,6 +205,16 @@ static void print_info() {
              ble_proto_on(BLE_P_SAT) ? " Satelliten" : "", ble_proto_on(BLE_P_HYMER) ? " Hymer" : "");
   if (hymer_enabled()) log_printf("Hymer: %s\n", hymer_status().c_str());
   if (cerbo_configured()) log_printf("Cerbo GX: %s – %s\n", cerbo_status().c_str(), cerbo_debug_text().c_str());
+#if HAS_C6
+  {
+    uint32_t a = 0, b = 0, c = 0, x = 0, y = 0, z = 0;
+    hostedGetHostVersion(&a, &b, &c);
+    hostedGetSlaveVersion(&x, &y, &z);
+    bool upd = hostedIsInitialized() && hostedHasUpdate();
+    log_printf("Funkchip %s: Firmware %u.%u.%u, passend zum P4 waere %u.%u.%u%s\n", hostedGetSlaveTargetName(), (unsigned)x,
+               (unsigned)y, (unsigned)z, (unsigned)a, (unsigned)b, (unsigned)c, upd ? " – Update verfuegbar (Befehl c6update)" : "");
+  }
+#endif
   float bv = board_battery_voltage();
   if (bv > 0) log_printf("Akku: %.2f V\n", bv);
   log_printf("Hintergrundbeleuchtung: %u %%%s\n", board_backlight(), board_is_dimmed() ? " (Ruhezustand)" : "");
@@ -175,13 +244,26 @@ static void run(const char *cmd) {
   } else if (!strcmp(cmd, "screenshot")) {
     send_screenshot();
 #endif
+#if HAS_C6
+  } else if (!strcmp(cmd, "c6update")) {
+    log_printf("Funkchip-Update: lade %s ...\n", hostedGetUpdateURL());
+    bool ok = updateEspHostedSlave();   // braucht WLAN mit Internet; danach startet der C6 neu
+    log_printf(ok ? "Funkchip-Update fertig – Panel startet neu.\n" : "Funkchip-Update nicht moeglich (siehe oben).\n");
+    if (ok) {
+      delay(1500);
+      ESP.restart();
+    }
+  } else if (!strcmp(cmd, "c6datei")) {
+    c6_from_file("/sd/c6.bin");
+#endif
   } else if (!strcmp(cmd, "reboot") || !strcmp(cmd, "neustart")) {
     log_printf("Neustart ...\n");
     delay(200);
     ESP.restart();
   } else if (!strcmp(cmd, "help") || !strcmp(cmd, "?") || !strcmp(cmd, "hilfe")) {
-    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, reboot, help%s%s\n",
-               WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "");
+    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, reboot, help%s%s%s\n",
+               WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
+               HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
   } else {
     log_printf("Unbekannter Befehl \"%s\" - help zeigt die Befehle\n", cmd);
   }

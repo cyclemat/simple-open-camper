@@ -129,7 +129,9 @@ static uint32_t s_last_touch = 0;
 static bool s_dim = false;
 static const uint8_t DIMMED = 12;
 // Einstellungen (Weboberflaeche, NVS "satdisp")
-static int s_per = 4;            // Kacheln pro Seite: 4 (2x2) oder 2 (gross)
+static int s_per = 4;            // Kacheln pro Seite fuer Seiten ohne eigene Angabe: 4 (2x2), 2 (gross) oder 1 (ganz)
+static std::vector<uint8_t> s_pl; // Kacheln je Seite (Seite 1, 2, …) aus dem Editor; danach gilt s_per
+static int s_lay = 0;            // Aufteilung, fuer die die Kacheln gerade angeordnet sind
 static uint8_t s_bright = 200;   // Helligkeit 20..255
 static uint16_t s_dim_min = 2;   // nach so vielen Minuten ohne Beruehrung dimmen, 0 = nie
 
@@ -150,6 +152,7 @@ static uint8_t cur_bright() { return s_auto && s_night_on ? s_night : s_bright; 
 struct TileCfg {
   std::string k, n;   // Schluessel ("p:tank1", "t:<mac>", "m:<mac>", "v:<mac>"), eigener Name
   bool on = true;
+  uint8_t pg = 255;   // feste Seite (0 = Seite 1) aus dem Editor, 255 = automatisch (hinten anhaengen)
 };
 static std::vector<TileCfg> s_cfg;
 
@@ -249,6 +252,8 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
     case VIC_GRID: it.icon = ICON_PLUG; break;
     case VIC_INVERTER: it.icon = ICON_POWER; break;
     case VIC_PSTATION: it.icon = ICON_BATTERY; break;
+    case VIC_LITHIUM: it.icon = ICON_BATTERY; break;
+    case VIC_PROTECT: it.icon = ICON_POWER; break;
     case VIC_DCSYS: it.icon = ICON_BULB; break;
     default: it.icon = ICON_LIGHTNING; break;
   }
@@ -261,10 +266,17 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
       it.value = num(v.pv_w, 0, "W") + (isnan(v.yield_kwh) ? std::string("") : "  ·  " + num(v.yield_kwh, 2, "kWh"));
       it.accent = (!isnan(v.pv_w) && v.pv_w > 5) ? C_AMBER : C_TEXT2;
       break;
-    case VIC_SHUNT:
-      it.value = num(v.soc, 0, "%") + "  ·  " + num(v.bat_v, 1, "V");
+    case VIC_SHUNT: {
+      if (victron_is_sense(v)) {   // Smart Battery Sense: Spannung und Temperatur
+        it.value = num(v.bat_v, 2, "V") + (v.aux_mode == 2 && !isnan(v.aux) ? "  ·  " + num(v.aux, 0, "°C") : std::string());
+        it.accent = C_BLUE;
+        break;
+      }
+      float w = victron_dc_watt(v);
+      it.value = num(v.soc, 0, "%") + "  ·  " + num(v.bat_v, 1, "V") + (isnan(w) ? std::string() : "  ·  " + num(w, 0, "W"));
       it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
       break;
+    }
     case VIC_CHARGER:
       it.value = num(v.power_w, 0, "W") + "  ·  " + victron_state_text(v.state);
       break;
@@ -280,10 +292,36 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
       it.value = num(v.soc, 0, "%") + "  ·  raus " + num(v.ps_out_w, 0, "W");
       it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
       break;
-    case VIC_DCDC:
-      it.value = isnan(v.bat_i) ? num(v.bat_v, 2, "V") + "  ·  " + victron_state_text(v.state)
-                                : num(v.bat_i, 1, "A") + "  ·  " + num(v.bat_v, 1, "V");
+    case VIC_DCDC: {   // Booster: Leistung gross, darunter Strom und Spannung (ohne Strom: Spannung und Zustand)
+      float w = victron_dc_watt(v);
+      if (!isnan(w))
+        it.value = num(w, 0, "W") + "  ·  " + num(v.bat_i, 1, "A") + "  ·  " + num(v.bat_v, 1, "V");
+      else
+        it.value = isnan(v.bat_i) ? num(v.bat_v, 2, "V") + "  ·  " + victron_state_text(v.state)
+                                  : num(v.bat_i, 1, "A") + "  ·  " + num(v.bat_v, 1, "V");
       it.accent = (!isnan(v.bat_i) && v.bat_i > 0.2f) ? C_GREEN : C_TEXT2;
+      break;
+    }
+    case VIC_LITHIUM: {   // Spannung gross, darunter Temperatur und Zellen (niedrigste–hoechste)
+      float lo = NAN, hi = NAN;
+      for (float c : v.cell_v)
+        if (!isnan(c)) {
+          lo = isnan(lo) || c < lo ? c : lo;
+          hi = isnan(hi) || c > hi ? c : hi;
+        }
+      it.value = num(v.bat_v, 2, "V");
+      if (v.aux_mode == 2 && !isnan(v.aux)) it.value += "  ·  " + num(v.aux, 0, "°C");
+      if (!isnan(lo)) {
+        std::string l = num(lo, 2, "");
+        l.pop_back();   // Leerzeichen vor der (leeren) Einheit
+        it.value += "  ·  Zellen " + l + "–" + num(hi, 2, "V");
+      }
+      it.accent = v.alarm ? C_RED : C_GREEN;
+      break;
+    }
+    case VIC_PROTECT:
+      it.value = std::string(v.output == 1 ? "Ausgang an" : v.output == 0 ? "Ausgang aus" : "–") + "  ·  " + num(v.in_v, 2, "V");
+      it.accent = v.alarm || v.error > 0 ? C_RED : v.output == 1 ? C_GREEN : C_AMBER;
       break;
     case VIC_DCSYS:
       it.value = num(v.power_w, 0, "W") + "  ·  " + num(v.bat_i, 1, "A");
@@ -410,12 +448,17 @@ static void collect_raw(std::vector<Item> &s_items) {
   }
 }
 
-// Anzeige-Liste: Reihenfolge, Auswahl und Namen aus den Einstellungen; neue Geraete hinten (sichtbar)
+static int page_cnt(int p);
+// Anzeige-Liste: Seiten, Reihenfolge, Auswahl und Namen aus den Einstellungen. Kacheln mit fester Seite (Editor)
+// stehen auf ihrer Seite, freie Plaetze bleiben leer (Item ohne Schluessel). Neue Geraete und Kacheln ohne feste
+// Seite kommen dahinter (sichtbar).
 static void collect() {
   std::vector<Item> raw;
   collect_raw(raw);
   s_items.clear();
   std::vector<bool> used(raw.size(), false);
+  std::vector<std::vector<Item>> fixed;
+  std::vector<Item> autos;
   for (auto &c : s_cfg)
     for (size_t i = 0; i < raw.size(); i++)
       if (!used[i] && raw[i].key == c.k) {
@@ -423,15 +466,39 @@ static void collect() {
         if (c.on) {
           Item it = raw[i];
           if (!c.n.empty()) it.name = c.n;
-          s_items.push_back(it);
+          if (c.pg < 16) {
+            if (fixed.size() <= c.pg) fixed.resize(c.pg + 1);
+            fixed[c.pg].push_back(it);
+          } else {
+            autos.push_back(it);
+          }
         }
         break;
       }
   for (size_t i = 0; i < raw.size(); i++)
-    if (!used[i]) s_items.push_back(raw[i]);
+    if (!used[i]) autos.push_back(raw[i]);
+  for (size_t p = 0; p < fixed.size(); p++) {
+    size_t n = page_cnt(p);
+    for (size_t j = 0; j < n; j++) s_items.push_back(j < fixed[p].size() ? fixed[p][j] : Item());   // Item() = Luecke
+    for (size_t j = n; j < fixed[p].size(); j++) autos.push_back(fixed[p][j]);   // passt nicht mehr auf die Seite
+  }
+  for (auto &a : autos) s_items.push_back(a);
+  while (!s_items.empty() && s_items.back().key.empty()) s_items.pop_back();
 }
 
-static int pages() { return s_items.empty() ? 1 : (int)((s_items.size() + s_per - 1) / s_per); }
+static int norm_per(int v) { return v == 1 ? 1 : v == 2 ? 2 : 4; }
+static int page_cnt(int p) { return p < (int)s_pl.size() ? s_pl[p] : s_per; }
+static size_t page_start(int p) {
+  size_t st = 0;
+  for (int i = 0; i < p; i++) st += page_cnt(i);
+  return st;
+}
+static int pages() {
+  if (s_items.empty()) return 1;
+  int p = 0;
+  for (size_t st = 0; st < s_items.size(); p++) st += page_cnt(p);
+  return p;
+}
 
 #if WITH_CERBO
 // ---------------------------------------------------------------- Bedienfenster MultiPlus/Ladegeraet (ueber den GX)
@@ -708,7 +775,7 @@ static void bat_open(const std::string &key) {
 // (LONG_PRESS_MS), damit Wischen und kurzes Antippen beim Blaettern nichts ausloesen.
 static const uint16_t LONG_PRESS_MS = 2000;
 static void tile_long_cb(lv_event_t *e) {
-  size_t k = s_page * s_per + (int)(intptr_t)lv_event_get_user_data(e);
+  size_t k = page_start(s_page) + (int)(intptr_t)lv_event_get_user_data(e);
   if (k >= s_items.size()) return;
 #if WITH_BMS
   if (s_items[k].key.rfind("b:", 0) == 0) {
@@ -723,7 +790,7 @@ static void tile_long_cb(lv_event_t *e) {
 
 static void tile_cb(lv_event_t *e) {
   int slot = (int)(intptr_t)lv_event_get_user_data(e);
-  size_t k = s_page * s_per + slot;
+  size_t k = page_start(s_page) + slot;
   if (s_items.empty()) {   // Platzhalter-Kachel: Adresse gross zeigen
     info_open();
     return;
@@ -816,22 +883,35 @@ static void build() {
 // Hauptwert unten; mit zweitem Wert eine Zeile hoeher (zweiter Wert darunter)
 static void place_value(Tile &t) {
   bool two = !lv_obj_has_flag(t.sub, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, two ? -8 - lv_font_get_line_height(&font_ui_16) : -10);
+  const lv_font_t *sf = lv_obj_get_style_text_font(t.sub, 0);
+  lv_obj_align(t.value, LV_ALIGN_BOTTOM_LEFT, 10, two ? -8 - lv_font_get_line_height(sf) : -10);
 }
 
-// Groesse und Lage der Kacheln: 4 pro Seite (2x2) oder 2 grosse (volle Breite)
+// Groesse und Lage der Kacheln fuer die aktuelle Seite: 4 (2x2), 2 grosse (volle Breite) oder 1 (ganzer Bildschirm).
+// Groessere Kacheln bekommen groessere Schrift, wenn die Firmware sie mitbringt (SAT_BIG_FONT, Flash).
 static void relayout() {
-  int cols = s_per == 2 ? 1 : 2, rows = 2;
+  int n = page_cnt(s_page);
+  s_lay = n;
+  int cols = n == 4 ? 2 : 1, rows = n == 1 ? 1 : 2;
   int tw = (W - GAP * (cols + 1)) / cols, th = (H - TOP - DOTS_H - GAP * rows) / rows;
+#if SAT_BIG_FONT
+  const lv_font_t *fv = n == 1 ? &font_ui_40 : n == 2 ? &font_ui_26 : &font_ui_20;
+  const lv_font_t *fs = n == 1 ? &font_ui_20 : &font_ui_16;
+#else
+  const lv_font_t *fv = &font_ui_20, *fs = &font_ui_16;
+#endif
   for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
     int col = i % cols, row = (i / cols) % rows;
     lv_obj_set_size(t.box, tw, th);
     lv_obj_set_pos(t.box, GAP + col * (tw + GAP), TOP + row * (th + GAP));
+    lv_obj_set_style_text_font(t.value, fv, 0);
+    lv_obj_set_style_text_font(t.sub, fs, 0);
+    lv_obj_set_style_text_font(t.name, n == 1 ? fs : &font_ui_16, 0);
     // feste Hoehe = eine Zeile: zu lange Texte enden mit "…" statt umzubrechen
-    lv_obj_set_size(t.name, tw - 50, lv_font_get_line_height(&font_ui_16));
-    lv_obj_set_size(t.value, tw - 20, lv_font_get_line_height(&font_ui_20));
-    lv_obj_set_size(t.sub, tw - 20, lv_font_get_line_height(&font_ui_16));
+    lv_obj_set_size(t.name, tw - 50, lv_font_get_line_height(lv_obj_get_style_text_font(t.name, 0)));
+    lv_obj_set_size(t.value, tw - 20, lv_font_get_line_height(fv));
+    lv_obj_set_size(t.sub, tw - 20, lv_font_get_line_height(fs));
     lv_obj_align(t.sub, LV_ALIGN_BOTTOM_LEFT, 10, -8);
     place_value(t);
   }
@@ -858,6 +938,7 @@ static void set_value(Tile &t, const std::string &s) {
 static void refresh() {
   collect();
   if (s_page >= pages()) s_page = pages() - 1;
+  if (s_lay != page_cnt(s_page)) relayout();   // jede Seite kann 1, 2 oder 4 Kacheln haben
 #if SAT_VICTRON_ONLY
   set_text(s_title, vd_title());
 #else
@@ -869,8 +950,8 @@ static void refresh() {
   set_text(s_net, net);
   for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
-    size_t k = s_page * s_per + i;
-    if (i >= s_per) {   // bei 2 grossen Kacheln die uebrigen verstecken
+    size_t k = page_start(s_page) + i;
+    if (i >= page_cnt(s_page)) {   // Seite mit 1 oder 2 grossen Kacheln: die uebrigen verstecken
       lv_obj_add_flag(t.box, LV_OBJ_FLAG_HIDDEN);
       continue;
     }
@@ -894,6 +975,10 @@ static void refresh() {
       continue;
     }
     const Item &it = s_items[k];
+    if (it.key.empty()) {   // freier Platz auf einer Seite aus dem Editor
+      lv_obj_add_flag(t.box, LV_OBJ_FLAG_HIDDEN);
+      continue;
+    }
     lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
     set_text(t.icon, it.icon);
     set_text(t.name, it.name);
@@ -925,19 +1010,26 @@ static void load_cfg() {
   if (js.isEmpty()) return;
   JsonDocument d;
   if (deserializeJson(d, js)) return;
-  s_per = (d["p"] | 4) == 2 ? 2 : 4;
+  s_per = norm_per(d["p"] | 4);
+  s_pl.clear();
+  for (int v : d["pl"].as<JsonArray>()) s_pl.push_back(norm_per(v));
   s_bright = constrain((int)(d["b"] | 200), 20, 255);
   s_dim_min = d["d"] | 2;
   s_auto = d["a"] | true;
   s_night = constrain((int)(d["nb"] | 40), 5, 255);
   s_ldr_thr = constrain((int)(d["lt"] | 300), 1, 4095);
   s_cfg.clear();
-  for (JsonObject t : d["t"].as<JsonArray>()) s_cfg.push_back({t["k"] | "", t["n"] | "", (bool)(t["o"] | 1)});
+  for (JsonObject t : d["t"].as<JsonArray>())
+    s_cfg.push_back({t["k"] | "", t["n"] | "", (bool)(t["o"] | 1), (uint8_t)(t["g"] | 255)});
 }
 
 static void save_cfg() {
   JsonDocument d;
   d["p"] = s_per;
+  if (!s_pl.empty()) {
+    JsonArray pl = d["pl"].to<JsonArray>();
+    for (uint8_t v : s_pl) pl.add(v);
+  }
   d["b"] = s_bright;
   d["d"] = s_dim_min;
   d["a"] = s_auto;
@@ -949,6 +1041,7 @@ static void save_cfg() {
     t["k"] = c.k;
     if (!c.n.empty()) t["n"] = c.n;
     t["o"] = c.on ? 1 : 0;
+    if (c.pg < 16) t["g"] = c.pg;
   }
   String js;
   serializeJson(d, js);
@@ -963,6 +1056,8 @@ bool sat_display_present() { return true; }
 
 void sat_display_json(JsonObject o) {
   o["per"] = s_per;
+  JsonArray pl = o["pl"].to<JsonArray>();
+  for (uint8_t v : s_pl) pl.add(v);
   o["bright"] = s_bright;
   o["dim"] = s_dim_min;
   o["auto"] = s_auto;
@@ -980,6 +1075,7 @@ void sat_display_json(JsonObject o) {
     t["value"] = it.value;
     t["n"] = c ? c->n : "";
     t["on"] = c ? c->on : true;
+    if (c && c->pg < 16) t["pg"] = c->pg;
   };
   for (auto &c : s_cfg)
     for (size_t i = 0; i < raw.size(); i++)
@@ -1036,7 +1132,12 @@ bool sat_display_apply(JsonObjectConst c) {
     s_cal_req = true;
     return true;
   }
-  if (c["per"].is<int>()) s_per = c["per"].as<int>() == 2 ? 2 : 4;
+  if (c["per"].is<int>()) s_per = norm_per(c["per"].as<int>());
+  if (c["pl"].is<JsonArrayConst>()) {   // Kacheln je Seite (Editor), hoechstens 16 Seiten
+    s_pl.clear();
+    for (int v : c["pl"].as<JsonArrayConst>())
+      if (s_pl.size() < 16) s_pl.push_back(norm_per(v));
+  }
   if (c["bright"].is<int>()) s_bright = constrain(c["bright"].as<int>(), 20, 255);
   if (c["dim"].is<int>()) s_dim_min = constrain(c["dim"].as<int>(), 0, 600);
   if (c["auto"].is<bool>()) s_auto = c["auto"];
@@ -1047,12 +1148,13 @@ bool sat_display_apply(JsonObjectConst c) {
     for (JsonObjectConst t : c["tiles"].as<JsonArrayConst>()) {
       const char *k = t["k"] | "";
       if (!*k) continue;
-      s_cfg.push_back({k, t["n"] | "", t["on"] | true});
+      int pg = t["pg"] | 255;
+      s_cfg.push_back({k, t["n"] | "", t["on"] | true, (uint8_t)(pg >= 0 && pg < 16 ? pg : 255)});
     }
   }
   save_cfg();
-  relayout();
   s_page = 0;
+  relayout();
   s_dim = false;
   s_lcd.setBrightness(cur_bright());
   s_last_touch = millis();

@@ -20,6 +20,8 @@ enum VicKind : uint8_t {
   VIC_DCSYS = 6,     // DC-Verbraucher ("DC-System")
   VIC_INVERTER = 7,  // Wechselrichter (Phoenix, Multi RS, Ausgang von MultiPlus/Quattro) – ueber den Cerbo GX
   VIC_PSTATION = 8,  // Power Station (bms.cpp: Bluetti, Allpowers …)
+  VIC_PROTECT = 9,   // Smart BatteryProtect (Lasttrenner, Datensatz 0x09)
+  VIC_LITHIUM = 10,  // Smart Lithium Akku (Datensatz 0x05)
 };
 
 struct VictronInfo {
@@ -63,7 +65,17 @@ struct VictronInfo {
   float ps_in_w = NAN, ps_out_w = NAN, ps_ac_in_w = NAN, ps_dc_in_w = NAN, ps_ac_out_w = NAN, ps_dc_out_w = NAN;
   int8_t ac_on = -1, dc_on = -1;
   bool can_ac = false, can_dc = false;
+  // Smart BatteryProtect: Ausgang 1 an / 0 aus / -1 unbekannt (Eingang = in_v, Ausgang = bat_v)
+  int8_t output = -1;
+  // Smart Lithium: Zellspannungen (NAN = keine), Balancer 0 unbekannt / 1 ausgeglichen / 2 gleicht aus / 3 Ungleichgewicht
+  float cell_v[8] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
+  uint8_t balancer = 0;
 };
+
+// Smart Battery Sense meldet sich als Batteriemonitor (0x02), aber ohne Ladezustand und Strom
+inline bool victron_is_sense(const VictronInfo &v) {
+  return v.kind == VIC_SHUNT && !v.gx && __builtin_isnan(v.soc) && __builtin_isnan(v.bat_i);
+}
 
 struct VictronFound {
   std::string mac, name;
@@ -104,3 +116,10 @@ VicKind victron_kind_of_record(uint8_t record);
 const char *victron_kind_text(VicKind k);
 const char *victron_meter_text(int meter);   // "Kühlschrank", "Lichtmaschine", ... (0 = "")          // "Solarregler", "Batteriemonitor", ...
 const char *victron_state_text(int state);         // Betriebszustand, z. B. "Bulk", "Erhaltung"
+
+// DC-Leistung in W: vom GX gemeldet (power_w) oder Spannung x Strom (Batterie bzw. Ausgang); NAN = unbekannt
+inline float victron_dc_watt(const VictronInfo &v) {
+  if (v.gx && !__builtin_isnan(v.power_w)) return v.power_w;
+  if (__builtin_isnan(v.bat_v) || __builtin_isnan(v.bat_i)) return __builtin_nanf("");
+  return v.bat_v * v.bat_i;
+}

@@ -79,6 +79,8 @@ VicKind victron_kind_of_record(uint8_t record) {
     case 0x0D: return VIC_DCSYS;     // SmartShunt als DC-Energiezaehler (Verbraucher oder Quelle)
     case 0x04:
     case 0x0F: return VIC_DCDC;
+    case 0x05: return VIC_LITHIUM;   // Smart Lithium
+    case 0x09: return VIC_PROTECT;   // Smart BatteryProtect
     default: return VIC_UNKNOWN;
   }
 }
@@ -240,6 +242,39 @@ static bool parse_record(uint8_t record, const uint8_t *p, size_t n, VictronInfo
       else if (v.aux_mode == 2) v.aux = aux == 0xFFFF ? NAN : aux * 0.01f - 273.15f;
       else v.aux = NAN;
       v.power_w = (!isnan(v.bat_v) && !isnan(v.bat_i)) ? v.bat_v * v.bat_i : NAN;
+      return true;
+    }
+    case 0x05: {  // Smart Lithium (nach victron-ble, MIT): BMS-Bits, Fehler, 8 Zellen je 7 Bit, Spannung, Balancer, Temp.
+      if (n < 16) return false;
+      b.u(32);   // BMS-Flags
+      v.alarm = b.u(16);
+      for (int k = 0; k < 8; k++) {
+        uint32_t c = b.u(7);   // 0 = unter 2,61 V, 0x7E = ueber 3,85 V, 0x7F = keine Zelle
+        v.cell_v[k] = c == 0x7F ? NAN : 2.60f + c * 0.01f;
+      }
+      uint32_t bv = b.u(12);
+      v.bat_v = bv == 0xFFF ? NAN : bv * 0.01f;
+      v.balancer = b.u(4);
+      uint32_t t = b.u(7);
+      v.aux_mode = t == 0x7F ? 3 : 2;
+      v.aux = t == 0x7F ? NAN : (float)t - 40.0f;
+      v.bat_i = NAN;
+      v.soc = NAN;
+      return true;
+    }
+    case 0x09: {  // Smart BatteryProtect (nach victron-ble, MIT): Zustand, Ausgang, Fehler, Alarm, Warnung, Ein-/Ausgang V
+      if (n < 15) return false;
+      v.state = b.u(8);
+      uint32_t out = b.u(8);
+      v.output = out == 1 ? 1 : out == 4 ? 0 : -1;
+      uint32_t err = b.u(8);
+      v.error = err == 0xFF ? -1 : (int)err;
+      v.alarm = b.u(16);
+      b.u(16);   // Warnung
+      v.in_v = s16(b.s(16), 0.01f);
+      v.bat_v = u16(b.u(16), 0.01f);   // Ausgang
+      v.off_reason = b.u(32);
+      v.bat_i = NAN;
       return true;
     }
     case 0x0F: {  // Orion XS
@@ -587,6 +622,8 @@ const char *victron_kind_text(VicKind k) {
     case VIC_DCSYS: return "DC-System";
     case VIC_INVERTER: return "Wechselrichter";
     case VIC_PSTATION: return "Power Station";
+    case VIC_PROTECT: return "BatteryProtect";
+    case VIC_LITHIUM: return "Lithium-Akku";
     default: return "Victron-Gerät";
   }
 }

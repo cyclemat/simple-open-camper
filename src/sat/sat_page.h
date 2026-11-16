@@ -27,6 +27,13 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 .live{color:var(--tx2);font-size:13px}.sec{margin:16px 0 8px;font-size:15px}.pr{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}.pr>*{flex:1;min-width:110px}
 .pr .lbl{flex:none;width:70px;padding-bottom:18px;color:var(--tx2);font-size:13px}button.s{padding:5px 10px;font-size:13px}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#232A31;border:1px solid var(--line);border-radius:12px;padding:10px 16px;display:none;max-width:90%}
+.dpp{margin:0 0 14px}.dph{display:flex;align-items:center;gap:8px;margin:0 0 6px}.dph b{flex:1}.dph select{width:auto;padding:4px 8px}
+.scr{width:100%;max-width:320px;aspect-ratio:4/3;background:#000;border-radius:10px;padding:5px;display:grid;gap:5px}
+.scr.n1{grid-template:1fr/1fr}.scr.n2{grid-template:1fr 1fr/1fr}.scr.n4{grid-template:1fr 1fr/1fr 1fr}
+.tl{background:#1E252C;border:1px solid var(--line);border-radius:9px;padding:6px 9px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;min-width:0;user-select:none;-webkit-user-select:none}
+.tl .tn{font-size:12px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl .tv{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scr.n1 .tv{font-size:30px}.scr.n2 .tv{font-size:21px}.scr.n1 .tn{font-size:14px}
+.tl.sel{border-color:var(--ac);box-shadow:0 0 0 2px var(--ac)}.tl.em{background:transparent;border-style:dashed}.tl.ov{border-color:var(--ok)}
 </style></head><body><main>
 <h1 id="hName">PanelSat</h1><p class="sub" id="hSub">…</p>
 <div class="chips" id="chips"></div>
@@ -111,9 +118,10 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 
 <div class="card" id="dpCard" style="display:none"><h2>Display</h2>
 <p class="hint">Welche Werte das Display zeigt, in welcher Reihenfolge und unter welchem Namen. Neue Geräte erscheinen automatisch hinten.</p>
-<div id="dpList"></div>
+<p class="hint">Vorschau des Displays. Kachel antippen, dann den Zielplatz antippen (belegt = tauschen, frei = verschieben) – am PC auch ziehen. Je Seite 1, 2 oder 4 Kacheln, weitere Seiten mit „+ Seite hinzufügen“. Erst „Speichern“ übernimmt es aufs Display.</p>
+<div id="dpEd"></div><div id="dpSel"></div><div id="dpHid"></div>
 <div class="row" style="margin-top:10px">
-<label class="f"><span>Kacheln pro Seite</span><select id="dpPer"><option value="4">4 (2 × 2)</option><option value="2">2 (groß)</option></select></label>
+<label class="f"><span>Kacheln je Seite für neue Seiten</span><select id="dpPer"><option value="4">4 (2 × 2)</option><option value="2">2 (groß)</option><option value="1">1 (ganzer Bildschirm)</option></select></label>
 <label class="f"><span>Helligkeit</span><input type="range" id="dpBright" min="20" max="255"></label>
 <label class="f"><span>Dimmen nach</span><select id="dpDim"><option value="1">1 Minute</option><option value="2">2 Minuten</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="0">nie</option></select></label>
 <label class="ck"><input type="checkbox" id="dpAuto">Helligkeit automatisch (Lichtsensor vorne am Display)</label>
@@ -345,17 +353,51 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
 $('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
  try{const r=await fetch('/api/update',{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
-let DP=null;
+let DP=null,dSel=null,dG=null;
 function ldrShow(){const l=S.light;if(!l||l.ldr<0)return;$('#ldrNow').textContent='Lichtsensor zurzeit: '+l.ldr+' – '+(l.night?'dunkel':'hell')+(l.auto?'.':' (Automatik aus).')}
-async function dpLoad(){try{const r=await fetch('/api/display');if(!r.ok)return;DP=await r.json();dpRender()}catch(e){}}
-function dpRender(){if(!DP)return;$('#dpCard').style.display='';
- $('#dpList').innerHTML=DP.tiles.length?DP.tiles.map((t,i)=>`<div class="dev"><label class="ck" style="flex:none;margin:0"><input type="checkbox" data-dpon="${i}" ${t.on?'checked':''}></label><div class="t" style="flex:1"><input data-dpn="${i}" value="${esc(t.n)}" placeholder="${esc(t.name)}" style="width:100%"><div class="v">${esc(t.value||'')}</div></div><button data-dpup="${i}" ${i?'':'disabled'} style="flex:none">▲</button><button data-dpdn="${i}" ${i<DP.tiles.length-1?'':'disabled'} style="flex:none">▼</button></div>`).join(''):'<p class="hint">Noch keine Werte – erst Geräte oder Anschlüsse einrichten.</p>';
+const dPl=p=>p<DP.pl.length?DP.pl[p]:DP.per,dT=k=>DP.tiles.find(t=>t.k==k);
+// Seiten aufbauen wie das Display: feste Seite aus den Einstellungen, der Rest fliesst hinten auf neue Seiten
+function dpBuild(){const P=[],au=[];DP.tiles.filter(t=>t.on).forEach(t=>{if(t.pg!=null&&t.pg<16){while(P.length<=t.pg)P.push({n:dPl(P.length),k:[]});P[t.pg].k.push(t.k)}else au.push(t.k)});
+ P.forEach(p=>au.push(...p.k.splice(p.n)));for(let i=0;i<au.length;){const n=dPl(P.length);P.push({n,k:au.slice(i,i+n)});i+=n}
+ if(!P.length)P.push({n:dPl(0),k:[]});DP.P=P}
+async function dpLoad(){try{const r=await fetch('/api/display');if(!r.ok)return;DP=await r.json();DP.pl=DP.pl||[];dSel=null;dpBuild();dpRender()}catch(e){}}
+// zu viele Kacheln auf einer Seite: Ueberzaehlige an den Anfang der naechsten Seite
+function dpFix(){const P=DP.P;for(let p=0;p<P.length;p++){const x=P[p].k.splice(P[p].n);if(x.length){if(!P[p+1])P.push({n:DP.per,k:[]});P[p+1].k.unshift(...x)}}}
+// Kachel von Platz a nach Platz b: belegt = tauschen, frei = verschieben
+function dpMove(a,b){const P=DP.P,ka=P[a.p].k[a.i];if(ka==null||(a.p==b.p&&a.i==b.i))return;const kb=P[b.p].k[b.i];
+ if(kb!=null){P[a.p].k[a.i]=kb;P[b.p].k[b.i]=ka}else{P[a.p].k.splice(a.i,1);P[b.p].k.push(ka)}}
+const dFlat=()=>{const f=[];DP.P.forEach((p,pi)=>p.k.forEach((k,i)=>f.push({p:pi,i})));return f};
+function dpRender(){if(!DP)return;$('#dpCard').style.display='';let h='';
+ DP.P.forEach((pg,p)=>{let c='';for(let i=0;i<pg.n;i++){const k=pg.k[i],t=k!=null&&dT(k),sel=dSel&&dSel.p==p&&dSel.i==i;
+   c+=t?`<div class="tl${sel?' sel':''}" draggable="true" data-p="${p}" data-i="${i}"><div class="tn">${esc(t.n||t.name)}</div><div class="tv">${esc((t.value||'–').split('  ·  ')[0])}</div></div>`:`<div class="tl em" data-p="${p}" data-i="${i}"></div>`}
+  h+=`<div class="dpp"><div class="dph"><b>Seite ${p+1}</b>${!pg.k.length&&DP.P.length>1?`<button class="s d" data-dpdel="${p}">Seite löschen</button>`:''}<select data-pl="${p}">${[4,2,1].map(v=>`<option value="${v}"${v==pg.n?' selected':''}>${v} ${v==1?'Kachel':'Kacheln'}</option>`).join('')}</select></div><div class="scr n${pg.n}">${c}</div></div>`});
+ $('#dpEd').innerHTML=(DP.tiles.length?h:'<p class="hint">Noch keine Werte – erst Geräte oder Anschlüsse einrichten.</p>')+(DP.tiles.length?'<button id="dpAdd" style="margin:0 0 12px">+ Seite hinzufügen</button>':'');
+ const sk=dSel&&DP.P[dSel.p].k[dSel.i],t=sk!=null&&sk!==undefined&&dT(sk),F=dFlat(),fi=dSel?F.findIndex(x=>x.p==dSel.p&&x.i==dSel.i):-1;
+ $('#dpSel').innerHTML=t?`<div class="io"><div class="ioh"><b>${esc(t.name)}</b><button class="s" data-dmv="-1" ${fi>0?'':'disabled'}>◀</button><button class="s" data-dmv="1" ${fi>=0&&fi<F.length-1?'':'disabled'}>▶</button></div><label class="f"><span>Eigener Name (leer = ${esc(t.name)})</span><input id="dpName" maxlength="32" value="${esc(t.n||'')}"></label><div class="row"><button class="d" id="dpHide" style="flex:none">Ausblenden</button><button id="dpDone" style="flex:none">Fertig</button></div></div>`:'';
+ const H=DP.tiles.filter(t=>!t.on);
+ $('#dpHid').innerHTML=H.length?'<h2 style="margin-top:6px">Ausgeblendet</h2>'+H.map(t=>`<div class="dev"><div class="t">${esc(t.n||t.name)}<div class="v">${esc(t.value||'')}</div></div><button data-dshow="${esc(t.k)}">Einblenden</button></div>`).join(''):'';
  $('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr}
-$('#dpList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,T=DP.tiles;
- if(d.dpup){const i=+d.dpup;[T[i-1],T[i]]=[T[i],T[i-1]];dpRender()}
- if(d.dpdn){const i=+d.dpdn;[T[i+1],T[i]]=[T[i],T[i+1]];dpRender()}});
-$('#dpList').addEventListener('change',e=>{const d=e.target.dataset;if(d.dpon)DP.tiles[+d.dpon].on=e.target.checked});
-$('#dpList').addEventListener('input',e=>{const d=e.target.dataset;if(d.dpn)DP.tiles[+d.dpn].n=e.target.value});
-$('#bDpSave').onclick=()=>post('/api/display',{tiles:DP.tiles.map(t=>({k:t.k,on:t.on,n:t.n||''})),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true));
+$('#dpEd').addEventListener('click',e=>{const b=e.target.closest('button');
+ if(b&&b.id=='dpAdd'){DP.P.push({n:DP.per,k:[]});dSel=null;return dpRender()}
+ if(b&&b.dataset.dpdel){DP.P.splice(+b.dataset.dpdel,1);dSel=null;return dpRender()}
+ const el=e.target.closest('.tl');if(!el)return;const at={p:+el.dataset.p,i:+el.dataset.i},has=DP.P[at.p].k[at.i]!=null;
+ if(!dSel){if(has)dSel=at}else if(dSel.p==at.p&&dSel.i==at.i)dSel=null;else{dpMove(dSel,at);dSel=null}dpRender()});
+$('#dpEd').addEventListener('change',e=>{const d=e.target.dataset;if(d.pl==null)return;DP.P[+d.pl].n=+e.target.value;dpFix();dSel=null;dpRender()});
+$('#dpEd').addEventListener('dragstart',e=>{const el=e.target.closest('.tl');if(!el||el.classList.contains('em'))return;dG={p:+el.dataset.p,i:+el.dataset.i};e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','x')});
+$('#dpEd').addEventListener('dragover',e=>{const el=e.target.closest('.tl');if(!dG||!el)return;e.preventDefault();document.querySelectorAll('.tl.ov').forEach(x=>x.classList.remove('ov'));el.classList.add('ov')});
+$('#dpEd').addEventListener('drop',e=>{const el=e.target.closest('.tl');if(!el||!dG)return;e.preventDefault();dpMove(dG,{p:+el.dataset.p,i:+el.dataset.i});dG=null;dSel=null;dpRender()});
+$('#dpEd').addEventListener('dragend',()=>{dG=null;document.querySelectorAll('.tl.ov').forEach(x=>x.classList.remove('ov'))});
+$('#dpSel').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!dSel)return;
+ if(b.dataset.dmv){const F=dFlat(),fi=F.findIndex(x=>x.p==dSel.p&&x.i==dSel.i),to=F[fi+(+b.dataset.dmv)];if(to){dpMove(dSel,to);dSel=to}}
+ if(b.id=='dpHide'){const k=DP.P[dSel.p].k.splice(dSel.i,1)[0];dT(k).on=false;dSel=null}
+ if(b.id=='dpDone')dSel=null;dpRender()});
+$('#dpSel').addEventListener('input',e=>{if(e.target.id!='dpName'||!dSel)return;const t=dT(DP.P[dSel.p].k[dSel.i]);if(t)t.n=e.target.value});
+$('#dpHid').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!b.dataset.dshow)return;const t=dT(b.dataset.dshow);if(!t)return;t.on=true;
+ let L=DP.P[DP.P.length-1];if(L.k.length>=L.n){L={n:DP.per,k:[]};DP.P.push(L)}L.k.push(t.k);dpRender()});
+$('#dpPer').onchange=e=>{DP.per=+e.target.value};
+// Speichern: leere Seiten fallen weg, jede Kachel bekommt ihre Seite
+$('#bDpSave').onclick=()=>{const P=DP.P.filter(p=>p.k.length),tiles=[];P.forEach((p,pi)=>p.k.forEach(k=>{const t=dT(k);tiles.push({k,on:true,n:t.n||'',pg:pi})}));
+ DP.tiles.filter(t=>!t.on).forEach(t=>tiles.push({k:t.k,on:false,n:t.n||''}));
+ post('/api/display',{tiles,pl:P.map(p=>p.n),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true))};
 load();ioLoad();dpLoad();setInterval(load,3000);
 </script></body></html>)HTML";

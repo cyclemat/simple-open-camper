@@ -92,6 +92,14 @@ const char *SB_RPC = "93618162-0634-49ad-8510-798a91645056";      // Textkonsole
 const char *SB_UNLOCK = "SuperB";
 const char *SB_HINTS[] = {"epsilon", "super b", "superb"};
 const size_t SB_CHUNK = 20;
+// Super B "Epsilon V2" (neuere Akkus, Hersteller-ID 0x50BE): anderer Dienst; nach aiobmsble superb_v2_bms (Apache-2.0)
+// Anfrage 21 54 00 -> 24-Byte-Rahmen per Notify (Typ = Byte 0, Big Endian):
+// Typ 0: [1] SoC, [18] Zyklen, [19] SoH, [20..23] Restzeit s (FFFFFFFF = keine); Typ 2: [6..9] mA (mit Vorzeichen), [10..11] mV
+const char *SB2_SERVICE = "cf9ccdf7-eee9-43ce-87a5-82b54af5324e";
+const char *SB2_RXTX = "cf9ccdfa-eee9-43ce-87a5-82b54af5324e";
+const char *SB2_NOTIFY = "e0fef452-9d2b-4005-a1e3-69fe1102b436";     // bei aiobmsble als Kanal; am Akku ist es der Dienst
+const char *SB2_NOTIFY_CH = "e0fef453-9d2b-4005-a1e3-69fe1102b436";  // Meldekanal darin (Datenrahmen, gesehen 2026-11-16)
+const uint32_t SB2_POLL_MS = 10000;
 
 // ---------------------------------------------------------------- Power Quarry (App "Power Quarry" 3.5.2, CBT-BMS)
 // Schreiben 0xFFE5/0xFFE9 (ohne Antwort, 20-Byte-Stuecke, 30 ms Abstand), Empfang 0xFFE0/0xFFE4 (Notify).
@@ -176,6 +184,9 @@ struct Bat {
   uint32_t polls = 0;     // Zaehler: nur jede 3. Abfrage (1 min) auch Ladezustand/Temperatur/Kapazitaet/Alarme
   int rssi = 0;           // Signal zuletzt (fuers Protokoll bei Trennung)
   uint8_t silent = 0;     // Abfragen hintereinander ganz ohne Empfang
+  std::string pin;        // Kopplungs-PIN (Super B Epsilon V2: steht auf dem Akku bzw. in der Anleitung)
+  bool pin_need = false;  // Akku hat beim Koppeln eine PIN verlangt
+  bool auth_fail = false; // Trennung mit "Authentication Failure" (0x205/0x206): alte Kopplung vor dem naechsten Versuch loeschen
   // Abgefragte Akkus (Power Quarry, Bulltron) nur kurz verbinden: verbinden, abfragen, trennen. Die Dauer-
   // verbindung riss beim Power Quarry immer nach ~13 s ab ("Grund 520", Funkverbindung verloren).
   bool polled() const { return model != BMS_SUPERB && model != BMS_UNKNOWN && !is_anker(model) && !is_ecoflow(model); }
@@ -200,6 +211,9 @@ struct Bat {
 
 class ClientCB : public NimBLEClientCallbacks {
   void onDisconnect(NimBLEClient *c, int reason) override;
+  void onAuthenticationComplete(NimBLEConnInfo &ci) override;   // Kopplung: Ergebnis ins Protokoll
+  void onPassKeyEntry(NimBLEConnInfo &ci) override;
+  void onConfirmPasskey(NimBLEConnInfo &ci, uint32_t pin) override;
 };
 
 }  // namespace
@@ -266,6 +280,9 @@ static void save() {
     snprintf(k, sizeof(k), "a%u", n); p.putString(k, b.name.c_str());
     snprintf(k, sizeof(k), "c%u", n); p.putUShort(k, b.cap_ah);
     snprintf(k, sizeof(k), "z%u", n); p.putUChar(k, b.cells);
+    if (!b.pin.empty()) {
+      snprintf(k, sizeof(k), "p%u", n); p.putString(k, b.pin.c_str());
+    }
     if (!b.serial.empty()) {
       snprintf(k, sizeof(k), "s%u", n); p.putString(k, b.serial.c_str());
       snprintf(k, sizeof(k), "e%u", n); p.putUChar(k, b.ef_enc);
@@ -291,6 +308,7 @@ static void load() {
     snprintf(k, sizeof(k), "z%u", i); b.cells = p.getUChar(k, 4);
     snprintf(k, sizeof(k), "s%u", i); b.serial = p.getString(k, "").c_str();
     snprintf(k, sizeof(k), "e%u", i); b.ef_enc = p.getUChar(k, 7);
+    snprintf(k, sizeof(k), "p%u", i); if (p.isKey(k)) b.pin = p.getString(k, "").c_str();
     if (!b.mac.empty()) s_bats.push_back(b);
   }
   p.end();
@@ -329,6 +347,124 @@ static void sb_status(const std::string &mac, const uint8_t *d, size_t n) {
   s_ver++;
 }
 
+// Epsilon V2: Rahmen Typ 0 (Ladezustand usw.) und Typ 2 (Strom/Spannung)
+static int s_sb2_dbg = 0;   // erste Rahmen ins Protokoll (Fehlersuche)
+static void sb2_rx(const std::string &mac, const uint8_t *d, size_t n) {
+  Lock l;
+  Bat *b = find_mac(mac);
+  if (!b) return;
+  if (!b->has && s_sb2_dbg < 6) {
+    s_sb2_dbg++;
+    char raw[3 * 24 + 1] = "";
+    for (size_t i = 0; i < n && i < 24; i++) snprintf(raw + 3 * i, 4, "%02X ", d[i]);
+    logf("%s: empfangen %u Byte: %s", b->name.c_str(), (unsigned)n, raw);
+  }
+  if (n != 24) return;
+  if (d[0] == 0x00) {
+    b->soc = d[1];
+    b->cycles = d[18];
+    b->soh = d[19];
+    uint32_t rt = be32(d + 20);
+    b->ttg = rt == 0xFFFFFFFFu ? -1 : (int32_t)rt;
+  } else if (d[0] == 0x01 || d[0] == 0x02) {   // Akku des Nutzers schickt nur 01 und 02 (gleicher Aufbau)
+    b->amp = (int32_t)be32(d + 6) / 1000.0f;
+    b->volt = ((uint16_t)d[10] << 8 | d[11]) / 1000.0f;
+    int16_t t = (int16_t)((uint16_t)d[14] << 8 | d[15]);   // 0x0963 = 24,03 °C (vermutlich 0,01 °C)
+    if (t > -4000 && t < 9000) b->temp = t / 100.0f;
+    // keine Statusbits bekannt: "in Ordnung", Laden/Entladen erlaubt, Richtung aus dem Strom
+    b->flags = 0x01 | 0x10 | 0x20 | (b->amp > 0.1f ? 0x04 : b->amp < -0.1f ? 0x02 : 0);
+  } else {
+    return;
+  }
+  if (!b->has && !isnan(b->volt)) {
+    logf("%s: erste Werte (Epsilon V2) %d %%, %.2f V, %.2f A", b->name.c_str(), b->soc, b->volt, b->amp);
+    b->has = true;
+  }
+  if (b->has) {
+    b->last_ms = millis();
+    b->status = "Verbunden";
+  }
+  s_ver++;
+}
+
+// Ladezustand ueber den Standard-Dienst Batteriestand (0x180F/0x2A19) – die Epsilon V2 schickt keinen Rahmen 00
+static void sb2_soc(const std::string &mac, const uint8_t *d, size_t n) {
+  if (n < 1 || d[0] > 100) return;
+  Lock l;
+  Bat *b = find_mac(mac);
+  if (!b) return;
+  if (b->soc != d[0]) s_ver++;
+  b->soc = d[0];
+}
+
+static bool sb2_connect(Bat &b, NimBLEClient *c) {
+  // Erst alle Dienste einlesen (getServices(true) loescht vorher geholte Dienste/Kanaele - danach erst Zeiger holen).
+  // Der zweite Meldekanal kann in einem anderen Dienst liegen.
+  const std::vector<NimBLERemoteService *> &all = c->getServices(true);
+  NimBLERemoteService *svc = c->getService(NimBLEUUID(SB2_SERVICE));
+  NimBLERemoteCharacteristic *rx = svc ? svc->getCharacteristic(NimBLEUUID(SB2_RXTX)) : nullptr;
+  NimBLERemoteCharacteristic *nt = nullptr;
+  if (NimBLERemoteService *ns = c->getService(NimBLEUUID(SB2_NOTIFY))) nt = ns->getCharacteristic(NimBLEUUID(SB2_NOTIFY_CH));
+  if (!nt)
+    for (auto *s : all)
+      if ((nt = s->getCharacteristic(NimBLEUUID(SB2_NOTIFY)))) break;
+  if (!rx) {
+    logf("%s: Epsilon V2 ohne Datenkanal", b.name.c_str());
+    return false;
+  }
+  auto props = [](NimBLERemoteCharacteristic *ch) -> std::string {
+    if (!ch) return "fehlt";
+    std::string p;
+    if (ch->canRead()) p += "lesen ";
+    if (ch->canWrite()) p += "schreiben ";
+    if (ch->canWriteNoResponse()) p += "ohne-Antw ";
+    if (ch->canNotify()) p += "notify ";
+    if (ch->canIndicate()) p += "indicate";
+    return p;
+  };
+  logf("%s: Epsilon V2 cf9ccdfa: %s / e0fef453: %s", b.name.c_str(), props(rx).c_str(), props(nt).c_str());
+
+  s_sb2_dbg = 0;
+  std::string mac = b.mac;
+  auto cb = [mac](NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) { sb2_rx(mac, d, n); };
+  auto sub = [&](NimBLERemoteCharacteristic *ch) -> bool {
+    if (!ch || !(ch->canNotify() || ch->canIndicate())) return false;
+    return ch->subscribe(ch->canNotify(), cb, true);
+  };
+  bool a = sub(rx), n2 = sub(nt);
+  if (!a && !n2 && c->isConnected()) {
+    // Akku verlangt evtl. eine verschluesselte Verbindung (Kopplung "Just Works" wie mit der App)
+    logf("%s: Abonnieren abgelehnt – koppele und versuche erneut", b.name.c_str());
+    bool sec = c->secureConnection();
+    logf("%s: Kopplung %s", b.name.c_str(), sec ? "ok" : "fehlgeschlagen");
+    a = sub(rx);
+    n2 = sub(nt);
+  }
+  if (!a && !n2) {
+    logf("%s: Epsilon V2 nicht abonnierbar", b.name.c_str());
+    return false;
+  }
+  logf("%s: abonniert cf9ccdfa %s, e0fef453 %s", b.name.c_str(), a ? "ja" : "nein", n2 ? "ja" : "nein");
+  if (NimBLERemoteService *bs = c->getService(NimBLEUUID((uint16_t)0x180F)))
+    if (NimBLERemoteCharacteristic *bl = bs->getCharacteristic(NimBLEUUID((uint16_t)0x2A19))) {
+      if (bl->canRead()) {
+        NimBLEAttValue v = bl->readValue();
+        sb2_soc(mac, v.data(), v.length());
+      }
+      if (bl->canNotify())
+        bl->subscribe(true, [mac](NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) { sb2_soc(mac, d, n); }, true);
+    }
+  {
+    Lock l;
+    b.model_text = "Super B Epsilon V2";
+  }
+  b.wr = rx;
+  b.wr_resp = !rx->canWriteNoResponse() && rx->canWrite();
+  b.next_poll = millis() + 300;
+  logf("%s: verbunden (Epsilon V2)", b.name.c_str());
+  return true;
+}
+
 // Textkonsole: alles einsammeln (nur fuers Entsperren)
 static void sb_rpc(const uint8_t *d, size_t n) {
   Lock l;
@@ -348,6 +484,9 @@ static bool sb_write(NimBLERemoteCharacteristic *c, const char *txt) {
 // Ablauf wie die App: verbinden, Konsole mit "SuperB" entsperren, Geraete-Info lesen, Status abonnieren
 static bool sb_connect(Bat &b, NimBLEClient *c) {
   NimBLERemoteService *svc = c->getService(NimBLEUUID(SB_SERVICE));
+  if (!svc) {
+    if (c->getService(NimBLEUUID(SB2_SERVICE))) return sb2_connect(b, c);
+  }
   NimBLERemoteCharacteristic *st = svc ? svc->getCharacteristic(NimBLEUUID(SB_STATUS)) : nullptr;
   NimBLERemoteCharacteristic *rpc = svc ? svc->getCharacteristic(NimBLEUUID(SB_RPC)) : nullptr;
   if (!svc || !st || !rpc) {
@@ -880,9 +1019,58 @@ void ClientCB::onDisconnect(NimBLEClient *c, int reason) {
       b.next_try = millis() + RECONNECT_MS;
       b.status = "Verbindung getrennt";
       s_ver++;
+      if (reason == 0x205 || reason == 0x206) b.auth_fail = true;   // Kopplung passt nicht (mehr)
       logf("%s: getrennt (Grund %d) nach %lu s, Signal zuletzt %d dBm", b.name.c_str(), reason,
            (unsigned long)((millis() - b.conn_ms) / 1000), b.rssi);
     }
+}
+
+void ClientCB::onAuthenticationComplete(NimBLEConnInfo &ci) {
+  logf("%s: Kopplung %s (verschluesselt %d, authentifiziert %d, gespeichert %d, Schluessel %d Byte)",
+       ci.getAddress().toString().c_str(), ci.isEncrypted() ? "ok" : "FEHLGESCHLAGEN", ci.isEncrypted(),
+       ci.isAuthenticated(), ci.isBonded(), ci.getSecKeySize());
+}
+void ClientCB::onPassKeyEntry(NimBLEConnInfo &ci) {
+  std::string pin, name;
+  {
+    Lock l;
+    for (auto &b : s_bats)
+      if (b.client && b.client->getConnHandle() == ci.getConnHandle()) {
+        b.pin_need = true;
+        pin = b.pin;
+        name = b.name;
+        if (pin.empty()) b.status = "PIN noetig – in der Weboberflaeche eintragen";
+        s_ver++;
+      }
+  }
+  if (pin.empty()) {
+    logf("%s: Akku verlangt eine PIN – bitte beim Akku eintragen (steht auf dem Akku bzw. in der Anleitung)", name.c_str());
+    NimBLEDevice::injectPassKey(ci, 0);   // ohne PIN schlaegt die Kopplung fehl
+    return;
+  }
+  logf("%s: gebe Kopplungs-PIN ein", name.c_str());
+  NimBLEDevice::injectPassKey(ci, (uint32_t)strtoul(pin.c_str(), nullptr, 10));
+}
+void ClientCB::onConfirmPasskey(NimBLEConnInfo &ci, uint32_t pin) {
+  logf("%s: Geraet will Zahlenvergleich %06lu", ci.getAddress().toString().c_str(), (unsigned long)pin);
+  NimBLEDevice::injectConfirmPasskey(ci, true);
+}
+
+// Waehrend der Verbindung zu einem Akku mit PIN darf NimBLE eine PIN abfragen (onPassKeyEntry); sonst Just Works
+struct IoCapGuard {
+  bool on;
+  explicit IoCapGuard(bool o) : on(o) {
+    if (on) NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY);
+  }
+  ~IoCapGuard() {
+    if (on) NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  }
+};
+// PIN-Eingabe erlauben: Akku mit eingetragener PIN, oder Super B (Epsilon V2 verlangt immer eine)
+static bool wants_pin_io(const std::string &mac) {
+  Lock l;
+  Bat *b = find_mac(mac);
+  return b && (!b->pin.empty() || b->model == BMS_SUPERB);
 }
 
 // Client vom Akku loesen (unter der Sperre) und erst danach ausserhalb der Sperre trennen/loeschen:
@@ -913,7 +1101,11 @@ static BmsModel renogy_detect(const std::string &un, uint16_t mid) {
 // ---------------------------------------------------------------- Bluetooth-Ablauf (Scan-Task von truma.cpp)
 bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   if (!s_disc_until) return false;
-  bool svc = dev->isAdvertisingService(NimBLEUUID(SB_SERVICE));
+  bool svc = dev->isAdvertisingService(NimBLEUUID(SB_SERVICE)) || dev->isAdvertisingService(NimBLEUUID(SB2_SERVICE));
+  if (!svc && dev->haveManufacturerData()) {   // Epsilon V2: Hersteller-ID 0x50BE
+    std::string md = dev->getManufacturerData();
+    svc = md.size() >= 2 && (uint8_t)md[0] == 0xBE && (uint8_t)md[1] == 0x50;
+  }
   std::string name = dev->haveName() ? dev->getName() : "";
   std::string ln = lower(name);
   bool hint = false;
@@ -1150,8 +1342,26 @@ void bms_connect_now() {
     Bat *b = find_mac(mac);
     quiet = b && b->polled() && b->has;   // Kurzverbindungen: nur beim ersten Mal und bei Fehlern ins Protokoll
   }
-  if (!quiet) logf("Verbinde %s …", mac.c_str());
-  bool ok = c->connect(NimBLEAddress(mac, type), true);
+  bool reset_bond = false;
+  {
+    Lock l;
+    Bat *b = find_mac(mac);
+    if (b && b->auth_fail) {
+      b->auth_fail = false;
+      reset_bond = true;
+    }
+  }
+  NimBLEAddress addr(mac, type);
+  bool bonded = NimBLEDevice::isBonded(addr);
+  if (reset_bond && bonded) {
+    bool del = NimBLEDevice::deleteBond(addr);
+    logf("%s: Kopplung passte nicht – gespeicherte Kopplung %s, koppele neu", mac.c_str(), del ? "geloescht" : "nicht loeschbar");
+    bonded = false;
+  }
+  if (!quiet) logf("Verbinde %s …%s", mac.c_str(), bonded ? " (gekoppelt)" : "");
+  // Kopplung mit PIN-Eingabe erlauben (Akku mit PIN, Super B); danach wieder "ohne Ein-/Ausgabe"
+  IoCapGuard io_guard(wants_pin_io(mac));
+  bool ok = c->connect(addr, true);
   if (!ok) {
     {
       Lock l;
@@ -1374,6 +1584,19 @@ void bms_poll_now() {
       }
   }
   if (mac.empty()) return;
+  if (model == BMS_SUPERB) {   // Epsilon V2: Dauerverbindung, nur Anfrage senden, Antwort kommt per Notify
+    static const uint8_t REQ[3] = {0x21, 0x54, 0x00};
+    bool resp;
+    {
+      Lock l;
+      Bat *b = find_mac(mac);
+      if (!b) return;
+      b->next_poll = millis() + SB2_POLL_MS;
+      resp = b->wr_resp;
+    }
+    if (!wr->writeValue(REQ, 3, resp)) logf("Super B: Anfrage nicht gesendet");
+    return;
+  }
   // Abgefragte Akkus nach der Abfrage trennen (auch bei Fehlern), naechste Verbindung in PQ_POLL_MS
   struct AfterPoll {
     std::string mac;
@@ -2277,6 +2500,8 @@ static BmsInfo info_of(const Bat &b) {
   i.discharge_allowed = b.flags & 0x20;
   i.temp = b.temp;
   i.cycles = b.cycles;
+  i.pin_set = !b.pin.empty();
+  i.pin_need = b.pin_need;
   i.capacity_ah = b.cap_ah;
   i.cells_mv = b.cell_mv;
   i.alarms = b.alarms;
@@ -2490,6 +2715,20 @@ void bms_remove(const std::string &mac) {
   s_ver++;
 }
 
+void bms_set_pin(const std::string &mac, const std::string &pin) {
+  std::string digits;
+  for (char ch : pin)
+    if (isdigit((unsigned char)ch)) digits += ch;
+  Lock l;
+  Bat *b = find_mac(lower(mac));
+  if (!b) return;
+  b->pin = digits.substr(0, 6);
+  b->next_try = millis();   // gleich neu versuchen
+  save();
+  s_ver++;
+  logf("%s: PIN %s", b->name.c_str(), b->pin.empty() ? "geloescht" : "gespeichert");
+}
+
 void bms_rename(const std::string &mac, const std::string &name) {
   Lock l;
   Bat *b = find_mac(lower(mac));
@@ -2613,7 +2852,7 @@ std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b) {
         rest = "lädt";
       }
       add("Restzeit", rest);
-      if (!sb) add("Zyklen", b.cycles >= 0 ? std::to_string(b.cycles) : "–");
+      if (!sb || b.cycles >= 0) add("Zyklen", b.cycles >= 0 ? std::to_string(b.cycles) : "–");
       if (sb) add("Gesundheit", b.soh >= 0 ? std::to_string(b.soh) + " %" : "–");
     }
   }
