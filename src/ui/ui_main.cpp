@@ -312,8 +312,7 @@ static SioText sio_text(const SatPoint &p, bool small) {
     case SP_SWITCH:
       r.icon = ICON_PLUG;
       r.value = p.on ? tr("An") : tr("Aus");
-      r.accent = p.on ? C_AMBER : C_TEXT2;
-      if (!small) r.sub = tr("Tippen zum Schalten");
+      r.accent = p.on ? C_AMBER : C_TEXT2;   // kein Hinweis "Tippen zum Schalten": lag ueber dem Namen
       break;
     default:
       break;
@@ -1194,6 +1193,178 @@ static void status_update() {
   wifi_banner_update();
 }
 
+// ---------------------------------------------------------------- Kachel-Daten fuer Zusatzdisplays (ui_remote.cpp)
+// Gleiche Texte wie die Kacheln hier, nur ohne LVGL-Objekte: Name, Icon, Wert, Zeile, Farbe, an/aus.
+static uint32_t rgb_of(lv_color_t c) { return lv_color_to32(c) & 0xFFFFFF; }
+
+std::vector<std::string> ui_tile_keys() {
+  std::vector<std::string> r;
+  for (auto &p : s_lay.pages)
+    for (auto &t : p.tiles)
+      if (std::find(r.begin(), r.end(), t.key) == r.end()) r.push_back(t.key);
+  return r;
+}
+
+bool ui_tile_model(const std::string &key, TileModel &m) {
+  m = TileModel();
+  auto nm = s_lay.names.find(key);
+  std::string own = nm != s_lay.names.end() ? nm->second : std::string();
+  if (panelsat_is_point_key(key)) {
+    SatPoint p;
+    bool found = panelsat_point_get(key, p);
+    m.name = !own.empty() ? own : found ? p.name : std::string(tr("Sensor"));
+    SioText tt;
+    if (found) tt = sio_text(p, false);
+    else {
+      tt.value = "–";
+      tt.sub = tr("Satellit meldet sich nicht");
+      tt.dim = true;
+    }
+    m.icon = tt.icon;
+    m.value = tt.value;
+    m.sub = tt.sub;
+    m.accent = rgb_of(tt.accent);
+    m.fill = tt.fill;
+    m.dim = tt.dim;
+    if (found && p.kind == SP_SWITCH) {
+      m.act = 1;
+      m.lit = p.on;
+      m.sub.clear();
+    }
+    return true;
+  }
+  if (ui_gas_is_key(key)) {
+    GasView g;
+    bool found = ui_gas_get(key, g);
+    m.name = found ? ui_gas_label(s_lay, g) : (!own.empty() ? own : std::string(tr("Gasflasche")));
+    m.icon = found && g.water ? ICON_BATH : ICON_GAS;
+    if (!found || !g.has) {
+      m.value = found ? "…" : "–";
+      m.sub = found ? g.status : std::string(tr("Sensor nicht eingerichtet"));
+      m.dim = !found;
+      return true;
+    }
+    m.value = std::to_string(g.percent) + "\xE2\x80\xAF%";
+    m.sub = g.amount;
+    m.fill = g.percent;
+    m.accent = rgb_of(ui_gas_color(g.percent));
+    return true;
+  }
+  if (victron_is_key(key)) {
+    VictronInfo v;
+    bool found = ui_vic_get(key, v);
+    m.name = found ? ui_vic_label(s_lay, v) : (!own.empty() ? own : std::string(tr("Victron")));
+    m.icon = ui_vic_icon(found ? v.kind : VIC_UNKNOWN);
+    if (!found) {
+      m.value = "–";
+      m.sub = tr("nicht eingerichtet");
+      m.dim = true;
+      return true;
+    }
+    VicTileText tt = ui_vic_tile_text(v, false, false);
+    m.value = tt.value;
+    m.sub = tt.sub;
+    m.accent = rgb_of(tt.accent);
+    m.fill = tt.fill;
+    m.dim = tt.stale;
+    return true;
+  }
+  if (truma_heat_is_key(key)) {
+    TrumaHeatInfo h;
+    bool found = ui_heat_get(key, h);
+    m.name = found ? ui_heat_label(s_lay, h) : (!own.empty() ? own : std::string(tr("Heizung")));
+    m.icon = ICON_THERMO;
+    m.value = found && h.has ? ui_temp_text(h.room_actual) : "–";
+    m.sub = found ? ui_heat_sub(h, false) : std::string();
+    m.accent = rgb_of(!found ? C_TEXT3 : h.error ? C_RED : h.running ? C_AMBER : h.heat_on ? C_TEXT : C_TEXT2);
+    m.dim = !found || !h.connected;
+    return true;
+  }
+  // Zigbee (Licht, Steckdose)
+  ControlView v;
+  bool found = z2m_get(key, v);
+  m.name = found ? layout_label(s_lay, v) : (!own.empty() ? own : std::string("Unbekanntes Gerät"));
+  std::string icon_id;
+  for (auto &p : s_lay.pages)
+    for (auto &t : p.tiles)
+      if (t.key == key && !t.icon.empty()) icon_id = t.icon;
+  m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
+  if (!found) {
+    m.value = "–";
+    m.sub = z2m_count() ? "nicht in Zigbee2MQTT" : "…";
+    m.dim = true;
+    return true;
+  }
+  m.act = 1;
+  m.dim = !v.online;
+  m.lit = v.online && v.known && v.on;
+  if (v.has_bri) m.bri = v.on ? std::max(0, v.bri_pct()) : 0;
+  m.color = v.color != COLOR_NONE;
+  if (v.hue >= 0) m.hue = (int)lroundf(v.hue);
+  if (v.sat >= 0) m.sat = (int)lroundf(v.sat);
+  if (v.has_ct) {
+    m.ct = v.ct > 0 ? v.ct : (v.ct_min + v.ct_max) / 2;
+    m.ct_min = v.ct_min;
+    m.ct_max = v.ct_max;
+  }
+  if (m.lit) m.lit_color = rgb_of(light_display_color(v));
+  if (!v.online) m.value = tr("nicht erreichbar");
+  else if (!v.known) m.value = "…";
+  else if (!v.on) m.value = tr("Aus");
+  else if (v.has_bri && v.bri >= 0) m.value = std::to_string(v.bri_pct()) + "\xE2\x80\xAF%";
+  else m.value = tr("An");
+  return true;
+}
+
+bool ui_tile_set(const std::string &key, char what, int value) {
+  ControlView v;
+  if (!z2m_get(key, v) || !z2m_connected()) return false;
+  switch (what) {
+    case 'b':
+      if (!v.has_bri) return false;
+      if (value <= 0) z2m_set_on(key, false);
+      else z2m_set_brightness_pct(key, std::min(100, value));
+      return true;
+    case 'h':
+      if (v.color == COLOR_NONE) return false;
+      z2m_set_color_hs(key, (float)((value / 1000) % 360), (float)std::min(100, value % 1000));
+      return true;
+    case 'c':
+      if (!v.has_ct) return false;
+      z2m_set_ct(key, std::max(v.ct_min, std::min(v.ct_max, value)));
+      return true;
+  }
+  return false;
+}
+
+bool ui_tile_action(const std::string &key, std::string *err) {
+  if (panelsat_is_point_key(key)) {
+    SatPoint p;
+    if (!panelsat_point_get(key, p) || p.kind != SP_SWITCH) {
+      if (err) *err = tr("Kein Schalter.");
+      return false;
+    }
+    bool ok = panelsat_switch(key, !p.on, err);
+    tiles_update_one(key);
+    return ok;
+  }
+  if (ui_gas_is_key(key) || victron_is_key(key) || truma_heat_is_key(key)) {
+    if (err) *err = tr("Nur Anzeige.");
+    return false;
+  }
+  ControlView v;
+  if (!z2m_get(key, v)) {
+    if (err) *err = tr("Gerät nicht gefunden.");
+    return false;
+  }
+  if (!z2m_connected()) {
+    if (err) *err = tr("Keine Verbindung zum MQTT-Broker.");
+    return false;
+  }
+  z2m_toggle(key);
+  return true;
+}
+
 void ui_init() {
   theme_init();
   s_scr = lv_scr_act();
@@ -1364,6 +1535,7 @@ void ui_loop() {
     }
     char msg[96];
     if (app_pop_toast(msg, sizeof(msg))) ui_toast(msg);
+    ui_remote_tick();   // Zusatzdisplays: Kacheln senden, Befehle annehmen
   }
   if (now - t_slow >= 1000) {
     t_slow = now;

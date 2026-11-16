@@ -16,6 +16,7 @@
 #include "sat_web.h"
 #include "sat_display.h"
 #include "sat_pair.h"
+#include "rd_client.h"
 #include "../truma.h"
 #include "../mopeka.h"
 #include "../victron.h"
@@ -94,6 +95,9 @@ void setup() {
   sat_web_begin();
   sat_send_begin();
   sat_pair_begin();     // Einrichten per Knopf (BOOT 3 s) bzw. nach 3x Neustart
+#if SAT_REMOTE
+  rd_begin();           // Zusatzdisplay: Kacheln vom Hauptpanel
+#endif
   sat_display_begin();   // nur mit Display (SAT_DISPLAY), sonst leer
   if (sat_display_reset_requested()) {   // beim Einschalten 10 s aufs Display gedrueckt: Passwort zuruecksetzen
     devsetup::password_reset();
@@ -110,6 +114,9 @@ void loop() {
   sat_web_loop();
   sat_send_loop();
   sat_pair_loop();
+#if SAT_REMOTE
+  rd_loop();
+#endif
   sat_display_loop();
   delay(2);
 }

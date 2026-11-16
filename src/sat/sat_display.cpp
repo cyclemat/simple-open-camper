@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <math.h>
+#include <time.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@
 #if WITH_CERBO
 #include "../cerbo.h"
 #endif
+#include "rd_client.h"
 #include "../fonts/fonts.h"
 #include "../fonts/icons.h"
 #include "../ui/theme.h"
@@ -134,6 +136,25 @@ static std::vector<uint8_t> s_pl; // Kacheln je Seite (Seite 1, 2, …) aus dem 
 static int s_lay = 0;            // Aufteilung, fuer die die Kacheln gerade angeordnet sind
 static uint8_t s_bright = 200;   // Helligkeit 20..255
 static uint16_t s_dim_min = 2;   // nach so vielen Minuten ohne Beruehrung dimmen, 0 = nie
+#if SAT_REMOTE
+#define SAT_CLOCK 1   // Uhr als Bildschirmschoner (Zeit kommt vom Hauptpanel)
+#else
+#define SAT_CLOCK 0
+#endif
+static uint8_t s_saver = SAT_CLOCK;   // nach der Dimm-Zeit: 0 nur abdunkeln, 1 Uhr zeigen
+#if SAT_REMOTE   // LED-Ampel (siehe led_loop)
+static uint8_t s_led = 1;
+static std::string s_led_key;
+static bool s_led_init = false;
+static uint32_t s_led_rgb = 0xFFFFFFFF, s_led_ms = 0;
+static int s_led_pct = -1;
+#endif
+static lv_obj_t *s_clk = nullptr, *s_clk_time = nullptr, *s_clk_date = nullptr;
+static void clock_close() {
+  if (!s_clk) return;
+  lv_obj_del_async(s_clk);
+  s_clk = s_clk_time = s_clk_date = nullptr;
+}
 
 // Lichtsensor vorne neben dem Display (LDR an GPIO 34, nur Analogeingang): Helligkeit hell/dunkel umschalten.
 // Groesserer Messwert = dunkler. Geglaettet, mit Hysterese (zurueck auf hell unter 75 % der Grenze) und 3 s
@@ -172,6 +193,7 @@ static void touch_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
     s_last_touch = millis();
     if (s_dim) {   // erste Beruehrung weckt nur (nicht an LVGL weitergeben)
       s_dim = false;
+      clock_close();
       s_lcd.setBrightness(cur_bright());
       data->state = LV_INDEV_STATE_RELEASED;
       return;
@@ -191,6 +213,8 @@ struct Item {
   int sw = -1;     // Schalter: Punktnummer (idx) fuer sat_io_switch, sonst -1
   bool on = false;
   std::string ctl;   // Cerbo-Schluessel, wenn ueber den GX einstellbar (Bedienfenster beim Antippen)
+  bool ract = false;      // Zusatzdisplay: Antippen schaltet ueber das Hauptpanel
+  uint32_t lit_rgb = 0;   // Zusatzdisplay: Lichtfarbe einer eingeschalteten Kachel (0 = Bernstein)
 };
 
 #if SAT_VICTRON_ONLY
@@ -351,6 +375,22 @@ static bool vic_has_value(const VictronInfo &v) {
 
 static void collect_raw(std::vector<Item> &s_items) {
   s_items.clear();
+#if SAT_REMOTE
+  // Zusatzdisplay: nur die Kacheln vom Hauptpanel (fertig aufbereitet)
+  for (auto &r : rd_tiles()) {
+    Item it;
+    it.key = "r:" + r.key;
+    it.name = r.name;
+    it.icon = r.icon;
+    it.value = r.sub.empty() ? r.value : r.value + "  ·  " + r.sub;
+    it.accent = r.dim ? C_TEXT3 : lv_color_hex(r.accent);
+    it.ract = r.act != 0;
+    it.on = r.lit;
+    it.lit_rgb = r.lit_color;
+    s_items.push_back(it);
+  }
+  return;
+#endif
 #if WITH_CERBO
   for (auto &v : cerbo_list()) {
 #if SAT_VICTRON_ONLY
@@ -771,12 +811,189 @@ static void bat_open(const std::string &key) {
 }
 #endif
 
+#if SAT_REMOTE
+// ---------------------------------------------------------------- Dimm-Fenster (Zusatzdisplay, Licht vom Hauptpanel)
+// Kachel lange druecken: Helligkeit; zur Seite wischen: Farbrad (wenn die Lampe Farbe kann) und Farbtemperatur.
+// Lebt nur, solange es offen ist; schliesst sich nach 30 s ohne Beruehrung.
+static lv_obj_t *s_dp = nullptr, *s_dp_page[3], *s_dp_pct = nullptr, *s_dp_dots = nullptr, *s_dp_ctl = nullptr;
+static int s_dp_n = 0, s_dp_cur = 0;
+static std::string s_dp_key;
+static uint32_t s_dp_sent = 0;
+static bool s_long_fired = false;   // Langdruck hat das Fenster geoeffnet: das folgende "Klick" nicht schalten
+
+static void dp_close() {
+  if (!s_dp) return;
+  lv_obj_del_async(s_dp);
+  s_dp = s_dp_pct = s_dp_dots = s_dp_ctl = nullptr;
+}
+static void dp_close_cb(lv_event_t *) { dp_close(); }
+
+static void dp_show(int p) {
+  s_dp_cur = (p + s_dp_n) % s_dp_n;
+  for (int i = 0; i < s_dp_n; i++)
+    if (i == s_dp_cur) lv_obj_clear_flag(s_dp_page[i], LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(s_dp_page[i], LV_OBJ_FLAG_HIDDEN);
+  std::string d;
+  if (s_dp_n > 1)
+    for (int i = 0; i < s_dp_n; i++) d += i == s_dp_cur ? " • " : " · ";
+  lv_label_set_text(s_dp_dots, d.c_str());
+}
+
+static void dp_gesture_cb(lv_event_t *) {
+  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+  if (d == LV_DIR_LEFT) dp_show(s_dp_cur + 1);
+  else if (d == LV_DIR_RIGHT) dp_show(s_dp_cur - 1);
+}
+
+static void dp_bri_cb(lv_event_t *e) {
+  lv_obj_t *sl = lv_event_get_target(e);
+  int v = lv_slider_get_value(sl);
+  char b[16];
+  snprintf(b, sizeof(b), v ? "%d %%" : "Aus", v);
+  lv_label_set_text(s_dp_pct, b);
+  uint32_t now = millis();
+  bool fin = lv_event_get_code(e) == LV_EVENT_RELEASED;
+  if (fin || now - s_dp_sent > 400) {   // beim Ziehen hoechstens alle 0,4 s, beim Loslassen den Endwert
+    s_dp_sent = now;
+    rd_set(s_dp_key, 'b', v);
+  }
+}
+
+static void dp_wheel_cb(lv_event_t *e) {
+  lv_color_hsv_t hsv = lv_colorwheel_get_hsv(lv_event_get_target(e));
+  rd_set(s_dp_key, 'h', (int)hsv.h * 1000 + std::min<int>(100, hsv.s));
+}
+
+static void dp_ct_cb(lv_event_t *e) {
+  lv_obj_t *sl = lv_event_get_target(e);
+  int mired = lv_slider_get_value(sl);
+  char b[24];
+  snprintf(b, sizeof(b), "%d K", mired > 0 ? 1000000 / mired : 0);
+  lv_label_set_text(s_dp_ctl, b);
+  if (lv_event_get_code(e) == LV_EVENT_RELEASED) rd_set(s_dp_key, 'c', mired);
+}
+
+static lv_obj_t *dp_label(lv_obj_t *p, const char *t, const lv_font_t *f, lv_color_t c) {
+  lv_obj_t *l = lv_label_create(p);
+  lv_obj_set_style_text_font(l, f, 0);
+  lv_obj_set_style_text_color(l, c, 0);
+  lv_label_set_text(l, t);
+  return l;
+}
+
+static lv_obj_t *dp_slider(lv_obj_t *p, int lo, int hi, int val, lv_event_cb_t cb) {
+  lv_obj_t *sl = lv_slider_create(p);
+  lv_obj_set_size(sl, W - 60, 26);
+  lv_slider_set_range(sl, lo, hi);
+  lv_slider_set_value(sl, val, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(sl, C_TILE_LINE, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(sl, C_AMBER, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(sl, lv_color_white(), LV_PART_KNOB);
+  lv_obj_set_style_pad_all(sl, 6, LV_PART_KNOB);
+  lv_obj_clear_flag(sl, LV_OBJ_FLAG_GESTURE_BUBBLE);   // Ziehen am Regler blaettert nicht
+  lv_obj_add_event_cb(sl, cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  lv_obj_add_event_cb(sl, cb, LV_EVENT_RELEASED, nullptr);
+  return sl;
+}
+
+static void dp_open(const std::string &key) {
+  RdTile t;
+  if (s_dp || !rd_tile(key, t)) return;
+  s_dp_key = key;
+  s_dp = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(s_dp);
+  lv_obj_set_size(s_dp, W, H);
+  lv_obj_set_style_bg_color(s_dp, C_BG, 0);
+  lv_obj_set_style_bg_opa(s_dp, LV_OPA_COVER, 0);
+  lv_obj_clear_flag(s_dp, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(s_dp, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(s_dp, dp_gesture_cb, LV_EVENT_GESTURE, nullptr);
+  lv_obj_t *nm = dp_label(s_dp, t.name.c_str(), &font_ui_20, C_TEXT);
+  lv_label_set_long_mode(nm, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(nm, W - 70);
+  lv_obj_set_pos(nm, 12, 10);
+  lv_obj_t *x = lv_btn_create(s_dp);
+  lv_obj_set_size(x, 44, 36);
+  lv_obj_align(x, LV_ALIGN_TOP_RIGHT, -8, 4);
+  lv_obj_set_style_bg_color(x, C_TILE, 0);
+  lv_obj_add_event_cb(x, dp_close_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_center(dp_label(x, "X", &font_ui_20, C_TEXT2));
+  s_dp_n = 0;
+  auto page = [&]() -> lv_obj_t * {
+    lv_obj_t *p = lv_obj_create(s_dp);
+    lv_obj_remove_style_all(p);
+    lv_obj_set_size(p, W, H - 66);
+    lv_obj_set_pos(p, 0, 46);
+    lv_obj_clear_flag(p, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(p, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    s_dp_page[s_dp_n++] = p;
+    return p;
+  };
+  // Seite 1: Helligkeit
+  lv_obj_t *p = page();
+  int bri = t.bri >= 0 ? t.bri : (t.lit ? 100 : 0);
+  char b[16];
+  snprintf(b, sizeof(b), bri ? "%d %%" : "Aus", bri);
+  s_dp_pct = dp_label(p, b, &font_ui_40, C_TEXT);
+  lv_obj_align(s_dp_pct, LV_ALIGN_TOP_MID, 0, 14);
+  lv_obj_align(dp_slider(p, 0, 100, bri, dp_bri_cb), LV_ALIGN_CENTER, 0, 30);
+  if (t.color || t.ct >= 0) lv_obj_align(dp_label(p, "zur Seite wischen: Farbe", &font_ui_16, C_TEXT3), LV_ALIGN_BOTTOM_MID, 0, -2);
+  // Seite 2: Farbrad
+  if (t.color) {
+    p = page();
+    lv_obj_t *cw = lv_colorwheel_create(p, true);
+    lv_obj_set_size(cw, 150, 150);
+    lv_obj_center(cw);
+    lv_obj_set_style_arc_width(cw, 22, 0);
+    if (t.hue >= 0) lv_colorwheel_set_hsv(cw, lv_color_hsv_t{(uint16_t)t.hue, (uint8_t)(t.sat >= 0 ? t.sat : 100), 100});
+    lv_obj_clear_flag(cw, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_add_event_cb(cw, dp_wheel_cb, LV_EVENT_RELEASED, nullptr);
+  }
+  // Seite 3: Farbtemperatur (Weiss warm/kalt)
+  if (t.ct >= 0 && t.ct_max > t.ct_min) {
+    p = page();
+    snprintf(b, sizeof(b), "%d K", t.ct > 0 ? 1000000 / t.ct : 0);
+    s_dp_ctl = dp_label(p, b, &font_ui_40, C_TEXT);
+    lv_obj_align(s_dp_ctl, LV_ALIGN_TOP_MID, 0, 14);
+    // links kalt (wenig Mired), rechts warm
+    lv_obj_t *sl = dp_slider(p, t.ct_min, t.ct_max, t.ct, dp_ct_cb);
+    lv_obj_set_style_bg_color(sl, lv_color_hex(0xFFB15A), LV_PART_INDICATOR);
+    lv_obj_align(sl, LV_ALIGN_CENTER, 0, 30);
+    lv_obj_t *l1 = dp_label(p, "kalt", &font_ui_16, C_TEXT3), *l2 = dp_label(p, "warm", &font_ui_16, C_TEXT3);
+    lv_obj_align(l1, LV_ALIGN_CENTER, -(W - 60) / 2 + 16, 62);
+    lv_obj_align(l2, LV_ALIGN_CENTER, (W - 60) / 2 - 18, 62);
+  }
+  s_dp_dots = dp_label(s_dp, "", &font_ui_16, C_TEXT3);
+  lv_obj_align(s_dp_dots, LV_ALIGN_BOTTOM_MID, 0, -1);
+  dp_show(0);
+}
+
+static void dp_loop(uint32_t now) {
+  if (s_dp && now - s_last_touch > 30000) dp_close();
+}
+#endif
+
 // Kacheln mit Fenster (Akku-Uebersicht, MultiPlus/Ladegeraet bedienen) oeffnen erst nach ~2 s Druecken
 // (LONG_PRESS_MS), damit Wischen und kurzes Antippen beim Blaettern nichts ausloesen.
+#if SAT_REMOTE
+static const uint16_t LONG_PRESS_MS = 1500;   // Dimm-Fenster (kurzes Halten 0,6 s schaltet)
+#else
 static const uint16_t LONG_PRESS_MS = 2000;
+#endif
 static void tile_long_cb(lv_event_t *e) {
   size_t k = page_start(s_page) + (int)(intptr_t)lv_event_get_user_data(e);
   if (k >= s_items.size()) return;
+#if SAT_REMOTE
+  if (s_items[k].ract) {   // Licht vom Hauptpanel: dimmbar oder farbig -> Dimm-Fenster
+    RdTile t;
+    std::string key = s_items[k].key.substr(2);
+    if (rd_tile(key, t) && (t.bri >= 0 || t.color || t.ct >= 0)) {
+      s_long_fired = true;
+      dp_open(key);
+    }
+    return;
+  }
+#endif
 #if WITH_BMS
   if (s_items[k].key.rfind("b:", 0) == 0) {
     bat_open(BMS_KEY_PREFIX + s_items[k].key.substr(2));
@@ -788,15 +1005,47 @@ static void tile_long_cb(lv_event_t *e) {
 #endif
 }
 
+// Schalter erst nach etwas laengerem Druck und ohne Wischen: beim Blaettern nichts versehentlich schalten
+static const uint16_t SWITCH_HOLD_MS = 400, SWITCH_MOVE_PX = 35;   // resistiver Touch springt beim Loslassen
+static uint32_t s_press_ms = 0, s_gesture_ms = 0;
+static lv_point_t s_press_pt;
+static void tile_press_cb(lv_event_t *) {
+#if SAT_REMOTE
+  s_long_fired = false;
+#endif
+  s_press_ms = millis();
+  lv_indev_get_point(lv_indev_get_act(), &s_press_pt);
+}
+static bool switch_hold_ok() {
+  lv_point_t p;
+  lv_indev_get_point(lv_indev_get_act(), &p);
+  uint32_t now = millis();
+  bool ok = s_press_ms && now - s_press_ms >= SWITCH_HOLD_MS && now - s_gesture_ms > 800 &&
+            abs(p.x - s_press_pt.x) <= SWITCH_MOVE_PX && abs(p.y - s_press_pt.y) <= SWITCH_MOVE_PX;
+  return ok;
+}
+
 static void tile_cb(lv_event_t *e) {
   int slot = (int)(intptr_t)lv_event_get_user_data(e);
   size_t k = page_start(s_page) + slot;
+#if SAT_REMOTE
+  if (s_long_fired) {   // Loslassen nach dem Oeffnen des Dimm-Fensters: nicht schalten
+    s_long_fired = false;
+    return;
+  }
+#endif
   if (s_items.empty()) {   // Platzhalter-Kachel: Adresse gross zeigen
     info_open();
     return;
   }
+#if SAT_REMOTE
+  if (k < s_items.size() && s_items[k].ract) {   // Zusatzdisplay: ueber das Hauptpanel schalten
+    if (switch_hold_ok()) rd_action(s_items[k].key.substr(2));
+    return;
+  }
+#endif
   // Akku- und MultiPlus-Kacheln: nur lange druecken (tile_long_cb)
-  if (k < s_items.size() && s_items[k].sw >= 0) {
+  if (k < s_items.size() && s_items[k].sw >= 0 && switch_hold_ok()) {
 #if !SAT_VICTRON_ONLY
     sat_io_switch((uint8_t)s_items[k].sw, 2);   // umschalten
 #endif
@@ -812,6 +1061,10 @@ static void gesture_cb(lv_event_t *) {
 #if WITH_BMS
   if (s_bat) return;
 #endif
+#if SAT_REMOTE
+  if (s_dp) return;
+#endif
+  s_gesture_ms = millis();
   lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
   if (d == LV_DIR_BOTTOM) {   // von oben nach unten wischen: Geraet/WLAN/Adresse zeigen
     info_open();
@@ -857,6 +1110,7 @@ static void build() {
     lv_obj_add_flag(t.box, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_flag(t.box, LV_OBJ_FLAG_GESTURE_BUBBLE);
     lv_obj_add_event_cb(t.box, tile_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+    lv_obj_add_event_cb(t.box, tile_press_cb, LV_EVENT_PRESSED, nullptr);
     lv_obj_add_event_cb(t.box, tile_long_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
 
     t.icon = lv_label_create(t.box);
@@ -959,7 +1213,10 @@ static void refresh() {
       if (s_items.empty() && i == 0) {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
         set_text(t.icon, ICON_INFO);
-#if SAT_VICTRON_ONLY
+#if SAT_REMOTE
+        set_text(t.name, rd_panel_seen() ? "Keine Kacheln" : "Suche Hauptpanel");
+        set_value(t, rd_panel_seen() ? "im Editor des Hauptpanels wählen" : "Antippen  ·  für Adresse");
+#elif SAT_VICTRON_ONLY
         set_text(t.name, "Einrichten");
         set_value(t, "Antippen  ·  für Adresse");
 #else
@@ -983,13 +1240,16 @@ static void refresh() {
     set_text(t.icon, it.icon);
     set_text(t.name, it.name);
     set_value(t, it.value);
-    bool lit = it.sw >= 0 && it.on;   // eingeschalteter Schalter: Kachel in Bernstein wie die Lichter am Panel
-    lv_obj_set_style_bg_color(t.box, lit ? C_AMBER : C_TILE, 0);
-    lv_obj_set_style_border_color(t.box, lit ? C_AMBER_D : C_TILE_LINE, 0);
-    lv_obj_set_style_text_color(t.icon, lit ? C_INK : it.accent, 0);
-    lv_obj_set_style_text_color(t.name, lit ? C_INK : C_TEXT2, 0);
-    lv_obj_set_style_text_color(t.value, lit ? C_INK : C_TEXT, 0);
-    lv_obj_set_style_text_color(t.sub, lit ? C_INK : C_TEXT2, 0);
+    // eingeschalteter Schalter: Kachel in Bernstein wie die Lichter am Panel (Zusatzdisplay: Lichtfarbe vom Panel)
+    bool lit = (it.sw >= 0 || it.ract) && it.on;
+    lv_color_t lc = it.lit_rgb ? lv_color_hex(it.lit_rgb) : C_AMBER;
+    lv_color_t ink = lv_color_brightness(lc) > 150 ? C_INK : lv_color_white();
+    lv_obj_set_style_bg_color(t.box, lit ? lc : C_TILE, 0);
+    lv_obj_set_style_border_color(t.box, lit ? (it.lit_rgb ? lv_color_darken(lc, 40) : C_AMBER_D) : C_TILE_LINE, 0);
+    lv_obj_set_style_text_color(t.icon, lit ? ink : it.accent, 0);
+    lv_obj_set_style_text_color(t.name, lit ? ink : C_TEXT2, 0);
+    lv_obj_set_style_text_color(t.value, lit ? ink : C_TEXT, 0);
+    lv_obj_set_style_text_color(t.sub, lit ? ink : C_TEXT2, 0);
   }
   std::string dots;
   if (pages() > 1)
@@ -1015,6 +1275,11 @@ static void load_cfg() {
   for (int v : d["pl"].as<JsonArray>()) s_pl.push_back(norm_per(v));
   s_bright = constrain((int)(d["b"] | 200), 20, 255);
   s_dim_min = d["d"] | 2;
+  s_saver = d["sv"] | SAT_CLOCK;
+#if SAT_REMOTE
+  s_led = d["ld"] | 1;
+  s_led_key = d["lk"] | "";
+#endif
   s_auto = d["a"] | true;
   s_night = constrain((int)(d["nb"] | 40), 5, 255);
   s_ldr_thr = constrain((int)(d["lt"] | 300), 1, 4095);
@@ -1032,6 +1297,11 @@ static void save_cfg() {
   }
   d["b"] = s_bright;
   d["d"] = s_dim_min;
+  d["sv"] = s_saver;
+#if SAT_REMOTE
+  d["ld"] = s_led;
+  if (!s_led_key.empty()) d["lk"] = s_led_key;
+#endif
   d["a"] = s_auto;
   d["nb"] = s_night;
   d["lt"] = s_ldr_thr;
@@ -1060,6 +1330,20 @@ void sat_display_json(JsonObject o) {
   for (uint8_t v : s_pl) pl.add(v);
   o["bright"] = s_bright;
   o["dim"] = s_dim_min;
+  o["clock"] = SAT_CLOCK;   // Firmware kann die Uhr als Bildschirmschoner
+  o["saver"] = s_saver;
+#if SAT_REMOTE
+  o["led"] = s_led;   // 0 aus, 1 automatisch, 2 Kachel led_key
+  o["led_key"] = s_led_key;
+  o["led_pct"] = s_led_pct;
+  JsonArray lt = o["led_tiles"].to<JsonArray>();   // Kacheln mit Pegel (Batterie, Gas, Tank)
+  for (auto &r : rd_tiles())
+    if (r.fill >= 0) {
+      JsonObject x = lt.add<JsonObject>();
+      x["k"] = r.key;
+      x["n"] = r.name;
+    }
+#endif
   o["auto"] = s_auto;
   o["night"] = s_night;
   o["ldr_thr"] = s_ldr_thr;
@@ -1140,6 +1424,13 @@ bool sat_display_apply(JsonObjectConst c) {
   }
   if (c["bright"].is<int>()) s_bright = constrain(c["bright"].as<int>(), 20, 255);
   if (c["dim"].is<int>()) s_dim_min = constrain(c["dim"].as<int>(), 0, 600);
+  if (c["saver"].is<int>()) s_saver = c["saver"].as<int>() ? SAT_CLOCK : 0;
+#if SAT_REMOTE
+  if (c["led"].is<int>()) s_led = constrain(c["led"].as<int>(), 0, 2);
+  if (c["led_key"].is<const char *>()) s_led_key = c["led_key"].as<const char *>();
+  s_led_rgb = 0xFFFFFFFF;   // gleich neu auswerten
+  s_led_ms = 0;
+#endif
   if (c["auto"].is<bool>()) s_auto = c["auto"];
   if (c["night"].is<int>()) s_night = constrain(c["night"].as<int>(), 5, 255);
   if (c["ldr_thr"].is<int>()) s_ldr_thr = constrain(c["ldr_thr"].as<int>(), 1, 4095);
@@ -1259,6 +1550,95 @@ void sat_display_begin() {
   refresh();
 }
 
+#if SAT_REMOTE
+// ---------------------------------------------------------------- RGB-LED (Rueckseite des CYD) beim Zusatzdisplay
+// Ampel nach dem Pegel einer Kachel vom Hauptpanel (Batterie, Gas, Tank): bis 10 % rot, bis 50 % orange, sonst gruen,
+// ohne Wert aus. 1 = automatisch: niedrigster Pegel aller Kacheln mit Pegel; 2 = eine bestimmte Kachel.
+// Gemeinsame Anode -> Low = an. Nachts (Lichtsensor) auf ein Achtel gedimmt. Auswertung alle 2 s, keine Task.
+static void led_write(uint32_t rgb) {
+  static bool night = false;
+  if (night != sat_display_night()) {   // Wechsel hell/dunkel: neu schreiben, auch bei gleicher Farbe
+    night = !night;
+    s_led_rgb = 0xFFFFFFFF;
+  }
+  if (rgb == s_led_rgb) return;
+  if (!s_led_init) {
+    ledcAttach(4, 5000, 8);
+    ledcAttach(16, 5000, 8);
+    ledcAttach(17, 5000, 8);
+    s_led_init = true;
+  }
+  s_led_rgb = rgb;
+  auto ch = [](uint32_t v) -> uint32_t { return sat_display_night() ? (v + 7) / 8 : v; };
+  ledcWrite(4, 255 - ch((rgb >> 16) & 0xFF));
+  ledcWrite(16, 255 - ch((rgb >> 8) & 0xFF));
+  ledcWrite(17, 255 - ch(rgb & 0xFF));
+}
+static void led_loop(uint32_t now) {
+  if (s_led_ms && now - s_led_ms < 2000) return;
+  s_led_ms = now;
+  int pct = -1;
+  if (s_led)
+    for (auto &r : rd_tiles()) {
+      if (r.fill < 0 || r.dim) continue;
+      if (s_led == 2 && r.key != s_led_key) continue;
+      if (pct < 0 || r.fill < pct) pct = r.fill;
+    }
+  s_led_pct = pct;
+  if (pct < 0) {
+    if (s_led_init) led_write(0);
+    return;
+  }
+  led_write(pct <= 10 ? 0xFF0000 : pct <= 50 ? 0xFF3C00 : 0x00A000);
+}
+#endif
+
+#if SAT_CLOCK
+// ---------------------------------------------------------------- Uhr als Bildschirmschoner
+// Schwarzer Bildschirm mit grosser Uhr und Datum; jede Minute an einer etwas anderen Stelle. Lebt nur, solange er
+// sichtbar ist (beim Wecken wieder geloescht).
+static void clock_text() {
+  static const char *DAYS[] = {"So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"};
+  time_t t = time(nullptr);
+  struct tm tm;
+  localtime_r(&t, &tm);
+  char b[24];
+  snprintf(b, sizeof(b), "%02d:%02d", tm.tm_hour, tm.tm_min);
+  lv_label_set_text(s_clk_time, b);
+  snprintf(b, sizeof(b), "%s, %02d.%02d.%04d", DAYS[tm.tm_wday % 7], tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+  lv_label_set_text(s_clk_date, b);
+  // leicht versetzen (alle 5 Minuten eine andere Stelle)
+  int step = (tm.tm_min / 5) % 4;
+  static const int8_t DX[] = {0, 12, -10, 6}, DY[] = {-8, 6, 10, -4};
+  lv_obj_align(s_clk_time, LV_ALIGN_CENTER, DX[step], DY[step] - 14);
+  lv_obj_align_to(s_clk_date, s_clk_time, LV_ALIGN_OUT_BOTTOM_MID, 0, -6);
+}
+
+static void clock_open() {
+  if (s_clk) return;
+  s_clk = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(s_clk);
+  lv_obj_set_size(s_clk, W, H);
+  lv_obj_set_style_bg_color(s_clk, lv_color_black(), 0);
+  lv_obj_set_style_bg_opa(s_clk, LV_OPA_COVER, 0);
+  lv_obj_clear_flag(s_clk, LV_OBJ_FLAG_SCROLLABLE);
+  s_clk_time = lv_label_create(s_clk);
+  lv_obj_set_style_text_font(s_clk_time, &font_clock_104, 0);
+  lv_obj_set_style_text_color(s_clk_time, lv_color_hex(0x8D97A2), 0);
+  s_clk_date = lv_label_create(s_clk);
+  lv_obj_set_style_text_font(s_clk_date, &font_ui_20, 0);
+  lv_obj_set_style_text_color(s_clk_date, lv_color_hex(0x5A6470), 0);
+  clock_text();
+}
+
+static void clock_tick(uint32_t now) {
+  static uint32_t last = 0;
+  if (now - last < 1000) return;
+  last = now;
+  clock_text();
+}
+#endif
+
 void sat_display_loop() {
   if (s_cal_req) {
     s_cal_req = false;
@@ -1280,8 +1660,25 @@ void sat_display_loop() {
   ldr_loop(now);
   if (!s_dim && s_dim_min && now - s_last_touch > s_dim_min * 60000UL) {
     s_dim = true;
-    s_lcd.setBrightness(std::min<uint8_t>(DIMMED, cur_bright()));
+#if SAT_CLOCK
+    if (s_saver == 1 && time(nullptr) > 1600000000) clock_open();
+#endif
+    s_lcd.setBrightness(s_clk ? std::max<uint8_t>(15, cur_bright() / 2) : std::min<uint8_t>(DIMMED, cur_bright()));
   }
+#if SAT_CLOCK
+  if (s_clk) clock_tick(now);
+#endif
+#if SAT_REMOTE
+  led_loop(now);
+  dp_loop(now);
+#endif
+#if SAT_REMOTE
+  static uint32_t s_rd_seen = 0;   // neue Kacheldaten vom Hauptpanel: gleich zeigen
+  if (rd_version() != s_rd_seen) {
+    s_rd_seen = rd_version();
+    s_next_ms = 0;
+  }
+#endif
   if ((int32_t)(now - s_next_ms) < 0) return;
   s_next_ms = now + 1000;   // Werte einmal pro Sekunde auffrischen
   refresh();

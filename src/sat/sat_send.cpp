@@ -13,6 +13,7 @@
 #include <set>
 #include <vector>
 #include "mqtt_client.h"
+#include "rd_client.h"
 #include "esp_random.h"
 #include <ctype.h>
 
@@ -110,6 +111,14 @@ static void publish(const std::string &topic, const std::string &payload, bool r
   if (s_mqtt && s_mqtt_conn) esp_mqtt_client_enqueue(s_mqtt, topic.c_str(), payload.data(), payload.size(), 1, retain, true);
 }
 
+// Fuer das Zusatzdisplay (rd_client.cpp): ohne Speichern beim Broker (retain = false); sat_mqtt_connected weiter unten
+bool sat_mqtt_connected();
+bool sat_mqtt_publish(const std::string &topic, const std::string &payload) {
+  if (!sat_mqtt_connected()) return false;
+  publish(topic, payload, false);
+  return true;
+}
+
 static void handle_cmd(const char *data, int len) {
   JsonDocument d;
   if (deserializeJson(d, data, len)) return;
@@ -146,6 +155,10 @@ static void mqtt_event(void *, esp_event_base_t, int32_t id, void *data) {
       s_mqtt_status = "verbunden";
       esp_mqtt_client_subscribe(s_mqtt, sat_topic("cmd").c_str(), 0);
       esp_mqtt_client_subscribe(s_mqtt, sat_topic("switch/+/set").c_str(), 0);
+#if SAT_REMOTE
+      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/tile").c_str(), 0);   // Kacheln vom Hauptpanel
+      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/keys").c_str(), 0);
+#endif
       break;
     case MQTT_EVENT_DISCONNECTED:
       s_mqtt_conn = false;
@@ -158,8 +171,16 @@ static void mqtt_event(void *, esp_event_base_t, int32_t id, void *data) {
         s_mqtt_status = "Broker nicht erreichbar";
       break;
     case MQTT_EVENT_DATA:
-      if (ev->current_data_offset == 0 && ev->data_len == ev->total_data_len && ev->data_len < 512) {
+      if (ev->current_data_offset == 0 && ev->data_len == ev->total_data_len && ev->data_len < 2048) {
         std::string topic(ev->topic, ev->topic_len);
+#if SAT_REMOTE
+        std::string rdp = sat_topic("rd/").c_str();
+        if (topic.compare(0, rdp.size(), rdp) == 0) {
+          rd_mqtt_in(topic.substr(rdp.size()), ev->data, ev->data_len);
+          break;
+        }
+#endif
+        if (ev->data_len >= 512) break;
         if (topic.size() > 4 && topic.compare(topic.size() - 4, 4, "/set") == 0) handle_set(topic, ev->data, ev->data_len);
         else handle_cmd(ev->data, ev->data_len);
       }

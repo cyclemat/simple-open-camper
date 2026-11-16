@@ -97,6 +97,29 @@ std::string ui_vic_summary(const VictronInfo &v);   // eine Zeile fuer Listen
 std::vector<std::pair<std::string, std::string>> ui_vic_rows(const VictronInfo &v);   // Zeilen des Detailfensters
 std::string ui_num(float v, int decimals, const char *unit);   // "12,84 V", NAN -> "–"
 
+// ui_main.cpp: fertige Kachel-Daten (Zusatzdisplays bekommen sie vom Hauptpanel, ui_remote.cpp)
+struct TileModel {
+  std::string name, icon, value, sub;   // icon = Zeichen aus der Icon-Schrift (UTF-8)
+  uint32_t accent = 0x9AA5B1;           // Farbe von Icon/Pegel (RGB)
+  int fill = -1;                        // Pegel 0..100, -1 = keiner
+  bool lit = false;                     // eingeschaltet (Licht/Schalter)
+  uint32_t lit_color = 0;               // Lichtfarbe bei lit (RGB)
+  bool dim = false;                     // nicht erreichbar / veraltet
+  uint8_t act = 0;                      // 1 = Antippen schaltet um
+  // Licht (Zigbee): dimmbar, Farbe, Farbtemperatur – fuer das Dimm-Fenster der Zusatzdisplays
+  int bri = -1;                         // Helligkeit 0..100, -1 = nicht dimmbar
+  bool color = false;                   // Farbrad moeglich
+  int hue = -1, sat = -1;               // aktuelle Farbe 0..360 / 0..100
+  int ct = -1, ct_min = 0, ct_max = 0;  // Farbtemperatur in Mired (-1 = keine)
+};
+bool ui_tile_model(const std::string &key, TileModel &m);   // false = unbekannte Kachel
+bool ui_tile_action(const std::string &key, std::string *err);   // wie Antippen am Panel
+bool ui_tile_set(const std::string &key, char what, int value);  // Licht: 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired
+std::vector<std::string> ui_tile_keys();   // alle Kacheln aller Seiten (Reihenfolge der Seiten)
+
+// ui_remote.cpp (Zusatzdisplays)
+void ui_remote_tick();
+
 // ui_saver.cpp
 void ui_saver_start();
 void ui_saver_stop();

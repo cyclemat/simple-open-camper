@@ -368,6 +368,14 @@ static void start_client() {
   }
   bool auto_mode = (st.net_mode == NET_AP || st.net_mode == NET_APSTA) && st.mqtt_auto;
   if (auto_mode) st.mqtt_host = s_auto_host;
+#if WITH_BROKER
+  if (st.broker_on) {   // eingebauter Broker: das Panel ist selbst Teilnehmer
+    st.mqtt_host = "127.0.0.1";
+    st.mqtt_port = 1883;
+    st.mqtt_user = st.broker_user;
+    st.mqtt_pass = st.broker_pass;
+  }
+#endif
   if (st.mqtt_host.isEmpty()) {
     snprintf(s_status, sizeof(s_status), "Nicht eingerichtet");
     return;
@@ -901,6 +909,9 @@ bool z2m_connected() { return s_connected; }
 std::string z2m_broker_host() {
   Settings st = settings_copy();
   if (!st.mqtt_on) return "";
+#if WITH_BROKER
+  if (st.broker_on) return net_ip().c_str();   // eingebauter Broker: Adresse des Panels
+#endif
   bool auto_mode = (st.net_mode == NET_AP || st.net_mode == NET_APSTA) && st.mqtt_auto;
   return auto_mode ? std::string(s_auto_host.c_str()) : std::string(st.mqtt_host.c_str());
 }

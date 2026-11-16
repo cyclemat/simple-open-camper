@@ -1,6 +1,8 @@
 // Satellit: Weboberflaeche zum Einrichten (WLAN, Sendewege, Bluetooth-Geraete, Firmware)
 #include "sat_web.h"
 #include "sat_config.h"
+#include "rd_client.h"
+#include "../updater_link.h"
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_page.h"
@@ -51,6 +53,12 @@ static void h_state() {
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
   d["display"] = sat_display_present();
+  d["upd_slot"] = (uint32_t)updater_slot_size();   // 0 = Aufteilung ohne Updater (Upload ersetzt die Firmware direkt)
+  d["upd_ok"] = updater_available();
+#if SAT_REMOTE
+  d["remote"] = true;   // Zusatzdisplay: Kacheln vom Hauptpanel
+  d["rd"] = rd_status();
+#endif
   if (sat_display_present()) sat_display_light(d["light"].to<JsonObject>());
   JsonObject w = d["wifi"].to<JsonObject>();
   w["ssid"] = g_sat.wifi_ssid;
@@ -409,7 +417,11 @@ static void h_update_data() {
   HTTPUpload &u = s_srv.upload();
   if (u.status == UPLOAD_FILE_START) {
     s_upd_auth = devsetup::upload_allowed();   // Firmware nur angemeldet
-    s_upd_ok = s_upd_auth && Update.begin(UPDATE_SIZE_UNKNOWN);
+    // Mit Updater (partitions_upd.csv) liegt daneben nur der 1-MB-Updater: dort nur ihn erneuern, die Firmware selbst
+    // geht ueber den Update-Modus (sonst waere der Updater halb ueberschrieben)
+    size_t want = s_srv.hasArg("size") ? (size_t)s_srv.arg("size").toInt() : 0, slot = updater_slot_size();
+    bool fits = !slot || (want && want <= slot);
+    s_upd_ok = s_upd_auth && fits && Update.begin(want ? want : UPDATE_SIZE_UNKNOWN);
   } else if (u.status == UPLOAD_FILE_WRITE) {
     if (s_upd_ok && Update.write(u.buf, u.currentSize) != u.currentSize) s_upd_ok = false;
   } else if (u.status == UPLOAD_FILE_END) {
@@ -432,6 +444,10 @@ void sat_web_begin() {
   s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
   s_srv.on("/api/hymer", HTTP_POST, devsetup::guard(h_hymer));
   s_srv.on("/api/io", HTTP_GET, devsetup::guard(h_io_get));
+  s_srv.on("/api/updater", HTTP_POST, devsetup::guard([] {   // in den kleinen Updater starten (nur mit partitions_upd)
+             String err = updater_start(g_sat.wifi_ssid, g_sat.wifi_pass, g_sat.id);
+             s_srv.send(400, "application/json", "{\"error\":\"" + err + "\"}");
+           }));
   if (sat_display_present()) {
     s_srv.on("/api/display", HTTP_GET, devsetup::guard(h_display_get));
     s_srv.on("/api/display", HTTP_POST, devsetup::guard(h_display_set));

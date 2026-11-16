@@ -16,7 +16,16 @@ String sat_ble_mac() {
   return b;
 }
 
+#if SAT_REMOTE
+// Zusatzdisplay: "Display-<MAC>" – so erkennt das Panel es (und fuehrt es nicht als Satellit)
+String sat_default_id() {
+  String s = sat_ble_name(sat_ble_mac().c_str()).c_str();
+  s.replace("Satellite-", "Display-");
+  return s;
+}
+#else
 String sat_default_id() { return sat_ble_name(sat_ble_mac().c_str()).c_str(); }
+#endif
 
 void sat_config_load() {
   Preferences p;

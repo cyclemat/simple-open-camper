@@ -173,7 +173,12 @@ static void apply(const std::string &raw) {
   if (ssid.length()) {
     g_sat.wifi_ssid = ssid;
     g_sat.wifi_pass = pass;
+#if SAT_REMOTE
+    String pi = d["pi"] | "";   // Zusatzdisplay: Hauptpanel direkt ansprechen
+    if (pi.length()) g_sat.udp_target = pi;
+#else
     g_sat.modes |= SAT_M_UDP;   // im WLAN schneller und mit Reichweite
+#endif
   }
   sat_config_save();
   if (!ssid.length()) {   // nur das Passwort (Panel ohne WLAN – sollte das Panel gar nicht schicken)

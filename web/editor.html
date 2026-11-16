@@ -1827,7 +1827,7 @@ async function openSettings(tab = 'net') {
   // Neu zeichnen nur aussetzen, solange in ein Feld getippt wird (ein angeklickter Knopf behielt sonst den Fokus
   // und z. B. gefundene Akkus erschienen erst nach einem Klick daneben)
   const typing = () => { const a = document.activeElement; return !!a && body.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox' && a.type !== 'range'; };
-  const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sat', 'Satelliten'], ['sd', 'SD-Karte'], ['sys', 'System']];
+  const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sat', 'Satelliten'], ['rd', 'Zusatzdisplays'], ['sd', 'SD-Karte'], ['sys', 'System']];
   let gasData = null;
   const loadGas = async () => {
     try { gasData = S.demo ? S.demoTruma : await api('/api/truma'); } catch (e) { gasData = null; }
@@ -2023,6 +2023,42 @@ async function openSettings(tab = 'net') {
   };
   loadSat();
   const satTimer = setInterval(() => { if (!body.isConnected) clearInterval(satTimer); else if (tab === 'sat') loadSat(); }, 3000);
+  // Zusatzdisplays (kleine Displays zeigen ausgewaehlte Kacheln dieses Panels)
+  let rdData = null;
+  const rdDraft = {};   // je Display: {tiles, name} – ungespeicherte Aenderungen
+  const loadRd = async () => {
+    try { rdData = S.demo ? {displays: []} : await api('/api/rdisp'); } catch (e) { rdData = null; }
+    if (tab === 'rd' && body.isConnected && !typing()) render();
+  };
+  loadRd();
+  const rdTimer = setInterval(() => { if (!body.isConnected) clearInterval(rdTimer); else if (tab === 'rd') loadRd(); }, 3000);
+  const rdKeys = () => { const r = []; S.layout.pages.forEach(p => p.tiles.forEach(t => { if (!r.some(x => x.k === t.key)) r.push({k: t.key, p: p.name}); })); return r; };
+  const rdDr = d => rdDraft[d.id] || (rdDraft[d.id] = {tiles: d.tiles.slice(), name: d.name || ''});
+  const rdHTML = v => {
+    const intro = `<p class="hint" style="margin-top:0">Kleine Displays (CYD 2,8" bzw. rundes Panel mit der Firmware „Zusatzdisplay“) zeigen ausgewählte Kacheln dieses Panels und schalten darüber – per UDP im WLAN, mit Broker auch per MQTT. Neues Display: im Reiter <b>Satelliten</b> „Neuen Satelliten suchen“ und am Display BOOT 3 s halten. Seiten (1, 2 oder 4 Kacheln) und Reihenfolge lassen sich zusätzlich in der Weboberfläche des Displays anordnen.</p>`;
+    if (!v) return intro + '<p class="hint">Lade … (diese Firmware kennt vielleicht noch keine Zusatzdisplays)</p>';
+    if (!v.displays.length) return intro + '<p class="hint">Noch kein Zusatzdisplay angemeldet.</p>';
+    const all = rdKeys();
+    return intro + v.displays.map(d => {
+      const dr = rdDraft[d.id], sel = dr ? dr.tiles : d.tiles;
+      const ways = [d.udp && 'UDP', d.mqtt && 'MQTT'].filter(Boolean).join(', ');
+      const st = d.online ? `verbunden (${ways})${d.ip ? ', ' + esc(d.ip) : ''}` : d.age >= 0 ? `zuletzt vor ${d.age} s` : 'noch nicht gemeldet';
+      const groups = [...new Set(all.map(x => x.p))];
+      return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px">
+        <div class="row" style="align-items:flex-end;gap:8px"><label class="field" style="flex:1;margin:0"><span>Name</span><input data-rdname="${esc(d.id)}" value="${esc(dr ? dr.name : d.name || '')}" maxlength="32"></label>
+        <button class="btn small primary" data-rdsave="${esc(d.id)}" ${dr ? '' : 'disabled'}>Speichern</button>
+        <button class="btn small danger" data-rdforget="${esc(d.id)}">Entfernen</button></div>
+        <p class="hint" style="margin:6px 0"><span data-notr>${esc(d.id)}</span> · ${st}</p>
+        <h3 style="font-size:13px;margin:10px 0 6px">Angezeigt (${sel.length}) – Reihenfolge</h3>
+        ${sel.length ? sel.map((k, i) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0"><span style="flex:1" data-notr>${esc(tileLabel({key: k}))}</span>
+          <button class="btn small" data-rdmv="${esc(d.id)}|${i}|-1" ${i ? '' : 'disabled'}>▲</button><button class="btn small" data-rdmv="${esc(d.id)}|${i}|1" ${i < sel.length - 1 ? '' : 'disabled'}>▼</button>
+          <button class="btn small" data-rdrm="${esc(d.id)}|${i}">✕</button></div>`).join('') : '<p class="hint">Keine Kachel gewählt.</p>'}
+        <details style="margin-top:8px"><summary class="hint">Kacheln auswählen</summary>
+        ${groups.map(g => `<div style="margin:8px 0 2px;font-weight:600;font-size:12px" data-notr>${esc(g)}</div>` + all.filter(x => x.p === g).map(x =>
+          `<label style="display:flex;align-items:center;gap:8px;padding:2px 0"><input type="checkbox" data-rdck="${esc(d.id)}|${esc(x.k)}" ${sel.includes(x.k) ? 'checked' : ''}><span data-notr>${esc(tileLabel({key: x.k}))}</span></label>`).join('')).join('')}
+        </details></div>`;
+    }).join('');
+  };
   const satAct = data => (S.demo ? Promise.resolve(data.forget && (S.demoSat.satellites = S.demoSat.satellites.filter(x => x.id !== data.forget)))
     : post('/api/satellites', data)).then(loadSat).catch(er => toast(er.message, 'error'));
   const satHTML = v => {
@@ -2082,7 +2118,13 @@ async function openSettings(tab = 'net') {
         <label class="field"><span>Passwort</span><input data-m="pass" type="password" placeholder="${draft.mqtt.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
         <label class="field"><span>Basis-Topic von Zigbee2MQTT</span><input data-m="base" value="${esc(draft.mqtt.base)}"></label>
         <p class="hint">Beim SMHUB Nano läuft der Broker auf dem Hub selbst. Dort unter Einstellungen → MQTT „Allow External“ einschalten, sonst darf sich das Panel nicht verbinden.</p></div>
-        <p class="hint">Stand: ${esc((info.mqtt || {}).status || '–')}</p>`;
+        <p class="hint">Stand: ${esc((info.mqtt || {}).status || '–')}</p>
+        ${draft.broker && draft.broker.avail ? (() => { const b = draft.broker; return `<h3 style="font-size:13px;margin:18px 0 8px">Eingebauter Broker</h3>
+        <label class="switch"><input type="checkbox" data-bk="on" ${b.on ? 'checked' : ''}>Dieses Panel ist der MQTT-Broker (Port 1883)</label>
+        <p class="hint">Für Camper ohne eigenen Server: Zigbee2MQTT, Home Assistant, Satelliten und Zusatzdisplays verbinden sich mit diesem Panel (Adresse ${esc(info.ip || '–')}). Das Panel nutzt ihn dann selbst – die Felder oben gelten solange nicht. Nur der aktuelle Stand wird gehalten (gespeicherte Nachrichten, Letzter Wille), keine Warteschlangen. Satelliten bekommen den Zugang beim Anlernen.</p>
+        <div ${b.on ? '' : 'style="display:none"'}><div class="row"><label class="field"><span>Benutzer</span><input data-bk="user" value="${esc(b.user || '')}" autocomplete="off"></label>
+        <label class="field"><span>Passwort (leer = ohne Anmeldung)</span><input data-bk="pass" type="password" placeholder="${b.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
+        <p class="hint">${b.running ? `Läuft: ${b.clients} Verbindung(en), ${b.retained} gespeicherte Nachrichten (${b.retained_kb} KB), ${b.msgs} weitergeleitet.` : b.on ? 'Startet nach dem Speichern.' : ''}</p></div>`; })() : ''}`;
     } else if (tab === 'disp') {
       const dd = draft.display, sv = dd.saver ?? 1;
       const minLvl = sv === 0 ? 0 : 6;
@@ -2161,6 +2203,8 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       html = bmsData ? bmsHTML(bmsData, tab === 'ps') : '<p class="hint">Lade … (diese Firmware hat vielleicht keine Akku-Unterstützung)</p>';
     } else if (tab === 'sat') {
       html = satHTML(satData);
+    } else if (tab === 'rd') {
+      html = rdHTML(rdData);
     } else if (tab === 'sd') {
       const b = bkData, sd = b ? b.sd : null;
       if (!b) html = '<p class="hint">Lade …</p>';
@@ -2205,6 +2249,46 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     body.innerHTML = `<div class="tabs" style="margin:-6px -20px 16px">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? 'act' : ''}">${l}</button>`).join('')}</div>` + html;
     body.querySelectorAll('details').forEach(d => { const k = dKey(d); if (dOpen.has(k)) d.open = dOpen.get(k); });
   };
+  // Zusatzdisplays: Auswahl, Reihenfolge, Name, Speichern, Entfernen
+  const rdFind = id => (rdData && rdData.displays || []).find(x => x.id === id);
+  body.addEventListener('change', e => {
+    const ck = e.target.closest('[data-rdck]');
+    if (!ck) return;
+    const [id, k] = [ck.dataset.rdck.slice(0, ck.dataset.rdck.indexOf('|')), ck.dataset.rdck.slice(ck.dataset.rdck.indexOf('|') + 1)];
+    const d = rdFind(id);
+    if (!d) return;
+    const dr = rdDr(d);
+    if (ck.checked) { if (!dr.tiles.includes(k)) dr.tiles.push(k); } else dr.tiles = dr.tiles.filter(x => x !== k);
+    render();
+  });
+  body.addEventListener('input', e => {
+    const n = e.target.closest('[data-rdname]');
+    if (!n) return;
+    const d = rdFind(n.dataset.rdname);
+    if (d) { rdDr(d).name = n.value; const b = body.querySelector(`[data-rdsave="${CSS.escape(d.id)}"]`); if (b) b.disabled = false; }
+  });
+  body.addEventListener('click', e => {
+    const mv = e.target.closest('[data-rdmv]'), rm = e.target.closest('[data-rdrm]'), sv = e.target.closest('[data-rdsave]'), fg = e.target.closest('[data-rdforget]');
+    if (mv || rm) {
+      const [id, si, dir] = (mv || rm).dataset[mv ? 'rdmv' : 'rdrm'].split('|');
+      const d = rdFind(id);
+      if (!d) return;
+      const dr = rdDr(d), i = +si;
+      if (mv) { const j = i + (+dir); if (j >= 0 && j < dr.tiles.length) [dr.tiles[i], dr.tiles[j]] = [dr.tiles[j], dr.tiles[i]]; } else dr.tiles.splice(i, 1);
+      render();
+      return;
+    }
+    if (sv) {
+      const id = sv.dataset.rdsave, dr = rdDraft[id];
+      if (!dr) return;
+      (S.demo ? Promise.resolve() : post('/api/rdisp', {id, tiles: dr.tiles, name: dr.name})).then(() => { delete rdDraft[id]; toast(T('Gespeichert – das Display zeigt die Kacheln gleich.')); loadRd(); }).catch(er => toast(er.message, 'error'));
+      return;
+    }
+    if (fg && confirm(T('Zusatzdisplay entfernen? Es meldet sich wieder an, solange es läuft.'))) {
+      const id = fg.dataset.rdforget;
+      (S.demo ? Promise.resolve() : post('/api/rdisp', {forget: id})).then(() => { delete rdDraft[id]; loadRd(); }).catch(er => toast(er.message, 'error'));
+    }
+  });
   render();
   if (!S.demo && st.display && st.display.saver_logo && !S.logoUrl) S.logoUrl = '/api/saver_logo?v=' + Date.now();
   startSaverPreview(body, draft);
@@ -2423,6 +2507,11 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       if (k === 'on') render();   // Felder ein-/ausblenden
       if (k === 'auto') render();
     }
+    if (el.dataset.bk) {   // eingebauter Broker
+      const k = el.dataset.bk;
+      draft.broker[k] = k === 'on' ? el.checked : el.value;
+      if (k === 'on') render();
+    }
     if (el.dataset.d) {
       const k = el.dataset.d;
       draft.display[k] = el.type === 'checkbox' ? el.checked : +el.value;
@@ -2440,6 +2529,10 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
         mqtt: {host: draft.mqtt.host, port: draft.mqtt.port, user: draft.mqtt.user, base: draft.mqtt.base, auto: !!draft.mqtt.auto, on: draft.mqtt.on !== false},
         net: {mode: draft.net.mode, ap_ssid: draft.net.ap_ssid, ap_channel: draft.net.ap_channel, web_mode: draft.net.web_mode}};
       if (draft.mqtt.pass) p.mqtt.pass = draft.mqtt.pass;
+      if (draft.broker && draft.broker.avail) {
+        p.broker = {on: !!draft.broker.on, user: draft.broker.user || ''};
+        if (draft.broker.pass) p.broker.pass = draft.broker.pass;
+      }
       if (draft.net.ap_pass !== st.net.ap_pass) {
         if (draft.net.ap_pass.length < 8) { toast('Das Passwort des Panel-WLANs braucht mindestens 8 Zeichen.', 'error'); return; }
         p.net.ap_pass = draft.net.ap_pass;

@@ -27,6 +27,7 @@ TEXT_FONTS = [
     ('font_ui_26', 'Inter-SemiBold.otf', 26, 'lv_font_montserrat_28', TEXT_CPS),
     ('font_ui_40', 'InterDisplay-SemiBold.otf', 40, None, TEXT_CPS),
     ('font_clock_140', 'InterDisplay-Regular.otf', 140, None, CLOCK_CPS),   # Bildschirmschoner-Uhr
+    ('font_clock_104', 'InterDisplay-Regular.otf', 104, None, CLOCK_CPS),   # Uhr kleiner Displays (320 px breit)
 ]
 ICON_SIZES = [24, 32, 44]
 

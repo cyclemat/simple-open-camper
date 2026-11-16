@@ -20,6 +20,7 @@
 #include "settings.h"
 #include "truma.h"
 #include <NimBLEDevice.h>
+#include "ui/ui_remote.h"
 
 static const uint32_t NODE_STALE_MS = 5 * 60 * 1000;   // UDP/Bluetooth: so lange ohne Paket gilt der Satellit als weg
 static const uint8_t VIA_MQTT = 1, VIA_UDP = 2, VIA_BLE = 4;
@@ -236,6 +237,11 @@ bool panelsat_handle(const std::string &topic, const char *payload, size_t len) 
   if (a == std::string::npos) return true;
   std::string sat = topic.substr(base.size(), a - base.size());
   std::string rest = topic.substr(a + 1);
+  // Zusatzdisplays ("Display-…"): nur ihre Meldungen an ui_remote, sonst nicht als Satellit fuehren
+  if (sat.rfind("Display-", 0) == 0) {
+    if (rest.rfind("rd/", 0) == 0) ui_remote_mqtt_in(sat, rest, payload, len);
+    return true;
+  }
   if (rest == "online") {
     Lock l;
     Node &n = s_nodes[sat];
@@ -300,7 +306,7 @@ static void udp_task(void *) {
     if (deserializeJson(d, buf, n)) continue;
     std::string sat = d["sat"] | "";
     std::string type = d["type"] | "";
-    if (sat.empty()) continue;
+    if (sat.empty() || sat.rfind("Display-", 0) == 0) continue;   // Zusatzdisplays laufen ueber ui_remote
     // Absender = IP des Satelliten: sofort schaltbar, nicht erst mit dem naechsten Info-Paket (bis 30 s). Die
     // Bluetooth-MAC (Ziel der Schaltbefehle) steckt in der Standard-Kennung "Satellite-<MAC>".
     {

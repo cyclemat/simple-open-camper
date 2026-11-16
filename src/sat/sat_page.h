@@ -79,7 +79,7 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div id="bleBox"><label class="f"><span>Satelliten-Passwort (wie im Panel unter Einstellungen → Geräte → Satelliten, verschlüsselt die Pakete)</span><input id="sBlePw" maxlength="32" autocomplete="off"></label>
 <p class="hint" id="bleName"></p></div>
 
-<h2 style="margin-top:14px">Bluetooth-Geräte auswerten</h2>
+<h2 style="margin-top:14px" id="bleH">Bluetooth-Geräte auswerten</h2>
 <label class="ck"><input type="checkbox" id="pTruma">Truma LevelControl</label>
 <label class="ck"><input type="checkbox" id="pMopeka">Mopeka</label>
 <label class="ck"><input type="checkbox" id="pVictron">Victron (Instant Readout)</label>
@@ -87,7 +87,7 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row" style="margin-top:10px"><button class="p" id="bSave" style="flex:none">Speichern</button></div>
 </div>
 
-<div class="card"><h2>Anschlüsse (GPIO)</h2>
+<div class="card" id="ioCard"><h2>Anschlüsse (GPIO)</h2>
 <p class="hint">Hier legst du fest, was an den Pins des Satelliten hängt. Die Werte gehen auf denselben Wegen ans Panel wie die Bluetooth-Geräte (MQTT mit Home Assistant, UDP, Bluetooth).</p>
 <div class="row"><label class="f"><span>Sensoren abfragen alle … Sekunden</span><input id="ioInt" type="number" min="2" max="3600"></label>
 <label class="f"><span>Tanksonden abfragen alle … Sekunden</span><input id="ioTInt" type="number" min="2" max="65535"></label></div>
@@ -95,16 +95,16 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row" style="margin-top:10px"><button class="p" id="bIoSave" style="flex:none">Belegung speichern</button><button id="bIoTank" style="flex:none">Tanks jetzt messen</button></div>
 </div>
 
-<div class="card"><h2>Truma LevelControl</h2><div id="trList"></div>
+<div class="card" id="trCard"><h2>Truma LevelControl</h2><div id="trList"></div>
 <div class="row" style="margin-top:8px"><label class="f" style="flex:none;width:200px"><span>Messen alle … Minuten</span><input id="trInt" type="number" min="1" max="1440"></label></div>
 <div class="row"><button id="bTrScan" style="flex:none">Sensoren suchen</button><button id="bTrMeasure" style="flex:none">Jetzt messen</button></div>
 <div id="trFound"></div></div>
 
-<div class="card"><h2>Mopeka</h2><div id="moList"></div>
+<div class="card" id="moCard"><h2>Mopeka</h2><div id="moList"></div>
 <div class="row" style="margin-top:8px"><button id="bMoScan" style="flex:none">Sensoren suchen</button></div>
 <div id="moFound"></div></div>
 
-<div class="card"><h2>Victron</h2>
+<div class="card" id="viCard"><h2>Victron</h2>
 <p class="hint">Pro Gerät den Schlüssel aus VictronConnect: Einstellungen → Produktinfo → Instant Readout → Details anzeigen.</p>
 <div id="viList"></div>
 <div class="row" style="margin-top:8px"><button id="bViScan" style="flex:none">Geräte suchen</button></div>
@@ -123,6 +123,8 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row" style="margin-top:10px">
 <label class="f"><span>Kacheln je Seite für neue Seiten</span><select id="dpPer"><option value="4">4 (2 × 2)</option><option value="2">2 (groß)</option><option value="1">1 (ganzer Bildschirm)</option></select></label>
 <label class="f"><span>Helligkeit</span><input type="range" id="dpBright" min="20" max="255"></label>
+<label class="f" id="dpLedL" style="display:none"><span>LED-Ampel auf der Rückseite</span><select id="dpLed"></select></label>
+<label class="f" id="dpSvL" style="display:none"><span>Nach der Dimm-Zeit</span><select id="dpSv"><option value="0">nur abdunkeln</option><option value="1">Uhr zeigen (Zeit vom Hauptpanel)</option></select></label>
 <label class="f"><span>Dimmen nach</span><select id="dpDim"><option value="1">1 Minute</option><option value="2">2 Minuten</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="0">nie</option></select></label>
 <label class="ck"><input type="checkbox" id="dpAuto">Helligkeit automatisch (Lichtsensor vorne am Display)</label>
 <label class="f"><span>Helligkeit bei Dunkelheit</span><input type="range" id="dpNight" min="5" max="255"></label>
@@ -133,6 +135,8 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
+<div id="updRow" style="display:none"><p class="hint">Update: „Update-Modus starten“ – das Gerät startet in den kleinen Updater (gleiche Adresse, gleiches Passwort). Dort die neue Firmware hochladen; danach startet sie von selbst. Hier unten lässt sich nur der Updater selbst erneuern (max. 1 MB).</p>
+<div class="row"><button id="bUpd" style="flex:none">Update-Modus starten</button></div></div>
 <div class="row"><input type="file" id="fwFile" accept=".bin"><button id="bFw" style="flex:none">Hochladen</button><button id="bReboot" style="flex:none">Neu starten</button></div>
 </div>
 </div>
@@ -161,11 +165,15 @@ function render(){
  const c=[];c.push(S.wifi.connected?['ok','WLAN '+S.wifi.ssid+' ('+S.wifi.rssi+' dBm)']:['err',S.wifi.ssid?'WLAN getrennt':'kein WLAN eingerichtet']);
  if(S.wifi.ap)c.push(['','Einrichtungs-WLAN '+S.wifi.ap_ssid]);
  if(S.modes.mqtt)c.push([S.mqtt.connected?'ok':'err','MQTT: '+S.mqtt.status]);
- if(S.modes.udp)c.push(['ok','UDP: '+S.udp_sent+' Pakete']);
+ if(S.modes.udp&&!S.remote)c.push(['ok','UDP: '+S.udp_sent+' Pakete']);
+ if(S.remote){c.push([/^verbunden/.test(S.rd)?'ok':'err','Hauptpanel: '+S.rd]);
+  ['#ioCard','#trCard','#moCard','#viCard','#bleH'].forEach(s=>{const e=$(s);if(e)e.style.display='none'});
+  ['#pTruma','#pMopeka','#pVictron','#mUdp'].forEach(s=>{const e=$(s);if(e)e.closest('label').style.display='none'});
+  const ub=$('#udpBox');if(ub){ub.style.marginLeft='0';const sp=ub.querySelector('span');if(sp)sp.textContent='IP des Hauptpanels (wird beim Anlernen eingetragen und automatisch nachgeführt)'}}
 
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#bleName').textContent='Per Bluetooth heißt dieser Satellit „'+S.ble_name+'“. Das Panel nimmt ihn automatisch auf, wenn das Passwort passt.';
- $('#fwInfo').textContent='Version '+S.fw+(S.chip?' ('+S.chip+')':'')+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.';
+ $('#fwInfo').textContent='Version '+S.fw+(S.chip?' ('+S.chip+')':'')+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.'+(S.upd_slot?(S.upd_ok?' · Updater vorhanden':' · Updater fehlt (einmal per USB aufspielen)'):'');$('#updRow').style.display=S.upd_slot?'':'none';$('#bUpd').disabled=!S.upd_ok;
  if(document.activeElement&&document.activeElement.closest('.card')&&document.activeElement.closest('#trList,#moList,#viList'))return;
  const T=S.truma;
  $('#trList').innerHTML=T.sensors.length?T.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-trn="${x.mac}" maxlength="32">
@@ -350,8 +358,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.vik){const k=prompt('Schlüssel (32 Zeichen)');if(k)act('/api/victron',{key:{mac:d.vik,key:k.replace(/[\s:-]/g,'')}},'Schlüssel gespeichert.')}
  if(d.via){const f=S.victron.found[+d.via];const k=prompt('Schlüssel (32 Zeichen) für '+(f.name||f.mac));if(k){const n=prompt('Name',f.name||'Victron');act('/api/victron',{add:{mac:f.mac,key:k.replace(/[\s:-]/g,''),name:n||''}},'Eingerichtet.')}}
 });
-$('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
- try{const r=await fetch('/api/update',{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
+$('#bUpd').onclick=async()=>{if(!confirm('In den Update-Modus starten? Das Gerät ist bis zum Update (oder 15 Minuten) nicht erreichbar wie gewohnt.'))return;
+ try{await post('/api/updater',{});toast('Starte den Updater … die Seite lädt gleich neu.');setTimeout(()=>location.reload(),12000)}catch(e){toast(e.message,true)}};
+$('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);if(S.upd_slot&&f.size>S.upd_slot)return toast('Zu groß für den Updater-Bereich – die Firmware bitte über den Update-Modus aufspielen.',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
+ try{const r=await fetch('/api/update?size='+f.size,{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
 let DP=null,dSel=null,dG=null;
 function ldrShow(){const l=S.light;if(!l||l.ldr<0)return;$('#ldrNow').textContent='Lichtsensor zurzeit: '+l.ldr+' – '+(l.night?'dunkel':'hell')+(l.auto?'.':' (Automatik aus).')}
@@ -376,7 +386,8 @@ function dpRender(){if(!DP)return;$('#dpCard').style.display='';let h='';
  $('#dpSel').innerHTML=t?`<div class="io"><div class="ioh"><b>${esc(t.name)}</b><button class="s" data-dmv="-1" ${fi>0?'':'disabled'}>◀</button><button class="s" data-dmv="1" ${fi>=0&&fi<F.length-1?'':'disabled'}>▶</button></div><label class="f"><span>Eigener Name (leer = ${esc(t.name)})</span><input id="dpName" maxlength="32" value="${esc(t.n||'')}"></label><div class="row"><button class="d" id="dpHide" style="flex:none">Ausblenden</button><button id="dpDone" style="flex:none">Fertig</button></div></div>`:'';
  const H=DP.tiles.filter(t=>!t.on);
  $('#dpHid').innerHTML=H.length?'<h2 style="margin-top:6px">Ausgeblendet</h2>'+H.map(t=>`<div class="dev"><div class="t">${esc(t.n||t.name)}<div class="v">${esc(t.value||'')}</div></div><button data-dshow="${esc(t.k)}">Einblenden</button></div>`).join(''):'';
- $('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr}
+ $('#dpSvL').style.display=DP.clock?'':'none';
+ if(DP.led_tiles){$('#dpLedL').style.display='';$('#dpLed').innerHTML='<option value="0">aus</option><option value="1">automatisch (niedrigster Pegel)</option>'+DP.led_tiles.map(t=>`<option value="k:${esc(t.k)}">${esc(t.n)}</option>`).join('');$('#dpLed').value=DP.led==2?'k:'+DP.led_key:String(DP.led)}$('#dpSv').value=DP.saver||0;$('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr}
 $('#dpEd').addEventListener('click',e=>{const b=e.target.closest('button');
  if(b&&b.id=='dpAdd'){DP.P.push({n:DP.per,k:[]});dSel=null;return dpRender()}
  if(b&&b.dataset.dpdel){DP.P.splice(+b.dataset.dpdel,1);dSel=null;return dpRender()}
@@ -398,6 +409,6 @@ $('#dpPer').onchange=e=>{DP.per=+e.target.value};
 // Speichern: leere Seiten fallen weg, jede Kachel bekommt ihre Seite
 $('#bDpSave').onclick=()=>{const P=DP.P.filter(p=>p.k.length),tiles=[];P.forEach((p,pi)=>p.k.forEach(k=>{const t=dT(k);tiles.push({k,on:true,n:t.n||'',pg:pi})}));
  DP.tiles.filter(t=>!t.on).forEach(t=>tiles.push({k:t.k,on:false,n:t.n||''}));
- post('/api/display',{tiles,pl:P.map(p=>p.n),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true))};
+ post('/api/display',{tiles,pl:P.map(p=>p.n),saver:+$('#dpSv').value,...(DP.led_tiles?{led:$('#dpLed').value.startsWith('k:')?2:+$('#dpLed').value,led_key:$('#dpLed').value.startsWith('k:')?$('#dpLed').value.slice(2):''}:{}),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true))};
 load();ioLoad();dpLoad();setInterval(load,3000);
 </script></body></html>)HTML";

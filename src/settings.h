@@ -41,6 +41,9 @@ struct Settings {
   String hostname;
   String mqtt_host, mqtt_user, mqtt_pass, mqtt_base;
   uint16_t mqtt_port = 1883;
+  // Eingebauter MQTT-Broker (nur mit WITH_BROKER, z. B. P4): ab Werk aus; an = Panel nutzt ihn selbst
+  bool broker_on = false;
+  String broker_user, broker_pass;   // leeres Passwort = ohne Anmeldung
   uint8_t brightness = 80;     // %
   uint16_t dim_after = 120;    // Sekunden, 0 = nie
   uint8_t dim_level = 10;      // %, 0 = Display aus

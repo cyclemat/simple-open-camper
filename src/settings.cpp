@@ -56,6 +56,9 @@ void settings_load() {
   g_settings.ap_channel = prefs.getUChar("ap_ch", 13);
 #endif
   g_settings.mqtt_auto = prefs.getBool("mqtt_auto", true);
+  g_settings.broker_on = prefs.getBool("brk_on", false);
+  g_settings.broker_user = prefs.getString("brk_user", "");
+  g_settings.broker_pass = prefs.getString("brk_pass", "");
   g_settings.wifi_ssid = prefs.getString("wifi_ssid", "");
   g_settings.wifi_pass = prefs.getString("wifi_pass", "");
   g_settings.hostname = prefs.getString("hostname", DEFAULT_HOSTNAME);
@@ -130,6 +133,9 @@ void settings_save() {
   prefs.putString("ap_pass", g_settings.ap_pass);
   prefs.putUChar("ap_ch", g_settings.ap_channel);
   prefs.putBool("mqtt_auto", g_settings.mqtt_auto);
+  prefs.putBool("brk_on", g_settings.broker_on);
+  prefs.putString("brk_user", g_settings.broker_user);
+  prefs.putString("brk_pass", g_settings.broker_pass);
   prefs.putString("wifi_ssid", g_settings.wifi_ssid);
   prefs.putString("wifi_pass", g_settings.wifi_pass);
   prefs.putString("hostname", g_settings.hostname);

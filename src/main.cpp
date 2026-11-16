@@ -13,6 +13,7 @@
 #include "ui/ui.h"
 #include "web_server.h"
 #include "z2m.h"
+#include "mqtt_broker.h"
 #include "truma.h"
 #include "victron.h"
 #include "cerbo.h"
@@ -36,6 +37,8 @@ static void apply_settings_event(Settings *st) {
   bool restart = old.net_mode != st->net_mode || old.ap_ssid != st->ap_ssid || old.ap_pass != st->ap_pass ||
                  old.ap_channel != st->ap_channel || old.hostname != st->hostname;
   mqtt_changed |= old.mqtt_auto != st->mqtt_auto || old.mqtt_on != st->mqtt_on;
+  // Eingebauter Broker an/aus bzw. andere Anmeldung: Panel verbindet sich neu (mit sich selbst bzw. dem alten Broker)
+  mqtt_changed |= old.broker_on != st->broker_on || old.broker_user != st->broker_user || old.broker_pass != st->broker_pass;
   bool inetx_off = (old.ble_protos & BLE_P_INETX) && !(st->ble_protos & BLE_P_INETX);
   bool hymer_off = (old.ble_protos & BLE_P_HYMER) && !(st->ble_protos & BLE_P_HYMER);
   settings_apply(*st);
@@ -48,6 +51,7 @@ static void apply_settings_event(Settings *st) {
   }
   board_set_backlight(st->brightness);
   if (tz_changed) configTzTime(st->tz.c_str(), "pool.ntp.org", "time.google.com");
+  broker_apply();
   if (mqtt_changed) z2m_restart();
   ui_settings_changed();
 }
@@ -151,6 +155,11 @@ void loop() {
   if (millis() - gx_ms >= 1000) {   // GX laenger weg (neue IP?) -> automatisch neu suchen
     gx_ms = millis();
     gx_find_watch();
+    static bool brk = false;   // eingebauter Broker: einmal nach dem Start einschalten (wenn gewuenscht)
+    if (!brk && millis() > 3000) {
+      brk = true;
+      broker_apply();
+    }
   }
   delay(wait > 10 ? 10 : (wait < 2 ? 2 : wait));
 }

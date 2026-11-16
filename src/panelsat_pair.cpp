@@ -13,6 +13,7 @@
 #include "settings.h"
 #include "i18n/i18n.h"
 #include "z2m.h"
+#include "net.h"
 
 namespace {
 struct Cand {
@@ -126,13 +127,19 @@ std::string satpair_start(const std::string &mac) {
   d["s"] = ssid;
   d["p"] = pass;
   d["k"] = panelsat_password();
+  d["pi"] = net_ip().c_str();   // IP des Panels: Zusatzdisplays melden sich direkt dort
   // MQTT-Broker des Panels mitgeben (Satellit sendet dann auch dorthin, UDP bleibt): nur wenn das Panel einen nutzt
   std::string mh = z2m_broker_host();
   if (!mh.empty()) {
+    bool own = false;
+#if WITH_BROKER
+    own = st.broker_on;   // eingebauter Broker: dessen Zugang
+#endif
     d["mh"] = mh;
-    d["mp"] = st.mqtt_port;
-    if (!st.mqtt_user.isEmpty()) d["mu"] = st.mqtt_user.c_str();
-    if (!st.mqtt_pass.isEmpty()) d["mw"] = st.mqtt_pass.c_str();
+    d["mp"] = own ? 1883 : st.mqtt_port;
+    const String &u = own ? st.broker_user : st.mqtt_user, &w = own ? st.broker_pass : st.mqtt_pass;
+    if (!u.isEmpty()) d["mu"] = u.c_str();
+    if (!w.isEmpty()) d["mw"] = w.c_str();
   }
   std::string payload;
   serializeJson(d, payload);

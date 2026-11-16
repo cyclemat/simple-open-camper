@@ -34,6 +34,8 @@
 #include "esp_system.h"
 #include <algorithm>
 #include <set>
+#include "ui/ui_remote.h"
+#include "mqtt_broker.h"
 
 static httpd_handle_t s_srv = nullptr;
 
@@ -702,6 +704,18 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   d["mqtt"]["base"] = st.mqtt_base;
   d["mqtt"]["has_pass"] = !st.mqtt_pass.isEmpty();
   d["mqtt"]["auto"] = st.mqtt_auto;
+  d["broker"]["avail"] = (bool)WITH_BROKER;   // eingebauter Broker (nur P4)
+  d["broker"]["on"] = st.broker_on;
+  d["broker"]["user"] = st.broker_user;
+  d["broker"]["has_pass"] = !st.broker_pass.isEmpty();
+  {
+    BrokerInfo bi = broker_info();
+    d["broker"]["running"] = bi.running;
+    d["broker"]["clients"] = bi.clients;
+    d["broker"]["retained"] = bi.retained;
+    d["broker"]["retained_kb"] = (uint32_t)(bi.retained_bytes / 1024);
+    d["broker"]["msgs"] = bi.msgs;
+  }
   d["wifi"]["ssid"] = st.wifi_ssid;
   d["net"]["mode"] = st.net_mode;
   d["net"]["ap_ssid"] = st.ap_ssid;
@@ -756,6 +770,13 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     if (m["clear_pass"] | false) st->mqtt_pass = "";
     if (m["auto"].is<bool>()) st->mqtt_auto = m["auto"].as<bool>();
     if (m["on"].is<bool>()) st->mqtt_on = m["on"].as<bool>();
+  }
+  JsonObject bk = d["broker"];
+  if (!bk.isNull()) {
+    if (bk["on"].is<bool>()) st->broker_on = bk["on"].as<bool>();
+    if (bk["user"].is<const char *>()) st->broker_user = (const char *)bk["user"];
+    if (bk["pass"].is<const char *>() && strlen((const char *)bk["pass"]) > 0) st->broker_pass = (const char *)bk["pass"];
+    if (bk["clear_pass"] | false) st->broker_pass = "";
   }
   JsonObject n = d["net"];
   if (!n.isNull()) {
@@ -1387,6 +1408,27 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+// ---------------------------------------------------------------- Zusatzdisplays
+static esp_err_t h_rdisp_get(httpd_req_t *req) { return send_json(req, ui_remote_json()); }
+
+// {"id":"Display-…","tiles":["key",…],"name":"…"} | {"forget":"Display-…"}
+static esp_err_t h_rdisp_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 4096, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["forget"].is<const char *>()) ui_remote_forget(d["forget"].as<const char *>());
+  if (d["id"].is<const char *>()) {
+    std::vector<std::string> keys;
+    for (const char *k : d["tiles"].as<JsonArrayConst>()) keys.push_back(k);
+    if (!ui_remote_set(d["id"].as<const char *>(), keys, d["name"] | "")) return send_err(req, "404 Not Found", "Display unbekannt");
+  }
+  return send_ok(req);
+}
+
 // ---------------------------------------------------------------- Cerbo GX
 static esp_err_t h_cerbo_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
@@ -1596,7 +1638,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 40;
+  cfg.max_uri_handlers = 44;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -1643,6 +1685,8 @@ void web_start() {
   reg("/api/cerbo", HTTP_POST, h_cerbo_post);
   reg("/api/satellites", HTTP_GET, h_sat_get);
   reg("/api/satellites", HTTP_POST, h_sat_post);
+  reg("/api/rdisp", HTTP_GET, h_rdisp_get);
+  reg("/api/rdisp", HTTP_POST, h_rdisp_post);
   reg("/api/saver_logo", HTTP_GET, h_logo_get);
   reg("/api/saver_logo", HTTP_POST, h_logo_post);
   reg("/api/backup", HTTP_GET, h_backup_get);
