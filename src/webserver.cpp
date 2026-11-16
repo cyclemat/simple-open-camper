@@ -177,7 +177,7 @@ static esp_err_t h_info(httpd_req_t *req) {
 static const char *vic_type(VicKind k) {
   return k == VIC_SOLAR ? "solar" : k == VIC_SHUNT ? "shunt" : k == VIC_DCDC ? "dcdc" : k == VIC_GRID ? "grid"
        : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter"
-       : k == VIC_PSTATION ? "pstation" : "other";
+       : k == VIC_PSTATION ? "pstation" : k == VIC_PROTECT ? "protect" : k == VIC_LITHIUM ? "lithium" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -307,6 +307,17 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
       st["mode"] = v.mode;
       st["mode_text"] = cerbo_mode_text(v.mode);
     }
+  } else if (v.kind == VIC_PROTECT) {
+    put(st, "in_v", v.in_v);
+    if (v.output >= 0) st["out_on"] = v.output == 1;
+    if (v.alarm) st["alarm"] = v.alarm;
+  } else if (v.kind == VIC_LITHIUM) {
+    if (v.aux_mode == 2) put(st, "temp", v.aux, 1);
+    JsonArray cl = st["cells"].to<JsonArray>();
+    for (float c : v.cell_v)
+      if (!isnan(c)) cl.add(roundf(c * 100) / 100);
+    st["balancer"] = v.balancer;
+    if (v.alarm) st["alarm"] = v.alarm;
   } else if (v.kind == VIC_DCSYS) {
     put(st, "w", v.power_w, 1);
     if (!v.gx && *victron_meter_text(v.meter)) st["meter_text"] = victron_meter_text(v.meter);
@@ -1266,9 +1277,12 @@ static esp_err_t h_bms_post(httpd_req_t *req) {
     std::string err = bms_add(d["add"]["mac"] | "", d["add"]["addr_type"] | 0, d["add"]["name"] | "",
                               (BmsModel)(int)(d["add"]["model"] | 1), d["add"]["cap"] | 0, d["add"]["cells"] | 0);
     if (!err.empty()) return send_err(req, "400 Bad Request", err);
+    std::string pin = d["add"]["pin"] | "";
+    if (!pin.empty()) bms_set_pin(d["add"]["mac"] | "", pin);   // Kopplungs-PIN gleich mit speichern
   }
   if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (!d["pin"].isNull()) bms_set_pin(d["pin"]["mac"] | "", d["pin"]["pin"] | "");
   if (d["ef_uid"].is<const char *>()) bms_ef_set_uid(d["ef_uid"].as<const char *>());
   if (!d["ef_login"].isNull()) {
     std::string err = bms_ef_login_start(d["ef_login"]["email"] | "", d["ef_login"]["password"] | "");

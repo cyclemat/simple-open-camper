@@ -350,6 +350,8 @@ void h_state() {
     o["connected"] = b.connected;
     o["has"] = b.has;
     o["age"] = b.age_s;
+    o["pin"] = b.pin_set;
+    o["pin_need"] = b.pin_need;
     if (b.has) {
       o["soc"] = b.soc;
       o["soh"] = b.soh;
@@ -468,9 +470,12 @@ void h_bms() {
                               (BmsModel)(int)(d["add"]["model"] | (int)BMS_SUPERB), d["add"]["cap"] | 0,
                               d["add"]["cells"] | 0);
     if (!err.empty()) return send_err(err.c_str());
+    std::string pin = d["add"]["pin"] | "";
+    if (!pin.empty()) bms_set_pin(d["add"]["mac"] | "", pin);   // Kopplungs-PIN gleich mit speichern
   }
   if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (!d["pin"].isNull()) bms_set_pin(d["pin"]["mac"] | "", d["pin"]["pin"] | "");
   // Power Station: {"output":{mac,ac:true|false,on:true|false}}
   if (!d["output"].isNull() && !bms_set_output(d["output"]["mac"] | "", d["output"]["ac"] | true, d["output"]["on"] | false))
     return send_err("Dieses Gerät lässt sich nicht schalten");

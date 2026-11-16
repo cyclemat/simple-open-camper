@@ -31,6 +31,13 @@ std::string ui_num(float v, int decimals, const char *unit) {
   return b;
 }
 
+// Zahl ohne Einheit (und ohne das schmale Leerzeichen davor)
+static std::string ui_num_bare(float v, int decimals) {
+  std::string r = ui_num(v, decimals, "");
+  if (r.size() >= 3 && r.compare(r.size() - 3, 3, "\xE2\x80\xAF") == 0) r.resize(r.size() - 3);
+  return r;
+}
+
 static std::string remaining_text(int min) {
   if (min < 0) return "–";
   char b[32];
@@ -50,6 +57,8 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_DCSYS: return ICON_BULB;
     case VIC_INVERTER: return ICON_POWER;
     case VIC_PSTATION: return ICON_BATTERY;
+    case VIC_LITHIUM: return ICON_BATTERY;
+    case VIC_PROTECT: return ICON_POWER;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -83,20 +92,30 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       break;
     }
     case VIC_SHUNT: {
+      if (victron_is_sense(v)) {   // Smart Battery Sense: Spannung und Temperatur
+        t.value = ui_num(v.bat_v, 2, "V");
+        t.accent = C_BLUE;
+        t.sub = v.aux_mode == 2 ? ui_num(v.aux, 1, "°C") : std::string(tr("Batteriefühler"));
+        break;
+      }
       t.value = isnan(v.soc) ? "–" : std::to_string((int)lroundf(v.soc)) + "\xE2\x80\xAF%";
       if (!isnan(v.soc)) {
         t.fill = (int)lroundf(v.soc);
         t.accent = ui_gas_color(t.fill);
       }
       t.sub = ui_num(v.bat_v, 2, "V");
-      if (!small) t.sub += "  ·  " + (v.gx && !isnan(v.power_w) ? watt(v.power_w) : ui_num(v.bat_i, 1, "A"));
+      float w = victron_dc_watt(v);
+      if (!small) t.sub += "  ·  " + (!isnan(w) ? watt(w) : ui_num(v.bat_i, 1, "A"));
+      if (big && !isnan(w) && !isnan(v.bat_i)) t.sub += "  ·  " + ui_num(v.bat_i, 1, "A");
       if (big && v.remaining_min >= 0) t.sub += "  ·  " + remaining_text(v.remaining_min);
       break;
     }
-    case VIC_DCDC: {
-      t.value = ui_num(v.bat_v, 1, "V");
+    case VIC_DCDC: {   // Booster: Leistung gross (ohne Strom wie bisher die Spannung)
+      float w = victron_dc_watt(v);
+      t.value = !isnan(w) ? watt(w) : ui_num(v.bat_v, 1, "V");
       t.accent = v.state == 0 ? C_TEXT2 : charging_state(v.state) ? C_GREEN : C_BLUE;
       t.sub = victron_state_text(v.state);
+      if (!small && !isnan(w)) t.sub += "  ·  " + ui_num(v.bat_v, 1, "V");
       if (!small && !isnan(v.bat_i)) t.sub += "  ·  " + ui_num(v.bat_i, 1, "A");
       if (big && !isnan(v.in_v)) t.sub += tr("  ·  Eingang ") + ui_num(v.in_v, 1, "V");
       break;
@@ -138,6 +157,25 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (big && v.ac_on >= 0) t.sub += v.ac_on ? tr("  ·  AC ein") : tr("  ·  AC aus");
       break;
     }
+    case VIC_LITHIUM: {
+      t.value = ui_num(v.bat_v, 2, "V");
+      t.accent = v.alarm ? C_RED : C_GREEN;
+      t.sub = v.aux_mode == 2 ? ui_num(v.aux, 0, "°C") : std::string("–");
+      float lo = NAN, hi = NAN;
+      for (float c : v.cell_v)
+        if (!isnan(c)) {
+          lo = isnan(lo) || c < lo ? c : lo;
+          hi = isnan(hi) || c > hi ? c : hi;
+        }
+      if (!small && !isnan(lo)) t.sub += tr("  ·  Zellen ") + ui_num_bare(lo, 2) + "–" + ui_num(hi, 2, "V");
+      break;
+    }
+    case VIC_PROTECT:
+      t.value = v.output == 1 ? tr("an") : v.output == 0 ? tr("aus") : "–";
+      t.accent = v.alarm || v.error > 0 ? C_RED : v.output == 1 ? C_GREEN : C_AMBER;
+      t.sub = tr("Eingang ") + ui_num(v.in_v, 2, "V");
+      if (!small) t.sub += tr("  ·  Ausgang ") + ui_num(v.bat_v, 2, "V");
+      break;
     case VIC_DCSYS:   // Cerbo GX: DC-Verbraucher; per Bluetooth: SmartShunt als DC-Energiezaehler
       t.value = watt(v.power_w);
       t.accent = (!isnan(v.power_w) && fabsf(v.power_w) > 2) ? C_AMBER : C_TEXT2;
@@ -163,7 +201,12 @@ std::string ui_vic_summary(const VictronInfo &v) {
   if (v.age_s < 0 || v.age_s > STALE_S) return "kein Empfang";
   switch (v.kind) {
     case VIC_SOLAR: return ui_num(v.pv_w, 0, "W") + ", " + ui_num(v.bat_v, 2, "V") + ", " + victron_state_text(v.state);
-    case VIC_SHUNT: return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
+    case VIC_SHUNT:
+      if (victron_is_sense(v)) return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 1, "°C");
+      return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
+    case VIC_LITHIUM: return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 0, "°C");
+    case VIC_PROTECT:
+      return std::string(v.output == 1 ? tr("Ausgang an") : v.output == 0 ? tr("Ausgang aus") : "–") + ", " + ui_num(v.in_v, 2, "V");
     case VIC_DCDC: return ui_num(v.bat_v, 2, "V") + ", " + victron_state_text(v.state);
     case VIC_GRID: return v.ac_connected == 0 ? std::string(tr("nicht verbunden")) : ui_num(v.ac_w, 0, "W") + ", " + ui_num(v.ac_v, 0, "V");
     case VIC_CHARGER: return ui_num(v.power_w, 0, "W") + ", " + tr(victron_state_text(v.state));
@@ -489,6 +532,16 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 8;
     }
+    case VIC_LITHIUM: {
+      static const char *a[] = {"Spannung", "Temperatur", "Zellen", "Balancer", "Alarm", "Empfang"};
+      memcpy(t, a, sizeof(a));
+      return 6;
+    }
+    case VIC_PROTECT: {
+      static const char *a[] = {"Ausgang", "Eingang Spannung", "Ausgang Spannung", "Alarm", "Empfang"};
+      memcpy(t, a, sizeof(a));
+      return 5;
+    }
     case VIC_DCSYS: {
       if (!v.gx) {   // SmartShunt als DC-Energiezaehler per Bluetooth
         static const char *b[] = {"Art", "Leistung", "Strom", "Spannung", "Empfang"};
@@ -604,6 +657,26 @@ static void row_values(const VictronInfo &v, std::string *val, int n) {
       val[7] = reception(v);
       break;
     }
+    case VIC_LITHIUM: {
+      val[0] = ui_num(v.bat_v, 2, "V");
+      val[1] = v.aux_mode == 2 ? ui_num(v.aux, 0, "°C") : std::string("–");
+      std::string cs;
+      for (float c : v.cell_v)
+        if (!isnan(c)) cs += (cs.empty() ? "" : " / ") + ui_num_bare(c, 2);
+      val[2] = cs.empty() ? std::string("–") : cs + " V";
+      static const char *BAL[] = {"–", "ausgeglichen", "gleicht aus", "ungleich"};
+      val[3] = tr(BAL[v.balancer < 4 ? v.balancer : 0]);
+      val[4] = v.alarm ? tr("ja") : tr("nein");
+      val[5] = reception(v);
+      break;
+    }
+    case VIC_PROTECT:
+      val[0] = v.output == 1 ? tr("an") : v.output == 0 ? tr("aus") : "–";
+      val[1] = ui_num(v.in_v, 2, "V");
+      val[2] = ui_num(v.bat_v, 2, "V");
+      val[3] = v.alarm ? tr("ja") : tr("nein");
+      val[4] = reception(v);
+      break;
     case VIC_DCSYS:
       if (!v.gx) {
         val[0] = *victron_meter_text(v.meter) ? std::string(tr(victron_meter_text(v.meter))) : std::string("–");

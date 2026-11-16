@@ -109,6 +109,8 @@ struct BmsInfo {
   std::string serial, firmware;
   bool connected = false;
   bool has = false;                   // mindestens ein Statuspaket empfangen
+  bool pin_set = false;               // Kopplungs-PIN gespeichert (Super B)
+  bool pin_need = false;              // Geraet hat beim Koppeln eine PIN verlangt
   int32_t age_s = -1;                 // Sekunden seit dem letzten Statuspaket
   int soc = -1, soh = -1;             // %
   float volt = NAN, amp = NAN;        // Strom: + laden, - entladen
@@ -183,6 +185,7 @@ bool bms_want_poll();                                 // Power Quarry: Abfrage f
 void bms_poll_now();                                  // Abfrage ausfuehren, blockiert 1–3 s (Scan laeuft weiter)
 void bms_remove(const std::string &mac);
 void bms_rename(const std::string &mac, const std::string &name);
+void bms_set_pin(const std::string &mac, const std::string &pin);   // Kopplungs-PIN (nur Ziffern, "" = keine)
 std::vector<std::string> bms_log();                   // letzte Meldungen (Fehlersuche ueber die Weboberflaeche)
 bool bms_set_output(const std::string &mac, bool ac, bool on);   // Power Station: AC- bzw. DC-Ausgang schalten
 // EcoFlow: Benutzer-ID des Kontos (fuer die Anmeldung an der Power Station). Anmeldung holt sie per HTTPS.

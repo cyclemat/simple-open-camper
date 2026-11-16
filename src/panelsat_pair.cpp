@@ -7,6 +7,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "sat_pair_proto.h"
+#include "sat_pair_crypto.h"
 #include "sat_proto.h"
 #include "panelsat.h"
 #include "settings.h"
@@ -158,10 +159,7 @@ void satpair_connect_now() {
   NimBLEClient *c = NimBLEDevice::createClient();
   c->setConnectTimeout(10000);
   auto done = [&](int st, const std::string &txt) {
-    if (c->isConnected()) {
-      NimBLEDevice::deleteBond(c->getConnInfo().getIdAddress());   // nichts dauerhaft koppeln
-      c->disconnect();
-    }
+    if (c->isConnected()) c->disconnect();
     NimBLEDevice::deleteClient(c);
     {
       Lock l;
@@ -171,15 +169,29 @@ void satpair_connect_now() {
     set_state(st, txt);
     log_w("Satellit einrichten %s: %s", mac.c_str(), txt.c_str());
   };
+  // Fehlersuche (P4: Funk ueber ESP32-C6): welche eigene Adresse nimmt die Bluetooth-Software an?
+  log_w("Satellit einrichten: eigene Bluetooth-Adresse laut Host %s", NimBLEDevice::getAddress().toString().c_str());
   if (!c->connect(NimBLEAddress(mac, type), true)) return done(3, tr("Verbindung zum Satelliten fehlgeschlagen."));
-  if (!c->secureConnection()) return done(3, tr("Verschlüsselung abgelehnt."));
+  // Kein Bluetooth-Pairing (scheitert am P4): eigener Schluesseltausch, die Daten gehen schon verschluesselt raus
   NimBLERemoteService *svc = c->getService(NimBLEUUID(SAT_PAIR_SVC));
   NimBLERemoteCharacteristic *cred = svc ? svc->getCharacteristic(NimBLEUUID(SAT_PAIR_CRED)) : nullptr;
   NimBLERemoteCharacteristic *stat = svc ? svc->getCharacteristic(NimBLEUUID(SAT_PAIR_STAT)) : nullptr;
-  if (!cred || !stat) return done(3, tr("Der Satellit kennt die Einrichtung nicht (alte Firmware?)."));
-  set_state(1, tr("Übertrage WLAN-Daten …"));
-  if (!cred->writeValue((const uint8_t *)payload.data(), payload.size(), true)) return done(3, tr("Übertragen fehlgeschlagen."));
+  NimBLERemoteCharacteristic *pubc = svc ? svc->getCharacteristic(NimBLEUUID(SAT_PAIR_PUB)) : nullptr;
+  if (!cred || !stat || !pubc) return done(3, tr("Der Satellit hat eine ältere Firmware – bitte zuerst aktualisieren."));
+  std::string sat_pub = pubc->readValue();
+  if (sat_pub.size() != 65 || (uint8_t)sat_pub[0] != 0x04) return done(3, tr("Schlüssel des Satelliten ungültig."));
+  uint8_t priv[32], pub[65], z[32], enc[32], mk[32];
+  bool kok = satpair::make_key(priv, pub) && satpair::ecdh(priv, (const uint8_t *)sat_pub.data(), z);
+  if (kok) satpair::derive(z, (const uint8_t *)sat_pub.data(), pub, enc, mk);
+  memset(priv, 0, sizeof(priv));
+  memset(z, 0, sizeof(z));
+  if (!kok) return done(3, tr("Schlüsseltausch fehlgeschlagen."));
+  std::string blob((const char *)pub, 65);
+  blob += satpair::seal(enc, mk, payload);
+  memset(enc, 0, sizeof(enc));
   std::fill(payload.begin(), payload.end(), '\0');
+  set_state(1, tr("Übertrage WLAN-Daten (verschlüsselt) …"));
+  if (!cred->writeValue((const uint8_t *)blob.data(), blob.size(), true)) return done(3, tr("Übertragen fehlgeschlagen."));
   // Ergebnis abfragen: der Satellit testet das WLAN (bis ~20 s) und meldet seine IP
   uint32_t t0 = millis();
   while (millis() - t0 < 30000 && c->isConnected()) {

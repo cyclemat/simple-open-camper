@@ -662,8 +662,8 @@ function mopHTML(m) {
 }
 
 // ------------------------------------------------------------------ Victron (Instant Readout)
-const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', other: 'bluetooth'};
-const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', other: 'Victron-Gerät'};
+const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', protect: 'power', lithium: 'battery', other: 'bluetooth'};
+const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', protect: 'BatteryProtect', lithium: 'Lithium-Akku', other: 'Victron-Gerät'};
 const isVicKey = k => k.startsWith('victron:') || k.startsWith('cerbo:');
 // Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
 const isSioKey = k => k.startsWith('satio:');
@@ -719,6 +719,17 @@ function vicText(d, small, big) {
     r.value = st.pv != null ? Math.round(st.pv) + ' W' : '–';
     r.accent = st.pv > 0 ? [0xF3, 0xA4, 0x3B] : [0x8D, 0x97, 0xA2];
     r.sub = (st.state_text || '–') + (small ? '' : '  ·  ' + vnum(st.v, 1, 'V')) + (big ? T('  ·  heute ') + vnum(st.yield, 2, 'kWh') : '');
+  } else if (t === 'shunt' && st.soc == null && st.i == null && !st.gx) {   // Smart Battery Sense
+    r.value = vnum(st.v, 2, 'V'); r.accent = [0x3C, 0x8D, 0xFF];
+    r.sub = st.aux_mode === 2 ? vnum(st.aux, 1, '°C') : T('Batteriefühler');
+  } else if (t === 'lithium') {
+    r.value = vnum(st.v, 2, 'V'); r.accent = st.alarm ? [0xFF, 0x6A, 0x5C] : [0x5B, 0xD3, 0x8A];
+    const c = st.cells || [];
+    r.sub = vnum(st.temp, 0, '°C') + (!small && c.length ? T('  ·  Zellen ') + Math.min(...c).toFixed(2) + '–' + Math.max(...c).toFixed(2) + ' V' : '');
+  } else if (t === 'protect') {
+    r.value = st.out_on == null ? '–' : st.out_on ? T('an') : T('aus');
+    r.accent = st.alarm || st.error ? [0xFF, 0x6A, 0x5C] : st.out_on ? [0x5B, 0xD3, 0x8A] : [0xF3, 0xA4, 0x3B];
+    r.sub = T('Eingang ') + vnum(st.in_v, 2, 'V') + (small ? '' : T('  ·  Ausgang ') + vnum(st.v, 2, 'V'));
   } else if (t === 'shunt') {
     if (st.soc != null) { r.fill = Math.round(st.soc); r.accent = gasColor(r.fill); r.value = r.fill + ' %'; }
     r.sub = vnum(st.v, 2, 'V') + (small ? '' : '  ·  ' + (st.gx && st.w != null ? vnum(st.w, 0, 'W') : vnum(st.i, 1, 'A'))) + (big && st.remaining != null ? '  ·  ' + remText(st.remaining) : '');
@@ -759,6 +770,8 @@ function vicSummary(d) {
   if (d.vtype === 'charger') return `${vnum(st.w, 0, 'W')}, ${st.state_text || '–'}`;
   if (d.vtype === 'inverter') return `${vnum(st.ac_w, 0, 'W')}, ${st.state_text || '–'}`;
   if (d.vtype === 'pstation') return `${vnum(st.soc, 0, '%')}, ${T('rein')} ${vnum(st.in_w, 0, 'W')}, ${T('raus')} ${vnum(st.out_w, 0, 'W')}`;
+  if (d.vtype === 'protect') return `${st.out_on == null ? '–' : st.out_on ? T('Ausgang an') : T('Ausgang aus')}, ${vnum(st.in_v, 2, 'V')}`;
+  if (d.vtype === 'lithium') return `${vnum(st.v, 2, 'V')}, ${vnum(st.temp, 0, '°C')}`;
   if (d.vtype === 'dcsys') return `${vnum(st.w, 0, 'W')}, ${vnum(st.i, 1, 'A')}${st.meter_text ? ', ' + T(st.meter_text) : ''}`;
   return st.status || '';
 }
@@ -782,6 +795,11 @@ function vicReadout(d) {
       ['Batteriespannung', vnum(st.v, 2, 'V')], ['Ladestrom', vnum(st.i, 1, 'A')]]
     : d.vtype === 'pstation' ? [['Ladestand', vnum(st.soc, 0, '%')], ['Eingang', vnum(st.in_w, 0, 'W')], ['Ausgang', vnum(st.out_w, 0, 'W')],
       ['AC-Ausgang', vnum(st.ac_out, 0, 'W') + (st.ac_on == null ? '' : st.ac_on ? ' (ein)' : ' (aus)')], ['DC-Ausgang', vnum(st.dc_out, 0, 'W') + (st.dc_on == null ? '' : st.dc_on ? ' (ein)' : ' (aus)')]]
+    : d.vtype === 'protect' ? [['Ausgang', st.out_on == null ? '–' : st.out_on ? 'an' : 'aus'], ['Eingang Spannung', vnum(st.in_v, 2, 'V')],
+      ['Ausgang Spannung', vnum(st.v, 2, 'V')], ['Alarm', st.alarm ? 'ja' : 'nein']]
+    : d.vtype === 'lithium' ? [['Spannung', vnum(st.v, 2, 'V')], ['Temperatur', vnum(st.temp, 0, '°C')],
+      ['Zellen', (st.cells || []).length ? st.cells.map(c => c.toFixed(2)).join(' / ') + ' V' : '–'],
+      ['Balancer', ['–', 'ausgeglichen', 'gleicht aus', 'ungleich'][st.balancer] || '–'], ['Alarm', st.alarm ? 'ja' : 'nein']]
     : d.vtype === 'dcsys' ? [...(st.meter_text ? [['Art', T(st.meter_text)]] : []), ['Leistung', vnum(st.w, 0, 'W')], ['Strom', vnum(st.i, 1, 'A')], ['Spannung', vnum(st.v, 2, 'V')]] : [];
   if (st.gx && d.vtype === 'shunt') rows.splice(3, 1, ['Leistung', vnum(st.w, 0, 'W')]);
   const rxName = st.gx ? 'Verbindung' : 'Empfang';

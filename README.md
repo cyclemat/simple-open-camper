@@ -377,7 +377,8 @@ So kommt ein neuer Satellit ohne Tippen von WLAN-Daten ins Netz – ähnlich wie
 2. Am Satelliten die **BOOT-Taste 3 Sekunden halten** (ESP32/S3: GPIO 0, C3/C6: GPIO 9). Hat er keine Taste:
    **3× schnell hintereinander Strom aus/an**. Er ist dann **3 Minuten** lang per Bluetooth zum Einrichten sichtbar.
 3. Er erscheint als **„Satellite-…“** – antippen bzw. **„Einrichten“**.
-4. Das Panel verbindet sich **verschlüsselt** (Bluetooth LE Secure Connections) und überträgt:
+4. Das Panel verbindet sich per Bluetooth, handelt mit dem Satelliten einen geheimen Schlüssel aus (ECDH P-256) und
+   überträgt **verschlüsselt** (AES-256):
    - den **WLAN-Zugang** – passend zur Betriebsart des Panels:
 
      | Panel-Betriebsart | Der Satellit bekommt |

@@ -11,6 +11,7 @@
 #include "../devsetup.h"
 #include "../truma.h"
 #include "../sat_pair_proto.h"
+#include "../sat_pair_crypto.h"
 
 #ifndef SAT_PAIR_BTN
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
@@ -26,7 +27,8 @@ static const uint32_t WIFI_TEST_MS = 20000;    // so lange auf das WLAN warten
 static bool s_active = false;
 static uint32_t s_until = 0, s_btn_ms = 0, s_test_ms = 0, s_restart_ms = 0;
 static NimBLEServer *s_srv = nullptr;
-static NimBLECharacteristic *s_cred = nullptr, *s_stat = nullptr;
+static NimBLECharacteristic *s_cred = nullptr, *s_stat = nullptr, *s_pub_ch = nullptr;
+static uint8_t s_priv[32], s_pub[65];   // Schluesselpaar dieses Einrichtungsvorgangs (neu bei jedem Start)
 static volatile bool s_got = false;     // Daten vom Panel angekommen (Bluetooth-Task -> loop)
 static std::string s_rx;                // nur bis zur Uebernahme in loop()
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -55,6 +57,13 @@ class CredCB : public NimBLECharacteristicCallbacks {
   }
 };
 CredCB s_cred_cb;
+// Fehlersuche: mit welcher Adresse meldet sich das Panel? (P4: Funk ueber ESP32-C6/ESP-Hosted)
+class SrvCB : public NimBLEServerCallbacks {
+  void onConnect(NimBLEServer *, NimBLEConnInfo &ci) override {
+    log_w("Einrichtung: Panel verbunden, Adresse %s (Typ %d)", ci.getAddress().toString().c_str(), ci.getAddress().getType());
+  }
+};
+SrvCB s_srv_cb;
 }  // namespace
 
 static void pair_start() {
@@ -64,18 +73,25 @@ static void pair_start() {
   }
   truma_ble_init();
   sat_send_adv_suspend(true);   // die normalen Werbepakete (Werte) pausieren
-  NimBLEDevice::setSecurityAuth(false, false, true);   // keine dauerhafte Kopplung, Secure Connections (verschluesselt)
-  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+  // Kein Bluetooth-Pairing: die Daten verschluesselt die Software selbst (sat_pair_crypto.h, ECDH P-256 + AES)
+  if (!satpair::make_key(s_priv, s_pub)) {
+    log_e("Einrichtung: Schluessel konnte nicht erzeugt werden");
+    sat_send_adv_suspend(false);
+    return;
+  }
   if (!s_srv) {
     s_srv = NimBLEDevice::createServer();
+    s_srv->setCallbacks(&s_srv_cb, false);
     NimBLEService *svc = s_srv->createService(SAT_PAIR_SVC);
-    // Schreiben nur verschluesselt: das WLAN-Passwort geht nie im Klartext ueber die Luft
-    s_cred = svc->createCharacteristic(SAT_PAIR_CRED, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_ENC);
+    // Die Daten kommen schon verschluesselt (eigener Schluesseltausch), das WLAN-Passwort ist nie im Klartext in der Luft
+    s_cred = svc->createCharacteristic(SAT_PAIR_CRED, NIMBLE_PROPERTY::WRITE);
     s_cred->setCallbacks(&s_cred_cb);
     s_stat = svc->createCharacteristic(SAT_PAIR_STAT, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+    s_pub_ch = svc->createCharacteristic(SAT_PAIR_PUB, NIMBLE_PROPERTY::READ);
     svc->start();
     s_srv->advertiseOnDisconnect(true);
   }
+  s_pub_ch->setValue(s_pub, sizeof(s_pub));
   set_stat("warte");
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
   adv->stop();
@@ -105,7 +121,7 @@ static void pair_stop() {
     for (auto h : s_srv->getPeerDevices()) s_srv->disconnect(h);
   }
   sat_send_adv_suspend(false);
-  NimBLEDevice::setSecurityAuth(true, false, true);   // wie truma.cpp (Hymer koppelt mit Bonding)
+  memset(s_priv, 0, sizeof(s_priv));
   log_i("Einrichtungsmodus beendet");
 }
 
@@ -120,8 +136,23 @@ void sat_pair_begin() {
 
 // Daten vom Panel uebernehmen: speichern, WLAN testen
 static void apply(const std::string &raw) {
+  // Panel-Schluessel (65) | IV | Geheimtext | Pruefwert -> entschluesseln
+  std::string plain;
+  uint8_t z[32], enc[32], mac[32];
+  const uint8_t *r = (const uint8_t *)raw.data();
+  bool ok = raw.size() > 65 + 32 && satpair::ecdh(s_priv, r, z);
+  if (ok) {
+    satpair::derive(z, s_pub, r, enc, mac);
+    ok = satpair::open(enc, mac, r + 65, raw.size() - 65, plain);
+  }
+  memset(z, 0, sizeof(z));
+  memset(enc, 0, sizeof(enc));
+  if (!ok) {
+    set_stat("fehler", "", "Entschluesseln fehlgeschlagen");
+    return;
+  }
   JsonDocument d;
-  if (deserializeJson(d, raw) || !d["k"].is<const char *>()) {
+  if (deserializeJson(d, plain) || !d["k"].is<const char *>()) {
     set_stat("fehler", "", "Daten unvollstaendig");
     return;
   }
