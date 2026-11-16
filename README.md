@@ -119,12 +119,13 @@ neueste:
 
 | Datei | Wofür |
 |---|---|
-| `<umgebung>.bin` | Komplettdatei (Bootloader, Partitionen, App) – mit esptool ab Adresse `0x0` schreiben |
-| `<umgebung>-update.bin` | nur die App – für Updates über die Weboberfläche des Geräts |
+| `<umgebung>.bin` | Komplettdatei (Bootloader, Partitionen, App) – mit esptool ab Adresse `0x0` schreiben. **Löscht die Einstellungen** (nur für neue Geräte) |
+| `<umgebung>-update.bin` | nur die App – für Updates über die Weboberfläche des Geräts, oder per USB an Adresse `0x10000` (Einstellungen bleiben) |
 | `esp32-updater@0x2F0000.bin` | kleiner Updater der 4-MB-Geräte, an die angegebene Adresse |
 | `stand.txt` | Version und Zeitpunkt je Umgebung |
 
-Beispiel: `esptool --port COM11 write-flash 0x0 release/lokal/esp32-relay16.bin`
+Beispiele: neues Gerät `esptool --port COM11 write-flash 0x0 release/lokal/esp32-relay16.bin`,
+eingerichtetes Gerät (Einstellungen behalten) `esptool --port COM11 write-flash 0x10000 release/lokal/esp32-relay16-update.bin`
 
 ### 🛠 Wartung und Diagnose
 
@@ -388,9 +389,11 @@ So kommt ein neuer Satellit ohne Tippen von WLAN-Daten ins Netz – ähnlich wie
      | Kombi | das **Panel-WLAN** (bleibt gleich, auch auf einem anderen Campingplatz) |
      | WLAN aus | **keine Einrichtung** – Satelliten brauchen ein WLAN |
 
-   - das **Satelliten-Passwort** des Panels, damit beide sofort zusammenpassen.
+   - das **Satelliten-Passwort** des Panels, damit beide sofort zusammenpassen,
+   - den **MQTT-Broker** des Panels (Adresse, Port, Benutzer, Passwort) – nur wenn das Panel einen nutzt. Der
+     Satellit sendet dann zusätzlich per MQTT (auch an Home Assistant).
 5. Der Satellit verbindet sich, **meldet seine IP-Adresse** zurück (das Panel zeigt sie an), startet neu und spricht
-   das Panel ab dann per **UDP** an.
+   das Panel ab dann per **UDP** an (mit Broker zusätzlich per MQTT).
 
 Die Daten gehen nur nach dem Tastendruck am Gerät und nur verschlüsselt über die Luft – aus der Ferne lässt sich
 einem Satelliten so kein fremdes WLAN unterschieben. Ändert sich am Panel die Betriebsart oder das Netz: am

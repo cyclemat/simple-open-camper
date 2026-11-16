@@ -188,7 +188,9 @@ in `release/vorher/`:
 
 - `release/victron-display-cyd.bin` – für das **erste Aufspielen per USB**, komplett (Bootloader, Partitionen,
   Firmware und der kleine Updater) an Adresse **0x0**, z. B. mit
-  `esptool.py --chip esp32 write_flash 0x0 victron-display-cyd.bin` oder einem ESP-Web-Flasher,
+  `esptool.py --chip esp32 write_flash 0x0 victron-display-cyd.bin` oder einem ESP-Web-Flasher.
+  **Achtung:** löscht dabei die Einstellungen (WLAN, Geräte, Kacheln). Ein schon eingerichtetes Display per USB
+  aktualisieren, ohne die Einstellungen zu verlieren: `esptool.py --chip esp32 write_flash 0x10000 ota/victron-display-cyd.bin`,
 - `release/ota/victron-display-cyd.bin` – für spätere **Updates über die Weboberfläche** (**Firmware → Hochladen**).
 
 **Selbst bauen** mit [PlatformIO](https://platformio.org/) (VS Code):

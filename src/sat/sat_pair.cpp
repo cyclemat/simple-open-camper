@@ -22,7 +22,7 @@
 #endif
 
 static const uint32_t HOLD_MS = 3000;          // so lange BOOT halten
-static const uint32_t WIFI_TEST_MS = 20000;    // so lange auf das WLAN warten
+static const uint32_t WIFI_TEST_MS = 30000;    // so lange auf das WLAN warten (Bluetooth teilt sich die Antenne)
 
 static bool s_active = false;
 static uint32_t s_until = 0, s_btn_ms = 0, s_test_ms = 0, s_restart_ms = 0;
@@ -32,6 +32,9 @@ static uint8_t s_priv[32], s_pub[65];   // Schluesselpaar dieses Einrichtungsvor
 static volatile bool s_got = false;     // Daten vom Panel angekommen (Bluetooth-Task -> loop)
 static std::string s_rx;                // nur bis zur Uebernahme in loop()
 static portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
+static volatile int s_wifi_reason = 0;   // letzter Trenngrund beim WLAN-Test (0 = keiner)
+static String s_test_ssid;               // Netz, das gerade getestet wird (fuer die Meldung)
+static bool s_evt = false;
 
 static void set_stat(const char *st, const String &ip = "", const char *msg = "") {
   if (!s_stat) return;
@@ -158,6 +161,15 @@ static void apply(const std::string &raw) {
   }
   String ssid = d["s"] | "", pass = d["p"] | "", key = d["k"] | "";
   if (key.length()) g_sat.ble_pw = key;
+  String mh = d["mh"] | "";
+  if (mh.length()) {   // MQTT-Broker des Panels uebernehmen (zusaetzlich zu UDP)
+    g_sat.mqtt_host = mh;
+    g_sat.mqtt_port = d["mp"] | 1883;
+    g_sat.mqtt_user = d["mu"] | "";
+    g_sat.mqtt_pass = d["mw"] | "";
+    g_sat.modes |= SAT_M_MQTT;
+    log_w("Einrichtung: MQTT-Broker %s:%u uebernommen", mh.c_str(), (unsigned)g_sat.mqtt_port);
+  }
   if (ssid.length()) {
     g_sat.wifi_ssid = ssid;
     g_sat.wifi_pass = pass;
@@ -170,6 +182,14 @@ static void apply(const std::string &raw) {
     return;
   }
   set_stat("verbinde");
+  if (!s_evt) {   // Trenngrund merken: zeigt, ob das Netz fehlt oder das Passwort abgelehnt wird
+    s_evt = true;
+    WiFi.onEvent([](arduino_event_id_t, arduino_event_info_t info) { s_wifi_reason = info.wifi_sta_disconnected.reason; },
+                 ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+  }
+  s_wifi_reason = 0;
+  s_test_ssid = ssid;
+  log_w("Einrichtung: teste WLAN \"%s\" (Passwort %u Zeichen)", ssid.c_str(), (unsigned)pass.length());
   WiFi.disconnect(false, false);
   WiFi.mode((WiFi.getMode() & WIFI_AP) ? WIFI_AP_STA : WIFI_STA);
   WiFi.begin(ssid.c_str(), pass.c_str());
@@ -210,7 +230,19 @@ void sat_pair_loop() {
       s_restart_ms = now + 4000;   // Zeit, damit das Panel die IP liest
     } else if (now - s_test_ms > WIFI_TEST_MS) {
       s_test_ms = 0;
-      set_stat("fehler", "", "WLAN nicht erreichbar oder Passwort falsch");
+      int r = s_wifi_reason;
+      char msg[96];
+      if (r == WIFI_REASON_NO_AP_FOUND)
+        snprintf(msg, sizeof(msg), "WLAN \"%s\" nicht gefunden (Reichweite? nur 2,4 GHz)", s_test_ssid.c_str());
+      else if (r == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT || r == WIFI_REASON_AUTH_FAIL || r == WIFI_REASON_HANDSHAKE_TIMEOUT ||
+               r == WIFI_REASON_AUTH_EXPIRE || r == WIFI_REASON_MIC_FAILURE)
+        snprintf(msg, sizeof(msg), "Passwort fuer \"%s\" abgelehnt (Grund %d)", s_test_ssid.c_str(), r);
+      else if (r)
+        snprintf(msg, sizeof(msg), "WLAN \"%s\": keine Verbindung (Grund %d)", s_test_ssid.c_str(), r);
+      else
+        snprintf(msg, sizeof(msg), "WLAN \"%s\": keine Antwort in %u s", s_test_ssid.c_str(), (unsigned)(WIFI_TEST_MS / 1000));
+      log_w("Einrichtung: %s", msg);
+      set_stat("fehler", "", msg);
     }
   }
   if (!s_restart_ms && (int32_t)(now - s_until) >= 0) pair_stop();

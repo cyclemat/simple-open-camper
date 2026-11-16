@@ -12,6 +12,7 @@
 #include "panelsat.h"
 #include "settings.h"
 #include "i18n/i18n.h"
+#include "z2m.h"
 
 namespace {
 struct Cand {
@@ -125,6 +126,14 @@ std::string satpair_start(const std::string &mac) {
   d["s"] = ssid;
   d["p"] = pass;
   d["k"] = panelsat_password();
+  // MQTT-Broker des Panels mitgeben (Satellit sendet dann auch dorthin, UDP bleibt): nur wenn das Panel einen nutzt
+  std::string mh = z2m_broker_host();
+  if (!mh.empty()) {
+    d["mh"] = mh;
+    d["mp"] = st.mqtt_port;
+    if (!st.mqtt_user.isEmpty()) d["mu"] = st.mqtt_user.c_str();
+    if (!st.mqtt_pass.isEmpty()) d["mw"] = st.mqtt_pass.c_str();
+  }
   std::string payload;
   serializeJson(d, payload);
   Lock l;
@@ -186,15 +195,22 @@ void satpair_connect_now() {
   memset(priv, 0, sizeof(priv));
   memset(z, 0, sizeof(z));
   if (!kok) return done(3, tr("Schlüsseltausch fehlgeschlagen."));
+  std::string ss;   // Netzname fuer die Anzeige (vor dem Loeschen der Daten auslesen)
+  {
+    JsonDocument pd;
+    if (!deserializeJson(pd, payload)) ss = pd["s"] | "";
+  }
   std::string blob((const char *)pub, 65);
   blob += satpair::seal(enc, mk, payload);
   memset(enc, 0, sizeof(enc));
   std::fill(payload.begin(), payload.end(), '\0');
-  set_state(1, tr("Übertrage WLAN-Daten (verschlüsselt) …"));
+  set_state(1, std::string(tr("Übertrage WLAN-Daten (verschlüsselt) für ")) + "\"" + ss + "\" …");
+  log_w("Satellit einrichten: sende WLAN \"%s\"", ss.c_str());
   if (!cred->writeValue((const uint8_t *)blob.data(), blob.size(), true)) return done(3, tr("Übertragen fehlgeschlagen."));
-  // Ergebnis abfragen: der Satellit testet das WLAN (bis ~20 s) und meldet seine IP
+  // Ergebnis abfragen: der Satellit testet das WLAN (bis ~30 s) und meldet seine IP. Selten fragen: Bluetooth und
+  // WLAN teilen sich beim Satelliten die Antenne, haeufige Abfragen bremsen seinen WLAN-Aufbau.
   uint32_t t0 = millis();
-  while (millis() - t0 < 30000 && c->isConnected()) {
+  while (millis() - t0 < 45000 && c->isConnected()) {
     std::string v = stat->readValue();
     JsonDocument d;
     if (!deserializeJson(d, v)) {
@@ -213,7 +229,7 @@ void satpair_connect_now() {
         return done(3, std::string(tr("Satellit meldet: ")) + (msg.empty() ? "Fehler" : msg));
       }
     }
-    delay(700);
+    delay(1500);
   }
   done(3, tr("Keine Rückmeldung vom Satelliten (WLAN erreichbar?)."));
 }

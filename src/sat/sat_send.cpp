@@ -171,6 +171,12 @@ static void mqtt_event(void *, esp_event_base_t, int32_t id, void *data) {
 
 static void mqtt_stop() {
   if (!s_mqtt) return;
+  // Sauber abmelden: sonst bleibt die gespeicherte "online"-Meldung auf dem Broker stehen und das Panel schickt
+  // weiter Befehle per MQTT, obwohl hier niemand mehr zuhoert
+  if (s_mqtt_conn) {
+    esp_mqtt_client_publish(s_mqtt, sat_topic("online").c_str(), "offline", 0, 1, 1);
+    delay(200);
+  }
   esp_mqtt_client_stop(s_mqtt);
   esp_mqtt_client_destroy(s_mqtt);
   s_mqtt = nullptr;
@@ -471,9 +477,11 @@ static void udp_send(const std::string &payload) {
 static void udp_publish_all(const std::vector<Snap> &snaps, bool info) {
   uint32_t now = millis();
   std::string sat = g_sat.id.c_str(), satname = g_sat.name.c_str();
+  bool sent_any = false;
   if (info) {
     std::string p = "{\"sat\":\"" + sat + "\",\"type\":\"info\",\"d\":" + info_json() + "}";
     udp_send(p);
+    sent_any = true;
   }
   for (auto &s : snaps) {
     std::string key = dev_key(s);
@@ -488,6 +496,10 @@ static void udp_publish_all(const std::vector<Snap> &snaps, bool info) {
     d["d"] = serialized(s.json);
     std::string p;
     serializeJson(d, p);
+    // Kurze Pause zwischen den Paketen: das Panel (P4 ueber ESP-Hosted, lwIP-Empfangspuffer ~6 Pakete) verlor bei
+    // schneller Folge die meisten - die Werte tauchten dann nur nach und nach (alle 15 s ein paar) auf
+    if (sent_any) delay(15);
+    sent_any = true;
     udp_send(p);
     s_udp_sig[key] = s.sig;
     s_udp_ms[key] = now;
@@ -513,8 +525,15 @@ static bool cmd_handle(const uint8_t *md, size_t len) {
   SatPointKind k;
   uint8_t idx, val;
   uint32_t nonce;
-  if (!sat_cmd_open(md, len, s_cmd_key, s_own_mac, k, idx, val, nonce) || k != SP_SWITCH) return false;
-  if (!sat_io_switch_nonce(idx, val, nonce)) return false;   // alt oder schon ausgefuehrt
+  if (!sat_cmd_open(md, len, s_cmd_key, s_own_mac, k, idx, val, nonce) || k != SP_SWITCH) {
+    log_w("Schaltbefehl abgelehnt: Schluessel/Ziel passt nicht (Satelliten-Passwort am Panel und hier gleich? Ziel %s)",
+          s_own_mac.c_str());
+    return false;
+  }
+  if (!sat_io_switch_nonce(idx, val, nonce)) {   // alt oder schon ausgefuehrt
+    log_i("Schaltbefehl Schalter %u: Nonce %08lx veraltet oder schon ausgefuehrt", idx, (unsigned long)nonce);
+    return false;
+  }
   s_cmd_ok++;
   return true;
 }
@@ -525,7 +544,12 @@ static void udp_receive() {
     if (n <= 0) return;
     uint8_t b[64];
     int r = s_udp.read(b, sizeof(b));
-    if (r == 16 && b[0] == 0xFF && b[1] == 0xFF && b[2] == 0x43) cmd_handle(b, r);
+    if (r == 16 && b[0] == 0xFF && b[1] == 0xFF && b[2] == 0x43) {
+      log_i("UDP-Schaltbefehl von %s", s_udp.remoteIP().toString().c_str());
+      cmd_handle(b, r);
+    } else if (s_udp.remoteIP() != WiFi.localIP()) {   // eigene Rundsendungen kommen hier auch an
+      log_i("UDP-Paket %d Bytes von %s ignoriert", r, s_udp.remoteIP().toString().c_str());
+    }
   }
 }
 

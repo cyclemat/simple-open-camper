@@ -898,6 +898,12 @@ void z2m_restart() {
 }
 
 bool z2m_connected() { return s_connected; }
+std::string z2m_broker_host() {
+  Settings st = settings_copy();
+  if (!st.mqtt_on) return "";
+  bool auto_mode = (st.net_mode == NET_AP || st.net_mode == NET_APSTA) && st.mqtt_auto;
+  return auto_mode ? std::string(s_auto_host.c_str()) : std::string(st.mqtt_host.c_str());
+}
 const char *z2m_diag_text() { return s_diag; }
 bool z2m_bridge_online() { return s_bridge_online; }
 const char *z2m_status_text() { return s_status; }

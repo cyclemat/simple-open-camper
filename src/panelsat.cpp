@@ -42,6 +42,10 @@ struct Dev {
 struct Node {
   std::string name, ip, fw;
   std::string ble;          // Bluetooth-MAC des Satelliten (Ziel verschluesselter Schaltbefehle)
+  // Der Satellit hat EINE Nonce fuer alle Schalter, neu nach jeder Schaltung. Die zuletzt empfangene gilt fuer alle
+  // seine Schalter (je Schalter gemerkt war sie nach dem Schalten eines anderen bis zu 15 s veraltet -> Befehl verworfen).
+  uint32_t sw_nonce = 0;
+  bool has_nonce = false;
   int rssi = 0;
   int mqtt_online = -1;     // -1 unbekannt, 0 offline, 1 online
   uint32_t seen_ms = 0;
@@ -196,6 +200,10 @@ static void store_json(const std::string &sat, SatType type, const std::string &
     Node &n = s_nodes[sat];
     n.seen_ms = millis();
     n.via |= via;
+    if (type == SAT_T_SWITCH && x.p.kind == SP_SWITCH) {
+      n.sw_nonce = x.p.nonce;
+      n.has_nonce = true;
+    }
   }
   s_ver++;
 }
@@ -281,7 +289,9 @@ static void udp_task(void *) {
         continue;
       }
     }
-    int n = recv(sock, buf, 1499, 0);
+    sockaddr_in from = {};
+    socklen_t flen = sizeof(from);
+    int n = recvfrom(sock, buf, 1499, 0, (sockaddr *)&from, &flen);
     if (n <= 0) {
       vTaskDelay(pdMS_TO_TICKS(100));
       continue;
@@ -291,6 +301,23 @@ static void udp_task(void *) {
     std::string sat = d["sat"] | "";
     std::string type = d["type"] | "";
     if (sat.empty()) continue;
+    // Absender = IP des Satelliten: sofort schaltbar, nicht erst mit dem naechsten Info-Paket (bis 30 s). Die
+    // Bluetooth-MAC (Ziel der Schaltbefehle) steckt in der Standard-Kennung "Satellite-<MAC>".
+    {
+      char ipb[16];
+      inet_ntoa_r(from.sin_addr, ipb, sizeof(ipb));
+      Lock l;
+      Node &nd = s_nodes[sat];
+      if (nd.ip != ipb) nd.ip = ipb;
+      if (nd.ble.empty() && sat.rfind("Satellite-", 0) == 0 && sat.size() == 22) {
+        std::string m;
+        for (int i = 0; i < 12; i++) {
+          if (i && i % 2 == 0) m += ':';
+          m += (char)tolower((unsigned char)sat[10 + i]);
+        }
+        nd.ble = m;
+      }
+    }
     if (type == "info") {
       store_info(sat, d["d"].as<JsonObjectConst>(), VIA_UDP);
       continue;
@@ -578,7 +605,7 @@ static bool sat_switch_raw(const std::string &key, bool on, std::string *err) {
   uint8_t key16[16];
   uint32_t nonce;
   uint8_t idx;
-  int via = 0;   // 1 MQTT, 2 UDP, 4 Bluetooth
+  int via = 0;   // Bits: 1 MQTT, 2 UDP
   {
     Lock l;
     const Dev *x = dev_of_key(key);
@@ -595,26 +622,33 @@ static bool sat_switch_raw(const std::string &key, bool on, std::string *err) {
     sat = x->sat;
     pid = x->mac;
     idx = x->p.idx;
-    nonce = x->p.nonce;
+    nonce = n.has_nonce ? n.sw_nonce : x->p.nonce;
     ip = n.ip;
     ble = n.ble;
     memcpy(key16, s_key, 16);
     // Weg waehlen: MQTT (mit Broker) > UDP (WLAN). Bluetooth als Datenweg ist entfallen (zu langsam).
-    if (n.mqtt_online == 1 && z2m_connected()) via = 1;
-    else if ((x->via & VIA_UDP) && !ip.empty() && !ble.empty()) via = 2;
+    // Mit Broker per MQTT; schickt der Satellit auch per UDP, den Befehl ZUSAETZLICH per UDP: die "online"-Meldung auf
+    // dem Broker kann veraltet sein (Satellit hat MQTT abgeschaltet), dann kam bisher nichts an. Doppelt ausgefuehrt
+    // wird nichts (MQTT: fester Zustand, UDP: Nonce nach der ersten Schaltung verbraucht).
+    if (n.mqtt_online == 1 && z2m_connected()) via |= 1;
+    if ((x->via & VIA_UDP) && !ip.empty() && !ble.empty()) via |= 2;
   }
   if (!via) {
     if (err) *err = tr("Der Satellit ist gerade nicht erreichbar.");
     return false;
   }
-  if (via == 1) {
-    z2m_publish(std::string(SAT_BASE) + "/" + sat + "/switch/" + pid + "/set", on ? "ON" : "OFF");
-  } else {
+  if (via & 1) z2m_publish(std::string(SAT_BASE) + "/" + sat + "/switch/" + pid + "/set", on ? "ON" : "OFF");
+  if (via & 2) {
     uint8_t md[20];
     size_t len = sat_cmd_seal(md, sizeof(md), key16, ble, ++counter, SP_SWITCH, idx, on ? 1 : 0, nonce);
     bool sent = len > 0;
     if (sent) sent = udp_send_to(ip, md, len);
-    if (!sent) {
+    // UDP kann verloren gehen: kurz danach nochmal (der Satellit fuehrt es nur einmal aus - danach ist die Nonce verbraucht)
+    if (sent) {
+      vTaskDelay(pdMS_TO_TICKS(40));
+      udp_send_to(ip, md, len);
+    }
+    if (!sent && !(via & 1)) {
       if (err) *err = tr("Senden fehlgeschlagen.");
       return false;
     }

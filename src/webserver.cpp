@@ -1512,7 +1512,9 @@ static esp_err_t h_ota(httpd_req_t *req) {
   if (!part) return send_err(req, "500 Internal Server Error", "Keine OTA-Partition");
   if (req->content_len == 0 || req->content_len > part->size) return send_err(req, "400 Bad Request", "Datei zu groß");
   esp_ota_handle_t h;
-  if (esp_ota_begin(part, OTA_SIZE_UNKNOWN, &h) != ESP_OK) return send_err(req, "500 Internal Server Error", "OTA-Start fehlgeschlagen");
+  // Stueckweise loeschen (beim Schreiben): OTA_SIZE_UNKNOWN loescht vorab die ganze Partition (> 3 MB, mehrere Sekunden)
+  // – waehrenddessen liest niemand vom Netz, und die Verbindung riss beim P4 nach ~130 KB ab
+  if (esp_ota_begin(part, OTA_WITH_SEQUENTIAL_WRITES, &h) != ESP_OK) return send_err(req, "500 Internal Server Error", "OTA-Start fehlgeschlagen");
   char *buf = (char *)malloc(8192);
   size_t got = 0;
   bool ok = true;

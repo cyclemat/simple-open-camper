@@ -30,6 +30,7 @@ struct ControlView {
 void z2m_begin();
 void z2m_restart();                     // nach Aenderung der MQTT-Einstellungen
 bool z2m_connected();
+std::string z2m_broker_host();   // Broker, den das Panel nutzt (eingetragen oder im Panel-WLAN gefunden), "" = keiner
 bool z2m_bridge_online();
 const char *z2m_status_text();
 const char *z2m_diag_text();            // Zustand der Geraeteliste (Diagnose)

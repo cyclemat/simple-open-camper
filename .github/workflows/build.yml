@@ -217,8 +217,11 @@ jobs:
             echo "Die jeweils vorige Fassung liegt in [\`vorher/\`](vorher/)."
             echo
             echo "**Per USB (komplett, Adresse 0x0):** die Datei des Boards in diesem Ordner, z. B."
-            echo "\`esptool.py write_flash 0x0 panel-waveshare-7b.bin\`. Die Einstellungen (NVS) bleiben erhalten, solange der"
-            echo "Flash vorher nicht geloescht wird."
+            echo "\`esptool.py write_flash 0x0 panel-waveshare-7b.bin\` – fuer neue Geraete. **Achtung: loescht die Einstellungen**"
+            echo "(WLAN, Geraete, Kacheln), weil die Datei auch den Einstellungsbereich enthaelt."
+            echo
+            echo "**Per USB, Einstellungen behalten:** die gleichnamige Datei aus \`ota/\` an Adresse 0x10000, z. B."
+            echo "\`esptool.py write_flash 0x10000 ota/panel-waveshare-7b.bin\`."
             echo
             echo "**Ueber die Weboberflaeche (Update):** die gleichnamige Datei in \`ota/\`."
             echo
