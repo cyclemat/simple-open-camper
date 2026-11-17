@@ -47,9 +47,9 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Ziel-Repository holen
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: cyclemat/simply-open-camper-victron-beta
           token: ${{ secrets.VICTRON_SYNC_TOKEN }}

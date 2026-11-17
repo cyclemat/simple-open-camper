@@ -16,6 +16,7 @@ __attribute__((weak)) bool web_busy() { return false; }
 #include <algorithm>
 #include <stdarg.h>
 #include <NimBLEDevice.h>
+#include "esp_heap_caps.h"
 #include "bms.h"
 #include "panelsat_pair.h"
 #if CONFIG_ESP_HOSTED_ENABLED || BOARD_P4
@@ -491,8 +492,34 @@ static void scan_stop() {
 }
 
 // ---------------------------------------------------------------- Ablauf
+// Wird Bluetooth gleich gebraucht (eingerichtete Geraete)? Dann frueh starten: Der Controller braucht beim Start einen
+// zusammenhaengenden internen Block (~36 KB). 20 s nach dem Start (erste Gasmessung) hatten WLAN, MQTT und Cerbo den
+// internen Speicher schon zerstueckelt -> "BLE_INIT: Malloc failed", Haenger im Controller, Watchdog-Neustart in
+// Schleife (Waveshare, 2026-11-17). Frueh gestartet belegt Bluetooth dasselbe, nur bevor der Speicher zerfaellt.
+static bool ble_needed_soon() {
+  bool truma;
+  {
+    Lock l;
+    truma = ble_proto_on(BLE_P_TRUMA) && !s_sensors.empty();
+  }
+  return truma || (ble_proto_on(BLE_P_VICTRON) && victron_has_devices()) ||
+         (ble_proto_on(BLE_P_MOPEKA) && mopeka_has_devices()) || (ble_proto_on(BLE_P_BMS) && bms_has_devices()) ||
+         (inetx_enabled() && ble_proto_on(BLE_P_INETX)) || (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) ||
+         ble_proto_on(BLE_P_SAT);
+}
+
 static void worker(void *) {
+  bool early_checked = false;
   for (;;) {
+    if (!early_checked && millis() > 1500) {   // nach dem Laden der Geraetelisten (main: *_begin)
+      early_checked = true;
+      if (!s_ble_ready && ble_needed_soon()) {
+        size_t f = heap_caps_get_free_size(MALLOC_CAP_INTERNAL), lb = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        ble_init();
+        log_i("Bluetooth frueh gestartet (intern vorher frei %u, groesster Block %u, danach frei %u)", (unsigned)f,
+              (unsigned)lb, (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+      }
+    }
     Cmd cmd;
     if (xQueueReceive(s_cmd, &cmd, pdMS_TO_TICKS(200)) == pdTRUE) {
       Lock l;

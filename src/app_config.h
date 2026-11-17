@@ -38,8 +38,11 @@
 #endif
 // 30 MHz ist das Maximum fuer dieses Panel; bei Flackern/Bilddrift auf 21 oder 18 MHz senken.
 // Die Werte mit #ifndef lassen sich per -D ueberschreiben (Display-Tests: display-testing/platformio.ini)
+// Bildwiederholrate = Pixeltakt / (1386 x 661 Bildpunkte inkl. Sync-Raender). 2026-11-17: 30 MHz (33 Hz) -> 25 Hz,
+// weil der Bildschirm sonst zu viel aus dem PSRAM liest (Bildfehler bei vollen Seiten).
 #ifndef LCD_PCLK_HZ
-#define LCD_PCLK_HZ (30 * 1000 * 1000)
+#define LCD_PCLK_HZ (25 * (LCD_H_RES + LCD_HSYNC_PULSE + LCD_HSYNC_BACK + LCD_HSYNC_FRONT) * \
+                     (LCD_V_RES + LCD_VSYNC_PULSE + LCD_VSYNC_BACK + LCD_VSYNC_FRONT))   // 25 Hz = 22,9 MHz
 #endif
 #define LCD_HSYNC_PULSE 162
 #define LCD_HSYNC_BACK  152
@@ -53,9 +56,24 @@
 #define LCD_BOUNCE_LINES 10
 #endif
 #define LCD_BOUNCE_BUFFER_PX (LCD_H_RES * LCD_BOUNCE_LINES)
+// malloc() unter dieser Groesse bleibt im internen RAM, darueber PSRAM (Framework-Vorgabe 1024, sdkconfig). S3-Panels:
+// 16 -> auch die vielen kleinen Texte/Listen (Cerbo-, Zigbee-Werte, std::string) ins PSRAM; internes RAM bleibt fuer
+// WLAN, Bluetooth und DMA (die fordern es ausdruecklich an). Waveshare hatte sonst ~8 KB intern frei (2026-11-17).
+#include "sdkconfig.h"
+#if BOARD_P4
+#define APP_EXTMEM_MIN CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL
+#else
+#define APP_EXTMEM_MIN 16
+#endif
 // LVGL-Zeichenpuffer in Zeilen (liegt bevorzugt im internen RAM)
 #ifndef LVGL_BUF_LINES
-#define LVGL_BUF_LINES 20   // 40 KB intern; mehr kostet RAM, der WLAN/TCP fehlt
+#if BOARD_P4 || BOARD_CROWPANEL146
+#define LVGL_BUF_LINES 20   // genug internes RAM
+#else
+// Waveshare (ESP32-S3): 10 Zeilen = 20 KB intern. Mit WLAN, Zigbee, Cerbo und Bluetooth waren bei 20 Zeilen nur noch
+// ~8 KB intern und kein DMA-Block frei (2026-11-17) – WLAN-Empfang und Bildtransfer brauchen diesen Speicher.
+#define LVGL_BUF_LINES 10
+#endif
 #endif
 
 #define PIN_LCD_HSYNC 46

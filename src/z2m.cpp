@@ -17,6 +17,7 @@
 #include <set>
 #include <unordered_map>
 #include "esp_heap_caps.h"
+#include "app_config.h"
 #include "mqtt_client.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
@@ -529,17 +530,17 @@ static void load_cache() {
     }
     if (!d.ieee.empty() && !d.name.empty() && !d.controls.empty()) devs.push_back(std::move(d));
   }
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   Lock l;
   s_devs.swap(devs);
   heap_caps_malloc_extmem_enable(16);
   rebuild_index_locked();   // Kacheln finden ihr Geraet sofort; die Topics stimmen erst nach dem Verbinden (Basis-Topic)
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   s_cache_base = doc["base"] | "";
   s_cache_loaded = true;
   heap_caps_malloc_extmem_enable(16);
   rebuild_index_locked();   // Kacheln finden ihre Geraete sofort; die Topics stimmen nach dem Verbinden (Basis-Topic)
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   s_dev_ver++;
   snprintf(s_diag, sizeof(s_diag), tr("%u Geräte mit Lampe/Schalter aus dem Zwischenspeicher – im Editor neu laden"),
            (unsigned)s_devs.size());
@@ -552,7 +553,7 @@ static void load_cache() {
 static void parse_devices(char *json, size_t len) {
   heap_caps_malloc_extmem_enable(16);
   parse_devices_inner(json, len);
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   log_i("Geräteliste ausgewertet, frei intern %u", (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 }
 
@@ -718,7 +719,7 @@ static void sync_device_topics(bool force) {
   for (auto &t : drop) unsubscribe(t);
   heap_caps_malloc_extmem_enable(16);   // Topic-Listen in den PSRAM
   subscribe_many(std::vector<std::string>(want.begin(), want.end()));
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   Lock l;
   for (int d : fresh)
     if (d < (int)s_devs.size()) queue_gets_for(s_devs[d]);
@@ -833,7 +834,7 @@ static void worker(void *) {
         case JOB_RESUBSCRIBE:
           heap_caps_malloc_extmem_enable(16);   // Topic-Listen in den PSRAM (siehe parse_devices)
           resubscribe_all();
-          heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+          heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
           break;
         case JOB_REFRESH: {
           Lock l;

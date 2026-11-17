@@ -34,6 +34,10 @@ static volatile uint8_t s_disc_reason = 0;
 static bool s_was_connected = false;
 static bool s_mdns = false;
 static bool s_ap = false;
+// Panel-WLAN nur zum Einrichten zugeschaltet (UI_WEB_SETUP, nicht der Kombi-Modus): schliesst wieder, sobald das
+// Camp-WLAN verbunden ist und 2 min niemand im Panel-WLAN war
+static bool s_auto_ap = false;
+static uint32_t s_auto_ap_idle = 0;
 static bool s_napt = false;
 static bool s_scanning = false;
 static bool s_scan_req = false, s_scan_failed = false, s_scan_paused_sta = false;
@@ -115,8 +119,11 @@ void net_begin() {
   s_last_ok = millis();
 #if UI_WEB_SETUP
   // Kein Einstellungsmenue am Display: ohne Camp-WLAN gleich das Panel-WLAN dazu, damit man die Weboberflaeche
-  // erreicht (nicht gespeichert – nach dem Eintragen des Camp-WLANs und einem Neustart wieder reiner Client)
-  if (s_mode == NET_STA && g_settings.wifi_ssid.isEmpty()) s_mode = NET_APSTA;
+  // erreicht (nicht gespeichert – schliesst wieder, sobald das Camp-WLAN verbunden ist, siehe net_loop)
+  if (s_mode == NET_STA && g_settings.wifi_ssid.isEmpty()) {
+    s_mode = NET_APSTA;
+    s_auto_ap = true;
+  }
 #endif
   if (s_mode == NET_OFF) {
     // Nur den TCP/IP-Stack (Webserver/UDP brauchen ihn), aber keinen WLAN-Treiber: der kostet den meisten internen RAM
@@ -216,9 +223,32 @@ void net_loop() {
   // Weboberflaeche, um es zu aendern)
   if (s_mode == NET_STA && !net_connected() && millis() - s_last_ok > 180000UL) {
     s_mode = NET_APSTA;
+    s_auto_ap = true;
+    s_auto_ap_idle = 0;
     WiFi.mode(WIFI_AP_STA);
     start_ap();
     log_w("Camp-WLAN nicht erreichbar – Panel-WLAN %s zugeschaltet", g_settings.ap_ssid.c_str());
+  }
+  // Camp-WLAN wieder da (das Panel sucht im Hintergrund weiter): Panel-WLAN wieder schliessen, sobald 2 min niemand
+  // darin ist (sonst risse eine laufende Einrichtung ab)
+  if (s_auto_ap && s_mode == NET_APSTA && !g_settings.wifi_ssid.isEmpty()) {
+    if (net_connected() && WiFi.softAPgetStationNum() == 0) {
+      if (!s_auto_ap_idle) s_auto_ap_idle = millis();
+      if (millis() - s_auto_ap_idle > 120000UL) {
+        if (s_dns_on) {
+          s_dns.stop();
+          s_dns_on = false;
+        }
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_STA);
+        s_ap = false;
+        s_auto_ap = false;
+        s_mode = NET_STA;
+        log_i("Camp-WLAN verbunden – Panel-WLAN wieder geschlossen");
+      }
+    } else {
+      s_auto_ap_idle = 0;
+    }
   }
 #endif
   if (s_dns_on) s_dns.processNextRequest();

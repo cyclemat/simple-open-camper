@@ -6,7 +6,7 @@
 <h3 align="center">S.O.C. – touch panel for your camper: Zigbee2MQTT, gas, water, heating and on-board systems – local, no cloud, no Home Assistant</h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Hardware-Waveshare%20ESP32--S3--Touch--LCD--7B-0089D0" alt="Hardware">
+  <img src="https://img.shields.io/badge/Hardware-ESP32--P4%20%7C%20ESP32--S3-0089D0" alt="Hardware">
   <img src="https://img.shields.io/badge/Display-1024%C3%97600%20Touch-blue" alt="Display">
   <img src="https://img.shields.io/badge/Framework-Arduino%20%2F%20ESP--IDF%205-orange" alt="Framework">
   <img src="https://img.shields.io/badge/Connection-MQTT%20%7C%20Bluetooth%20LE%20%7C%20LIN-blueviolet" alt="Connection">
@@ -66,6 +66,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 🗂️ **Multiple pages** (swipe or tabs), each with an optional background image (e.g. floor plan).
 - ✏️ **Web editor** at `http://<panel>/`: drag & drop devices, sizes, icons, pages, backgrounds, names, settings,
   firmware update over Wi-Fi. Without a panel connection it starts with demo data.
+- 🔒 **Access password** for the editor and web interface – you set your own on first opening.
 - ⌨️ **Settings on the panel** with an on-screen keyboard (QWERTZ, ä ö ü ß).
 - 🌍 **UI in German, English, Spanish or French** – more languages are easy to add.
 - 🌙 **Screen saver**: dim, black (easiest on the LCD), dark clock or bouncing logo (your own PNG possible).
@@ -96,7 +97,9 @@ of your motorhome. You build the layout in the browser editor served by the pane
 
 ## 📋 Requirements
 
-- **Waveshare ESP32-S3-Touch-LCD-7B** (1024 × 600, GT911 touch, 8 MB PSRAM)
+- A panel – see [Which panel?](#which-panel) for a comparison:
+  **Elecrow CrowPanel Advanced 7" (ESP32-P4)**, **Waveshare ESP32-S3-Touch-LCD-7B** or, as a small round panel,
+  the **Elecrow CrowPanel 1.46" Rotary**
 - MQTT broker with **Zigbee2MQTT** (e.g. SMHUB Nano)
 - VS Code with **PlatformIO** (pioarduino, Arduino-ESP32 3.x / ESP-IDF 5.x)
 - Optional: microSD card (FAT32/exFAT) for backgrounds and backups
@@ -104,14 +107,61 @@ of your motorhome. You build the layout in the browser editor served by the pane
 
 ---
 
+<a id="which-panel"></a>
+
+## 🖥️ Which panel? P4 or Waveshare
+
+Both large panels are 7 inch with 1024 × 600 pixels and run the same firmware and the same editor. The difference is
+the chip – and therefore how much can run at the same time.
+
+| | **Elecrow CrowPanel Advanced 7" (ESP32-P4)** | **Waveshare ESP32-S3-Touch-LCD-7B** |
+|---|---|---|
+| Chip | ESP32-P4, 2 RISC-V cores, 400 MHz | ESP32-S3, 2 Xtensa LX7 cores, 240 MHz |
+| Internal RAM | 768 KB – **~270 KB free** in operation | 512 KB – **~45 KB free** in operation (with Wi-Fi, Zigbee, Cerbo and Bluetooth) |
+| PSRAM | **32 MB** | 8 MB (octal, 80 MHz) |
+| Flash | 16 MB | 16 MB |
+| Wi-Fi / Bluetooth | separate **ESP32-C6** radio chip (Wi-Fi 6, BLE 5) – takes load off the main chip | on the chip itself – Wi-Fi and Bluetooth share RAM and antenna with everything else |
+| Display | IPS, MIPI-DSI, graphics acceleration (DMA2D, hardware JPEG) | parallel RGB, the image is constantly read from PSRAM |
+| Battery | no measuring point on the P4 – only with your own voltage divider (2 × 100 kΩ to GPIO 49) | battery connector with voltage measurement |
+| Firmware size | ~78 % of the app partition | ~75 % of the app partition |
+| Build | ~1–2 min (pre-built framework libraries) | first build 10–20 min (framework is rebuilt) |
+| Environment | `crowpanel-p4` (folder `p4/`) | `waveshare-7b` |
+
+**P4 – pros:** plenty of headroom, all modules at the same time; built-in MQTT broker (P4 only); radio on its own chip;
+steady image without a PSRAM bottleneck; planned: Zigbee directly via the ESP32-H2 radio module.
+**P4 – cons:** more expensive; battery not measurable out of the box; the C6 radio chip may need a firmware update
+(serial command `c6update`); early chips (revision v1.x) compute Bluetooth pairing keys wrongly with the hardware
+ECC – the firmware therefore computes them in software automatically.
+
+**Waveshare – pros:** cheap and widely available; everything on one chip; battery connector with measurement, SD card,
+RTC.
+**Waveshare – cons:** **internal RAM is very tight**; the image is read from the same PSRAM the panel draws into – with
+full pages and a lot of movement, stripes/glitches are possible (refresh rate therefore 25 Hz); Wi-Fi and Bluetooth
+share memory and antenna.
+
+> ⚠️ **Waveshare: don't build in everything!** With UI, Wi-Fi, Zigbee2MQTT, Cerbo GX and Bluetooth the ESP32-S3 is
+> **almost full** (as of 0.2.0: ~45 KB internal RAM free). Only build in the modules you really need
+> (`[features]`, `[truma]`, `[alde]` in `platformio.ini`) – `check-all` is for test builds only, not for uploading.
+> Also switch off Bluetooth protocols you don't use on the panel (e.g. iNet X without pairing): disabled modules
+> use no RAM. If you want many modules at the same time, choose the **P4**.
+
+**Round panel – Elecrow CrowPanel 1.46" Rotary** (ESP32-S3R8, 8 MB PSRAM, 16 MB flash, round 360 × 360, rotary knob,
+LED ring; environment `crowpanel-146`, folder `crowpanel146/`): small panel or additional display with one tile per
+screen. No settings menu – set up in the browser (own Wi-Fi with captive portal).
+
+---
+
 ## 📦 Installation
 
 1. Install VS Code and PlatformIO, open this folder (path without spaces, e.g. `C:\zp\simply-open-camper`).
 2. Connect the board to the USB-C port labelled **"UART"** – that is also where the logs come out.
-3. **PlatformIO: Upload** – the **first build takes 10–20 minutes** because the Arduino framework is rebuilt with
-   custom settings (XIP from PSRAM against flicker, NAT for combined mode).
+3. Choose the environment: `waveshare-7b`, `crowpanel-p4` or `crowpanel-146` (in the PlatformIO menu), then
+   **PlatformIO: Upload**. On the Waveshare the **first build takes 10–20 minutes** because the Arduino framework is
+   rebuilt with custom settings (XIP from PSRAM against flicker, NAT for combined mode).
 4. Before uploading, the terminal waits for **Enter** – time to plug in.
 5. The panel then guides you through the setup.
+6. When you first open the editor (`http://<panel>/`), set your own **access password** (factory default
+   `panelsat`). Forgotten? Reset it on the panel under **Settings → Network** (round panel: serial command `webpw`).
 
 ### 🛠 Maintenance and diagnostics
 

@@ -1763,7 +1763,7 @@ static esp_err_t tramp(httpd_req_t *req) {
   // Waehrend der Anfrage auch kleine Speicherstuecke (Texte, Kopien der Geraeteliste) ins PSRAM legen
   heap_caps_malloc_extmem_enable(16);
   esp_err_t r = ((WebHandler)req->user_ctx)(req);
-  heap_caps_malloc_extmem_enable(CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL);
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);
   return r;
 }
 

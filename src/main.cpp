@@ -6,6 +6,7 @@
 
 #include "app.h"
 #include "app_config.h"
+#include "esp_heap_caps.h"
 #include "board.h"
 #include "layout.h"
 #include "net.h"
@@ -89,6 +90,7 @@ static void handle_events() {
 }
 
 void setup() {
+  heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);   // kleine Speicherstuecke ins PSRAM (app_config.h)
   Serial.begin(115200);
   delay(50);
   log_i("%s %s startet", FW_NAME, FW_VERSION);
