@@ -42,3 +42,5 @@ void sat_io_state_json(JsonObject o);      // Live-Werte und Rohwerte fuer die W
 String sat_io_action(JsonObjectConst o);   // Knoepfe: Nullpunkt, Fuehler suchen, Tanks messen, schalten
 void sat_io_pins_json(JsonArray a);        // GPIOs des Chips mit Faehigkeiten und Hinweisen
 const char *sat_io_chip();                 // "ESP32", "ESP32-C3", "ESP32-S3", "ESP32-C6"
+bool sat_io_tilt(float &x, float &y);      // Neigung laengs/quer (alle 100 ms, geglaettet, mit Nullpunkt); false = kein MPU
+bool sat_i2c_begin(int sda, int scl);      // gemeinsamer I2C-Bus (MPU-6050, OLED)

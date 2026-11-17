@@ -15,6 +15,7 @@
 #include "sat_send.h"
 #include "sat_web.h"
 #include "sat_display.h"
+#include "sat_oled.h"
 #include "sat_pair.h"
 #include "rd_client.h"
 #include "../truma.h"
@@ -99,6 +100,7 @@ void setup() {
   rd_begin();           // Zusatzdisplay: Kacheln vom Hauptpanel
 #endif
   sat_display_begin();   // nur mit Display (SAT_DISPLAY), sonst leer
+  sat_oled_begin();      // nur mit kleinem OLED (SAT_OLED), sonst leer
   if (sat_display_reset_requested()) {   // beim Einschalten 10 s aufs Display gedrueckt: Passwort zuruecksetzen
     devsetup::password_reset();
     if (WiFi.getMode() & WIFI_AP) {
@@ -118,5 +120,6 @@ void loop() {
   rd_loop();
 #endif
   sat_display_loop();
+  sat_oled_loop();
   delay(2);
 }

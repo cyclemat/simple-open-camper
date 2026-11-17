@@ -10,6 +10,7 @@
 #include "sat_send.h"
 #include "sat_page.h"
 #include "sat_display.h"
+#include "sat_oled.h"
 #include "../sat_proto.h"
 #include "../truma.h"
 #include "../mopeka.h"
@@ -85,6 +86,7 @@ static void h_state() {
   d["uptime"] = millis() / 1000;
   d["heap"] = ESP.getFreeHeap();
   d["display"] = sat_display_present();
+  d["oled"] = (bool)SAT_OLED;
   d["upd_slot"] = (uint32_t)updater_slot_size();   // 0 = Aufteilung ohne Updater (Upload ersetzt die Firmware direkt)
   d["upd_ok"] = updater_available();
 #if SAT_REMOTE
@@ -419,6 +421,19 @@ static void h_display_set() {
   send_ok();
 }
 
+// Kleines OLED (nur Firmware mit SAT_OLED): was angezeigt wird, Drehen, Kontrast
+static void h_oled_get() {
+  JsonDocument d;
+  sat_oled_json(d.to<JsonObject>());
+  send_json(d);
+}
+static void h_oled_set() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (!sat_oled_apply(d.as<JsonObjectConst>())) return send_err("Diese Firmware hat kein OLED");
+  send_ok();
+}
+
 static void h_io_get() {
   JsonDocument d;
   sat_io_config_json(d["config"].to<JsonObject>());
@@ -529,6 +544,10 @@ void sat_web_begin() {
              String err = updater_start(g_sat.wifi_ssid, g_sat.wifi_pass, g_sat.id);
              s_srv.send(400, "application/json", "{\"error\":\"" + err + "\"}");
            }));
+  if (SAT_OLED) {
+    s_srv.on("/api/oled", HTTP_GET, G(h_oled_get));
+    s_srv.on("/api/oled", HTTP_POST, G(h_oled_set));
+  }
   if (sat_display_present()) {
     s_srv.on("/api/display", HTTP_GET, G(h_display_get));
     s_srv.on("/api/display", HTTP_POST, G(h_display_set));

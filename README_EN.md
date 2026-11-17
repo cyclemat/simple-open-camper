@@ -126,6 +126,7 @@ the chip – and therefore how much can run at the same time.
 | Firmware size | ~78 % of the app partition | ~75 % of the app partition |
 | Build | ~1–2 min (pre-built framework libraries) | first build 10–20 min (framework is rebuilt) |
 | Environment | `crowpanel-p4` (folder `p4/`) | `waveshare-7b` |
+| Where to buy | [on Amazon](https://link.amazon/B04j2pDnV) | [on Amazon](https://www.amazon.de/dp/B0FDQXKFJ5) |
 
 **P4 – pros:** plenty of headroom, all modules at the same time; built-in MQTT broker (P4 only); radio on its own chip;
 steady image without a PSRAM bottleneck; planned: Zigbee directly via the ESP32-H2 radio module.
@@ -147,7 +148,8 @@ share memory and antenna.
 
 **Round panel – Elecrow CrowPanel 1.46" Rotary** (ESP32-S3R8, 8 MB PSRAM, 16 MB flash, round 360 × 360, rotary knob,
 LED ring; environment `crowpanel-146`, folder `crowpanel146/`): small panel or additional display with one tile per
-screen. No settings menu – set up in the browser (own Wi-Fi with captive portal).
+screen. No settings menu – set up in the browser (own Wi-Fi with captive portal). Where to buy:
+[on Amazon](https://link.amazon/B02xEzSrj).
 
 ---
 
@@ -352,11 +354,28 @@ one antenna there) and bridges distances Bluetooth alone cannot cover.
 | Environment | Chip / board | Analog (ADC1) | I²C (default) | Notes |
 |---|---|---|---|---|
 | `satellite` | ESP32 (WROOM, esp32dev) | GPIO 32–39 | 21 / 22 | most pins, GPIO 34–39 input only |
-| `satellite-c3` | ESP32-C3 (Super Mini, DevKitM-1) | GPIO 0–4 | 8 / 9 | small, 13 free pins, log over USB |
+| `satellite-c3` | ESP32-C3 (Super Mini, DevKitM-1) – [on Amazon](https://link.amazon/B04vjKxhb) | GPIO 0–4 | 8 / 9 | small, 13 free pins, log over USB |
+| `satellite-c3-oled` | ESP32-C3 with 0.42" OLED (ABrobot, 72 × 40) – [on Amazon](https://link.amazon/B00lVYc7g) | GPIO 0–4 | 5 / 6 (shared with the OLED) | shows a sensor value or the spirit level, see below |
 | `satellite-s3` | ESP32-S3 (DevKitC-1) | GPIO 1–10 | 8 / 9 | log over the "UART" port |
-| `satellite-c6` | ESP32-C6 (DevKitC-1, Super Mini) | GPIO 0–6 | 23 / 22 | log over USB |
+| `satellite-c6` | ESP32-C6 (DevKitC-1, Super Mini) – [on Amazon](https://link.amazon/B0gJnV7Pv) | GPIO 0–6 | 23 / 22 | log over USB |
 
 All need at least 4 MB flash. The web UI only lists the pins that the chip actually has free.
+
+**ESP32-C3 with OLED** (`satellite-c3-oled`): on start the small display alternately shows a motorhome or a
+caravan with "S.O.C.", then **automatically** – with an MPU-6050 tilt sensor a **two-axis spirit level** (bubble in a
+circle, pitch and roll), otherwise the connected sensors one after another (e.g. temperature), without a sensor the
+satellite's name and address. Can be fixed in the web interface ("OLED" card), as can brightness and rotation. The
+MPU-6050 goes on the same pins as the OLED (SDA GPIO 5, SCL GPIO 6). To protect the OLED it briefly turns fully black
+and fully white every 20 minutes.
+
+**16-channel relay board** (environment `satellite-relay16`, ESP32-WROOM-32E with 2× 74HC595) –
+[relay board on Amazon](https://link.amazon/B08IzxSMo), [USB-TTL adapter on Amazon](https://link.amazon/B02ciSu8U):
+
+- The board has **no USB port** – to flash it you need a **USB-TTL adapter** with 3.3 V levels: adapter TX to board
+  RX, RX to TX, GND to GND. To flash, hold **IO0 to GND while powering on** (or press BOOT), then release.
+- It needs its **own 5 V supply** – the adapter is not enough (switching relays would otherwise make the voltage
+  drop or the USB connection break). Connect the GND of board and adapter.
+- Later updates go through the satellite's web interface, without the adapter.
 
 **What a satellite reads and switches**
 

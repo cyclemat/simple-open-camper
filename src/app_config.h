@@ -53,6 +53,7 @@
 #define LCD_PCLK_ACTIVE_NEG 1
 // Bounce-Buffer (Pixel). 0 = aus. 10 Zeilen ist der Espressif-Standard.
 #ifndef LCD_BOUNCE_LINES
+// 2026-11-17 mit 15 getestet (+20 KB intern): Bildfehler blieben -> wieder 10. 600 muss durch die Zahl teilbar sein.
 #define LCD_BOUNCE_LINES 10
 #endif
 #define LCD_BOUNCE_BUFFER_PX (LCD_H_RES * LCD_BOUNCE_LINES)

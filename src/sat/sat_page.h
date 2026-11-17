@@ -139,6 +139,16 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 </div>
 <div class="row" style="margin-top:8px"><button id="bDpSave" style="flex:none">Speichern</button></div></div>
 
+<div class="card" id="olCard" style="display:none"><h2>OLED</h2>
+<p class="hint">Was das kleine Display zeigt. <b>Automatisch</b>: mit Lagesensor (MPU-6050) die Wasserwaage in zwei Richtungen, sonst alle Sensoren nacheinander, ohne Sensor Name und Adresse des Satelliten. Der MPU-6050 hängt am selben I²C wie das OLED (SDA GPIO <span id="olSda"></span>, SCL GPIO <span id="olScl"></span>). Läuft die Blase falsch herum: unter Anschlüsse beim MPU-6050 die Achsen tauschen bzw. umkehren.</p>
+<p class="hint" id="olMiss" style="display:none;color:#e5534b">Das OLED antwortet nicht – Anschluss bzw. Board prüfen.</p>
+<div class="row">
+<label class="f"><span>Anzeige</span><select id="olSrc"></select></label>
+<label class="f"><span>Helligkeit (Kontrast)</span><input type="range" id="olCon" min="1" max="255"></label>
+</div>
+<label class="ck"><input type="checkbox" id="olOn">Display an</label>
+<label class="ck"><input type="checkbox" id="olRot">Um 180° drehen</label>
+<div class="row" style="margin-top:8px"><button id="bOlSave" style="flex:none">Speichern</button></div></div>
 <div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div id="updRow" style="display:none"><p class="hint">Update: „Update-Modus starten“ – das Gerät startet in den kleinen Updater (gleiche Adresse, gleiches Passwort). Dort die neue Firmware hochladen; danach startet sie von selbst. Hier unten lässt sich nur der Updater selbst erneuern (max. 1 MB).</p>
@@ -309,7 +319,7 @@ async function ioLoad(){try{const r=await (await fetch('/api/io')).json();IO=r.c
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.k||!IO)return;let v=t.type=='checkbox'?t.checked:('n' in t.dataset)?+t.value:t.value;
  if(t.dataset.k.endsWith('.inv')&&t.tagName=='SELECT'||t.dataset.k.endsWith('.low'))v=!!+t.value;setK(t.dataset.k,v);if('r' in t.dataset||t.type=='checkbox'&&(t.dataset.k=='mpu.on'||t.dataset.k=='mpu.still'))ioRender()});
 $('#ioInt').onchange=e=>IO&&(IO.interval=+e.target.value);$('#ioTInt').onchange=e=>IO&&(IO.tank_interval=+e.target.value);
-$('#bIoSave').onclick=()=>post('/api/io',IO).then(()=>{toast('Belegung gespeichert.');ioLoad();setTimeout(load,800)}).catch(e=>toast(e.message,true));
+$('#bIoSave').onclick=()=>post('/api/io',IO).then(()=>{toast('Belegung gespeichert.');ioLoad();olLoad();setTimeout(load,800)}).catch(e=>toast(e.message,true));
 $('#bIoTank').onclick=()=>act('/api/io/action',{tanks_now:true},'Tanks werden gemessen.');
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!IO)return;const d=b.dataset;
  if(d.ioadd){const C=IO;
@@ -425,5 +435,8 @@ $('#dpPer').onchange=e=>{DP.per=+e.target.value};
 $('#bDpSave').onclick=()=>{const P=DP.P.filter(p=>p.k.length),tiles=[];P.forEach((p,pi)=>p.k.forEach(k=>{const t=dT(k);tiles.push({k,on:true,n:t.n||'',pg:pi})}));
  DP.tiles.filter(t=>!t.on).forEach(t=>tiles.push({k:t.k,on:false,n:t.n||''}));
  post('/api/display',{tiles,pl:P.map(p=>p.n),saver:+$('#dpSv').value,...(DP.led_tiles?{led:$('#dpLed').value.startsWith('k:')?2:+$('#dpLed').value,led_key:$('#dpLed').value.startsWith('k:')?$('#dpLed').value.slice(2):''}:{}),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true))};
-load();ioLoad();dpLoad();setInterval(load,3000);
+async function olLoad(){try{const r=await fetch('/api/oled');if(!r.ok)return;const o=await r.json();$('#olCard').style.display='';$('#olSda').textContent=o.sda;$('#olScl').textContent=o.scl;$('#olMiss').style.display=o.present?'none':'';
+ $('#olSrc').innerHTML='<option value="">Automatisch</option><option value="level">Wasserwaage (MPU-6050)</option>'+(o.pts||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');$('#olSrc').value=o.src||'';if($('#olSrc').value!==(o.src||''))$('#olSrc').value='';$('#olCon').value=o.con;$('#olOn').checked=o.on;$('#olRot').checked=o.rot}catch(e){}}
+$('#bOlSave').onclick=()=>post('/api/oled',{src:$('#olSrc').value,con:+$('#olCon').value,on:$('#olOn').checked,rot:$('#olRot').checked}).then(()=>toast('OLED gespeichert.')).catch(e=>toast(e.message,true));
+load();ioLoad();dpLoad();olLoad();setInterval(load,3000);
 </script></body></html>)HTML";

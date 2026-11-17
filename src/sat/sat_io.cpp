@@ -2,6 +2,7 @@
 #include "../hymer.h"
 #include <Preferences.h>
 #include <Wire.h>
+#include "sat_oled.h"
 #include <math.h>
 #include <algorithm>
 #include "driver/gpio.h"
@@ -260,7 +261,11 @@ struct InCfg {
 };
 struct MpuCfg {
   bool on = false;
+#if SAT_OLED
+  int8_t sda = SAT_OLED_SDA, scl = SAT_OLED_SCL;   // gemeinsamer I2C-Bus mit dem OLED (der C3 hat nur einen)
+#else
   int8_t sda = SDA, scl = SCL;   // Standard-I2C-Pins des Boards (esp32dev 21/22, C3 und S3 8/9)
+#endif
   uint8_t addr = 0x68;
   bool swap = false, inv_x = false, inv_y = false;
   float zx = 0, zy = 0;
@@ -479,6 +484,25 @@ static bool ds_read(const uint8_t *rom, float &t) {
 // ---------------------------------------------------------------- MPU-6050 (GY-521)
 static bool s_wire = false;
 
+// Gemeinsamer I2C-Bus (MPU-6050 und OLED): startet ihn auf diesen Pins; laeuft er schon dort, bleibt er an.
+static int8_t s_bus_sda = -1, s_bus_scl = -1;
+bool sat_i2c_begin(int sda, int scl) {
+  if (s_bus_sda == sda && s_bus_scl == scl) return true;
+  if (s_bus_sda >= 0) Wire.end();
+  s_bus_sda = s_bus_scl = -1;
+  if (!Wire.begin(sda, scl, SAT_OLED ? 400000 : 100000)) return false;
+  s_bus_sda = sda;
+  s_bus_scl = scl;
+  return true;
+}
+
+bool sat_io_tilt(float &x, float &y) {
+  if (!s_mpu_ok || isnan(s_raw_x) || isnan(s_raw_y)) return false;
+  x = (s_raw_x - s_cfg.mpu.zx) * (s_cfg.mpu.inv_x ? -1 : 1);   // geglaettet (alle 100 ms), mit Nullpunkt
+  y = (s_raw_y - s_cfg.mpu.zy) * (s_cfg.mpu.inv_y ? -1 : 1);
+  return true;
+}
+
 static bool mpu_write(uint8_t reg, uint8_t v) {
   Wire.beginTransmission(s_cfg.mpu.addr);
   Wire.write(reg);
@@ -487,16 +511,19 @@ static bool mpu_write(uint8_t reg, uint8_t v) {
 }
 
 static void mpu_setup() {
+#if !SAT_OLED   // mit OLED bleibt der Bus an (das OLED haengt daran)
   if (s_wire) {
     Wire.end();
     s_wire = false;
+    s_bus_sda = s_bus_scl = -1;
   }
+#endif
   s_mpu_ok = false;
   s_raw_x = s_raw_y = s_tilt_x = s_tilt_y = NAN;
   s_med_n = s_med_i = 0;
   s_moving = false;
   if (!s_cfg.mpu.on || s_cfg.mpu.sda < 0 || s_cfg.mpu.scl < 0) return;
-  s_wire = Wire.begin(s_cfg.mpu.sda, s_cfg.mpu.scl, 100000);
+  s_wire = sat_i2c_begin(s_cfg.mpu.sda, s_cfg.mpu.scl);
   if (!s_wire) {
     s_mpu_err = "I²C startet nicht";
     return;
@@ -850,10 +877,19 @@ static String validate(const IoCfg &c) {
   }
   use(c.ow_pin, "DS18B20-Bus", true, false);
   for (int i = 0; i < SAT_IO_ANALOG; i++) use(c.an[i].pin, "Analog " + String(i + 1), false, true);
+#if SAT_OLED
+  // OLED fest an SAT_OLED_SDA/SCL; der MPU-6050 teilt sich diesen Bus (der Chip hat nur einen I2C)
+  use(SAT_OLED_SDA, "OLED (I²C SDA)", true, false);
+  use(SAT_OLED_SCL, "OLED (I²C SCL)", true, false);
+  if (c.mpu.on && (c.mpu.sda != SAT_OLED_SDA || c.mpu.scl != SAT_OLED_SCL) && err.isEmpty())
+    err = "MPU-6050 bitte an denselben I²C wie das OLED anschließen: SDA GPIO " + String(SAT_OLED_SDA) + ", SCL GPIO " +
+          String(SAT_OLED_SCL);
+#else
   if (c.mpu.on) {
     use(c.mpu.sda, "MPU-6050 SDA", true, false);
     use(c.mpu.scl, "MPU-6050 SCL", true, false);
   }
+#endif
   for (int i = 0; i < SAT_IO_SWITCHES; i++) use(c.sw[i].pin, "Schalter " + String(i + 1), true, false);
   for (int i = 0; i < SAT_IO_INPUTS; i++) use(c.in[i].pin, "Eingang " + String(i + 1), false, false);
   return err;
