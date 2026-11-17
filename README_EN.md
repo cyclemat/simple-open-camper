@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Connection-MQTT%20%7C%20Bluetooth%20LE%20%7C%20LIN-blueviolet" alt="Connection">
   <img src="https://img.shields.io/badge/Satellites-ESP32-0075A9" alt="Satellites">
   <img src="https://img.shields.io/badge/Cloud-none-brightgreen" alt="No cloud">
-  <img src="https://img.shields.io/badge/License-GPL--3.0-blue" alt="License GPL-3.0">
+  <img src="https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue" alt="License PolyForm Noncommercial">
   <img src="https://img.shields.io/badge/Status-Beta%20%2F%20Testing-yellow" alt="Status">
 </p>
 
@@ -469,8 +469,9 @@ Used by the editor, also handy for your own scripts:
 ## 🧩 Protocols & related projects
 
 The device protocols are based on these open projects. What was taken is the **protocol description** (byte
-layout, constants, sequences) – the code here is an independent C++ implementation, no source code was copied.
-Many thanks to the authors!
+layout, constants, sequences) – the code here is an independent C++ implementation. Exceptions live in
+`src/third_party/` (third-party code or data, unchanged with licence notice) and are marked below. Many thanks to the
+authors!
 
 | Module (file) | Reference | Licence of the reference | Used for |
 |---|---|---|---|
@@ -487,12 +488,38 @@ Many thanks to the authors!
 | Hymer Connect (`src/hymer.cpp`, `src/hymer_tls.cpp`) | [Facetti/hymer-connect-ha-ble](https://github.com/Facetti/hymer-connect-ha-ble), [BetaHydri/hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) | MIT | GATT services, TLS profile, PIA frames, sensor maps; the seven subscription messages are taken verbatim |
 | WLED (`src/wled.cpp`) | [WLED – MQTT interface](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics and commands |
 | Cerbo GX (`src/cerbo.cpp`) | [victronenergy/dbus-flashmq](https://github.com/victronenergy/dbus-flashmq), [dbus API in the Victron wiki](https://github.com/victronenergy/venus/wiki/dbus) | see project | Topics, keepalive, value paths |
+| Victron Smart Lithium, Smart BatteryProtect (`src/victron.cpp`) | [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble) | Unlicense | Layout of records 0x05 and 0x09 |
+| Batteries with BMS (`src/bms.cpp`) | [patman15/aiobmsble](https://github.com/patman15/aiobmsble) | Apache-2.0 | Detection, frames and values for Daly/Bulltron, JBD, JK, LiTime/Redodo, Eco-Worthy, ANT, Vatrer, Super B Epsilon V2 |
+| | [mr-manuel/venus-os_dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery) | AGPL-3.0 | Protocols JBD, JK-BMS (JK02), LiTime |
+| | Manufacturer documents or own analysis of the apps | – | Super B (older batteries), Power Quarry/Shentec |
+| Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus registers of charge controllers, DC-DC chargers, batteries, inverters |
+| | [IAmTheMitchell/renogy-ble](https://github.com/IAmTheMitchell/renogy-ble) | Apache-2.0 | Device detection, Smart Shunt 300, Pro battery |
+| Power stations (`src/bms_ps.inc`) | [Patrick762/bluetti-bt-lib](https://github.com/Patrick762/bluetti-bt-lib), [warhammerkid/bluetti_mqtt](https://github.com/warhammerkid/bluetti_mqtt) | MIT | Bluetti: Modbus registers, encryption of newer models |
+| | [madninjaskillz/allpowers-ble](https://github.com/madninjaskillz/allpowers-ble) | MIT | Allpowers |
+| | [flip-dots/SolixBLE](https://github.com/flip-dots/SolixBLE) | MIT | Anker SOLIX: login, packets, field mapping per model |
+| | [rabits/ha-ef-ble](https://github.com/rabits/ha-ef-ble) | Apache-2.0 | EcoFlow: login, encryption, data structures; **key table taken over** (`src/third_party/ecoflow/ef_keydata.h`) |
+| Round panel (`src/board_crowpanel146.cpp`) | [Elecrow-RD/CrowPanel-1.46inch-HMI-ESP32-Rotary-Display](https://github.com/Elecrow-RD/CrowPanel-1.46inch-HMI-ESP32-Rotary-Display) | no licence stated | Pin assignment, display init commands |
 
-If you redistribute this firmware, keep the licences of the references in mind. For the iNet X, the original
+For the project licence see [Licence](#licence). The licences of the references apply to their code, not to the
+own implementation here. For the iNet X, the original
 protocol analysis has no licence. This is not legal advice.
 
-**Libraries used:** Inter font (SIL Open Font License 1.1), Phosphor icons (MIT), LVGL (MIT), ArduinoJson (MIT),
-NimBLE-Arduino (Apache 2.0).
+### 📚 Libraries, fonts and icons used
+
+| Name | Source | Licence | Used for |
+|---|---|---|---|
+| LVGL 8.4 | [lvgl/lvgl](https://github.com/lvgl/lvgl) | MIT | UI of all panels and displays |
+| ArduinoJson 7 | [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) | MIT | JSON (MQTT, web API, settings) |
+| NimBLE-Arduino | [h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) | Apache-2.0 | Bluetooth (Waveshare, round panel, satellites, Victron display) |
+| esp-nimble-cpp | [h2zero/esp-nimble-cpp](https://github.com/h2zero/esp-nimble-cpp) | Apache-2.0 | Bluetooth on the P4 (via the C6 radio chip) |
+| LovyanGFX | [lovyan03/LovyanGFX](https://github.com/lovyan03/LovyanGFX) | FreeBSD (BSD-2-Clause) | Display driver for round panel and CYD |
+| micro-ecc | [kmackay/micro-ecc](https://github.com/kmackay/micro-ecc) | BSD-2-Clause | **included** in `src/third_party/`: EcoFlow key exchange, Bluetooth pairing on the P4 |
+| Arduino-ESP32 | [espressif/arduino-esp32](https://github.com/espressif/arduino-esp32) | LGPL-2.1 | Framework |
+| ESP-IDF | [espressif/esp-idf](https://github.com/espressif/esp-idf) | Apache-2.0 | Framework, incl. MQTT, HTTP server, NimBLE stack |
+| ESP-Hosted | [espressif/esp-hosted-mcu](https://github.com/espressif/esp-hosted-mcu) | see project | Wi-Fi/Bluetooth via the C6 (P4) |
+| pioarduino | [pioarduino/platform-espressif32](https://github.com/pioarduino/platform-espressif32) | Apache-2.0 | PlatformIO platform |
+| Inter | [rsms/inter](https://github.com/rsms/inter) | SIL OFL 1.1 | Font (converted in `src/fonts/`) |
+| Phosphor Icons | [phosphor-icons/core](https://github.com/phosphor-icons/core) | MIT | Icons (via react-icons, `tools/gen_icons.js`) |
 
 ---
 
@@ -511,6 +538,23 @@ This project is built in my spare time. If it helps you, I'd be happy about a co
 **[☕ PayPal – support CycleMat](https://paypal.me/cyclemat)**
 
 No pressure, no ads, no paywalls – just open source and passion ❤
+
+---
+
+<a id="licence"></a>
+
+## 📜 Licence
+
+**[PolyForm Noncommercial 1.0.0](LICENSE)** – Copyright © 2026 cyclemat.
+
+- ✅ **Allowed:** private use, modification and sharing – also for clubs, research and education, in each case
+  without a commercial purpose.
+- ❌ **Not allowed without a separate licence:** selling the firmware or devices running it, commercial installation
+  or offering it as a service. **Commercial licences are granted by the copyright holder only** – please open an issue
+  if you are interested.
+- Parts in `src/third_party/` are under their own permissive licences (see [there](src/third_party/README.md)).
+- Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
+- Versions previously distributed under GPL-3.0 remain GPL-3.0 for their recipients.
 
 ---
 

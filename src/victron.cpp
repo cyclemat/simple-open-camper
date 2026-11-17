@@ -244,7 +244,7 @@ static bool parse_record(uint8_t record, const uint8_t *p, size_t n, VictronInfo
       v.power_w = (!isnan(v.bat_v) && !isnan(v.bat_i)) ? v.bat_v * v.bat_i : NAN;
       return true;
     }
-    case 0x05: {  // Smart Lithium (nach victron-ble, MIT): BMS-Bits, Fehler, 8 Zellen je 7 Bit, Spannung, Balancer, Temp.
+    case 0x05: {  // Smart Lithium (nach keshavdv/victron-ble, Unlicense): BMS-Bits, Fehler, 8 Zellen je 7 Bit, Spannung, Balancer, Temp.
       if (n < 16) return false;
       b.u(32);   // BMS-Flags
       v.alarm = b.u(16);
@@ -262,7 +262,7 @@ static bool parse_record(uint8_t record, const uint8_t *p, size_t n, VictronInfo
       v.soc = NAN;
       return true;
     }
-    case 0x09: {  // Smart BatteryProtect (nach victron-ble, MIT): Zustand, Ausgang, Fehler, Alarm, Warnung, Ein-/Ausgang V
+    case 0x09: {  // Smart BatteryProtect (nach keshavdv/victron-ble, Unlicense): Zustand, Ausgang, Fehler, Alarm, Warnung, Ein-/Ausgang V
       if (n < 15) return false;
       v.state = b.u(8);
       uint32_t out = b.u(8);

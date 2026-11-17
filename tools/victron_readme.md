@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Victron-Cerbo%20GX%20%7C%20Instant%20Readout-005CA9" alt="Victron">
   <img src="https://img.shields.io/badge/Gas-Truma%20LevelControl-E30613" alt="Truma LevelControl">
   <img src="https://img.shields.io/badge/Cloud-keine-brightgreen" alt="Ohne Cloud">
-  <img src="https://img.shields.io/badge/Lizenz-GPL--3.0-blue" alt="Lizenz GPL-3.0">
+  <img src="https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial-blue" alt="Lizenz PolyForm Noncommercial">
   <img src="https://img.shields.io/badge/Status-Beta-yellow" alt="Status">
 </p>
 
@@ -238,6 +238,8 @@ PlatformIO: `pio run -t upload`. German UI, beta.
 
 ## 📄 Lizenz
 
-GPL-3.0 – siehe [LICENSE](LICENSE). Victron Energy, Cerbo GX, MultiPlus, SmartSolar usw. sind Marken der
+[PolyForm Noncommercial 1.0.0](LICENSE) – nur nicht-kommerzielle Nutzung; kommerzielle Lizenzen (Verkauf der Firmware
+oder von Geräten damit, gewerblicher Einbau) vergibt nur der Urheber. Teile in `src/third_party/` stehen unter eigenen
+Lizenzen (siehe [dort](src/third_party/README.md)). Victron Energy, Cerbo GX, MultiPlus, SmartSolar usw. sind Marken der
 Victron Energy B.V., Truma und LevelControl Marken der Truma Gerätetechnik GmbH & Co. KG; dieses Projekt ist kein
 offizielles Produkt dieser Firmen und steht in keiner Verbindung zu ihnen.
