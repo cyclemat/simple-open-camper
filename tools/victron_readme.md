@@ -48,6 +48,8 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 Nur ein Board, keine Verkabelung: **ESP32-2432S028R** („Cheap Yellow Display“, CYD) – ESP32 mit 2,8"-Display
 320×240 und resistivem Touch, Micro-USB. Strom über USB (5 V) aus dem Bordnetz, z. B. mit einem USB-Einbau-Lader.
 
+👉 **Bezugsquelle:** [ESP32-2432S028R bei Amazon](https://link.amazon/B00jjmvuF)
+
 | | |
 |---|---|
 | Chip | ESP32-WROOM-32, 4 MB Flash, kein PSRAM |
@@ -224,7 +226,7 @@ Abgleich überschrieben.
 <details>
 <summary>🇬🇧 English (short)</summary>
 
-Lean firmware for the ESP32-2432S028R "Cheap Yellow Display": shows all Victron values and gas levels as tiles –
+Lean firmware for the ESP32-2432S028R "Cheap Yellow Display" ([buy on Amazon](https://link.amazon/B00jjmvuF)): shows all Victron values and gas levels as tiles –
 from a Cerbo GX via WiFi (MQTT on LAN, auto-discovery, optional), from Victron devices via Bluetooth (Instant
 Readout) and from Truma LevelControl gas sensors via Bluetooth. Tap a
 tile to set the MultiPlus input current limit and mode. Setup: join WiFi `SOC-Victron-XXXXXX` (default password
