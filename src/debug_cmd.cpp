@@ -15,6 +15,7 @@
 #include "hymer.h"
 #include "truma.h"
 #include "cerbo.h"
+#include "web_server.h"
 #include "board_crowpanel146.h"
 #if defined(BOARD_P4) && BOARD_P4
 // P4: WLAN und Bluetooth laufen im ESP32-C6 (ESP-Hosted). Dessen Firmware laesst sich vom P4 aus aktualisieren:
@@ -302,12 +303,15 @@ static void run(const char *cmd) {
   } else if (!strcmp(cmd, "c6datei")) {
     c6_from_file("/sd/c6.bin");
 #endif
+  } else if (!strcmp(cmd, "webpw")) {
+    web_password_reset();
+    log_printf("Zugangspasswort der Weboberflaeche ist wieder \"panelsat\" - beim naechsten Oeffnen ein neues festlegen.\n");
   } else if (!strcmp(cmd, "reboot") || !strcmp(cmd, "neustart")) {
     log_printf("Neustart ...\n");
     delay(200);
     ESP.restart();
   } else if (!strcmp(cmd, "help") || !strcmp(cmd, "?") || !strcmp(cmd, "hilfe")) {
-    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, reboot, help%s%s%s\n",
+    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s\n",
                WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
                HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
   } else {

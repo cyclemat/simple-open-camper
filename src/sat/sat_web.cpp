@@ -492,10 +492,13 @@ void sat_web_begin() {
              http.setTimeout(6000);
              String url = String("http://") + ip.c_str() + "/api/rdisp?avail=1&id=" + g_sat.id;
              if (!http.begin(url)) return send_err("Hauptpanel nicht erreichbar");
+             // Hauptpanel mit Zugangspasswort: ausweisen mit dem Pruefwert aus dem Satelliten-Passwort
+             http.addHeader("X-SOC-Sig", rd_sign(std::string("avail|") + g_sat.id.c_str()).c_str());
              int code = http.GET();
              if (code != 200) {
                http.end();
-               return send_err("Hauptpanel antwortet nicht (Weboberfläche dort aus?) – Code " + String(code));
+               return send_err(code == 401 ? String("Hauptpanel lehnt ab – Satelliten-Passwort stimmt nicht mit dem Panel überein.")
+                                           : "Hauptpanel antwortet nicht (Weboberfläche dort aus?) – Code " + String(code));
              }
              String body = http.getString();
              http.end();
@@ -515,6 +518,7 @@ void sat_web_begin() {
              http.setTimeout(6000);
              if (!http.begin(String("http://") + ip.c_str() + "/api/rdisp")) return send_err("Hauptpanel nicht erreichbar");
              http.addHeader("Content-Type", "application/json");
+             http.addHeader("X-SOC-Sig", rd_sign(std::string("sel|") + js.c_str()).c_str());
              int code = http.POST(js);
              http.end();
              if (code != 200) return send_err("Hauptpanel lehnt ab – Code " + String(code));

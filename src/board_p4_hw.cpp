@@ -9,6 +9,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Wire.h>
+#include <algorithm>
 #include "app_config.h"
 #include "esp_chip_info.h"
 #include "esp_heap_caps.h"
@@ -103,7 +104,38 @@ void board_wake() {
 }
 bool board_is_dimmed() { return s_dimmed; }
 
-float board_battery_voltage() { return -1; }   // Akkuspannung am P4-Board noch nicht angebunden
+// Akkuspannung: Das Elecrow-Board misst den Akku nur am STC8H1K08 (Firmware unveroeffentlicht, Anfrage bei Elecrow
+// offen). Selbst nachruesten: Spannungsteiler 2 x 100 kOhm vom Akku-Plus an GPIO 49 (J7, ADC2 Kanal 0), Mitte an den
+// Pin, unten an GND. Ohne Teiler liest der offene Pin Unsinn -> nur stabile, plausible Werte gelten (3x hintereinander).
+#ifndef P4_VBAT_GPIO
+#define P4_VBAT_GPIO 49     // -1 = keine Akkumessung
+#endif
+#ifndef P4_VBAT_DIV
+#define P4_VBAT_DIV 2.0f    // Teilerverhaeltnis (2 x 100 kOhm)
+#endif
+float board_battery_voltage() {
+#if P4_VBAT_GPIO >= 0
+  static bool init = false;
+  static uint8_t good = 0;
+  if (!init) {
+    init = true;
+    analogSetPinAttenuation(P4_VBAT_GPIO, ADC_11db);   // bis ~3,1 V am Pin (4,2 V Akku -> 2,1 V)
+  }
+  uint32_t mn = UINT32_MAX, mx = 0, sum = 0;
+  for (int i = 0; i < 8; i++) {
+    uint32_t mv = analogReadMilliVolts(P4_VBAT_GPIO);
+    sum += mv;
+    mn = std::min(mn, mv);
+    mx = std::max(mx, mv);
+  }
+  float v = sum / 8 / 1000.0f * P4_VBAT_DIV;
+  bool ok = mx - mn < 120 && v > 2.8f && v < 4.5f;   // unruhig oder unplausibel = nicht angeschlossen
+  good = ok ? (good < 3 ? good + 1 : 3) : 0;
+  return good >= 3 ? v : -1;
+#else
+  return -1;
+#endif
+}
 
 // ---------------------------------------------------------------- Uhrenchip PCF85063 (falls bestueckt)
 static const uint8_t RTC_ADDR = 0x51;

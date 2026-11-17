@@ -390,10 +390,49 @@ function toast(msg, kind = '') {
   $('#toasts').appendChild(t);
   setTimeout(() => t.remove(), kind === 'error' ? 5200 : 3200);
 }
-async function api(path, opt = {}) {
+// Zugangspasswort (wie Satelliten): 401 {"auth":"login"|"setup"} -> Anmeldung bzw. eigenes Passwort festlegen,
+// dann die Anfrage einmal wiederholen. Mehrere gleichzeitige Anfragen teilen sich einen Dialog.
+let authWait = null;
+function needAuth(kind) {
+  if (!authWait) authWait = authDlg(kind).finally(() => { authWait = null; });
+  return authWait;
+}
+function authDlg(kind) {
+  const setup = kind === 'setup';
+  return new Promise((res, rej) => {
+    let done = false;
+    const m = modal({title: setup ? 'Zugangspasswort festlegen' : 'Anmelden',
+      body: setup
+        ? `<p class="hint" style="margin-top:0">Schutz für Editor und Weboberfläche. Ab Werk gilt „panelsat“ – lege jetzt ein eigenes Passwort fest (8–63 Zeichen). Vergessen? Am Panel unter Einstellungen → Netzwerk zurücksetzen.</p>
+           <label class="field"><span>Neues Passwort</span><input id="auN" type="password" maxlength="63" autocomplete="new-password"></label>
+           <label class="field"><span>Wiederholen</span><input id="auN2" type="password" maxlength="63" autocomplete="new-password"></label>`
+        : `<label class="field"><span>Zugangspasswort des Panels</span><input id="auP" type="password" maxlength="63" autocomplete="current-password"></label>
+           <p class="hint">Vergessen? Am Panel unter Einstellungen → Netzwerk zurücksetzen.</p>`,
+      onClose: () => !done && rej(new Error('Nicht angemeldet – Seite neu laden zum Anmelden.')),
+      actions: [{label: setup ? 'Festlegen' : 'Anmelden', kind: 'primary', onClick: async (c, btn) => {
+        const v = id => ($('#' + id, m.el) || {}).value || '';
+        let data;
+        if (setup) {
+          if (v('auN').length < 8) return toast('Das Passwort braucht mindestens 8 Zeichen.', 'error');
+          if (v('auN') !== v('auN2')) return toast('Die beiden Eingaben stimmen nicht überein.', 'error');
+          data = {old: 'panelsat', new: v('auN')};
+        } else data = {pw: v('auP')};
+        btn.disabled = true;
+        try { await post('/api/auth', data); done = true; c(); res(); toast(setup ? 'Passwort festgelegt.' : 'Angemeldet.'); }
+        catch (e) { toast(e.message, 'error'); btn.disabled = false; }
+      }}]});
+    m.el.addEventListener('keydown', e => { if (e.key === 'Enter') $('footer .primary', m.el).click(); });
+  });
+}
+
+async function api(path, opt = {}, retry = true) {
   const r = await fetch(path, Object.assign({cache: 'no-store'}, opt));
   const ct = r.headers.get('content-type') || '';
   const body = ct.includes('json') ? await r.json().catch(() => null) : null;
+  if (r.status === 401 && retry && body && body.auth && !path.startsWith('/api/auth')) {
+    await needAuth(body.auth);
+    return api(path, opt, false);
+  }
   if (!r.ok) {
     const e = new Error((body && body.error) || `Das Panel antwortet mit Fehler ${r.status}.`);
     e.status = r.status;
@@ -2115,6 +2154,11 @@ async function openSettings(tab = 'net') {
             : `<p class="hint">${wifiScan.failed ? 'Die Suche ist fehlgeschlagen – bitte noch einmal versuchen.' : 'Keine Netze gefunden.'}</p>`) : ''}` : ''}
         ${info && info.web_setup ? '' : `<h3 style="font-size:13px;margin:14px 0 8px">Webinterface</h3>
           <label class="field"><span>Erreichbar</span><select data-f="web_mode"><option value="0" ${!draft.net.web_mode ? 'selected' : ''}>Immer an</option><option value="1" ${draft.net.web_mode ? 'selected' : ''}>Nur bei Bedarf (am Panel einschalten, aus nach 15 Minuten ohne Zugriff)</option></select></label>`}
+        <h3 style="font-size:13px;margin:14px 0 8px">Zugangspasswort (Editor und Weboberfläche)</h3>
+        <div class="row"><label class="field"><span>Bisheriges Passwort</span><input id="pwOld" type="password" maxlength="63" autocomplete="current-password"></label>
+          <label class="field"><span>Neues Passwort (8–63 Zeichen)</span><input id="pwNew" type="password" maxlength="63" autocomplete="new-password"></label></div>
+        <div class="row" style="margin-bottom:6px"><button class="btn small" id="bPwChange" style="flex:none">Passwort ändern</button></div>
+        <p class="hint">Vergessen? Am Panel unter Einstellungen → Netzwerk zurücksetzen (danach gilt wieder „panelsat“ und beim nächsten Öffnen wird ein neues festgelegt).</p>
         <p class="hint">Eine andere Betriebsart oder ein geändertes Panel-WLAN wirkt nach einem Neustart des Panels.</p>`;
     } else if (tab === 'mqtt') {
       const auto = m !== 0 && draft.mqtt.auto;
@@ -2354,6 +2398,14 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     if (e.target.closest('#bGasScan')) { gasPost({scan: true}).then(() => { toast('Suche gestartet. Bitte etwas Geduld.'); loadGas(); }).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bCpClock')) { heatAct({src: 'cpplus', clock: true}).then(() => toast('Die Uhrzeit geht beim nächsten Abruf ans CP Plus.')); return; }
     if (e.target.closest('#bWifiScan')) { wifiScanStart(); return; }
+    if (e.target.closest('#bPwChange')) {
+      const o = ($('#pwOld', body) || {}).value || '', n = ($('#pwNew', body) || {}).value || '';
+      if (n.length < 8) { toast('Das neue Passwort braucht mindestens 8 Zeichen.', 'error'); return; }
+      (S.demo ? Promise.resolve() : post('/api/auth', {old: o, new: n}))
+        .then(() => { toast('Passwort geändert. Andere Browser sind abgemeldet.'); $('#pwOld', body).value = ''; $('#pwNew', body).value = ''; })
+        .catch(er => toast(er.message, 'error'));
+      return;
+    }
     const wsel = e.target.closest('[data-wssid]');
     if (wsel) { draft.newWifi.ssid = wsel.dataset.wssid; render(); const pw = $('[data-w="pass"]', body); if (pw) pw.focus(); return; }
     const hyp = e.target.closest('[data-hypair]');

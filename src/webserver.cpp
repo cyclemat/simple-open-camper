@@ -36,6 +36,8 @@
 #include <set>
 #include "ui/ui_remote.h"
 #include "mqtt_broker.h"
+#include <Preferences.h>
+#include <atomic>
 
 static httpd_handle_t s_srv = nullptr;
 
@@ -1412,13 +1414,26 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
 }
 
 // ---------------------------------------------------------------- Zusatzdisplays
+static bool web_authed(httpd_req_t *req);
+static esp_err_t web_deny(httpd_req_t *req);
+// Pruefwert eines Zusatzdisplays aus dem Kopf X-SOC-Sig
+static bool rd_sig(httpd_req_t *req, const std::string &msg) {
+  char h[20] = "";
+  if (httpd_req_get_hdr_value_str(req, "X-SOC-Sig", h, sizeof(h)) != ESP_OK) return false;
+  return ui_remote_sig_ok(msg, h);
+}
+
+// Editor (angemeldet): Liste der Displays. Zusatzdisplay (ohne Anmeldung, mit Pruefwert "avail|<id>"): Kachelauswahl
 static esp_err_t h_rdisp_get(httpd_req_t *req) {
   char q[96] = "", id[48] = "", av[4] = "";
   if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK) {
     httpd_query_key_value(q, "id", id, sizeof(id));
     httpd_query_key_value(q, "avail", av, sizeof(av));
   }
-  if (av[0] == '1') return send_json(req, ui_remote_avail_json(id));   // Auswahl am Zusatzdisplay
+  bool authed = web_authed(req);
+  if (av[0] == '1' && (authed || rd_sig(req, std::string("avail|") + id)))
+    return send_json(req, ui_remote_avail_json(id));   // Auswahl am Zusatzdisplay
+  if (!authed) return web_deny(req);
   return send_json(req, ui_remote_json());
 }
 
@@ -1427,10 +1442,14 @@ static esp_err_t h_rdisp_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 4096, len);
   if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  bool authed = web_authed(req);
+  bool dev = !authed && rd_sig(req, std::string("sel|") + std::string(body, len));   // Zusatzdisplay selbst
   JsonDocument d(&s_ps);
   DeserializationError e = deserializeJson(d, body, len);
   heap_caps_free(body);
+  if (!authed && !dev) return web_deny(req);
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (!authed && (!d["forget"].isNull() || !d["name"].isNull())) return web_deny(req);   // Display darf nur waehlen
   if (d["forget"].is<const char *>()) ui_remote_forget(d["forget"].as<const char *>());
   if (d["id"].is<const char *>()) {
     std::vector<std::string> keys;
@@ -1597,9 +1616,150 @@ static const uint32_t WEB_IDLE_MS = 15UL * 60 * 1000;   // "bei Bedarf": so lang
 static volatile uint32_t s_last_req = 0;
 typedef esp_err_t (*WebHandler)(httpd_req_t *);
 
+// ---------------------------------------------------------------- Zugangspasswort
+// Wie bei Satelliten und Victron-Display (devsetup.h): ab Werk "panelsat", beim ersten Oeffnen muss ein eigenes
+// vergeben werden; Anmeldung per Cookie "socauth" (4 Sitzungen, nur im RAM), 5 Fehlversuche -> 30 s Pause.
+// Alles im httpd-Task; das Zuruecksetzen aus dem Panel-Menue schreibt NVS und setzt nur ein Kennzeichen.
+static const char *WEB_DEFAULT_PW = "panelsat";
+static std::string s_pw;
+static bool s_pw_set = false, s_pw_loaded = false;
+static std::string s_tok[4];
+static uint8_t s_tok_next = 0, s_fails = 0;
+static uint32_t s_lock_until = 0;
+static std::atomic<bool> s_pw_reload{false};
+
+static void pw_load() {
+  if (s_pw_reload.exchange(false)) {
+    s_pw_loaded = false;
+    for (auto &t : s_tok) t.clear();   // alle abmelden
+  }
+  if (s_pw_loaded) return;
+  Preferences p;
+  bool ok = p.begin("devsetup", true);
+  s_pw = ok ? p.getString("apw", WEB_DEFAULT_PW).c_str() : WEB_DEFAULT_PW;
+  s_pw_set = ok && p.getBool("pwset", false);
+  if (ok) p.end();
+  s_pw_loaded = true;
+}
+static void pw_save() {
+  Preferences p;
+  if (!p.begin("devsetup", false)) return;
+  p.putString("apw", s_pw.c_str());
+  p.putBool("pwset", s_pw_set);
+  p.end();
+}
+bool web_password_set() {
+  Preferences p;
+  bool ok = p.begin("devsetup", true), set = ok && p.getBool("pwset", false);
+  if (ok) p.end();
+  return set;
+}
+void web_password_reset() {
+  Preferences p;
+  if (p.begin("devsetup", false)) {
+    p.putString("apw", WEB_DEFAULT_PW);
+    p.putBool("pwset", false);
+    p.end();
+  }
+  s_pw_reload = true;
+  log_w("Zugangspasswort der Weboberflaeche zurueckgesetzt");
+}
+
+static bool web_authed(httpd_req_t *req) {
+  pw_load();
+  if (!s_pw_set) return false;
+  char c[384];
+  size_t n = httpd_req_get_hdr_value_len(req, "Cookie");
+  if (!n || n >= sizeof(c) || httpd_req_get_hdr_value_str(req, "Cookie", c, sizeof(c)) != ESP_OK) return false;
+  const char *p = strstr(c, "socauth=");
+  if (!p || strlen(p + 8) < 32) return false;
+  std::string t(p + 8, 32);
+  for (auto &k : s_tok)
+    if (!k.empty() && k == t) return true;
+  return false;
+}
+static esp_err_t web_deny(httpd_req_t *req) {
+  httpd_resp_set_status(req, "401 Unauthorized");
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_sendstr(req, s_pw_set ? "{\"auth\":\"login\",\"error\":\"Bitte anmelden.\"}"
+                                          : "{\"auth\":\"setup\",\"error\":\"Bitte zuerst ein Zugangspasswort festlegen.\"}");
+}
+static void new_session(httpd_req_t *req) {
+  static char cookie[80];   // httpd merkt sich nur den Zeiger bis zum Senden
+  char t[33];
+  for (int i = 0; i < 4; i++) snprintf(t + i * 8, 9, "%08lx", (unsigned long)esp_random());
+  s_tok[s_tok_next] = t;
+  s_tok_next = (s_tok_next + 1) % 4;
+  snprintf(cookie, sizeof(cookie), "socauth=%s; Path=/; HttpOnly; SameSite=Strict", t);
+  httpd_resp_set_hdr(req, "Set-Cookie", cookie);
+}
+static bool pw_locked(httpd_req_t *req) {
+  if (s_lock_until && (int32_t)(millis() - s_lock_until) < 0) {
+    send_err(req, "429 Too Many Requests", "Zu viele Versuche – bitte 30 Sekunden warten.");
+    return true;
+  }
+  s_lock_until = 0;
+  return false;
+}
+static esp_err_t pw_wrong(httpd_req_t *req) {
+  if (++s_fails >= 5) {
+    s_fails = 0;
+    s_lock_until = (millis() + 30000) | 1;
+  }
+  return send_err(req, "403 Forbidden", "Passwort falsch.");
+}
+
+// GET: {"setup":bool,"authed":bool}
+static esp_err_t h_auth_get(httpd_req_t *req) {
+  pw_load();
+  JsonDocument d(&s_ps);
+  d["setup"] = !s_pw_set;
+  d["authed"] = web_authed(req);
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+// POST {"pw":"…"} = anmelden | {"old":"…","new":"…"} = Passwort festlegen/aendern (erstes Mal mit "panelsat")
+static esp_err_t h_auth_post(httpd_req_t *req) {
+  pw_load();
+  size_t len;
+  char *body = read_body(req, 512, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (pw_locked(req)) return ESP_OK;
+  if (d["new"].is<const char *>()) {
+    std::string oldp = d["old"] | "", newp = d["new"] | "";
+    if (oldp != s_pw) return pw_wrong(req);
+    if (newp.size() < 8 || newp.size() > 63) return send_err(req, "400 Bad Request", "Das neue Passwort braucht 8 bis 63 Zeichen.");
+    if (newp == WEB_DEFAULT_PW) return send_err(req, "400 Bad Request", "Bitte ein anderes als das Standardpasswort nehmen.");
+    s_fails = 0;
+    s_pw = newp;
+    s_pw_set = true;
+    pw_save();
+    for (auto &t : s_tok) t.clear();   // alle anderen abmelden
+    new_session(req);
+    return send_ok(req);
+  }
+  if (!s_pw_set) return web_deny(req);
+  if (s_pw != (const char *)(d["pw"] | "")) return pw_wrong(req);
+  s_fails = 0;
+  new_session(req);
+  return send_ok(req);
+}
+
+// Ohne Anmeldung: die Seite selbst (Editor, Captive Portal) und die Anmeldung. /api/rdisp prueft selbst (Zusatzdisplays).
+static bool web_open(const char *uri) {
+  if (strncmp(uri, "/api/", 5) != 0) return true;
+  return !strncmp(uri, "/api/auth", 9) || !strncmp(uri, "/api/rdisp", 10);
+}
+
 // Jede Anfrage merkt sich die Zeit (fuer das Abschalten bei Bedarf), dann der eigentliche Handler
 static esp_err_t tramp(httpd_req_t *req) {
   s_last_req = millis();
+  if (!web_open(req->uri) && !web_authed(req)) return web_deny(req);
   // Waehrend der Anfrage auch kleine Speicherstuecke (Texte, Kopien der Geraeteliste) ins PSRAM legen
   heap_caps_malloc_extmem_enable(16);
   esp_err_t r = ((WebHandler)req->user_ctx)(req);
@@ -1649,7 +1809,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 44;
+  cfg.max_uri_handlers = 48;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -1663,6 +1823,8 @@ void web_start() {
   reg("/", HTTP_GET, h_index);
   reg("/index.html", HTTP_GET, h_index);
   reg("/api/info", HTTP_GET, h_info);
+  reg("/api/auth", HTTP_GET, h_auth_get);
+  reg("/api/auth", HTTP_POST, h_auth_post);
   reg("/api/devices", HTTP_GET, h_devices);
   reg("/api/layout", HTTP_GET, h_layout_get);
   reg("/api/layout", HTTP_POST, h_layout_post);

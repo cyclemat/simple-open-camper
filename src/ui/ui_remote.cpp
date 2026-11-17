@@ -144,6 +144,7 @@ static std::string mac16(const std::string &msg) {
   for (int i = 0; i < 8; i++) snprintf(h + 2 * i, 3, "%02x", full[i]);
   return h;
 }
+bool ui_remote_sig_ok(const std::string &msg, const std::string &h) { return h.size() == 16 && mac16(msg) == h; }
 
 // ---------------------------------------------------------------- Senden
 static void udp_to(const std::string &ip, const std::string &payload) {

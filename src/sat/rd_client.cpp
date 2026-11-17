@@ -37,6 +37,7 @@ static std::map<std::string, RdTile> s_tiles;
 static std::vector<std::string> s_keys;
 static uint32_t s_keys_ver = 1;
 static uint32_t s_pn = 0, s_ctr = 0, s_ver = 1, s_hello_ms = 0, s_panel_ms = 0, s_hellos = 0;
+static uint32_t s_panel_udp_ms = 0;   // zuletzt UDP vom Hauptpanel (fuer den Rueckfall auf Rundsendung)
 static bool s_fresh = true;   // noch keine Kachelliste: "frisch gestartet" melden (Panel schickt dann alles)
 static std::string s_panel_ip;
 static std::string s_tz;
@@ -62,14 +63,30 @@ static std::string mac16(const std::string &msg) {
   return h;
 }
 
-static void send_panel(const char *sub, const std::string &payload) {
+std::string rd_sign(const std::string &msg) { return mac16(msg); }
+
+static void udp_to(const IPAddress &ip, const std::string &payload) {
+  if (s_udp.beginPacket(ip, RD_UDP_PORT)) {
+    s_udp.write((const uint8_t *)payload.data(), payload.size());
+    s_udp.endPacket();
+  }
+}
+// Rundsendung ins eigene Netz (255.255.255.255 lassen manche Router nicht durch)
+static IPAddress net_broadcast() {
+  IPAddress me = WiFi.localIP(), mask = WiFi.subnetMask(), b;
+  for (int i = 0; i < 4; i++) b[i] = (me[i] & mask[i]) | (~mask[i] & 0xFF);
+  return b;
+}
+
+// also_bcast: zusaetzlich an alle im Netz – findet das Hauptpanel wieder, wenn sich seine IP geaendert hat
+static void send_panel(const char *sub, const std::string &payload, bool also_bcast = false) {
   if (s_udp_on && WiFi.isConnected()) {
     IPAddress ip;
     bool have = !s_panel_ip.empty() && ip.fromString(s_panel_ip.c_str());
-    if (!have) ip = IPAddress(255, 255, 255, 255);   // Panel unbekannt: an alle im Netz
-    if (s_udp.beginPacket(ip, RD_UDP_PORT)) {
-      s_udp.write((const uint8_t *)payload.data(), payload.size());
-      s_udp.endPacket();
+    if (have) udp_to(ip, payload);
+    if (!have || also_bcast) {   // Panel unbekannt bzw. antwortet nicht: an alle im Netz
+      if (have) delay(15);
+      udp_to(net_broadcast(), payload);
     }
   }
   if (sat_mqtt_connected()) sat_mqtt_publish(std::string(sat_topic("rd/").c_str()) + sub, payload);
@@ -87,7 +104,10 @@ static void hello() {
   d["h"] = mac16("hello|" + id + "|" + std::to_string(c));
   std::string s;
   serializeJson(d, s);
-  send_panel("hello", s);
+  // Hauptpanel antwortet 60 s nicht per UDP (z. B. neue IP per DHCP): auch rundsenden. Die Antwort kommt dann von
+  // der neuen Adresse, handle() uebernimmt sie.
+  bool lost = !s_panel_udp_ms || millis() - s_panel_udp_ms > 60000;
+  send_panel("hello", s, lost);
 }
 
 static void handle(const char *buf, size_t n, const std::string &from_ip) {
@@ -98,6 +118,7 @@ static void handle(const char *buf, size_t n, const std::string &from_ip) {
   Lock l;
   s_pn = d["pn"] | s_pn;
   s_panel_ms = millis();
+  if (!from_ip.empty()) s_panel_udp_ms = millis();
   if (!from_ip.empty() && from_ip != s_panel_ip) {   // Panel-IP lernen (DHCP kann sie aendern)
     s_panel_ip = from_ip;
     if (g_sat.udp_target != from_ip.c_str()) {

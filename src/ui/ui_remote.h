@@ -9,6 +9,8 @@
 std::string ui_remote_json();   // {"displays":[{id,name,ip,online,udp,mqtt,age,tiles:[keys]}]}
 // Alle Kacheln des Panels zum Auswaehlen (Weboberflaeche des Displays): {"avail":[{k,n,p}],"tiles":[Auswahl von id]}
 std::string ui_remote_avail_json(const std::string &id);
+// Pruefwert eines Zusatzdisplays (HMAC aus dem Satelliten-Passwort) fuer HTTP-Anfragen ohne Browser-Anmeldung
+bool ui_remote_sig_ok(const std::string &msg, const std::string &h);
 struct RdListItem {
   std::string id, name, ip;
   bool online = false, udp = false, mqtt = false;

@@ -272,6 +272,16 @@ static void web_mode_cb(lv_event_t *e) {
   if (st.web_mode == 0) web_start();
   ui_settings_refresh();
 }
+static void web_pw_reset_cb(lv_event_t *) {
+  ui_confirm("Zugangspasswort zurücksetzen?",
+             "Das Passwort für Editor und Weboberfläche ist danach wieder „panelsat“. Beim nächsten Öffnen im Browser "
+             "muss ein neues festgelegt werden. Angemeldete Browser werden abgemeldet.",
+             "Zurücksetzen", true, [] {
+               web_password_reset();
+               ui_toast("Zurückgesetzt – im Browser ein neues Passwort festlegen.");
+               ui_settings_refresh();
+             });
+}
 static void web_now_cb(lv_event_t *) {
   if (web_running()) web_stop();
   else web_start();
@@ -294,6 +304,9 @@ static void build_web() {
   dropdown_row("Webinterface", "Immer an\nNur bei Bedarf", g_settings.web_mode, web_mode_cb);
   lv_obj_t *g = group();
   s_web_val = ui_row(g, "Zustand", web_text().c_str(), nullptr, nullptr);
+  bool pw = web_password_set();
+  ui_row(g, "Zugangspasswort", pw ? "festgelegt – antippen zum Zurücksetzen" : "noch nicht festgelegt (beim ersten Öffnen im Browser)",
+         pw ? web_pw_reset_cb : nullptr, nullptr);
   if (g_settings.web_mode) {
     lv_obj_t *row = button_row();
     ui_button(row, ICON_EYE, web_running() ? "Webinterface beenden" : "Webinterface freigeben", !web_running(), web_now_cb,
