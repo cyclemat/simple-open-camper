@@ -111,10 +111,15 @@ struct TileModel {
   bool color = false;                   // Farbrad moeglich
   int hue = -1, sat = -1;               // aktuelle Farbe 0..360 / 0..100
   int ct = -1, ct_min = 0, ct_max = 0;  // Farbtemperatur in Mired (-1 = keine)
+  // MultiPlus/Ladegeraet ueber den GX – fuer das Bedienfenster der Zusatzdisplays
+  uint8_t vset = 0;                     // 0 nicht schaltbar, 1 MultiPlus (1/2/3/4), 2 Ladegeraet (1 ein, 4 aus)
+  int vmode = -1;                       // aktuelle Schalterstellung
+  int vlim = -1;                        // Netzstrom-Begrenzung in 0,1 A, -1 = nicht einstellbar
 };
 bool ui_tile_model(const std::string &key, TileModel &m);   // false = unbekannte Kachel
 bool ui_tile_action(const std::string &key, std::string *err);   // wie Antippen am Panel
-bool ui_tile_set(const std::string &key, char what, int value);  // Licht: 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired
+// Licht: 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired; MultiPlus/Ladegeraet: 'm' Schalter, 'l' Begrenzung in 0,1 A
+bool ui_tile_set(const std::string &key, char what, int value);
 std::vector<std::string> ui_tile_keys();   // alle Kacheln aller Seiten (Reihenfolge der Seiten)
 
 // ui_remote.cpp (Zusatzdisplays)

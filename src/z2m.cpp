@@ -922,6 +922,10 @@ uint32_t z2m_devices_version() { return s_dev_ver + shelly_devices_version() + w
 uint32_t z2m_state_version() { return s_state_ver + shelly_state_version() + wled_state_version(); }
 
 void z2m_publish(const std::string &topic, const std::string &payload) { publish(topic, payload.c_str()); }
+void z2m_publish_retained(const std::string &topic, const std::string &payload) {
+  if (!s_client || !s_connected) return;
+  esp_mqtt_client_enqueue(s_client, topic.c_str(), payload.data(), payload.size(), 0, 1, true);
+}
 std::string z2m_client_id() {
   char cid[40];
   snprintf(cid, sizeof(cid), "simply-open-camper-%06llx", (unsigned long long)(ESP.getEfuseMac() & 0xFFFFFF));

@@ -7,6 +7,14 @@
 #define RD_UDP_PORT 47812   // Hauptpanel und Zusatzdisplays (eigener Port, Satelliten nutzen 47811)
 
 std::string ui_remote_json();   // {"displays":[{id,name,ip,online,udp,mqtt,age,tiles:[keys]}]}
+// Alle Kacheln des Panels zum Auswaehlen (Weboberflaeche des Displays): {"avail":[{k,n,p}],"tiles":[Auswahl von id]}
+std::string ui_remote_avail_json(const std::string &id);
+struct RdListItem {
+  std::string id, name, ip;
+  bool online = false, udp = false, mqtt = false;
+  size_t tiles = 0;
+};
+std::vector<RdListItem> ui_remote_list();   // fuer das Einstellungsmenue des Panels
 bool ui_remote_set(const std::string &id, const std::vector<std::string> &keys, const std::string &name);
 void ui_remote_forget(const std::string &id);
 // MQTT (aus panelsat.cpp, MQTT-Task): <base>/<display>/rd/hello bzw. rd/cmd – wird im UI-Takt verarbeitet

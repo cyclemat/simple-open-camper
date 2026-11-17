@@ -116,6 +116,12 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div id="hyList"></div>
 <div class="row" style="margin-top:8px"><button id="bHyPair" style="flex:none">Koppeln</button><button class="d" id="bHyForget" style="flex:none">Kopplung lösen</button></div></div>
 
+<div class="card" id="rdCard" style="display:none"><h2>Kacheln vom Hauptpanel</h2>
+<p class="hint">Welche Kacheln dieses Display zeigt. „Geräteliste holen“ fragt das Hauptpanel nach allen Kacheln – die Liste wird hier nicht gespeichert, gemerkt wird nur deine Auswahl (im Hauptpanel). Anordnen auf Seiten: Karte „Display“ darunter.</p>
+<div class="row"><button id="bRdLoad" style="flex:none">Geräteliste vom Hauptpanel holen</button></div>
+<div id="rdList"></div>
+<div class="row" id="rdSaveRow" style="display:none;margin-top:8px"><button class="p" id="bRdSave" style="flex:none">Auswahl speichern</button></div></div>
+
 <div class="card" id="dpCard" style="display:none"><h2>Display</h2>
 <p class="hint">Welche Werte das Display zeigt, in welcher Reihenfolge und unter welchem Namen. Neue Geräte erscheinen automatisch hinten.</p>
 <p class="hint">Vorschau des Displays. Kachel antippen, dann den Zielplatz antippen (belegt = tauschen, frei = verschieben) – am PC auch ziehen. Je Seite 1, 2 oder 4 Kacheln, weitere Seiten mit „+ Seite hinzufügen“. Erst „Speichern“ übernimmt es aufs Display.</p>
@@ -166,7 +172,7 @@ function render(){
  if(S.wifi.ap)c.push(['','Einrichtungs-WLAN '+S.wifi.ap_ssid]);
  if(S.modes.mqtt)c.push([S.mqtt.connected?'ok':'err','MQTT: '+S.mqtt.status]);
  if(S.modes.udp&&!S.remote)c.push(['ok','UDP: '+S.udp_sent+' Pakete']);
- if(S.remote){c.push([/^verbunden/.test(S.rd)?'ok':'err','Hauptpanel: '+S.rd]);
+ if(S.remote){c.push([/^verbunden/.test(S.rd)?'ok':'err','Hauptpanel: '+S.rd]);$('#rdCard').style.display='';
   ['#ioCard','#trCard','#moCard','#viCard','#bleH'].forEach(s=>{const e=$(s);if(e)e.style.display='none'});
   ['#pTruma','#pMopeka','#pVictron','#mUdp'].forEach(s=>{const e=$(s);if(e)e.closest('label').style.display='none'});
   const ub=$('#udpBox');if(ub){ub.style.marginLeft='0';const sp=ub.querySelector('span');if(sp)sp.textContent='IP des Hauptpanels (wird beim Anlernen eingetragen und automatisch nachgeführt)'}}
@@ -363,6 +369,14 @@ $('#bUpd').onclick=async()=>{if(!confirm('In den Update-Modus starten? Das Gerä
 $('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);if(S.upd_slot&&f.size>S.upd_slot)return toast('Zu groß für den Updater-Bereich – die Firmware bitte über den Update-Modus aufspielen.',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
  try{const r=await fetch('/api/update?size='+f.size,{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
 $('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
+let RDA=null;   // Kachelliste vom Hauptpanel (nur im Browser, wird nicht gespeichert)
+function rdRender(){if(!RDA)return;const g=[...new Set(RDA.avail.map(x=>x.p))];
+ $('#rdList').innerHTML=RDA.avail.length?g.map(p=>`<h2 style="margin:10px 0 4px;font-size:14px">${esc(p)}</h2>`+RDA.avail.filter(x=>x.p===p).map(x=>`<label class="ck"><input type="checkbox" data-rdk="${esc(x.k)}" ${RDA.sel.has(x.k)?'checked':''}>${esc(x.n)}</label>`).join('')).join(''):'<p class="hint">Das Hauptpanel hat keine Kacheln.</p>';
+ $('#rdSaveRow').style.display=''}
+$('#bRdLoad').onclick=async()=>{$('#bRdLoad').disabled=true;try{const r=await fetch('/api/rd/avail');const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||r.statusText);RDA={avail:j.avail||[],order:j.tiles||[],sel:new Set(j.tiles||[])};rdRender()}catch(e){toast(e.message,true)}$('#bRdLoad').disabled=false};
+$('#rdList').addEventListener('change',e=>{const k=e.target.dataset.rdk;if(k==null)return;if(e.target.checked)RDA.sel.add(k);else RDA.sel.delete(k)});
+$('#bRdSave').onclick=()=>{if(!RDA)return;const tiles=RDA.order.filter(k=>RDA.sel.has(k)).concat(RDA.avail.map(x=>x.k).filter(k=>RDA.sel.has(k)&&!RDA.order.includes(k)));
+ post('/api/rd/sel',{tiles}).then(()=>{RDA.order=tiles;toast('Gespeichert – die Kacheln kommen gleich.');setTimeout(dpLoad,3000)}).catch(e=>toast(e.message,true))};
 let DP=null,dSel=null,dG=null;
 function ldrShow(){const l=S.light;if(!l||l.ldr<0)return;$('#ldrNow').textContent='Lichtsensor zurzeit: '+l.ldr+' – '+(l.night?'dunkel':'hell')+(l.auto?'.':' (Automatik aus).')}
 const dPl=p=>p<DP.pl.length?DP.pl[p]:DP.per,dT=k=>DP.tiles.find(t=>t.k==k);
@@ -387,7 +401,8 @@ function dpRender(){if(!DP)return;$('#dpCard').style.display='';let h='';
  const H=DP.tiles.filter(t=>!t.on);
  $('#dpHid').innerHTML=H.length?'<h2 style="margin-top:6px">Ausgeblendet</h2>'+H.map(t=>`<div class="dev"><div class="t">${esc(t.n||t.name)}<div class="v">${esc(t.value||'')}</div></div><button data-dshow="${esc(t.k)}">Einblenden</button></div>`).join(''):'';
  $('#dpSvL').style.display=DP.clock?'':'none';
- if(DP.led_tiles){$('#dpLedL').style.display='';$('#dpLed').innerHTML='<option value="0">aus</option><option value="1">automatisch (niedrigster Pegel)</option>'+DP.led_tiles.map(t=>`<option value="k:${esc(t.k)}">${esc(t.n)}</option>`).join('');$('#dpLed').value=DP.led==2?'k:'+DP.led_key:String(DP.led)}$('#dpSv').value=DP.saver||0;$('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr}
+ if(DP.led_tiles){$('#dpLedL').style.display='';$('#dpLed').innerHTML='<option value="0">aus</option><option value="1">automatisch (niedrigster Pegel)</option>'+DP.led_tiles.map(t=>`<option value="k:${esc(t.k)}">${esc(t.n)}</option>`).join('');$('#dpLed').value=DP.led==2?'k:'+DP.led_key:String(DP.led)}$('#dpSv').value=DP.saver||0;$('#dpPer').value=DP.per;$('#dpBright').value=DP.bright;$('#dpDim').value=DP.dim;$('#dpAuto').checked=DP.auto;$('#dpNight').value=DP.night;$('#dpThr').value=DP.ldr_thr;
+ if(DP.round){document.querySelectorAll('#dpEd .dph select,#dpAdd').forEach(x=>x.style.display='none');['#dpPer','#dpAuto','#dpNight','#dpThr'].forEach(q=>{const e=$(q);if(e)(e.closest('label')||e).style.display='none'});const l=$('#ldrNow');if(l)l.parentNode.style.display='none'}}
 $('#dpEd').addEventListener('click',e=>{const b=e.target.closest('button');
  if(b&&b.id=='dpAdd'){DP.P.push({n:DP.per,k:[]});dSel=null;return dpRender()}
  if(b&&b.dataset.dpdel){DP.P.splice(+b.dataset.dpdel,1);dSel=null;return dpRender()}

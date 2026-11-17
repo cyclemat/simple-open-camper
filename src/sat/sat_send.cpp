@@ -113,6 +113,10 @@ static void publish(const std::string &topic, const std::string &payload, bool r
 
 // Fuer das Zusatzdisplay (rd_client.cpp): ohne Speichern beim Broker (retain = false); sat_mqtt_connected weiter unten
 bool sat_mqtt_connected();
+bool sat_mqtt_sub(const std::string &topic, bool on) {   // Zusatzdisplay: einzelne Kacheln abonnieren
+  if (!sat_mqtt_connected()) return false;
+  return (on ? esp_mqtt_client_subscribe(s_mqtt, topic.c_str(), 0) : esp_mqtt_client_unsubscribe(s_mqtt, topic.c_str())) >= 0;
+}
 bool sat_mqtt_publish(const std::string &topic, const std::string &payload) {
   if (!sat_mqtt_connected()) return false;
   publish(topic, payload, false);
@@ -156,8 +160,10 @@ static void mqtt_event(void *, esp_event_base_t, int32_t id, void *data) {
       esp_mqtt_client_subscribe(s_mqtt, sat_topic("cmd").c_str(), 0);
       esp_mqtt_client_subscribe(s_mqtt, sat_topic("switch/+/set").c_str(), 0);
 #if SAT_REMOTE
-      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/tile").c_str(), 0);   // Kacheln vom Hauptpanel
-      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/keys").c_str(), 0);
+      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/tile").c_str(), 0);    // Kacheln vom Hauptpanel (alt)
+      esp_mqtt_client_subscribe(s_mqtt, sat_topic("rd/keys/#").c_str(), 0);  // eigene Kachelliste (gespeichert, in Teilen)
+      esp_mqtt_client_subscribe(s_mqtt, (std::string(g_sat.base.c_str()) + "/time").c_str(), 0);
+      rd_mqtt_reconnected();   // Kachel-Abos neu anlegen (rd_loop)
 #endif
       break;
     case MQTT_EVENT_DISCONNECTED:
@@ -174,9 +180,17 @@ static void mqtt_event(void *, esp_event_base_t, int32_t id, void *data) {
       if (ev->current_data_offset == 0 && ev->data_len == ev->total_data_len && ev->data_len < 2048) {
         std::string topic(ev->topic, ev->topic_len);
 #if SAT_REMOTE
-        std::string rdp = sat_topic("rd/").c_str();
+        std::string rdp = sat_topic("rd/").c_str(), base = g_sat.base.c_str();
         if (topic.compare(0, rdp.size(), rdp) == 0) {
           rd_mqtt_in(topic.substr(rdp.size()), ev->data, ev->data_len);
+          break;
+        }
+        if (topic.compare(0, base.size() + 7, base + "/tiles/") == 0) {   // abonnierte Kachel
+          rd_mqtt_in("tile", ev->data, ev->data_len);
+          break;
+        }
+        if (topic == base + "/time") {
+          rd_mqtt_in("time", ev->data, ev->data_len);
           break;
         }
 #endif

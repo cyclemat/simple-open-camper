@@ -13,4 +13,5 @@ void sat_display_json(JsonObject o);           // Weboberflaeche: alle Kacheln (
 bool sat_display_apply(JsonObjectConst c);     // Weboberflaeche: Einstellungen uebernehmen und speichern
 bool sat_display_reset_requested();            // beim Einschalten 10 s gedrueckt gehalten (Passwort zuruecksetzen)
 void sat_display_light(JsonObject o);          // Lichtsensor: {ldr: Messwert (groesser = dunkler), night, auto}
-bool sat_display_night();                      // Helligkeit-Automatik an und es ist dunkel (z. B. LED dimmen)
+bool sat_display_night();
+void sat_display_web_touch();   // Zugriff auf die Weboberflaeche (Zusatzdisplay: Kacheln solange entladen)                      // Helligkeit-Automatik an und es ist dunkel (z. B. LED dimmen)

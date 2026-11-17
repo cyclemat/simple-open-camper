@@ -9,6 +9,11 @@
 //  - Antippen am Display: "cmd" mit Kachel, Panel-Startnummer (pn) und fortlaufendem Zaehler, ebenfalls mit Pruefwert.
 //    Das Panel fuehrt es wie ein Antippen am Panel aus (ui_tile_action).
 // Kein eigener Task: ui_remote_tick() laeuft im UI-Takt (100 ms), Socket nicht blockierend.
+//
+// MQTT bevorzugt (wenn das Display sich per MQTT meldet und das Panel einen Broker hat): jede Kachel liegt einmal fuer
+// alle Displays als gespeicherte Nachricht unter <base>/tiles/<Kachel> ('#' -> '~', '+' -> '^'), nur bei Aenderung
+// neu; die Auswahl je Display gespeichert unter <base>/<Display>/rd/keys/<Teil>; Uhrzeit alle 30 s unter <base>/time.
+// Das Display abonniert nur seine Kacheln. Kein Wiederholen noetig, nichts geht verloren (TCP). UDP bleibt Rueckfall.
 #include "ui_remote.h"
 #include "ui_internal.h"
 #include "../i18n/i18n.h"
@@ -22,6 +27,7 @@
 #include <time.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <algorithm>
 #include <deque>
 #include <map>
 #include <functional>
@@ -34,14 +40,15 @@
 namespace {
 const size_t RD_MAX = 4;
 const uint32_t ONLINE_MS = 90000;    // so lange ohne "hello" gilt ein Display als weg
-const uint32_t RESEND_MS = 20000;    // unveraenderte Kacheln so oft wiederholen (UDP kann verloren gehen)
+const uint32_t RESEND_MS = 10000;    // unveraenderte Kacheln so oft wiederholen (UDP kann verloren gehen)
 const uint32_t KEYS_MS = 30000;
-const int BURST = 4;                 // Pakete je Display und Runde (300 ms) – Empfaenger hat nur wenig Puffer
+const int BURST = 3;                 // Pakete je Display und Runde (300 ms) – das CYD puffert nur ~6 Pakete
 
 struct Sent {
   uint32_t sig = 0, ms = 0;
 };
 struct Rd {
+  size_t mq_chunks = 0;   // MQTT: veroeffentlichte Teile der Kachelliste (zum Loeschen ueberzaehliger)
   std::string id, name, ip;
   std::vector<std::string> keys;
   uint32_t udp_ms = 0, mqtt_ms = 0, last_ctr = 0, keys_ms = 0;
@@ -68,7 +75,22 @@ static bool s_loaded = false;
 static std::deque<MqttIn> s_mq;
 static int s_sock = -1;
 static uint32_t s_pn = 0;            // Startnummer dieses Panel-Starts (alte Befehle gelten nicht mehr)
-static uint32_t s_sock_try = 0, s_send_ms = 0;
+static uint32_t s_sock_try = 0, s_send_ms = 0, s_avail_ms = 0;
+// Alle Kacheln des Panels mit Namen und Seite (fuer die Auswahl am Display) – im UI-Takt alle 5 s erneuert, weil die
+// Namen aus den UI-Daten kommen (Webserver-Task darf ui_tile_model nicht aufrufen)
+struct Avail {
+  std::string k, n, p;
+};
+static std::vector<Avail> s_avail;
+static std::map<std::string, uint32_t> s_mq_sig;   // MQTT: zuletzt veroeffentlichter Stand je Kachel
+static uint32_t s_mq_time_ms = 0;
+static std::string topic_key(const std::string &k) {   // Kachel-Schluessel als Teil eines Topics
+  std::string t = k;
+  for (auto &c : t)
+    if (c == '#') c = '~';
+    else if (c == '+') c = '^';
+  return t;
+}
 
 // ---------------------------------------------------------------- Speicher (NVS "rdisp")
 static void save() {
@@ -134,7 +156,11 @@ static void udp_to(const std::string &ip, const std::string &payload) {
 }
 
 static void send_to(const Rd &r, const char *sub, const std::string &payload, uint32_t now) {
-  if (r.udp_ms && now - r.udp_ms < ONLINE_MS) udp_to(r.ip, payload);
+  bool udp = r.udp_ms && now - r.udp_ms < ONLINE_MS && !r.ip.empty();
+  if (udp) {   // UDP direkt reicht – MQTT nur, wenn das Display per UDP nicht zu hoeren ist (sonst alles doppelt)
+    udp_to(r.ip, payload);
+    return;
+  }
   if (r.mqtt_ms && now - r.mqtt_ms < ONLINE_MS && z2m_connected())
     z2m_publish(std::string(SAT_BASE) + "/" + r.id + "/rd/" + sub, payload);
 }
@@ -166,6 +192,11 @@ static std::string tile_json(const std::string &key, const TileModel &m) {
     c.add(m.ct_max);
     c.add(m.ct);
   }
+  if (m.vset) {   // MultiPlus/Ladegeraet: Schalter
+    d["vs"] = m.vset;
+    d["vm"] = m.vmode;
+  }
+  if (m.vlim >= 0) d["vl"] = m.vlim;   // Netzstrom-Begrenzung (0,1 A)
   std::string s;
   serializeJson(d, s);
   return s;
@@ -178,25 +209,105 @@ static void send_round(uint32_t now) {
     Lock l;
     rds = s_rd;
   }
+  // ---- MQTT: Kacheln aller per MQTT verbundenen Displays einmal gespeichert veroeffentlichen
+  bool broker = z2m_connected();
+  std::vector<std::string> mq_keys;
+  if (broker)
+    for (auto &r : rds)
+      if (r.mqtt_ms && now - r.mqtt_ms < ONLINE_MS)
+        for (auto &k : r.keys)
+          if (std::find(mq_keys.begin(), mq_keys.end(), k) == mq_keys.end()) mq_keys.push_back(k);
+  if (broker) {
+    std::string base = SAT_BASE;
+    int pub = 0;
+    for (auto &k : mq_keys) {
+      if (pub >= 12) break;   // je Runde (150 ms) hoechstens 12 – der Rest folgt
+      TileModel m;
+      if (!ui_tile_model(k, m)) continue;
+      std::string js = tile_json(k, m);
+      uint32_t sig = std::hash<std::string>()(js);
+      auto it = s_mq_sig.find(k);
+      if (it != s_mq_sig.end() && it->second == sig) continue;
+      z2m_publish_retained(base + "/tiles/" + topic_key(k), js);
+      s_mq_sig[k] = sig;
+      pub++;
+    }
+    for (auto it = s_mq_sig.begin(); it != s_mq_sig.end();)   // nicht mehr gebraucht: beim Broker loeschen
+      if (std::find(mq_keys.begin(), mq_keys.end(), it->first) == mq_keys.end()) {
+        z2m_publish_retained(base + "/tiles/" + topic_key(it->first), "");
+        it = s_mq_sig.erase(it);
+      } else {
+        ++it;
+      }
+    if (!mq_keys.empty() && (!s_mq_time_ms || now - s_mq_time_ms > 30000)) {   // Uhrzeit (nicht gespeichert)
+      s_mq_time_ms = now;
+      time_t tnow = time(nullptr);
+      if (tnow > 1600000000) {
+        JsonDocument d;
+        d["t"] = "time";
+        d["pn"] = s_pn;
+        d["tm"] = (uint32_t)tnow;
+        d["tz"] = settings_copy().tz.c_str();
+        std::string s;
+        serializeJson(d, s);
+        z2m_publish(base + "/time", s);
+      }
+    }
+  } else if (!s_mq_sig.empty()) {
+    s_mq_sig.clear();   // Broker weg: nach dem Wiederverbinden alles neu veroeffentlichen
+  }
+
   for (auto &r : rds) {
     bool on = (r.udp_ms && now - r.udp_ms < ONLINE_MS) || (r.mqtt_ms && now - r.mqtt_ms < ONLINE_MS);
     if (!on) continue;
-    if (r.keys_dirty || now - r.keys_ms > KEYS_MS) {
-      JsonDocument d;
-      d["t"] = "keys";
-      d["pn"] = s_pn;
-      time_t tnow = time(nullptr);
-      if (tnow > 1600000000) {   // Uhrzeit fuer die Uhr des Displays (es hat oft kein Internet)
-        d["tm"] = (uint32_t)tnow;
-        d["tz"] = settings_copy().tz.c_str();
+    if (broker && r.mqtt_ms && now - r.mqtt_ms < ONLINE_MS) {
+      // MQTT: nur die Kachelliste dieses Displays (gespeichert, in Teilen), Kacheln kommen oben gemeinsam
+      if (r.keys_dirty || !r.keys_ms) {
+        const size_t CH = 12;
+        std::string base = std::string(SAT_BASE) + "/" + r.id + "/rd/keys/";
+        size_t parts = 0;
+        for (size_t o = 0; o == 0 || o < r.keys.size(); o += CH, parts++) {
+          JsonDocument d;
+          d["t"] = "keys";
+          d["pn"] = s_pn;
+          d["o"] = o;
+          d["n"] = r.keys.size();
+          JsonArray a = d["ks"].to<JsonArray>();
+          for (size_t i = o; i < r.keys.size() && i < o + CH; i++) a.add(r.keys[i]);
+          std::string s;
+          serializeJson(d, s);
+          z2m_publish_retained(base + std::to_string(parts), s);
+        }
+        for (size_t i = parts; i < r.mq_chunks; i++) z2m_publish_retained(base + std::to_string(i), "");   // alte Teile weg
+        r.mq_chunks = parts;
+        r.keys_dirty = false;
+        r.keys_ms = now;
       }
-      JsonArray a = d["ks"].to<JsonArray>();
-      for (auto &k : r.keys) a.add(k);
-      std::string s;
-      serializeJson(d, s);
-      send_to(r, "keys", s, now);
+      continue;
+    }
+    if (r.keys_dirty || now - r.keys_ms > KEYS_MS) {
+      // Kachelliste in Teilen (o = ab Eintrag, n = gesamt): ein Paket ueber ~1,4 KB wird geteilt, das CYD verwirft das
+      const size_t CH = 12;
+      time_t tnow = time(nullptr);
+      for (size_t o = 0; o == 0 || o < r.keys.size(); o += CH) {
+        JsonDocument d;
+        d["t"] = "keys";
+        d["pn"] = s_pn;
+        d["o"] = o;
+        d["n"] = r.keys.size();
+        if (o == 0 && tnow > 1600000000) {   // Uhrzeit fuer die Uhr des Displays (es hat oft kein Internet)
+          d["tm"] = (uint32_t)tnow;
+          d["tz"] = settings_copy().tz.c_str();
+        }
+        JsonArray a = d["ks"].to<JsonArray>();
+        for (size_t i = o; i < r.keys.size() && i < o + CH; i++) a.add(r.keys[i]);
+        std::string s;
+        serializeJson(d, s);
+        send_to(r, "keys", s, now);
+      }
       r.keys_dirty = false;
       r.keys_ms = now;
+      continue;   // Kacheln erst in der naechsten Runde (sonst zu viele Pakete auf einmal fuer das CYD)
     }
     // Zuerst geaenderte Kacheln (sofort, z. B. nach dem Schalten), danach reihum die Wiederholungen
     int sent = 0;
@@ -213,7 +324,7 @@ static void send_round(uint32_t now) {
         if (now - st.ms >= RESEND_MS) later.push_back({k, js});
         continue;
       }
-      if (sent >= BURST * 2) continue;   // naechste Runde (300 ms)
+      if (sent >= BURST) continue;   // naechste Runde (300 ms) – sonst gehen beim CYD Pakete verloren
       send_to(r, "tile", js, now);
       st.sig = sig;
       st.ms = now;
@@ -234,6 +345,7 @@ static void send_round(uint32_t now) {
     if (!r) continue;
     r->sent = c.sent;
     r->rr = c.rr;
+    r->mq_chunks = c.mq_chunks;
     if (!r->keys_dirty || c.keys_ms > r->keys_ms) {   // inzwischen neu gesetzte Kacheln nicht verschlucken
       r->keys_dirty = c.keys_dirty;
       r->keys_ms = c.keys_ms;
@@ -365,7 +477,20 @@ void ui_remote_tick() {
     }
     handle(m.payload.data(), m.payload.size(), "", false);
   }
-  if (now - s_send_ms >= 300) {
+  if (!s_avail_ms || now - s_avail_ms >= 5000) {
+    s_avail_ms = now;
+    std::vector<Avail> av;
+    Layout lay = layout_get();
+    for (auto &pg : lay.pages)
+      for (auto &t : pg.tiles) {
+        if (std::any_of(av.begin(), av.end(), [&](const Avail &a) { return a.k == t.key; })) continue;
+        TileModel m;
+        if (ui_tile_model(t.key, m)) av.push_back({t.key, m.name, pg.name});
+      }
+    Lock l;
+    s_avail.swap(av);
+  }
+  if (now - s_send_ms >= 150) {   // je Runde hoechstens BURST Pakete: ~20 Kacheln pro Sekunde
     s_send_ms = now;
     bool any;
     {
@@ -407,6 +532,44 @@ std::string ui_remote_json() {
   std::string s;
   serializeJson(d, s);
   return s;
+}
+
+std::string ui_remote_avail_json(const std::string &id) {
+  Lock l;
+  load();
+  JsonDocument d;
+  JsonArray a = d["avail"].to<JsonArray>();
+  for (auto &x : s_avail) {
+    JsonObject o = a.add<JsonObject>();
+    o["k"] = x.k;
+    o["n"] = x.n;
+    o["p"] = x.p;
+  }
+  JsonArray t = d["tiles"].to<JsonArray>();
+  if (Rd *r = find(id))
+    for (auto &k : r->keys) t.add(k);
+  std::string s;
+  serializeJson(d, s);
+  return s;
+}
+
+std::vector<RdListItem> ui_remote_list() {
+  Lock l;
+  load();
+  uint32_t now = millis();
+  std::vector<RdListItem> out;
+  for (auto &r : s_rd) {
+    RdListItem i;
+    i.id = r.id;
+    i.name = r.name.empty() ? r.id : r.name;
+    i.ip = r.ip;
+    i.udp = r.udp_ms && now - r.udp_ms < ONLINE_MS;
+    i.mqtt = r.mqtt_ms && now - r.mqtt_ms < ONLINE_MS;
+    i.online = i.udp || i.mqtt;
+    i.tiles = r.keys.size();
+    out.push_back(i);
+  }
+  return out;
 }
 
 bool ui_remote_set(const std::string &id, const std::vector<std::string> &keys, const std::string &name) {

@@ -1249,6 +1249,8 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
     o["status"] = b.status;
     o["dev"] = b.dev;
     o["sum"] = bms_value_text(b);
+    o["pin"] = b.pin_set;        // Kopplungs-PIN gespeichert
+    o["pin_need"] = b.pin_need;  // Akku hat beim Koppeln eine PIN verlangt
   }
   JsonArray bf = d["found"].to<JsonArray>();
   for (auto &f : bms_found()) {
@@ -1280,7 +1282,8 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
   return send_json(req, s);
 }
 
-// {"on":bool} | {"scan":true} | {"add":{mac,addr_type,name,model,cap,cells}} | {"remove":mac} | {"rename":{mac,name}}
+// {"on":bool} | {"scan":true} | {"add":{mac,addr_type,name,model,cap,cells[,pin]}} | {"remove":mac} | {"rename":{mac,name}}
+// | {"pin":{mac,pin}} (Kopplungs-PIN, "" = loeschen)
 static esp_err_t h_bms_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 1024, len);
@@ -1409,7 +1412,15 @@ static esp_err_t h_sat_post(httpd_req_t *req) {
 }
 
 // ---------------------------------------------------------------- Zusatzdisplays
-static esp_err_t h_rdisp_get(httpd_req_t *req) { return send_json(req, ui_remote_json()); }
+static esp_err_t h_rdisp_get(httpd_req_t *req) {
+  char q[96] = "", id[48] = "", av[4] = "";
+  if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK) {
+    httpd_query_key_value(q, "id", id, sizeof(id));
+    httpd_query_key_value(q, "avail", av, sizeof(av));
+  }
+  if (av[0] == '1') return send_json(req, ui_remote_avail_json(id));   // Auswahl am Zusatzdisplay
+  return send_json(req, ui_remote_json());
+}
 
 // {"id":"Display-…","tiles":["key",…],"name":"…"} | {"forget":"Display-…"}
 static esp_err_t h_rdisp_post(httpd_req_t *req) {

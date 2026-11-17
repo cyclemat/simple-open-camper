@@ -221,6 +221,50 @@ static void print_info() {
   log_printf("==========================================\n\n");
 }
 
+#if HAS_C6
+// Selbsttest der Bluetooth-Schluesselrechnung (P-256, Secure Connections) im NimBLE-Stack des P4.
+// Grund: Kopplung mit PIN scheitert am P4 mit "DHKey Check Failed"; der Stack rechnet mit dem ECC-Rechenwerk des Chips.
+extern "C" int ble_sm_alg_gen_key_pair(uint8_t *pub, uint8_t *priv);
+extern "C" int ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x, const uint8_t *peer_pub_key_y, const uint8_t *our_priv_key,
+                                    uint8_t *out_dhkey);
+static void hexle(const char *t, const uint8_t *d) {   // Schluessel liegen little-endian vor
+  char b[65];
+  for (int i = 0; i < 32; i++) snprintf(b + 2 * i, 3, "%02x", d[31 - i]);
+  log_printf("  %s %s\n", t, b);
+}
+static void sm_selftest() {
+  // Basispunkt G der Kurve P-256 (big-endian), hier little-endian abgelegt
+  static const char *GX = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+  static const char *GY = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+  uint8_t gx[32], gy[32];
+  for (int i = 0; i < 32; i++) {
+    unsigned v;
+    sscanf(GX + 2 * i, "%2x", &v);
+    gx[31 - i] = v;
+    sscanf(GY + 2 * i, "%2x", &v);
+    gy[31 - i] = v;
+  }
+  int fails = 0;
+  for (int run = 0; run < 3; run++) {
+    uint8_t pa[64], ka[32], pb[64], kb[32], d1[32], d2[32], g1[32];
+    int r1 = ble_sm_alg_gen_key_pair(pa, ka), r2 = ble_sm_alg_gen_key_pair(pb, kb);
+    int r3 = ble_sm_alg_gen_dhkey(pb, pb + 32, ka, d1), r4 = ble_sm_alg_gen_dhkey(pa, pa + 32, kb, d2);
+    int r5 = ble_sm_alg_gen_dhkey(gx, gy, ka, g1);   // a*G = oeffentlicher Schluessel A (x)
+    bool sym = !memcmp(d1, d2, 32), pub = !memcmp(g1, pa, 32);
+    log_printf("Lauf %d: Rueckgaben %d %d %d %d %d, a*B == b*A: %s, a*G == A: %s\n", run + 1, r1, r2, r3, r4, r5,
+               sym ? "ja" : "NEIN", pub ? "ja" : "NEIN");
+    if (!sym || !pub || r1 || r2 || r3 || r4 || r5) {
+      fails++;
+      hexle("a*B", d1);
+      hexle("b*A", d2);
+      hexle("A.x", pa);
+      hexle("a*G", g1);
+    }
+  }
+  log_printf(fails ? "ERGEBNIS: Schluesselrechnung FEHLERHAFT (%d von 3)\n" : "ERGEBNIS: Schluesselrechnung in Ordnung\n", fails);
+}
+#endif
+
 static void run(const char *cmd) {
   if (!strcmp(cmd, "debug") || !strcmp(cmd, "info") || !strcmp(cmd, "ram") || !strcmp(cmd, "status")) {
     print_info();
@@ -253,6 +297,8 @@ static void run(const char *cmd) {
       delay(1500);
       ESP.restart();
     }
+  } else if (!strcmp(cmd, "smtest")) {
+    sm_selftest();
   } else if (!strcmp(cmd, "c6datei")) {
     c6_from_file("/sd/c6.bin");
 #endif

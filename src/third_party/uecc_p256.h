@@ -1,0 +1,67 @@
+// micro-ecc (BSD-2-Clause) nur mit P-256 – Software-Ersatz fuer die Bluetooth-Schluesselrechnung des P4 (uecc_p256.c).
+// Eigener Namenspraefix (Framework und uecc_ef.h bringen dieselben Namen mit).
+#pragma once
+#define uECC_set_rng p256_uECC_set_rng
+#define uECC_get_rng p256_uECC_get_rng
+#define uECC_curve_private_key_size p256_uECC_curve_private_key_size
+#define uECC_curve_public_key_size p256_uECC_curve_public_key_size
+#define uECC_make_key p256_uECC_make_key
+#define uECC_shared_secret p256_uECC_shared_secret
+#define uECC_compress p256_uECC_compress
+#define uECC_decompress p256_uECC_decompress
+#define uECC_valid_public_key p256_uECC_valid_public_key
+#define uECC_compute_public_key p256_uECC_compute_public_key
+#define uECC_sign p256_uECC_sign
+#define uECC_sign_deterministic p256_uECC_sign_deterministic
+#define uECC_verify p256_uECC_verify
+#define uECC_secp160r1 p256_uECC_secp160r1
+#define uECC_secp192r1 p256_uECC_secp192r1
+#define uECC_secp224r1 p256_uECC_secp224r1
+#define uECC_secp256r1 p256_uECC_secp256r1
+#define uECC_secp256k1 p256_uECC_secp256k1
+// interne Funktionen (nicht alle sind static – NimBLE bringt TinyCrypt mit gleichen Namen mit)
+#define uECC_curve_G p256_uECC_curve_G
+#define uECC_curve_b p256_uECC_curve_b
+#define uECC_curve_n p256_uECC_curve_n
+#define uECC_curve_num_bits p256_uECC_curve_num_bits
+#define uECC_curve_num_bytes p256_uECC_curve_num_bytes
+#define uECC_curve_num_n_bits p256_uECC_curve_num_n_bits
+#define uECC_curve_num_n_bytes p256_uECC_curve_num_n_bytes
+#define uECC_curve_num_n_words p256_uECC_curve_num_n_words
+#define uECC_curve_num_words p256_uECC_curve_num_words
+#define uECC_curve_p p256_uECC_curve_p
+#define uECC_generate_random_int p256_uECC_generate_random_int
+#define uECC_point_mult p256_uECC_point_mult
+#define uECC_sign_with_k p256_uECC_sign_with_k
+#define uECC_vli_add p256_uECC_vli_add
+#define uECC_vli_bytesToNative p256_uECC_vli_bytesToNative
+#define uECC_vli_clear p256_uECC_vli_clear
+#define uECC_vli_cmp p256_uECC_vli_cmp
+#define uECC_vli_cmp_unsafe p256_uECC_vli_cmp_unsafe
+#define uECC_vli_equal p256_uECC_vli_equal
+#define uECC_vli_isZero p256_uECC_vli_isZero
+#define uECC_vli_mmod p256_uECC_vli_mmod
+#define uECC_vli_mmod_fast p256_uECC_vli_mmod_fast
+#define uECC_vli_modAdd p256_uECC_vli_modAdd
+#define uECC_vli_modInv p256_uECC_vli_modInv
+#define uECC_vli_modMult p256_uECC_vli_modMult
+#define uECC_vli_modMult_fast p256_uECC_vli_modMult_fast
+#define uECC_vli_modSquare p256_uECC_vli_modSquare
+#define uECC_vli_modSquare_fast p256_uECC_vli_modSquare_fast
+#define uECC_vli_modSub p256_uECC_vli_modSub
+#define uECC_vli_mod_sqrt p256_uECC_vli_mod_sqrt
+#define uECC_vli_mult p256_uECC_vli_mult
+#define uECC_vli_nativeToBytes p256_uECC_vli_nativeToBytes
+#define uECC_vli_numBits p256_uECC_vli_numBits
+#define uECC_vli_rshift1 p256_uECC_vli_rshift1
+#define uECC_vli_set p256_uECC_vli_set
+#define uECC_vli_square p256_uECC_vli_square
+#define uECC_vli_sub p256_uECC_vli_sub
+#define uECC_vli_testBit p256_uECC_vli_testBit
+#define uECC_SUPPORTS_secp160r1 0
+#define uECC_SUPPORTS_secp192r1 0
+#define uECC_SUPPORTS_secp224r1 0
+#define uECC_SUPPORTS_secp256r1 1
+#define uECC_SUPPORTS_secp256k1 0
+#define uECC_SUPPORT_COMPRESSED_POINT 0
+#include "micro-ecc/uECC.h"

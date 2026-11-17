@@ -29,6 +29,7 @@ static std::string lower_mac(std::string s);
 #include "../wled.h"
 #include "../sdcard.h"
 #include "../panelsat_pair.h"
+#include "ui_remote.h"
 #include <Arduino.h>
 #include <functional>
 #include <vector>
@@ -50,6 +51,7 @@ static lv_obj_t *s_info_url = nullptr, *s_info_url2 = nullptr;
 static std::vector<lv_obj_t *> s_vic_vals;
 static uint32_t s_vic_sig = 0;
 static std::vector<lv_obj_t *> s_sat_vals;   // Satelliten in "Geraete"
+static std::vector<lv_obj_t *> s_rd_vals;    // Zusatzdisplays in "Geraete"
 static lv_obj_t *s_pair_status = nullptr;     // Stand der Satelliten-Einrichtung in "Geraete"
 static uint32_t s_sat_sig = 0;
 static std::vector<lv_obj_t *> s_gx_vals;     // Cerbo GX: Status + fuenf Werte
@@ -72,6 +74,7 @@ static void reset_dynamic() {
   s_vic_vals.clear();
   s_gx_vals.clear();
   s_sat_vals.clear();
+  s_rd_vals.clear();
   s_pair_status = nullptr;
 }
 
@@ -1221,6 +1224,8 @@ static uint32_t sat_struct_sig() {
     for (char c : n.id) h = h * 31 + c;
     h = h * 31 + (uint32_t)n.devices;
   }
+  for (auto &d : ui_remote_list())   // Zusatzdisplays: neue/entfernte bauen die Seite neu
+    for (char c : d.id) h = h * 31 + c;
   return h;
 }
 
@@ -1231,7 +1236,9 @@ static std::string sat_summary(const SatNode &n) {
   if (n.via & 4) via += via.empty() ? "Bluetooth" : ", Bluetooth";
   char b[96];
   snprintf(b, sizeof(b), tr("%s · %u Gerät(e) · %s"), n.online ? tr("online") : tr("offline"), (unsigned)n.devices, via.c_str());
-  return b;
+  std::string s = b;
+  if (!n.ip.empty()) s += " · " + n.ip;   // Adresse gleich sichtbar (Weboberflaeche des Satelliten)
+  return s;
 }
 
 // Satellit im Einrichtungsmodus antippen: WLAN-Daten und Passwort uebertragen (panelsat_pair.cpp)
@@ -1259,6 +1266,59 @@ static void sat_row_cb(lv_event_t *e) {
   std::string id = n.id;
   ui_confirm(n.name.c_str(), txt.c_str(), "Entfernen", true, [id] {
     panelsat_forget(id);
+    show_section(SEC_DEVICES);
+  });
+}
+
+// Zweizeiliger Eintrag: Name oben, Stand darunter (einzeilig ueberlappten lange Namen und lange Texte)
+static lv_obj_t *row2(lv_obj_t *g, const char *title, const char *sub, lv_event_cb_t cb, void *ud) {
+  lv_obj_t *r = lv_obj_create(g);
+  ui_plain(r);
+  lv_obj_set_size(r, lv_pct(100), LV_SIZE_CONTENT);
+  lv_obj_set_style_pad_ver(r, 10, 0);
+  lv_obj_set_style_pad_hor(r, 12, 0);
+  lv_obj_set_style_border_side(r, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_width(r, 1, 0);
+  lv_obj_set_style_border_color(r, C_LINE, 0);
+  lv_obj_set_flex_flow(r, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(r, 2, 0);
+  lv_obj_clear_flag(r, LV_OBJ_FLAG_SCROLLABLE);
+  if (cb) {
+    lv_obj_add_flag(r, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(r, LV_OPA_COVER, LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(r, C_FIELD, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(r, cb, LV_EVENT_CLICKED, ud);
+  }
+  lv_obj_t *t = ui_label(r, title, F_BODY, C_TEXT);
+  lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(t, lv_pct(100));
+  lv_obj_t *v = ui_label(r, sub, F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(v, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(v, lv_pct(100));
+  return v;
+}
+
+// Zusatzdisplays (ui_remote.cpp): antippen zeigt Adresse und "Entfernen"
+static std::vector<std::string> s_rd_ids;
+static std::string rd_summary(const RdListItem &d) {
+  std::string via = std::string(d.udp ? "UDP" : "") + (d.udp && d.mqtt ? ", " : "") + (d.mqtt ? "MQTT" : "");
+  char b[96];
+  snprintf(b, sizeof(b), tr("%s · %u Kachel(n)%s%s"), d.online ? tr("verbunden") : tr("nicht verbunden"), (unsigned)d.tiles,
+           via.empty() ? "" : " · ", via.c_str());
+  std::string s = b;
+  if (!d.ip.empty()) s += " · " + d.ip;
+  return s;
+}
+static void rd_row_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  auto l = ui_remote_list();
+  if (i >= l.size()) return;
+  std::string txt = l[i].ip.empty() ? std::string(tr("Noch keine IP gemeldet.")) : std::string(tr("Weboberfläche: http://")) + l[i].ip + "/";
+  txt += tr("\n\nWelche Kacheln es zeigt: im Editor dieses Panels (Reiter Zusatzdisplays) oder in seiner eigenen "
+            "Weboberfläche. Entfernen nimmt es aus der Liste – solange es läuft, meldet es sich wieder an.");
+  std::string id = l[i].id;
+  ui_confirm(l[i].name.c_str(), txt.c_str(), "Entfernen", true, [id] {
+    ui_remote_forget(id);
     show_section(SEC_DEVICES);
   });
 }
@@ -1309,7 +1369,19 @@ static void build_sats() {
   ui_row(g, "Satelliten-Passwort", panelsat_password().c_str(), sat_pw_cb, nullptr);
   if (nodes.empty()) ui_label(g, "Noch kein Satellit gehört.", F_BODY, C_TEXT2);
   for (size_t i = 0; i < nodes.size(); i++)
-    s_sat_vals.push_back(ui_row(g, nodes[i].name.c_str(), sat_summary(nodes[i]).c_str(), sat_row_cb, (void *)(intptr_t)i));
+    s_sat_vals.push_back(row2(g, nodes[i].name.c_str(), sat_summary(nodes[i]).c_str(), sat_row_cb, (void *)(intptr_t)i));
+  // Zusatzdisplays (kleine Displays mit Kacheln dieses Panels) – auch hier sichtbar
+  auto rds = ui_remote_list();
+  s_rd_ids.clear();
+  s_rd_vals.clear();
+  if (!rds.empty()) {
+    subheading("Zusatzdisplays");
+    lv_obj_t *rg = group();
+    for (size_t i = 0; i < rds.size(); i++) {
+      s_rd_vals.push_back(row2(rg, rds[i].name.c_str(), rd_summary(rds[i]).c_str(), rd_row_cb, (void *)(intptr_t)i));
+      s_rd_ids.push_back(rds[i].id);
+    }
+  }
   // Neuen Satelliten hinzufuegen: 3 Minuten per Bluetooth suchen; am Satelliten BOOT 3 s halten -> erscheint hier,
   // antippen uebertraegt WLAN-Zugang (je nach Betriebsart) und Passwort, danach spricht er per UDP
   s_pair_macs.clear();
@@ -1324,12 +1396,12 @@ static void build_sats() {
     lv_obj_t *pg = group();
     for (auto &c : satpair_candidates()) {
       char v[40];
-      snprintf(v, sizeof(v), tr("%d dBm · Einrichten"), c.rssi);
-      ui_row(pg, c.name.c_str(), v, sat_pair_cb, (void *)(intptr_t)s_pair_macs.size());
+      snprintf(v, sizeof(v), tr("%d dBm · antippen zum Einrichten"), c.rssi);
+      row2(pg, c.name.c_str(), v, sat_pair_cb, (void *)(intptr_t)s_pair_macs.size());
       s_pair_macs.push_back(c.mac);
     }
     std::string t = st != 0 ? satpair_status() : sat_search_text();
-    s_pair_status = ui_row(pg, st != 0 ? "Stand" : "Suche", t.c_str(), nullptr, nullptr);
+    s_pair_status = row2(pg, st != 0 ? "Stand" : "Suche", t.c_str(), nullptr, nullptr);
   }
   if (g_settings.net_mode == NET_OFF) {
     lv_obj_t *ph = ui_label(s_content, "Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", F_SMALL, C_TEXT2);
@@ -1347,6 +1419,8 @@ void ui_settings_tick_sat() {
   }
   auto nodes = panelsat_nodes();
   for (size_t i = 0; i < nodes.size() && i < s_sat_vals.size(); i++) lv_label_set_text(s_sat_vals[i], sat_summary(nodes[i]).c_str());
+  auto rds = ui_remote_list();
+  for (size_t i = 0; i < rds.size() && i < s_rd_vals.size(); i++) lv_label_set_text(s_rd_vals[i], rd_summary(rds[i]).c_str());
   if (s_pair_status)
     lv_label_set_text(s_pair_status, (satpair_state() != 0 ? satpair_status() : sat_search_text()).c_str());
 }
@@ -1628,6 +1702,36 @@ static void bms_row_cb(lv_event_t *e) {
   if (i < s_bms_keys.size()) ui_vic_open(s_bms_keys[i]);
 }
 
+// Hinzufuegen: Name -> Kopplungs-PIN (leer = keine; Super B verlangt immer eine) -> bms_add -> Kachel anbieten
+struct BmsAdd {
+  BmsFound f;
+  std::string name;
+};
+static void bms_pin_ask_cb(lv_timer_t *tm) {
+  BmsAdd *a = (BmsAdd *)tm->user_data;
+  lv_timer_del(tm);
+  BmsFound f = a->f;
+  std::string name = a->name;
+  delete a;
+  InputOptions o;
+  o.title = "Kopplungs-PIN";
+  o.hint = f.model == BMS_SUPERB
+               ? "Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung."
+               : "Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). "
+                 "Meist leer lassen. Später änderbar: Akku antippen > PIN.";
+  o.numeric = true;
+  o.max_len = 6;
+  o.on_ok = [f, name](const std::string &pin, bool) {
+    std::string err = bms_add(f.mac, f.addr_type, name, f.model, f.capacity_ah, f.cells);
+    if (err.empty() && !pin.empty()) bms_set_pin(f.mac, pin);
+    ui_toast(err.empty() ? (pin.empty() ? "Eingerichtet – das Panel verbindet sich gleich."
+                                        : "Eingerichtet – das Panel koppelt gleich mit PIN.")
+                         : err.c_str());
+    if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), name.empty() ? std::string(bms_model_text(f.model)) : name);
+  };
+  ui_input_open(o);
+}
+
 static void bms_found_cb(lv_event_t *e) {
   size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
   if (i >= s_bms_found.size()) return;
@@ -1642,9 +1746,14 @@ static void bms_found_cb(lv_event_t *e) {
   o.initial = f.name.empty() ? std::string(bms_model_text(f.model)) : f.name;
   o.max_len = 32;
   o.on_ok = [f](const std::string &t, bool) {
-    std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
-    ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
-    if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string(bms_model_text(f.model)) : t);
+    if (is_ps(f.model)) {   // Power Stations: keine Kopplungs-PIN
+      std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
+      ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
+      if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string(bms_model_text(f.model)) : t);
+      return;
+    }
+    // zweiter Dialog erst nach dem Schliessen des ersten (Timer, wie offer_tile)
+    lv_timer_create(bms_pin_ask_cb, 300, new BmsAdd{f, t});
   };
   ui_input_open(o);
 }

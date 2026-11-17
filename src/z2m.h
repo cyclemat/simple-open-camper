@@ -42,6 +42,7 @@ std::vector<ControlView> z2m_all();     // alphabetisch nach Name
 size_t z2m_count();
 
 void z2m_toggle(const std::string &key);
+void z2m_publish_retained(const std::string &topic, const std::string &payload);   // gespeichert beim Broker (leer = loeschen)
 void z2m_set_on(const std::string &key, bool on);
 void z2m_set_brightness_pct(const std::string &key, int pct);
 void z2m_set_ct(const std::string &key, int mired);

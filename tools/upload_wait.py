@@ -21,25 +21,6 @@ def wait_enter(source, target, env):
 env.AddPreAction("upload", wait_enter)  # noqa: F821
 
 
-# Menuepunkt "Nur flashen (letzter Build)": spielt die zuletzt gebaute Firmware auf, ohne vorher zu bauen
-# (im PlatformIO-Menue der Umgebung unter "Custom"). Entspricht "pio run -e <umgebung> -t nobuild -t upload".
-def _flash_last_cmd(env):
-    cmd = '"$PYTHONEXE" -m platformio run -d "$PROJECT_DIR" -e $PIOENV -t nobuild -t upload'
-    port = env.GetProjectOption("upload_port", "")
-    if port:
-        cmd += ' --upload-port "%s"' % port
-    return cmd
-
-
-env.AddCustomTarget(  # noqa: F821
-    name="flash_last",
-    dependencies=None,
-    actions=[_flash_last_cmd(env)],  # noqa: F821
-    title="Nur flashen (letzter Build)",
-    description="Zuletzt gebaute Firmware aufspielen, ohne neu zu bauen",
-)
-
-
 # ---------------------------------------------------------------- Lokaler Release-Ordner
 # Nach jedem erfolgreichen Build landen die fertigen Dateien in <repo>/release/lokal/ (nicht im Git) – je Umgebung
 # immer nur die neueste, damit man zum Flashen nicht neu bauen muss:
@@ -68,6 +49,67 @@ def _soc_version(root):
     except OSError:
         pass
     return "?"
+
+
+# Menuepunkt "Nur flashen (letzter Build)" (im PlatformIO-Menue der Umgebung unter "Custom"): spielt die zuletzt
+# gebaute Firmware auf, ohne zu bauen. Schreibt nur die App (an ota_0, meist 0x10000) und boot_app0 (otadata -> startet
+# wieder aus app0, auch nach einem Netz-Update). Bootloader, Partitionen und NVS bleiben – Einstellungen bleiben erhalten.
+# Quelle: Build-Ordner; ist der leer (PlatformIO leert ihn manchmal), die Kopie in release/lokal/<umgebung>-update.bin.
+def _app_offset(env):
+    csv = env.subst("$PARTITIONS_TABLE_CSV")
+    slot = env.GetProjectOption("custom_app_slot", "") or "ota_0"
+    try:
+        for line in open(csv, encoding="utf-8"):
+            t = [x.strip() for x in line.split("#")[0].split(",")]
+            if len(t) >= 4 and t[1] == "app" and t[2] in (slot, "factory" if slot == "ota_0" else slot):
+                return int(t[3], 0)
+    except (OSError, ValueError):
+        pass
+    return 0x10000
+
+
+def flash_last(source, target, env):
+    import subprocess
+    name = env["PIOENV"]
+    app = os.path.join(env.subst("$BUILD_DIR"), env.subst("${PROGNAME}.bin"))
+    slot1 = env.GetProjectOption("custom_app_slot", "") == "ota_1"
+    rel = os.path.join(_repo_root(env), "release", "lokal", name + ("@0x2F0000.bin" if slot1 else "-update.bin"))
+    if not os.path.isfile(app):
+        app = rel
+    if not os.path.isfile(app):
+        print("Nur flashen: keine gebaute Firmware gefunden (weder im Build-Ordner noch %s) – erst bauen." % rel)
+        env.Exit(1)
+    st = time.strftime("%Y-%m-%d %H:%M", time.localtime(os.path.getmtime(app)))
+    off = _app_offset(env)
+    images = []
+    if not slot1:   # otadata zuruecksetzen: sonst startet ein Geraet nach einem Netz-Update weiter aus app1
+        bapp = os.path.join(env.PioPlatform().get_package_dir("framework-arduinoespressif32") or "",
+                            "tools", "partitions", "boot_app0.bin")
+        if os.path.isfile(bapp):
+            images += ["0xe000", bapp]
+    images += [hex(off), app]
+    if not env.subst("$UPLOAD_PORT"):
+        env.AutodetectUploadPort()
+    port = env.subst("$UPLOAD_PORT")
+    uploader = env.subst("$UPLOADER").strip('"')
+    cmd = [uploader, "--chip", env.BoardConfig().get("build.mcu", "esp32"), "--port", port,
+           "--baud", env.subst("$UPLOAD_SPEED") or "460800", "--before", "default-reset", "--after", "hard-reset",
+           "write-flash", "-z"] + images
+    if uploader.lower().endswith(".py"):
+        cmd = [env.subst("$PYTHONEXE")] + cmd
+    print("Nur flashen: %s (Stand %s) nach %s an %s" % (os.path.relpath(app, _repo_root(env)), st, hex(off), port))
+    rc = subprocess.call(cmd)
+    if rc:
+        env.Exit(rc)
+
+
+env.AddCustomTarget(  # noqa: F821
+    name="flash_last",
+    dependencies=None,
+    actions=[flash_last],
+    title="Nur flashen (letzter Build)",
+    description="Zuletzt gebaute Firmware aufspielen, ohne neu zu bauen (Einstellungen bleiben)",
+)
 
 
 def copy_release(source, target, env):

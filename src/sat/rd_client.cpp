@@ -17,6 +17,7 @@
 
 bool sat_mqtt_connected();
 bool sat_mqtt_publish(const std::string &topic, const std::string &payload);
+bool sat_mqtt_sub(const std::string &topic, bool on);
 
 namespace {
 SemaphoreHandle_t s_mtx = nullptr;
@@ -34,10 +35,23 @@ static WiFiUDP s_udp;
 static bool s_udp_on = false;
 static std::map<std::string, RdTile> s_tiles;
 static std::vector<std::string> s_keys;
+static uint32_t s_keys_ver = 1;
 static uint32_t s_pn = 0, s_ctr = 0, s_ver = 1, s_hello_ms = 0, s_panel_ms = 0, s_hellos = 0;
 static bool s_fresh = true;   // noch keine Kachelliste: "frisch gestartet" melden (Panel schickt dann alles)
 static std::string s_panel_ip;
 static std::string s_tz;
+static std::vector<std::string> s_keys_in;   // Kachelliste im Aufbau (kommt in Teilen, per MQTT auch durcheinander)
+static std::vector<bool> s_keys_have;
+static std::vector<std::string> s_subs;      // per MQTT abonnierte Kacheln
+static volatile bool s_resub = false;        // nach dem Wiederverbinden alle neu abonnieren
+static void mqtt_subs();
+static std::string topic_key(const std::string &k) {
+  std::string t = k;
+  for (auto &c : t)
+    if (c == '#') c = '~';
+    else if (c == '+') c = '^';
+  return t;
+}
 
 static std::string mac16(const std::string &msg) {
   uint8_t key[16], full[32];
@@ -80,7 +94,7 @@ static void handle(const char *buf, size_t n, const std::string &from_ip) {
   JsonDocument d;
   if (deserializeJson(d, buf, n)) return;
   std::string t = d["t"] | "";
-  if (t != "tile" && t != "keys") return;
+  if (t != "tile" && t != "keys" && t != "time") return;
   Lock l;
   s_pn = d["pn"] | s_pn;
   s_panel_ms = millis();
@@ -91,7 +105,7 @@ static void handle(const char *buf, size_t n, const std::string &from_ip) {
       sat_config_save();
     }
   }
-  if (t == "keys") {
+  if (t == "keys" || t == "time") {
     // Uhrzeit und Zeitzone vom Hauptpanel (das Display hat oft kein Internet)
     const char *tz = d["tz"] | "";
     if (*tz && s_tz != tz) {
@@ -107,17 +121,41 @@ static void handle(const char *buf, size_t n, const std::string &from_ip) {
         settimeofday(&tv, nullptr);
       }
     }
-    s_keys.clear();
-    for (const char *k : d["ks"].as<JsonArray>()) s_keys.push_back(k);
+    if (t == "time") return;
+    // Teile zusammensetzen: o = ab Eintrag, n = gesamt; Reihenfolge beliebig (gespeicherte MQTT-Nachrichten)
+    size_t o = d["o"] | 0u, total = d["n"] | (size_t)d["ks"].size();
+    if (total > 64) return;
+    if (s_keys_in.size() != total) {
+      s_keys_in.assign(total, std::string());
+      s_keys_have.assign(total, false);
+    }
+    size_t i = o;
+    for (const char *k : d["ks"].as<JsonArray>())
+      if (i < total) {
+        s_keys_in[i] = k;
+        s_keys_have[i++] = true;
+      }
+    for (bool h : s_keys_have)
+      if (!h) return;   // noch nicht alle Teile da
+    if (s_keys_in == s_keys && !s_fresh) {   // unveraendert (wiederholt)
+      s_keys_in.clear();
+      s_keys_have.clear();
+      return;
+    }
+    s_keys.swap(s_keys_in);
+    s_keys_in.clear();
+    s_keys_have.clear();
     for (auto it = s_tiles.begin(); it != s_tiles.end();)   // abgewaehlte Kacheln vergessen
       if (std::find(s_keys.begin(), s_keys.end(), it->first) == s_keys.end()) it = s_tiles.erase(it);
       else ++it;
     s_fresh = false;
     s_ver++;
+    s_keys_ver++;
     return;
   }
   std::string k = d["k"] | "";
   if (k.empty()) return;
+  if (!s_tiles.count(k)) s_keys_ver++;   // erste Daten einer Kachel: Liste neu aufbauen
   RdTile &r = s_tiles[k];
   r.key = k;
   r.name = d["n"] | "";
@@ -140,6 +178,9 @@ static void handle(const char *buf, size_t n, const std::string &from_ip) {
     r.ct_max = d["ct"][1];
     r.ct = d["ct"][2];
   }
+  r.vset = d["vs"] | 0;
+  r.vmode = d["vm"] | -1;
+  r.vlim = d["vl"] | -1;
   r.ms = millis();
   s_ver++;
 }
@@ -153,7 +194,7 @@ void rd_loop() {
   if (!WiFi.isConnected()) return;
   if (!s_udp_on) s_udp_on = s_udp.begin(RD_UDP_PORT);
   if (s_udp_on) {
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 12; i++) {   // mehrere Pakete je Durchlauf (Empfangspuffer haelt nur ~6)
       int n = s_udp.parsePacket();
       if (n <= 0) break;
       char buf[1024];
@@ -161,6 +202,7 @@ void rd_loop() {
       if (r > 0) handle(buf, r, s_udp.remoteIP().toString().c_str());
     }
   }
+  mqtt_subs();
   // Melden: alle 20 s, ohne Kachelliste alle 4 s
   if (!s_hello_ms || now - s_hello_ms > (s_fresh ? 4000u : HELLO_MS)) {
     s_hello_ms = now;
@@ -169,7 +211,37 @@ void rd_loop() {
 }
 
 void rd_mqtt_in(const std::string &sub, const char *data, size_t len) {
-  if (sub == "tile" || sub == "keys") handle(data, len, "");
+  if (sub == "tile" || sub == "time" || sub.rfind("keys", 0) == 0) handle(data, len, "");
+}
+
+void rd_mqtt_reconnected() { s_resub = true; }
+
+// MQTT: genau die eigenen Kacheln abonnieren (neue dazu, abgewaehlte weg) – laeuft in rd_loop
+static void mqtt_subs() {
+  if (!sat_mqtt_connected()) return;
+  std::vector<std::string> want;
+  {
+    Lock l;
+    want = s_keys;
+  }
+  std::string base = std::string(g_sat.base.c_str()) + "/tiles/";
+  if (s_resub) {
+    s_resub = false;
+    s_subs.clear();
+  }
+  int n = 0;
+  for (auto it = s_subs.begin(); it != s_subs.end();)
+    if (std::find(want.begin(), want.end(), *it) == want.end()) {
+      sat_mqtt_sub(base + topic_key(*it), false);
+      it = s_subs.erase(it);
+    } else {
+      ++it;
+    }
+  for (auto &k : want) {
+    if (std::find(s_subs.begin(), s_subs.end(), k) != s_subs.end()) continue;
+    if (n++ >= 8) break;   // je Durchlauf hoechstens 8 (der Rest folgt gleich)
+    if (sat_mqtt_sub(base + topic_key(k), true)) s_subs.push_back(k);
+  }
 }
 
 std::vector<RdTile> rd_tiles() {
@@ -182,11 +254,31 @@ std::vector<RdTile> rd_tiles() {
   return r;
 }
 
+size_t rd_count() {
+  Lock l;
+  return s_keys.size();
+}
+
+void rd_each(void (*f)(const RdTile &, void *), void *ctx) {
+  Lock l;
+  for (auto &k : s_keys) {
+    auto it = s_tiles.find(k);
+    if (it != s_tiles.end()) f(it->second, ctx);
+  }
+}
+
 bool rd_action(const std::string &key) {
   uint32_t pn;
   {
     Lock l;
     pn = s_pn;
+    if (pn) {   // gleich umspringen lassen; die Bestaetigung des Hauptpanels ueberschreibt es kurz danach
+      auto it = s_tiles.find(key);
+      if (it != s_tiles.end()) {
+        it->second.lit = !it->second.lit;
+        s_ver++;
+      }
+    }
   }
   if (!pn) return false;
   std::string id = g_sat.id.c_str();
@@ -238,6 +330,11 @@ bool rd_tile(const std::string &key, RdTile &out) {
 }
 
 uint32_t rd_version() { return s_ver; }
+uint32_t rd_keys_version() { return s_keys_ver; }
+std::string rd_panel_ip() {
+  Lock l;
+  return s_panel_ip.empty() ? std::string(g_sat.udp_target.c_str()) : s_panel_ip;
+}
 bool rd_panel_seen() { return s_panel_ms && millis() - s_panel_ms < 60000; }
 
 std::string rd_status() {

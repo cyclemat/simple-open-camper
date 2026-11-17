@@ -3,6 +3,9 @@
 #include "sat_config.h"
 #include "rd_client.h"
 #include "../updater_link.h"
+#if SAT_REMOTE
+#include <HTTPClient.h>
+#endif
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_page.h"
@@ -18,14 +21,43 @@
 #include <Update.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <new>
+#include <functional>
 
 static WebServer s_srv(80);
 static uint32_t s_restart_at = 0;
 
+// In Stuecken senden statt als ein grosser Textblock: beim CYD (ohne PSRAM, zerstueckelter Speicher) fand sich fuer
+// grosse Antworten (z. B. 36 Kacheln) kein zusammenhaengender Block mehr -> Absturz nach dem Anmelden
 static void send_json(const JsonDocument &d, int code = 200) {
-  String s;
-  serializeJson(d, s);
-  s_srv.send(code, "application/json", s);
+  struct Chunks : Print {
+    char b[512];
+    size_t n = 0;
+    size_t write(uint8_t c) override {
+      b[n++] = (char)c;
+      if (n == sizeof(b)) flush();
+      return 1;
+    }
+    size_t write(const uint8_t *p, size_t k) override {
+      for (size_t i = 0; i < k; i++) write(p[i]);
+      return k;
+    }
+    void flush() {
+      if (n) s_srv.sendContent(b, n);
+      n = 0;
+    }
+  } w;
+  s_srv.setContentLength(measureJson(d));
+  s_srv.send(code, "application/json", "");
+  serializeJson(d, w);
+  w.flush();
+}
+// Angemeldete Zugriffe: Display entlaedt waehrenddessen seine Kacheln (Zusatzdisplay, wenig RAM)
+static std::function<void()> G(std::function<void()> fn) {
+  return devsetup::guard([fn] {
+    sat_display_web_touch();
+    fn();
+  });
 }
 static void send_ok() { s_srv.send(200, "application/json", "{\"ok\":true}"); }
 static void send_err(const String &msg) {
@@ -371,9 +403,13 @@ static void h_hymer() {
 // ---------------------------------------------------------------- eigene Anschluesse (GPIO)
 // Display (nur Firmware mit Anzeige): Kacheln, Reihenfolge, Namen, Helligkeit
 static void h_display_get() {
-  JsonDocument d;
-  sat_display_json(d.to<JsonObject>());
-  send_json(d);
+  try {
+    JsonDocument d;
+    sat_display_json(d.to<JsonObject>());
+    send_json(d);
+  } catch (const std::bad_alloc &) {   // nicht neu starten, wenn der Speicher knapp ist
+    send_err("Zu wenig Speicher – bitte weniger Kacheln auswählen");
+  }
 }
 
 static void h_display_set() {
@@ -435,26 +471,67 @@ static void h_update_data() {
 // ---------------------------------------------------------------- Start/Ablauf
 void sat_web_begin() {
   devsetup::begin(s_srv);   // Anmeldung, Pflicht-Passwort, Captive Portal (auch onNotFound)
-  s_srv.on("/", HTTP_GET, [] { s_srv.send_P(200, "text/html; charset=utf-8", SAT_PAGE); });
-  s_srv.on("/api/state", HTTP_GET, devsetup::guard(h_state));
-  s_srv.on("/api/config", HTTP_POST, devsetup::guard(h_config));
-  s_srv.on("/api/wifiscan", HTTP_GET, devsetup::guard(h_wifiscan));
-  s_srv.on("/api/truma", HTTP_POST, devsetup::guard(h_truma));
-  s_srv.on("/api/mopeka", HTTP_POST, devsetup::guard(h_mopeka));
-  s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
-  s_srv.on("/api/hymer", HTTP_POST, devsetup::guard(h_hymer));
-  s_srv.on("/api/io", HTTP_GET, devsetup::guard(h_io_get));
-  s_srv.on("/api/updater", HTTP_POST, devsetup::guard([] {   // in den kleinen Updater starten (nur mit partitions_upd)
+  s_srv.on("/", HTTP_GET, [] {
+    sat_display_web_touch();
+    s_srv.send_P(200, "text/html; charset=utf-8", SAT_PAGE);
+  });
+  s_srv.on("/api/state", HTTP_GET, G(h_state));
+  s_srv.on("/api/config", HTTP_POST, G(h_config));
+  s_srv.on("/api/wifiscan", HTTP_GET, G(h_wifiscan));
+  s_srv.on("/api/truma", HTTP_POST, G(h_truma));
+  s_srv.on("/api/mopeka", HTTP_POST, G(h_mopeka));
+  s_srv.on("/api/victron", HTTP_POST, G(h_victron));
+  s_srv.on("/api/hymer", HTTP_POST, G(h_hymer));
+  s_srv.on("/api/io", HTTP_GET, G(h_io_get));
+#if SAT_REMOTE
+  // Zusatzdisplay: Kachelliste beim Hauptpanel holen (nur durchreichen, nichts speichern) und Auswahl dort ablegen
+  s_srv.on("/api/rd/avail", HTTP_GET, G([] {
+             std::string ip = rd_panel_ip();
+             if (ip.empty()) return send_err("Hauptpanel noch unbekannt – zuerst am Panel anlernen.");
+             HTTPClient http;
+             http.setTimeout(6000);
+             String url = String("http://") + ip.c_str() + "/api/rdisp?avail=1&id=" + g_sat.id;
+             if (!http.begin(url)) return send_err("Hauptpanel nicht erreichbar");
+             int code = http.GET();
+             if (code != 200) {
+               http.end();
+               return send_err("Hauptpanel antwortet nicht (Weboberfläche dort aus?) – Code " + String(code));
+             }
+             String body = http.getString();
+             http.end();
+             s_srv.send(200, "application/json", body);
+           }));
+  s_srv.on("/api/rd/sel", HTTP_POST, G([] {
+             JsonDocument d;
+             if (!body(d)) return;
+             std::string ip = rd_panel_ip();
+             if (ip.empty()) return send_err("Hauptpanel noch unbekannt");
+             JsonDocument o;
+             o["id"] = g_sat.id;
+             o["tiles"] = d["tiles"];
+             String js;
+             serializeJson(o, js);
+             HTTPClient http;
+             http.setTimeout(6000);
+             if (!http.begin(String("http://") + ip.c_str() + "/api/rdisp")) return send_err("Hauptpanel nicht erreichbar");
+             http.addHeader("Content-Type", "application/json");
+             int code = http.POST(js);
+             http.end();
+             if (code != 200) return send_err("Hauptpanel lehnt ab – Code " + String(code));
+             send_ok();
+           }));
+#endif
+  s_srv.on("/api/updater", HTTP_POST, G([] {   // in den kleinen Updater starten (nur mit partitions_upd)
              String err = updater_start(g_sat.wifi_ssid, g_sat.wifi_pass, g_sat.id);
              s_srv.send(400, "application/json", "{\"error\":\"" + err + "\"}");
            }));
   if (sat_display_present()) {
-    s_srv.on("/api/display", HTTP_GET, devsetup::guard(h_display_get));
-    s_srv.on("/api/display", HTTP_POST, devsetup::guard(h_display_set));
+    s_srv.on("/api/display", HTTP_GET, G(h_display_get));
+    s_srv.on("/api/display", HTTP_POST, G(h_display_set));
   }
-  s_srv.on("/api/io", HTTP_POST, devsetup::guard(h_io_set));
-  s_srv.on("/api/io/action", HTTP_POST, devsetup::guard(h_io_action));
-  s_srv.on("/api/reboot", HTTP_POST, devsetup::guard([] {
+  s_srv.on("/api/io", HTTP_POST, G(h_io_set));
+  s_srv.on("/api/io/action", HTTP_POST, G(h_io_action));
+  s_srv.on("/api/reboot", HTTP_POST, G([] {
              send_ok();
              s_restart_at = millis() + 1000;
            }));

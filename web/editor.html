@@ -1918,6 +1918,11 @@ async function openSettings(tab = 'net') {
   };
   loadBms();
   const bmsPost = data => (S.demo ? Promise.resolve() : post('/api/bms', data));
+  // Kopplungs-PIN beim Hinzufuegen (leer = keine; Super B = Modell 1 verlangt immer eine). null = abgebrochen
+  const bmsPinAsk = model => promptDlg('Kopplungs-PIN', model === 1
+      ? 'Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.'
+      : 'Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen.', '')
+    .then(p => p == null ? null : String(p).replace(/\D/g, '').slice(0, 6));
   const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); } else if (tab === 'bms' || tab === 'ps') loadBms(); }, 2500);
   const gxPost = async data => {
     if (S.demo) { Object.assign(S.demoCerbo, data, {has_pass: data.clear_pass ? false : (S.demoCerbo.has_pass || !!data.pass)}); delete S.demoCerbo.pass; return; }
@@ -1980,8 +1985,10 @@ async function openSettings(tab = 'net') {
       <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
       ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
           <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
+          <label class="field" style="margin:0;width:110px"><span>Kopplungs-PIN</span><input data-bmspin="${esc(x.mac)}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="${x.pin ? '••••••' : T('keine')}"></label>
           <button class="btn small danger" data-bmsremove="${esc(x.mac)}">Entfernen</button>
-          <div class="st" data-notr>${esc(x.mac)} – ${esc(sumOf(x))}</div></div>`).join('') : '<p class="hint">Noch kein Akku eingerichtet.</p>'}
+          <div class="st" data-notr>${esc(x.mac)} – ${esc(sumOf(x))}</div>
+          ${x.pin_need && !x.pin ? '<div class="st" style="color:#e5534b">Der Akku verlangt beim Koppeln eine PIN (steht auf dem Akku bzw. in der Anleitung) – oben eintragen.</div>' : ''}</div>`).join('') : '<p class="hint">Noch kein Akku eingerichtet.</p>'}
         <div class="row" style="margin-top:14px">
           <button class="btn small primary" id="bBmsScan" ${b0.devices.length >= (b.max || 4) || b.scanning ? 'disabled' : ''} style="flex:none">${icon('search', 16)}${b.scanning ? 'Suche läuft …' : 'Akkus suchen'}</button>
         </div>
@@ -2085,7 +2092,12 @@ async function openSettings(tab = 'net') {
           <div><b data-notr>${esc(x.name)}</b><div class="hint" style="margin:0">${x.online ? T('online') : T('offline')} · ${TF('{} Gerät(e)', x.devices)} · ${esc(ways(x))}${x.fw ? ' · Firmware ' + esc(x.fw) : ''}${x.ip ? ' · ' + esc(x.ip) : ''}</div></div>
           ${x.ip ? `<a class="btn small" href="http://${esc(x.ip)}/" target="_blank" rel="noopener">Öffnen</a>` : '<span></span>'}
           ${x.id !== 'ble' ? `<button class="btn small danger" data-satforget="${esc(x.id)}">Vergessen</button>` : '<span></span>'}</div>`).join('')
-        : '<p class="hint">Noch kein Satellit gehört. Neue Satelliten am einfachsten wie oben per BOOT-Taste einrichten – oder über ihr eigenes WLAN „SOC-Satellite-…“ (Passwort <b>panelsat</b>, Adresse 4.3.2.1).</p>'}`;
+        : '<p class="hint">Noch kein Satellit gehört. Neue Satelliten am einfachsten wie oben per BOOT-Taste einrichten – oder über ihr eigenes WLAN „SOC-Satellite-…“ (Passwort <b>panelsat</b>, Adresse 4.3.2.1).</p>'}`
+      // Zusatzdisplays (gleiche Einrichtung per Knopf) – Auswahl der Kacheln im Reiter "Zusatzdisplays"
+      + (rdData && rdData.displays.length ? `<h3 style="font-size:13px;margin:16px 0 6px">Zusatzdisplays</h3>` + rdData.displays.map(x => `<div class="gasrow" style="grid-template-columns:1fr auto auto">
+          <div><b data-notr>${esc(x.name || x.id)}</b><div class="hint" style="margin:0">${x.online ? T('verbunden') : T('nicht verbunden')} · ${TF('{} Kachel(n)', x.tiles.length)}${x.ip ? ' · ' + esc(x.ip) : ''}</div></div>
+          ${x.ip ? `<a class="btn small" href="http://${esc(x.ip)}/" target="_blank" rel="noopener">Öffnen</a>` : '<span></span>'}
+          <button class="btn small" data-tab="rd">Kacheln wählen</button></div>`).join('') : '');
   };
   const render = () => {
     const m = draft.net.mode;
@@ -2425,18 +2437,23 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     if (bs && bmsData) {
       const x = bmsData.seen[+bs.dataset.bmsseen], sel = $(`[data-bmsseltype="${bs.dataset.bmsseen}"]`, body);
       const model = +(sel ? sel.value : 5);
-      promptDlg('Akku hinzufügen', 'Name, z. B. „Bordbatterie“', x.name || 'Akku').then(name => {
-        if (name == null) return;
-        bmsPost({add: {mac: x.mac, addr_type: x.addr_type, name, model}}).then(() => { toast('Eingerichtet – das Panel verbindet sich gleich. Im Protokoll siehst du, ob der Akku antwortet.'); loadBms(); setTimeout(pollDevices, 5000); }).catch(er => toast(er.message, 'error'));
+      promptDlg('Akku hinzufügen', 'Name, z. B. „Bordbatterie“', x.name || 'Akku')
+        .then(name => name == null ? null : (PS_MODELS.includes(model) ? Promise.resolve('') : bmsPinAsk(model)).then(pin => pin == null ? null : {name, pin})).then(r => {
+        if (!r) return;
+        const {name, pin} = r;
+        bmsPost({add: {mac: x.mac, addr_type: x.addr_type, name, model, pin}}).then(() => { toast('Eingerichtet – das Panel verbindet sich gleich. Im Protokoll siehst du, ob der Akku antwortet.'); loadBms(); setTimeout(pollDevices, 5000); }).catch(er => toast(er.message, 'error'));
       });
       return;
     }
     const ba = e.target.closest('[data-bmsadd]');
     if (ba && bmsData) {
       const f = bmsData.found[+ba.dataset.bmsadd];
-      promptDlg('Akku hinzufügen', 'Name, z. B. „Bordbatterie“', f.name || f.model_text).then(name => {
-        if (name == null) return;
-        bmsPost({add: {mac: f.mac, addr_type: f.addr_type, name, model: f.model, cap: f.cap, cells: f.cells}}).then(() => { toast('Eingerichtet – das Panel verbindet sich gleich.'); loadBms(); setTimeout(pollDevices, 5000); }).catch(er => toast(er.message, 'error'));
+      const ps = PS_MODELS.includes(f.model);
+      promptDlg(ps ? 'Power Station hinzufügen' : 'Akku hinzufügen', 'Name, z. B. „Bordbatterie“', f.name || f.model_text)
+        .then(name => name == null ? null : (ps ? Promise.resolve('') : bmsPinAsk(f.model)).then(pin => pin == null ? null : {name, pin})).then(r => {
+        if (!r) return;
+        const {name, pin} = r;
+        bmsPost({add: {mac: f.mac, addr_type: f.addr_type, name, model: f.model, cap: f.cap, cells: f.cells, pin}}).then(() => { toast('Eingerichtet – das Panel verbindet sich gleich.'); loadBms(); setTimeout(pollDevices, 5000); }).catch(er => toast(er.message, 'error'));
       });
       return;
     }
@@ -2470,6 +2487,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
   body.addEventListener('change', e => {
     if (e.target.id === 'logoFile' && e.target.files[0]) uploadLogo(e.target.files[0]).then(render).catch(er => toast(er.message, 'error'));
     if (e.target.id === 'bmsOn') bmsPost({on: e.target.checked}).then(loadBms).catch(er => toast(er.message, 'error'));
+    if (e.target.dataset.bmspin != null) { const p = e.target.value.replace(/\D/g, '').slice(0, 6); bmsPost({pin: {mac: e.target.dataset.bmspin, pin: p}}).then(() => { toast(p ? 'PIN gespeichert – das Panel koppelt neu.' : 'PIN gelöscht.'); e.target.value = ''; loadBms(); }).catch(er => toast(er.message, 'error')); }
     if (e.target.dataset.bmsname) bmsPost({rename: {mac: e.target.dataset.bmsname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.vname) vicPost({rename: {mac: e.target.dataset.vname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.gname) gasPost({rename: {mac: e.target.dataset.gname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));

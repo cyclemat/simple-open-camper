@@ -470,6 +470,30 @@ static void v_key_cb(lv_event_t *) {
   ui_input_open(o);
 }
 
+#if WITH_BMS
+static void v_pin_cb(lv_event_t *) {
+  if (!s_v) return;
+  std::string mac = s_v->mac;
+  BmsInfo b;
+  bool have = bms_get(s_v->key, b);
+  InputOptions o;
+  o.title = "Kopplungs-PIN";
+  o.hint = have && b.pin_need && !b.pin_set
+               ? "Der Akku verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung."
+               : "Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). "
+                 "Leer = keine PIN.";
+  if (have && b.pin_set) o.hint += tr(" Eine PIN ist gespeichert.");
+  o.numeric = true;
+  o.max_len = 6;
+  o.on_ok = [mac](const std::string &t, bool) {
+    bms_set_pin(mac, t);
+    ui_toast(t.empty() ? "PIN gelöscht." : "PIN gespeichert – das Panel koppelt neu.");
+  };
+  ui_vic_close();
+  ui_input_open(o);
+}
+#endif
+
 static void v_remove_cb(lv_event_t *) {
   if (!s_v) return;
   std::string mac = s_v->mac;
@@ -845,6 +869,9 @@ void ui_vic_open(const std::string &key) {
     lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
   } else {
     if (!v.bms) ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);   // Akku (BMS): kein Schluessel
+#if WITH_BMS
+    else if (v.kind != VIC_PSTATION) ui_button(row, ICON_LOCK, "PIN", false, v_pin_cb, nullptr);   // Kopplungs-PIN
+#endif
     lv_obj_t *rm = ui_button(row, ICON_CLOSE, "Entfernen", false, v_remove_cb, nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_cnt(rm); i++) lv_obj_set_style_text_color(lv_obj_get_child(rm, i), C_RED, 0);
   }

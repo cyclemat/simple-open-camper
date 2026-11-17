@@ -1022,6 +1022,12 @@ void ClientCB::onDisconnect(NimBLEClient *c, int reason) {
       if (reason == 0x205 || reason == 0x206) b.auth_fail = true;   // Kopplung passt nicht (mehr)
       logf("%s: getrennt (Grund %d) nach %lu s, Signal zuletzt %d dBm", b.name.c_str(), reason,
            (unsigned long)((millis() - b.conn_ms) / 1000), b.rssi);
+      // Kopplung abgelehnt und keine PIN eingetragen: Akku verlangt vermutlich eine (gilt fuer alle Typen). Ab dem
+      // naechsten Versuch PIN-Eingabe erlauben (wants_pin_io) – fragt der Akku dann wirklich, meldet onPassKeyEntry.
+      if (b.auth_fail && b.pin.empty()) {
+        b.pin_need = true;
+        b.status = "Kopplung abgelehnt – braucht der Akku eine PIN?";
+      }
     }
 }
 
@@ -1039,7 +1045,7 @@ void ClientCB::onPassKeyEntry(NimBLEConnInfo &ci) {
         b.pin_need = true;
         pin = b.pin;
         name = b.name;
-        if (pin.empty()) b.status = "PIN noetig – in der Weboberflaeche eintragen";
+        if (pin.empty()) b.status = "Akku verlangt eine Kopplungs-PIN – bitte eintragen";
         s_ver++;
       }
   }
@@ -1048,8 +1054,8 @@ void ClientCB::onPassKeyEntry(NimBLEConnInfo &ci) {
     NimBLEDevice::injectPassKey(ci, 0);   // ohne PIN schlaegt die Kopplung fehl
     return;
   }
-  logf("%s: gebe Kopplungs-PIN ein", name.c_str());
-  NimBLEDevice::injectPassKey(ci, (uint32_t)strtoul(pin.c_str(), nullptr, 10));
+  bool ok = NimBLEDevice::injectPassKey(ci, (uint32_t)strtoul(pin.c_str(), nullptr, 10));
+  logf("%s: gebe Kopplungs-PIN ein (%s)", name.c_str(), ok ? "angenommen" : "vom Bluetooth-Stack abgelehnt");
 }
 void ClientCB::onConfirmPasskey(NimBLEConnInfo &ci, uint32_t pin) {
   logf("%s: Geraet will Zahlenvergleich %06lu", ci.getAddress().toString().c_str(), (unsigned long)pin);
@@ -1066,11 +1072,12 @@ struct IoCapGuard {
     if (on) NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   }
 };
-// PIN-Eingabe erlauben: Akku mit eingetragener PIN, oder Super B (Epsilon V2 verlangt immer eine)
+// PIN-Eingabe erlauben: Akku mit eingetragener PIN, Super B (Epsilon V2 verlangt immer eine) oder ein Akku, der die
+// Kopplung ohne PIN abgelehnt hat (JBD, JK, Daly … mit gesetzter Bluetooth-PIN)
 static bool wants_pin_io(const std::string &mac) {
   Lock l;
   Bat *b = find_mac(mac);
-  return b && (!b->pin.empty() || b->model == BMS_SUPERB);
+  return b && (!b->pin.empty() || b->pin_need || b->model == BMS_SUPERB);
 }
 
 // Client vom Akku loesen (unter der Sperre) und erst danach ausserhalb der Sperre trennen/loeschen:
@@ -1385,6 +1392,22 @@ void bms_connect_now() {
     b->conn_ms = millis();
     b->last_ms = 0;
     copy = *b;
+  }
+  // Akku mit PIN: selbst koppeln und auf das Ergebnis warten, bevor Kanaele abonniert werden. esp-nimble-cpp (P4) meldet
+  // eine fehlgeschlagene Kopplung nicht an onAuthenticationComplete – so steht der Fehlercode im Protokoll.
+  if (!copy.pin.empty() && !c->getConnInfo().isEncrypted()) {
+    bool sec = c->secureConnection();
+    NimBLEConnInfo ci = c->getConnInfo();
+    if (sec)
+      logf("%s: mit PIN gekoppelt (authentifiziert %d, gespeichert %d)", copy.name.c_str(), ci.isAuthenticated(), ci.isBonded());
+    else
+    {
+      int e = c->getLastError();
+      logf("%s: Kopplung mit PIN fehlgeschlagen, Fehler %d (%s)%s", copy.name.c_str(), e, NimBLEUtils::returnCodeToString(e),
+           e == 0x504 || e == 0x50B ? " – PIN falsch?" : "");
+      Lock l;
+      if (Bat *bb = find_mac(copy.mac)) bb->status = e == 0x504 || e == 0x50B ? "Kopplung abgelehnt – PIN pruefen" : "Kopplung fehlgeschlagen";
+    }
   }
   bool good = false;
   switch (copy.model) {
@@ -2723,6 +2746,7 @@ void bms_set_pin(const std::string &mac, const std::string &pin) {
   Bat *b = find_mac(lower(mac));
   if (!b) return;
   b->pin = digits.substr(0, 6);
+  if (!b->pin.empty()) b->auth_fail = true;   // alte Kopplung (ohne PIN) vor dem naechsten Versuch loeschen
   b->next_try = millis();   // gleich neu versuchen
   save();
   s_ver++;

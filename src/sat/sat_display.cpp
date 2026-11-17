@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <new>
+#include <deque>
 #include <LovyanGFX.hpp>
 #include <lvgl.h>
 #include "esp_heap_caps.h"
@@ -27,6 +29,7 @@
 #if WITH_CERBO
 #include "../cerbo.h"
 #endif
+#define POP_ON (WITH_CERBO || SAT_REMOTE)   // Bedienfenster MultiPlus/Ladegeraet
 #include "rd_client.h"
 #include "../fonts/fonts.h"
 #include "../fonts/icons.h"
@@ -228,7 +231,11 @@ struct Tile {
 };
 static Tile s_tiles[MAX_TILES];
 static lv_obj_t *s_title, *s_net, *s_dots;
-static std::vector<Item> s_items;
+static bool s_built = false;   // Hauptschirm aufgebaut (erst nach dem Startbild; im Web-Modus entladen)
+// Kachelliste als deque: liegt in kleinen Stuecken im RAM. Ein vector brauchte bei 36 Kacheln einen
+// zusammenhaengenden Block von ~7 KB – den fand das CYD (ohne PSRAM, zerstueckelter Speicher) oft nicht mehr.
+typedef std::deque<Item> ItemList;
+static ItemList s_items;
 static int s_page = 0;
 static uint32_t s_next_ms = 0;
 
@@ -373,22 +380,26 @@ static bool vic_has_value(const VictronInfo &v) {
   }
 }
 
-static void collect_raw(std::vector<Item> &s_items) {
+static void collect_raw(ItemList &s_items) {
   s_items.clear();
 #if SAT_REMOTE
   // Zusatzdisplay: nur die Kacheln vom Hauptpanel (fertig aufbereitet)
-  for (auto &r : rd_tiles()) {
-    Item it;
-    it.key = "r:" + r.key;
-    it.name = r.name;
-    it.icon = r.icon;
-    it.value = r.sub.empty() ? r.value : r.value + "  ·  " + r.sub;
-    it.accent = r.dim ? C_TEXT3 : lv_color_hex(r.accent);
-    it.ract = r.act != 0;
-    it.on = r.lit;
-    it.lit_rgb = r.lit_color;
-    s_items.push_back(it);
-  }
+  rd_each(
+      [](const RdTile &r, void *ctx) {
+        auto &v = *(ItemList *)ctx;
+        v.emplace_back();
+        Item &it = v.back();
+        it.key = "r:" + r.key;
+        it.name = r.name;
+        it.icon = r.icon;
+        it.value = r.sub.empty() ? r.value : r.value + "  ·  " + r.sub;
+        it.accent = r.dim ? C_TEXT3 : lv_color_hex(r.accent);
+        it.ract = r.act != 0;
+        it.on = r.lit;
+        it.lit_rgb = r.lit_color;
+        if (r.vset || r.vlim >= 0) it.ctl = r.key;   // MultiPlus/Ladegeraet: Bedienfenster (lange druecken)
+      },
+      &s_items);
   return;
 #endif
 #if WITH_CERBO
@@ -493,36 +504,45 @@ static int page_cnt(int p);
 // stehen auf ihrer Seite, freie Plaetze bleiben leer (Item ohne Schluessel). Neue Geraete und Kacheln ohne feste
 // Seite kommen dahinter (sichtbar).
 static void collect() {
-  std::vector<Item> raw;
-  collect_raw(raw);
+  ItemList raw;
   s_items.clear();
+  s_items.shrink_to_fit();   // alte Liste zuerst freigeben (wenig RAM beim CYD)
+  collect_raw(raw);
   std::vector<bool> used(raw.size(), false);
-  std::vector<std::vector<Item>> fixed;
-  std::vector<Item> autos;
+  std::vector<ItemList> fixed;
+  ItemList autos;
   for (auto &c : s_cfg)
     for (size_t i = 0; i < raw.size(); i++)
       if (!used[i] && raw[i].key == c.k) {
         used[i] = true;
         if (c.on) {
-          Item it = raw[i];
+          Item it = std::move(raw[i]);
           if (!c.n.empty()) it.name = c.n;
           if (c.pg < 16) {
             if (fixed.size() <= c.pg) fixed.resize(c.pg + 1);
-            fixed[c.pg].push_back(it);
+            fixed[c.pg].push_back(std::move(it));
           } else {
-            autos.push_back(it);
+            autos.push_back(std::move(it));
           }
         }
         break;
       }
   for (size_t i = 0; i < raw.size(); i++)
-    if (!used[i]) autos.push_back(raw[i]);
+    if (!used[i]) autos.push_back(std::move(raw[i]));
+  raw.clear();
+  raw.shrink_to_fit();
+  size_t total = autos.size();
+  for (size_t p = 0; p < fixed.size(); p++) total += std::max<size_t>(page_cnt(p), fixed[p].size());
+  (void)total;
   for (size_t p = 0; p < fixed.size(); p++) {
     size_t n = page_cnt(p);
-    for (size_t j = 0; j < n; j++) s_items.push_back(j < fixed[p].size() ? fixed[p][j] : Item());   // Item() = Luecke
-    for (size_t j = n; j < fixed[p].size(); j++) autos.push_back(fixed[p][j]);   // passt nicht mehr auf die Seite
+    for (size_t j = 0; j < n; j++) {
+      if (j < fixed[p].size()) s_items.push_back(std::move(fixed[p][j]));
+      else s_items.emplace_back();   // Luecke
+    }
+    for (size_t j = n; j < fixed[p].size(); j++) autos.push_back(std::move(fixed[p][j]));   // passt nicht mehr auf die Seite
   }
-  for (auto &a : autos) s_items.push_back(a);
+  for (auto &a : autos) s_items.push_back(std::move(a));
   while (!s_items.empty() && s_items.back().key.empty()) s_items.pop_back();
 }
 
@@ -540,11 +560,57 @@ static int pages() {
   return p;
 }
 
-#if WITH_CERBO
+#if POP_ON
 // ---------------------------------------------------------------- Bedienfenster MultiPlus/Ladegeraet (ueber den GX)
-// Antippen einer Kachel mit Einstellmoeglichkeit (Netz, Ladegeraet, Wechselrichter) oeffnet es:
+// Lange druecken auf eine Kachel mit Einstellmoeglichkeit (Netz, Ladegeraet, Wechselrichter) oeffnet es:
 // Eingangsstrom-Begrenzung (- / +, ganze Ampere) und Schalter. Nur, was der GX als einstellbar meldet.
+// Victron-Display: direkt am eigenen GX; Zusatzdisplay: ueber das Hauptpanel (dessen GX).
 // Die LVGL-Objekte entstehen erst beim Oeffnen und werden beim Schliessen wieder geloescht.
+struct PopV {
+  std::string name;
+  bool can_limit = false, can_mode = false;
+  uint8_t mode_set = 0;   // 0 MultiPlus, 1 Ladegeraet
+  int mode = -1;
+  float limit = NAN;
+};
+static bool pop_get(const std::string &key, PopV &p) {
+#if SAT_REMOTE
+  RdTile t;
+  if (!rd_tile(key, t) || (!t.vset && t.vlim < 0)) return false;
+  p.name = t.name;
+  p.can_mode = t.vset != 0;
+  p.mode_set = t.vset == 2 ? 1 : 0;
+  p.mode = t.vmode;
+  p.can_limit = t.vlim >= 0;
+  p.limit = t.vlim >= 0 ? t.vlim / 10.f : NAN;
+  return true;
+#else
+  VictronInfo v;
+  if (!cerbo_get(key, v) || (!v.can_limit && !v.can_mode)) return false;
+  p.name = v.mode_set == 0 ? std::string("MultiPlus") : v.name;
+  p.can_limit = v.can_limit;
+  p.can_mode = v.can_mode;
+  p.mode_set = v.mode_set;
+  p.mode = v.mode;
+  p.limit = v.ac_limit;
+  return true;
+#endif
+}
+static bool pop_set_limit(const std::string &key, float a) {
+#if SAT_REMOTE
+  return rd_set(key, 'l', (int)lroundf(a * 10));
+#else
+  return cerbo_set_limit(key, a);
+#endif
+}
+static bool pop_set_mode(const std::string &key, int m) {
+#if SAT_REMOTE
+  return rd_set(key, 'm', m);
+#else
+  return cerbo_set_mode(key, m);
+#endif
+}
+
 static lv_obj_t *s_pop = nullptr, *s_pop_lim = nullptr;
 static lv_obj_t *s_pop_mbtn[4];
 static int s_pop_mval[4], s_pop_nm = 0;
@@ -555,7 +621,7 @@ static uint32_t s_pop_send_ms = 0, s_pop_edit_ms = 0;
 static void pop_flush() {
   if (!s_pop_send_ms) return;
   s_pop_send_ms = 0;
-  cerbo_set_limit(s_pop_key, s_pop_val);
+  pop_set_limit(s_pop_key, s_pop_val);
 }
 
 static void pop_show_limit() {
@@ -594,7 +660,7 @@ static void pop_step_cb(lv_event_t *e) {
 static void pop_mode_cb(lv_event_t *e) {
   int i = (int)(intptr_t)lv_event_get_user_data(e);
   if (i < 0 || i >= s_pop_nm) return;
-  if (cerbo_set_mode(s_pop_key, s_pop_mval[i])) pop_show_mode(s_pop_mval[i]);
+  if (pop_set_mode(s_pop_key, s_pop_mval[i])) pop_show_mode(s_pop_mval[i]);
   s_pop_edit_ms = millis();
 }
 
@@ -625,10 +691,10 @@ static lv_obj_t *pop_btn(const char *txt, int x, int y, int w, int h, lv_event_c
 }
 
 static void pop_open(const std::string &key) {
-  VictronInfo v;
-  if (s_pop || !cerbo_get(key, v) || (!v.can_limit && !v.can_mode)) return;
+  PopV v;
+  if (s_pop || !pop_get(key, v)) return;
   s_pop_key = key;
-  s_pop_val = v.ac_limit;
+  s_pop_val = v.limit;
   s_pop_send_ms = s_pop_edit_ms = 0;
   s_pop = lv_obj_create(lv_scr_act());
   lv_obj_remove_style_all(s_pop);
@@ -637,7 +703,10 @@ static void pop_open(const std::string &key) {
   lv_obj_set_style_bg_color(s_pop, C_BG, 0);
   lv_obj_clear_flag(s_pop, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(s_pop, LV_OBJ_FLAG_CLICKABLE);   // Kacheln darunter nicht antippbar
-  lv_obj_set_pos(pop_label(s_pop, v.mode_set == 0 ? "MultiPlus" : v.name.c_str(), &font_ui_20, C_TEXT), 12, 12);
+  lv_obj_t *ttl = pop_label(s_pop, v.name.c_str(), &font_ui_20, C_TEXT);
+  lv_label_set_long_mode(ttl, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(ttl, W - 112);
+  lv_obj_set_pos(ttl, 12, 12);
   pop_btn("Fertig", W - 92, 6, 84, 34, pop_close_cb, 0);
   int y = 50;
   if (v.can_limit) {
@@ -671,10 +740,10 @@ static void pop_open(const std::string &key) {
 // einmal pro Sekunde: Werte vom GX uebernehmen (nicht direkt nach eigener Eingabe)
 static void pop_sync() {
   if (!s_pop || (s_pop_edit_ms && millis() - s_pop_edit_ms < 3000)) return;
-  VictronInfo v;
-  if (!cerbo_get(s_pop_key, v)) return;
+  PopV v;
+  if (!pop_get(s_pop_key, v)) return;
   if (!s_pop_send_ms) {
-    s_pop_val = v.ac_limit;
+    s_pop_val = v.limit;
     pop_show_limit();
   }
   pop_show_mode(v.mode);
@@ -1000,11 +1069,20 @@ static void tile_long_cb(lv_event_t *e) {
     return;
   }
 #endif
-#if WITH_CERBO
-  if (!s_items[k].ctl.empty()) pop_open(s_items[k].ctl);
+#if POP_ON
+  if (!s_items[k].ctl.empty()) {
+#if SAT_REMOTE
+    s_long_fired = true;
+#endif
+    pop_open(s_items[k].ctl);
+  }
 #endif
 }
 
+static void render();
+#if SAT_REMOTE
+static void refresh_visible();
+#endif
 // Schalter erst nach etwas laengerem Druck und ohne Wischen: beim Blaettern nichts versehentlich schalten
 static const uint16_t SWITCH_HOLD_MS = 400, SWITCH_MOVE_PX = 35;   // resistiver Touch springt beim Loslassen
 static uint32_t s_press_ms = 0, s_gesture_ms = 0;
@@ -1040,7 +1118,7 @@ static void tile_cb(lv_event_t *e) {
   }
 #if SAT_REMOTE
   if (k < s_items.size() && s_items[k].ract) {   // Zusatzdisplay: ueber das Hauptpanel schalten
-    if (switch_hold_ok()) rd_action(s_items[k].key.substr(2));
+    if (switch_hold_ok() && rd_action(s_items[k].key.substr(2))) refresh_visible();   // gleich umspringen
     return;
   }
 #endif
@@ -1054,7 +1132,7 @@ static void tile_cb(lv_event_t *e) {
 }
 
 static void gesture_cb(lv_event_t *) {
-#if WITH_CERBO
+#if POP_ON
   if (s_pop) return;   // Bedienfenster offen: nicht blaettern
 #endif
   if (s_info) return;
@@ -1081,7 +1159,11 @@ static void build() {
   lv_obj_set_style_bg_color(scr, C_BG, 0);
   lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
   lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_event_cb(scr, gesture_cb, LV_EVENT_GESTURE, nullptr);
+  static bool gest = false;   // build() laeuft beim Zusatzdisplay mehrfach (Web-Modus): Ereignis nur einmal anmelden
+  if (!gest) {
+    gest = true;
+    lv_obj_add_event_cb(scr, gesture_cb, LV_EVENT_GESTURE, nullptr);
+  }
 
   s_title = lv_label_create(scr);
   lv_obj_set_style_text_font(s_title, &font_ui_16, 0);
@@ -1144,6 +1226,7 @@ static void place_value(Tile &t) {
 // Groesse und Lage der Kacheln fuer die aktuelle Seite: 4 (2x2), 2 grosse (volle Breite) oder 1 (ganzer Bildschirm).
 // Groessere Kacheln bekommen groessere Schrift, wenn die Firmware sie mitbringt (SAT_BIG_FONT, Flash).
 static void relayout() {
+  if (!s_built) return;
   int n = page_cnt(s_page);
   s_lay = n;
   int cols = n == 4 ? 2 : 1, rows = n == 1 ? 1 : 2;
@@ -1189,8 +1272,42 @@ static void set_value(Tile &t, const std::string &s) {
   if (had != !b.empty()) place_value(t);
 }
 
+static bool s_oom = false;   // zu wenig Speicher fuer alle Kacheln (CYD ohne PSRAM)
 static void refresh() {
-  collect();
+  try {
+    collect();
+    s_oom = false;
+  } catch (const std::bad_alloc &) {   // nicht abstuerzen: Hinweis statt Kacheln
+    s_items.clear();
+    s_items.shrink_to_fit();
+    if (!s_oom)
+      log_w("Zu wenig Speicher fuer alle Kacheln: frei %u, groesster Block %u", (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT),
+            (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    s_oom = true;
+  }
+  render();
+}
+
+#if SAT_REMOTE
+// Neue Werte vom Hauptpanel: nur die Kacheln der sichtbaren Seite nachtragen (statt die ganze Liste neu zu bauen)
+static void refresh_visible() {
+  size_t st = page_start(s_page), n = page_cnt(s_page);
+  for (size_t k = st; k < st + n && k < s_items.size(); k++) {
+    Item &it = s_items[k];
+    if (it.key.rfind("r:", 0) != 0) continue;
+    RdTile r;
+    if (!rd_tile(it.key.substr(2), r)) continue;
+    it.value = r.sub.empty() ? r.value : r.value + "  ·  " + r.sub;
+    it.accent = r.dim ? C_TEXT3 : lv_color_hex(r.accent);
+    it.on = r.lit;
+    it.lit_rgb = r.lit_color;
+  }
+  render();
+}
+#endif
+
+static void render() {
+  if (!s_built) return;
   if (s_page >= pages()) s_page = pages() - 1;
   if (s_lay != page_cnt(s_page)) relayout();   // jede Seite kann 1, 2 oder 4 Kacheln haben
 #if SAT_VICTRON_ONLY
@@ -1214,8 +1331,8 @@ static void refresh() {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
         set_text(t.icon, ICON_INFO);
 #if SAT_REMOTE
-        set_text(t.name, rd_panel_seen() ? "Keine Kacheln" : "Suche Hauptpanel");
-        set_value(t, rd_panel_seen() ? "im Editor des Hauptpanels wählen" : "Antippen  ·  für Adresse");
+        set_text(t.name, s_oom ? "Zu viele Kacheln" : rd_panel_seen() ? "Keine Kacheln" : "Suche Hauptpanel");
+        set_value(t, s_oom ? "Speicher reicht nicht  ·  weniger auswählen" : rd_panel_seen() ? "im Editor des Hauptpanels wählen" : "Antippen  ·  für Adresse");
 #elif SAT_VICTRON_ONLY
         set_text(t.name, "Einrichten");
         set_value(t, "Antippen  ·  für Adresse");
@@ -1255,7 +1372,7 @@ static void refresh() {
   if (pages() > 1)
     for (int p = 0; p < pages(); p++) dots += p == s_page ? " • " : " · ";   // Zeichen aus der Panel-Schrift
   set_text(s_dots, dots);
-#if WITH_CERBO
+#if POP_ON
   pop_sync();
 #endif
 #if WITH_BMS
@@ -1336,19 +1453,21 @@ void sat_display_json(JsonObject o) {
   o["led"] = s_led;   // 0 aus, 1 automatisch, 2 Kachel led_key
   o["led_key"] = s_led_key;
   o["led_pct"] = s_led_pct;
-  JsonArray lt = o["led_tiles"].to<JsonArray>();   // Kacheln mit Pegel (Batterie, Gas, Tank)
-  for (auto &r : rd_tiles())
-    if (r.fill >= 0) {
-      JsonObject x = lt.add<JsonObject>();
-      x["k"] = r.key;
-      x["n"] = r.name;
-    }
+  JsonArray lt = o["led_tiles"].to<JsonArray>();   // Kacheln mit Pegel (Batterie, Gas, Tank) – ohne Kopie
+  rd_each(
+      [](const RdTile &r, void *ctx) {
+        if (r.fill < 0) return;
+        JsonObject x = (*(JsonArray *)ctx).add<JsonObject>();
+        x["k"] = r.key;
+        x["n"] = r.name;
+      },
+      &lt);
 #endif
   o["auto"] = s_auto;
   o["night"] = s_night;
   o["ldr_thr"] = s_ldr_thr;
   // alle bekannten Kacheln: erst in der eingestellten Reihenfolge, dann neue
-  std::vector<Item> raw;
+  ItemList raw;
   collect_raw(raw);
   std::vector<bool> used(raw.size(), false);
   JsonArray a = o["tiles"].to<JsonArray>();
@@ -1497,7 +1616,7 @@ void sat_display_begin() {
 #if SAT_SPLASH
   if (SPLASH_CYD_JPG_LEN) {   // direkt aufs Display, der Decoder braucht nur kurz ~4 KB
     s_lcd.drawJpg(SPLASH_CYD_JPG, SPLASH_CYD_JPG_LEN, 0, 0);
-    s_splash_until = (millis() + 6000) | 1;   // 6 s wie bei den Panels
+    s_splash_until = (millis() + 5000) | 1;   // 5 s, danach erst den Hauptschirm aufbauen
   }
 #endif
 
@@ -1545,9 +1664,12 @@ void sat_display_begin() {
   lv_indev_drv_register(&s_indev_drv);
 
   s_last_touch = millis();
-  build();
-  relayout();
-  refresh();
+  if (!s_splash_until) {   // ohne Startbild gleich; sonst nach dem Startbild (sat_display_loop)
+    build();
+    s_built = true;
+    relayout();
+    refresh();
+  }
 }
 
 #if SAT_REMOTE
@@ -1579,11 +1701,14 @@ static void led_loop(uint32_t now) {
   s_led_ms = now;
   int pct = -1;
   if (s_led)
-    for (auto &r : rd_tiles()) {
-      if (r.fill < 0 || r.dim) continue;
-      if (s_led == 2 && r.key != s_led_key) continue;
-      if (pct < 0 || r.fill < pct) pct = r.fill;
-    }
+    rd_each(
+        [](const RdTile &r, void *ctx) {
+          int &p = *(int *)ctx;
+          if (r.fill < 0 || r.dim) return;
+          if (s_led == 2 && r.key != s_led_key) return;
+          if (p < 0 || r.fill < p) p = r.fill;
+        },
+        &pct);
   s_led_pct = pct;
   if (pct < 0) {
     if (s_led_init) led_write(0);
@@ -1639,6 +1764,56 @@ static void clock_tick(uint32_t now) {
 }
 #endif
 
+// ---------------------------------------------------------------- Web-Modus (Zusatzdisplay)
+// Solange die Weboberflaeche benutzt wird (Zugriff in den letzten 15 s), Kacheln entladen und nur einen blinkenden
+// Punkt zeigen: das CYD hat kein PSRAM, so bleibt fuer Anmelden/Einstellen genug Speicher frei.
+static uint32_t s_web_ms = 0;
+void sat_display_web_touch() { s_web_ms = millis() | 1; }
+#if SAT_REMOTE
+static bool s_webmode = false;
+static lv_obj_t *s_wdot = nullptr;
+static void web_enter() {
+  dp_close();
+#if SAT_CLOCK
+  clock_close();
+#endif
+  lv_obj_clean(lv_scr_act());   // alle Kacheln und Beschriftungen loeschen
+  s_info = nullptr;
+  memset(s_tiles, 0, sizeof(s_tiles));
+  s_title = s_net = s_dots = nullptr;
+  s_items.clear();
+  s_items.shrink_to_fit();
+  s_built = false;
+  s_wdot = lv_obj_create(lv_scr_act());
+  lv_obj_remove_style_all(s_wdot);
+  lv_obj_set_size(s_wdot, 14, 14);
+  lv_obj_set_style_radius(s_wdot, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(s_wdot, C_BLUE, 0);
+  lv_obj_set_style_bg_opa(s_wdot, LV_OPA_COVER, 0);
+  lv_obj_center(s_wdot);
+  s_webmode = true;
+  log_i("Web-Modus: Kacheln entladen, frei %u", (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT));
+}
+static void web_exit() {
+  lv_obj_clean(lv_scr_act());
+  s_wdot = nullptr;
+  s_webmode = false;
+  build();
+  s_built = true;
+  s_lay = 0;
+  relayout();
+  refresh();
+}
+static void web_tick(uint32_t now) {
+  if (!s_wdot) return;
+  static uint32_t last = 0;
+  if (now - last < 500) return;
+  last = now;
+  if (lv_obj_has_flag(s_wdot, LV_OBJ_FLAG_HIDDEN)) lv_obj_clear_flag(s_wdot, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(s_wdot, LV_OBJ_FLAG_HIDDEN);
+}
+#endif
+
 void sat_display_loop() {
   if (s_cal_req) {
     s_cal_req = false;
@@ -1650,9 +1825,15 @@ void sat_display_loop() {
     if ((int32_t)(millis() - s_splash_until) < 0 && s_lcd.getTouch(&tp) == 0) return;
     s_splash_until = 0;
     s_last_touch = millis();
+    if (!s_built) {   // Hauptschirm erst jetzt aufbauen
+      build();
+      s_built = true;
+      relayout();
+      refresh();
+    }
     lv_obj_invalidate(lv_scr_act());   // alles neu zeichnen
   }
-#if WITH_CERBO
+#if POP_ON
   if (s_pop_send_ms && (int32_t)(millis() - s_pop_send_ms) >= 0) pop_flush();
 #endif
   lv_timer_handler();
@@ -1673,20 +1854,44 @@ void sat_display_loop() {
   dp_loop(now);
 #endif
 #if SAT_REMOTE
-  static uint32_t s_rd_seen = 0;   // neue Kacheldaten vom Hauptpanel: gleich zeigen
-  if (rd_version() != s_rd_seen) {
-    s_rd_seen = rd_version();
-    s_next_ms = 0;
+  if (s_web_ms && now - s_web_ms < 15000) {   // Weboberflaeche in Benutzung: Kacheln entladen
+    if (!s_webmode && s_built) web_enter();
+    web_tick(now);
+    return;
   }
-#endif
+  if (s_webmode) {
+    web_exit();
+    return;
+  }
+  // Zusatzdisplay: neue Kachelliste -> alles neu; nur neue Werte -> sichtbare Kacheln, gebuendelt hoechstens alle 0,2 s
+  static uint32_t s_rd_keys = 0, s_rd_seen = 0, s_rd_ms = 0, s_rd_full = 0;
+  if (rd_keys_version() != s_rd_keys && now - s_rd_full >= 400) {   // beim Laden hoechstens alle 0,4 s neu aufbauen
+    s_rd_full = now;
+    s_rd_keys = rd_keys_version();
+    s_rd_seen = rd_version();
+    s_next_ms = now + 5000;
+    refresh();
+    return;
+  }
+  if (rd_version() != s_rd_seen && now - s_rd_ms >= 200) {
+    s_rd_seen = rd_version();
+    s_rd_ms = now;
+    refresh_visible();
+  }
+  if ((int32_t)(now - s_next_ms) < 0) return;
+  s_next_ms = now + 5000;   // ganze Liste nur alle 5 s neu (Namen, Seiten); Werte kommen oben
+  refresh();
+#else
   if ((int32_t)(now - s_next_ms) < 0) return;
   s_next_ms = now + 1000;   // Werte einmal pro Sekunde auffrischen
   refresh();
+#endif
 }
 
 #else
 void sat_display_begin() {}
 void sat_display_loop() {}
+void sat_display_web_touch() {}
 void sat_display_light(JsonObject) {}
 bool sat_display_night() { return false; }
 bool sat_display_present() { return false; }

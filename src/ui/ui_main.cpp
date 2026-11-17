@@ -21,6 +21,7 @@
 #include "../bms.h"
 #include "../truma_heat.h"
 #endif
+#include "../cerbo.h"
 
 #include <Arduino.h>
 #include <time.h>
@@ -1267,6 +1268,11 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
     m.accent = rgb_of(tt.accent);
     m.fill = tt.fill;
     m.dim = tt.stale;
+    if (v.gx && v.can_mode) {   // ueber den GX schaltbar: Bedienfenster am Zusatzdisplay
+      m.vset = v.mode_set == 0 ? 1 : 2;
+      m.vmode = v.mode;
+    }
+    if (v.gx && v.can_limit && !isnan(v.ac_limit)) m.vlim = (int)lroundf(v.ac_limit * 10);
     return true;
   }
   if (truma_heat_is_key(key)) {
@@ -1317,6 +1323,15 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
 }
 
 bool ui_tile_set(const std::string &key, char what, int value) {
+#if WITH_CERBO
+  if (victron_is_key(key)) {   // MultiPlus/Ladegeraet ueber den GX (nur was der GX als einstellbar meldet)
+    VictronInfo vi;
+    if (!ui_vic_get(key, vi) || !vi.gx) return false;
+    if (what == 'm' && vi.can_mode) return cerbo_set_mode(key, value);
+    if (what == 'l' && vi.can_limit) return cerbo_set_limit(key, std::max(0, std::min(1000, value)) / 10.f);
+    return false;
+  }
+#endif
   ControlView v;
   if (!z2m_get(key, v) || !z2m_connected()) return false;
   switch (what) {
