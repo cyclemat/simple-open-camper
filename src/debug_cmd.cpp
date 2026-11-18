@@ -10,6 +10,7 @@
 #include "app_config.h"
 #include "net.h"
 #include "z2m.h"
+#include "zb_direct.h"
 #include "board.h"
 #include "settings.h"
 #include "hymer.h"
@@ -303,6 +304,10 @@ static void run(const char *cmd) {
   } else if (!strcmp(cmd, "c6datei")) {
     c6_from_file("/sd/c6.bin");
 #endif
+#if WITH_ZB_DIRECT
+  } else if (!strncmp(cmd, "zb", 2) && (cmd[2] == 0 || cmd[2] == ' ')) {
+    zbd_debug(cmd + 2);   // zb | zb list | zb permit [s] | zb raw {"c":…}
+#endif
   } else if (!strcmp(cmd, "webpw")) {
     web_password_reset();
     log_printf("Zugangspasswort der Weboberflaeche ist wieder \"panelsat\" - beim naechsten Oeffnen ein neues festlegen.\n");
@@ -314,6 +319,9 @@ static void run(const char *cmd) {
     log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s\n",
                WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
                HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
+#if WITH_ZB_DIRECT
+    log_printf("Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb raw {\"c\":\"info\"}\n");
+#endif
   } else {
     log_printf("Unbekannter Befehl \"%s\" - help zeigt die Befehle\n", cmd);
   }

@@ -29,6 +29,7 @@
 #include "sdcard.h"
 #include "splash.h"
 #include "debug_cmd.h"
+#include "zb_direct.h"
 
 static void apply_settings_event(Settings *st) {
   Settings old = settings_copy();
@@ -134,6 +135,7 @@ void setup() {
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
   bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
+  zbd_begin();         // Zigbee-Funkmodul (ESP32-H2) per UART – nur mit WITH_ZB_DIRECT, sonst leer
   debug_mark("bluetooth");
   ui_init();
   debug_mark("oberflaeche");

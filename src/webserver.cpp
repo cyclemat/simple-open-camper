@@ -11,6 +11,7 @@
 #include "cerbo.h"
 #include "gx_find.h"
 #include "bms.h"
+#include "zb_direct.h"
 #include "panelsat.h"
 #include "panelsat_pair.h"
 #include "mopeka.h"
@@ -1321,6 +1322,33 @@ static esp_err_t h_bms_post(httpd_req_t *req) {
 }
 #endif
 
+#if WITH_ZB_DIRECT
+// Zigbee direkt (Funkmodul ESP32-H2): Stand, Geraete, letzte Werte, Meldungen des Moduls
+static esp_err_t h_zbd_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  zbd_status_json(d.to<JsonObject>());
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"on":bool} | {"permit":Sekunden} | {"send":{"c":…}} (beliebiger Befehl ans Modul, siehe zb_link.h)
+static esp_err_t h_zbd_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>()) zbd_set_enabled(d["on"].as<bool>());
+  if (d["permit"].is<int>()) zbd_permit(d["permit"].as<int>());
+  if (d["send"].is<JsonObject>() && !zbd_send_cmd(d["send"].as<JsonObjectConst>()))
+    return send_err(req, "400 Bad Request", "Zigbee-Modul nicht verbunden oder Befehl ungültig");
+  return send_ok(req);
+}
+#endif
+
 static esp_err_t h_victron_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
@@ -1853,6 +1881,10 @@ void web_start() {
 #if WITH_BMS
   reg("/api/bms", HTTP_GET, h_bms_get);
   reg("/api/bms", HTTP_POST, h_bms_post);
+#endif
+#if WITH_ZB_DIRECT
+  reg("/api/zbd", HTTP_GET, h_zbd_get);
+  reg("/api/zbd", HTTP_POST, h_zbd_post);
 #endif
   reg("/api/cerbo", HTTP_GET, h_cerbo_get);
   reg("/api/cerbo", HTTP_POST, h_cerbo_post);

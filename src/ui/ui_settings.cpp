@@ -30,6 +30,7 @@ static std::string lower_mac(std::string s);
 #include "../sdcard.h"
 #include "../panelsat_pair.h"
 #include "ui_remote.h"
+#include "../zb_direct.h"
 #include <Arduino.h>
 #include <functional>
 #include <vector>
@@ -1570,6 +1571,167 @@ void ui_settings_tick_hymer() {
       if (p.idx == r.first) lv_label_set_text(r.second, hymer_value_text(p).c_str());
 }
 
+#if WITH_ZB_DIRECT
+// ---------------------------------------------------------------- Zigbee-Modul (ESP32-H2 im Steckplatz)
+static uint32_t s_zb_sig = 0;
+static lv_obj_t *s_zb_status = nullptr, *s_zb_net = nullptr, *s_zb_open = nullptr, *s_zb_log = nullptr;
+static std::vector<std::pair<std::string, lv_obj_t *>> s_zb_rows;   // IEEE-Adresse -> Wert-Label
+static std::vector<std::string> s_zb_ieee;                          // Index = user_data der Zeile
+
+static std::string zb_status_text(const ZbdInfo &i) {
+  if (!i.started) return tr("nicht gestartet");
+  if (!i.present) return tr("nicht gefunden – Modul gesteckt und aufgespielt?");
+  return std::string(tr("verbunden")) + (i.fw.empty() ? "" : " · Firmware " + i.fw);
+}
+static std::string zb_net_text(const ZbdInfo &i) {
+  if (!i.present) return "–";
+  if (!i.ready) return tr("wird gebildet …");
+  char b[48];
+  snprintf(b, sizeof(b), "PAN 0x%04X · %s %d", i.pan, tr("Kanal"), i.ch);
+  return b;
+}
+static std::string zb_open_text(const ZbdInfo &i) {
+  if (!i.open) return tr("geschlossen");
+  char b[48];
+  snprintf(b, sizeof(b), tr("offen, noch %d s"), i.open);
+  return b;
+}
+static std::string zb_log_text() {
+  auto l = zbd_log();
+  std::string s;
+  size_t from = l.size() > 6 ? l.size() - 6 : 0;
+  for (size_t i = from; i < l.size(); i++) s += (s.empty() ? "" : "\n") + l[i];
+  return s.empty() ? std::string(tr("Noch keine Meldungen.")) : s;
+}
+static std::string zb_dev_value(const ZbdDevice &d) {
+  if (!d.done) return tr("wird abgefragt …");
+  return d.summary.empty() ? std::string(tr("noch keine Werte")) : d.summary;
+}
+
+static void zb_rebuild(void *) {
+  if (s_scr && s_sec == SEC_ZIGBEE) show_section(SEC_ZIGBEE);
+}
+static void zb_switch_cb(lv_event_t *e) {
+  bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  zbd_set_enabled(on);
+  if (!on) ui_toast("Ausgeschaltet – wirkt nach dem nächsten Neustart des Panels.");
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_permit_cb(lv_event_t *) {
+  if (zbd_info().open) {
+    zbd_permit(0);
+    ui_toast("Anlernen beendet.");
+  } else {
+    zbd_permit(180);
+    ui_toast("Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.");
+  }
+}
+static void zb_dev_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_zb_ieee.size()) return;
+  std::string ieee = s_zb_ieee[i];
+  std::string txt = tr("Das Gerät ") + ieee + tr(" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.");
+  ui_confirm("Gerät entfernen?", txt.c_str(), "Entfernen", true, [ieee] {
+    zbd_remove(ieee);
+    ui_toast("Gerät entfernt.");
+  });
+}
+static void zb_reset_cb(lv_event_t *) {
+  ui_confirm("Zigbee-Netz neu bilden?",
+             "Alle Geräte verlieren die Verbindung und müssen neu angelernt werden. Nur bei Störungen nötig.", "Neu bilden",
+             true, [] {
+               zbd_reset_network();
+               ui_toast("Netz wird neu gebildet …");
+             });
+}
+
+static void build_zigbee() {
+  s_zb_sig = zbd_structure_sig();
+  s_zb_status = s_zb_net = s_zb_open = s_zb_log = nullptr;
+  s_zb_rows.clear();
+  s_zb_ieee.clear();
+  heading("Zigbee", "Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz "
+                    "auf der Rückseite, ohne Zigbee2MQTT und ohne Broker.");
+  // Schalter wie bei den Bluetooth-Geraeten
+  lv_obj_t *r = lv_obj_create(s_content);
+  ui_plain(r);
+  lv_obj_set_size(r, lv_pct(100), 64);
+  lv_obj_set_style_border_side(r, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_width(r, 1, 0);
+  lv_obj_set_style_border_color(r, C_LINE, 0);
+  lv_obj_align(ui_label(r, "Zigbee-Modul", F_BODY, C_TEXT), LV_ALIGN_TOP_LEFT, 8, 8);
+  lv_obj_align(ui_label(r, "Funkmodul im Steckplatz verwenden", F_SMALL, C_TEXT2), LV_ALIGN_TOP_LEFT, 8, 36);
+  lv_obj_t *sw = lv_switch_create(r);
+  lv_obj_set_size(sw, 64, 34);
+  lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+  if (zbd_enabled()) lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+  lv_obj_add_event_cb(sw, zb_switch_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  if (!zbd_enabled()) return;
+
+  ZbdInfo in = zbd_info();
+  subheading("Funkmodul");
+  lv_obj_t *g = group();
+  s_zb_status = ui_row(g, "Modul", zb_status_text(in).c_str(), nullptr, nullptr, false);
+  s_zb_net = ui_row(g, "Zigbee-Netz", zb_net_text(in).c_str(), nullptr, nullptr, false);
+  s_zb_open = ui_row(g, "Anlernen", zb_open_text(in).c_str(), nullptr, nullptr, false);
+  lv_obj_t *row = button_row();
+  bool can = in.present && in.ready;
+  ui_button(row, in.open ? ICON_CLOSE : ICON_PLUS, in.open ? "Anlernen beenden" : "Gerät anlernen", !in.open,
+            can ? zb_permit_cb : nullptr, nullptr);
+  lv_obj_t *h = ui_label(s_content,
+                         "„Gerät anlernen“ öffnet das Netz für 3 Minuten. Dann das Gerät in den Kopplungsmodus bringen "
+                         "(meist Taste lange drücken oder Lampe mehrmals aus- und einschalten). Das Modul fragt neue Geräte "
+                         "selbst ab und richtet die Meldungen ein.",
+                         F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+
+  auto devs = zbd_devices();
+  subheading((std::string(tr("Geräte")) + " (" + std::to_string(devs.size()) + ")").c_str());
+  if (devs.empty()) {
+    ui_label(s_content, in.present ? "Noch keine Geräte angelernt." : "Ohne Funkmodul keine Geräte.", F_SMALL, C_TEXT2);
+  } else {
+    lv_obj_t *dg = group();
+    for (auto &d : devs) {
+      std::string title = d.model.empty() ? d.ieee : (d.mf.empty() ? d.model : d.mf + " " + d.model);
+      lv_obj_t *v = ui_row(dg, title.c_str(), zb_dev_value(d).c_str(), zb_dev_cb, (void *)(intptr_t)s_zb_ieee.size());
+      s_zb_ieee.push_back(d.ieee);
+      s_zb_rows.push_back({d.ieee, v});
+    }
+    lv_obj_t *h2 = ui_label(s_content, "Gerät antippen zum Entfernen. Kacheln für Zigbee-Geräte folgen.", F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h2, lv_pct(100));
+  }
+
+  subheading("Meldungen des Moduls");
+  s_zb_log = ui_label(s_content, zb_log_text().c_str(), F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(s_zb_log, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(s_zb_log, lv_pct(100));
+  if (in.present) {
+    lv_obj_t *row2 = button_row();
+    ui_button(row2, ICON_REFRESH, "Netz neu bilden", false, zb_reset_cb, nullptr);
+  }
+}
+
+void ui_settings_tick_zigbee() {
+  if (!s_scr || s_sec != SEC_ZIGBEE || ui_input_is_open() || !zbd_enabled()) return;
+  if (zbd_structure_sig() != s_zb_sig) {
+    show_section(SEC_ZIGBEE);
+    return;
+  }
+  ZbdInfo in = zbd_info();
+  if (s_zb_status) lv_label_set_text(s_zb_status, zb_status_text(in).c_str());
+  if (s_zb_net) lv_label_set_text(s_zb_net, zb_net_text(in).c_str());
+  if (s_zb_open) lv_label_set_text(s_zb_open, zb_open_text(in).c_str());
+  if (s_zb_log) lv_label_set_text(s_zb_log, zb_log_text().c_str());
+  auto devs = zbd_devices();
+  for (auto &r : s_zb_rows)
+    for (auto &d : devs)
+      if (d.ieee == r.first) lv_label_set_text(r.second, zb_dev_value(d).c_str());
+}
+#endif
+
 static void build_gas() {
   heading("Gas und Heizung", "Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
                              "wird nicht gesucht und belastet Funk und WLAN nicht.");
@@ -2194,8 +2356,8 @@ static void build_backup() {
 }
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_LOCK, ICON_INFO};
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Sicherung", "Info"};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_BULB, ICON_LOCK, ICON_INFO};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Sicherung", "Info"};
 
 static void show_section(int sec) {
   s_sec = sec;
@@ -2223,6 +2385,9 @@ static void show_section(int sec) {
     case SEC_PSTATION: build_bms(true); break;
 #endif
     case SEC_HYMER: build_hymer(); break;
+#if WITH_ZB_DIRECT
+    case SEC_ZIGBEE: build_zigbee(); break;
+#endif
     case SEC_BACKUP: build_backup(); break;
     default: build_info(); break;
   }
@@ -2271,11 +2436,22 @@ void ui_settings_open(int section) {
   ui_plain(sp);
   lv_obj_set_size(sp, 10, 6);
 
+  // sichtbare Punkte zaehlen: Hoehe so, dass alle in die Bildschirmhoehe passen (hoechstens 42 px)
+  auto nav_visible = [](int i) {
+    if (i == SEC_HYMER && !hymer_enabled()) return false;
+    if ((i == SEC_BMS || i == SEC_PSTATION) && !WITH_BMS) return false;
+    if (i == SEC_ZIGBEE && !WITH_ZB_DIRECT) return false;
+    return true;
+  };
+  int nav_n = 0;
+  for (int i = 0; i < SEC_COUNT; i++) nav_n += nav_visible(i);
+  int nav_h = (LV_VER_RES - 24 - 52 - 6 - 4 * (nav_n + 1)) / (nav_n ? nav_n : 1);
+  if (nav_h > 42) nav_h = 42;
   for (int i = 0; i < SEC_COUNT; i++) {
     lv_obj_t *it = lv_obj_create(nav);
     ui_plain(it);
     lv_obj_add_flag(it, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(it, lv_pct(100), 42);   // 11 Punkte muessen in 600 px passen
+    lv_obj_set_size(it, lv_pct(100), nav_h);
     lv_obj_set_style_radius(it, 12, 0);
     lv_obj_set_style_bg_color(it, C_FIELD, 0);
     lv_obj_set_style_border_side(it, LV_BORDER_SIDE_LEFT, 0);
@@ -2286,8 +2462,7 @@ void ui_settings_open(int section) {
     lv_obj_align(tx, LV_ALIGN_LEFT_MID, 52, 0);
     lv_obj_add_event_cb(it, nav_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     s_nav_items[i] = it;
-    if (i == SEC_HYMER && !hymer_enabled()) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);   // nicht eingebaut
-    if ((i == SEC_BMS || i == SEC_PSTATION) && !WITH_BMS) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);
+    if (!nav_visible(i)) lv_obj_add_flag(it, LV_OBJ_FLAG_HIDDEN);   // nicht eingebaut
   }
 
   s_content = lv_obj_create(s_scr);
@@ -2336,4 +2511,7 @@ void ui_settings_tick() {
   info_fill();
   ui_settings_tick_victron();  // Ende der Suche, Alter der Werte
   ui_settings_tick_sat();      // Satelliten im Einrichtungsmodus kommen und gehen, Stand der Einrichtung
+#if WITH_ZB_DIRECT
+  ui_settings_tick_zigbee();   // Zigbee-Modul: Stand, Anlernen, Geraete und Werte
+#endif
 }
