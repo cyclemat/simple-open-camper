@@ -45,7 +45,7 @@ PLATFORMIO_INI = """\
 ; Bauen und hochladen:   pio run -t upload            (VS Code: PlatformIO -> cyd-victron -> Upload)
 ; Einrichten:            WLAN "SOC-Victron-XXXXXX", Standardpasswort panelsat (muss beim ersten Mal geaendert werden)
 ;
-; Erzeugt aus github.com/cyclemat/simply-open-camper (tools/export_victron.py) – Aenderungen bitte dort machen.
+; Wird automatisch erzeugt – Aenderungen hier werden beim naechsten Abgleich ueberschrieben.
 
 [platformio]
 default_envs = cyd-victron

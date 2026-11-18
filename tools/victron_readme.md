@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Status-Beta-yellow" alt="Status">
 </p>
 
-> Die abgespeckte Version von [Simply Open Camper](https://github.com/cyclemat/simply-open-camper) (S.O.C.) für alle,
+> Die abgespeckte Version von Simply Open Camper (S.O.C.) für alle,
 > die **nur Victron und den Gasvorrat** sehen und bedienen wollen – auf einem Display für rund 15 €, ohne großes Panel.
 
 ---
@@ -214,12 +214,10 @@ Eigenes Startbild: `splash_cyd.jpg` (320×240, JPEG „baseline“) in den Proje
   „Jetzt messen“ drücken.
 - **Cerbo trennt ab und zu?** Meist schwaches WLAN – näher an den GX oder dessen eigenes WLAN verwenden.
 
-## 🔗 Teil von Simply Open Camper
+## 🔗 Fehler und Wünsche
 
-Dieses Repository wird automatisch aus dem Hauptprojekt
-[cyclemat/simply-open-camper](https://github.com/cyclemat/simply-open-camper) erzeugt
-(`tools/export_victron.py`). Fehler und Wünsche bitte dort melden – Änderungen hier werden beim nächsten
-Abgleich überschrieben.
+Bitte hier als [Issue](../../issues) melden. Der Code wird automatisch aktualisiert – Pull Requests werden deshalb
+nicht direkt übernommen, sondern von Hand eingearbeitet (siehe [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ---
 
@@ -234,7 +232,17 @@ tile to set the MultiPlus input current limit and mode. Setup: join WiFi `SOC-Vi
 (web UI), then your WiFi. The setup WiFi password is separate (default `panelsat`, can be changed or switched off).
 Emergency: power-cycle 3× quickly = setup WiFi on, 5× = reset WiFi and both passwords. Build with
 PlatformIO: `pio run -t upload`. German UI, beta.
+
+If it helps you: **[☕ support CycleMat on PayPal](https://paypal.me/cyclemat)**
 </details>
+
+## ❤ Support & Spenden
+
+Das Projekt entsteht in der Freizeit. Wenn es dir hilft, freue ich mich über einen Kaffee:
+
+**[☕ PayPal – CycleMat unterstützen](https://paypal.me/cyclemat)**
+
+Kein Druck, keine Werbung, keine Bezahlschranke ❤
 
 ## 📄 Lizenz
 
