@@ -1626,15 +1626,206 @@ static void zb_permit_cb(lv_event_t *) {
     ui_toast("Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.");
   }
 }
+// ---- Geraeteseite: Werte und Einstellungen eines Geraets. Die Einstellungen holt das Panel erst beim Oeffnen vom
+// Funkmodul und haelt sie nur, solange die Seite offen ist (spart RAM). Speichern schickt nur Geaendertes.
+static std::string s_zb_dev;                                        // offene Geraeteseite ("" = Liste)
+static std::vector<ZbdCfgItem> s_zb_cfg;                            // Einstellungen (nur solange offen)
+static bool s_zb_cfg_done = false;
+static std::vector<std::pair<std::string, std::string>> s_zb_pending;   // geaenderte Werte (Name -> JSON)
+static std::vector<std::pair<std::string, lv_obj_t *>> s_zb_valrows;    // aktuelle Werte (Name -> Label)
+
+static void zb_leave_device() {
+  if (s_zb_dev.empty()) return;
+  zbd_config_close();
+  s_zb_dev.clear();
+  s_zb_cfg.clear();
+  s_zb_cfg.shrink_to_fit();
+  s_zb_pending.clear();
+  s_zb_valrows.clear();
+  s_zb_cfg_done = false;
+}
+static std::string zb_plain(const std::string &json) {   // "\"ON\"" -> ON
+  if (json.size() >= 2 && json.front() == '"' && json.back() == '"') return json.substr(1, json.size() - 2);
+  return json;
+}
+static std::string zb_json_str(const std::string &t) {
+  std::string o = "\"";
+  for (char c : t) {
+    if (c == '"' || c == '\\') o += '\\';
+    o += c;
+  }
+  return o + "\"";
+}
+static void zb_set_pending(const std::string &name, const std::string &json) {
+  for (auto &x : s_zb_pending)
+    if (x.first == name) {
+      x.second = json;
+      return;
+    }
+  s_zb_pending.push_back({name, json});
+}
 static void zb_dev_cb(lv_event_t *e) {
   size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
   if (i >= s_zb_ieee.size()) return;
-  std::string ieee = s_zb_ieee[i];
+  s_zb_dev = s_zb_ieee[i];
+  s_zb_cfg.clear();
+  s_zb_pending.clear();
+  s_zb_cfg_done = false;
+  zbd_config_open(s_zb_dev);
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_back_cb(lv_event_t *) {
+  if (!s_zb_pending.empty()) {
+    ui_confirm("Änderungen verwerfen?", "Die geänderten Einstellungen wurden noch nicht gespeichert.", "Verwerfen", true,
+               [] {
+                 zb_leave_device();
+                 lv_async_call(zb_rebuild, nullptr);
+               });
+    return;
+  }
+  zb_leave_device();
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_save_cb(lv_event_t *) {
+  if (s_zb_pending.empty()) return;
+  std::string j = "{";
+  for (auto &x : s_zb_pending) j += (j.size() > 1 ? "," : "") + zb_json_str(x.first) + ":" + x.second;
+  j += "}";
+  if (!zbd_set(s_zb_dev, j)) {
+    ui_toast("Zigbee-Modul nicht verbunden.");
+    return;
+  }
+  s_zb_pending.clear();
+  ui_toast("Gesendet – das Gerät übernimmt die Einstellungen.");
+  s_zb_cfg_done = false;
+  zbd_config_open(s_zb_dev);   // neuen Stand holen
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_discard_cb(lv_event_t *) {
+  s_zb_pending.clear();
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_remove_cb(lv_event_t *) {
+  std::string ieee = s_zb_dev;
   std::string txt = tr("Das Gerät ") + ieee + tr(" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.");
   ui_confirm("Gerät entfernen?", txt.c_str(), "Entfernen", true, [ieee] {
     zbd_remove(ieee);
+    zb_leave_device();
     ui_toast("Gerät entfernt.");
+    lv_async_call(zb_rebuild, nullptr);
   });
+}
+// angezeigter Wert einer Einstellung: geaendert (noch nicht gespeichert) oder aktueller Stand
+static std::string zb_cfg_value(const ZbdCfgItem &it) {
+  for (auto &x : s_zb_pending)
+    if (x.first == it.name) return zb_plain(x.second) + (it.unit.empty() ? "" : " " + it.unit) + " *";
+  if (it.cur.empty()) return "–";
+  return zb_plain(it.cur) + (it.unit.empty() ? "" : " " + it.unit);
+}
+static void zb_cfg_num_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_zb_cfg.size()) return;
+  ZbdCfgItem it = s_zb_cfg[i];
+  InputOptions o;
+  o.title = it.name;
+  char h[96];
+  snprintf(h, sizeof(h), tr("Wert von %g bis %g%s%s"), it.min, it.max, it.unit.empty() ? "" : " ", it.unit.c_str());
+  o.hint = h;
+  o.numeric = it.type == 2;
+  o.initial = zb_plain(it.cur);
+  o.max_len = 32;
+  o.on_ok = [it](const std::string &t, bool) {
+    if (it.type != 2) {
+      zb_set_pending(it.name, zb_json_str(t));
+    } else {
+      double v = atof(t.c_str());
+      if (it.max > it.min && (v < it.min || v > it.max)) {
+        ui_toast("Wert außerhalb des erlaubten Bereichs.");
+        return;
+      }
+      char b[32];
+      snprintf(b, sizeof(b), "%g", v);
+      zb_set_pending(it.name, b);
+    }
+    lv_async_call(zb_rebuild, nullptr);
+  };
+  ui_input_open(o);
+}
+static void zb_cfg_bin_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_zb_cfg.size() || s_zb_cfg[i].values.size() < 2) return;
+  const ZbdCfgItem &it = s_zb_cfg[i];
+  std::string now = zb_plain(it.cur);
+  for (auto &x : s_zb_pending)
+    if (x.first == it.name) now = zb_plain(x.second);
+  std::string next = now == it.values[0] ? it.values[1] : it.values[0];   // umschalten Ein <-> Aus
+  zb_set_pending(it.name, (next == "true" || next == "false") ? next : zb_json_str(next));
+  lv_async_call(zb_rebuild, nullptr);
+}
+static void zb_cfg_enum_cb(lv_event_t *e) {
+  lv_obj_t *dd = lv_event_get_target(e);
+  size_t i = (size_t)(intptr_t)lv_obj_get_user_data(dd);
+  if (i >= s_zb_cfg.size()) return;
+  uint16_t sel = lv_dropdown_get_selected(dd);
+  if (sel >= s_zb_cfg[i].values.size()) return;
+  zb_set_pending(s_zb_cfg[i].name, zb_json_str(s_zb_cfg[i].values[sel]));
+  lv_async_call(zb_rebuild, nullptr);
+}
+
+static void build_zigbee_device() {
+  s_zb_valrows.clear();
+  ZbdDevice dev;
+  for (auto &d : zbd_devices())
+    if (d.ieee == s_zb_dev) dev = d;
+  lv_obj_t *top = button_row();
+  ui_button(top, ICON_LEFT, "Zurück zur Liste", false, zb_back_cb, nullptr);
+  std::string title = dev.model.empty() ? s_zb_dev : (dev.mf.empty() ? dev.model : dev.mf + " " + dev.model);
+  heading(title.c_str(), dev.desc.empty() ? nullptr : dev.desc.c_str());
+
+  subheading("Aktuelle Werte");
+  auto vals = zbd_values(s_zb_dev);
+  if (vals.empty()) {
+    ui_label(s_content, "Noch keine Werte – das Gerät meldet sich bei der nächsten Änderung.", F_SMALL, C_TEXT2);
+  } else {
+    lv_obj_t *g = group();
+    for (auto &v : vals) s_zb_valrows.push_back({v.first, ui_row(g, v.first.c_str(), zb_plain(v.second).c_str(), nullptr, nullptr, false)});
+  }
+
+  subheading("Einstellungen");
+  s_zb_cfg_done = zbd_config_get(s_zb_cfg);
+  if (!s_zb_cfg_done) {
+    ui_label(s_content, "Werden vom Funkmodul geladen …", F_SMALL, C_TEXT2);
+  } else if (s_zb_cfg.empty()) {
+    ui_label(s_content, "Dieses Gerät hat keine Einstellungen.", F_SMALL, C_TEXT2);
+  } else {
+    lv_obj_t *g = group();
+    for (size_t i = 0; i < s_zb_cfg.size(); i++) {
+      const ZbdCfgItem &it = s_zb_cfg[i];
+      if (it.type == 3 && !it.values.empty()) {   // Auswahl
+        std::string opts, cur = zb_plain(it.cur);
+        int sel = 0;
+        for (auto &x : s_zb_pending)
+          if (x.first == it.name) cur = zb_plain(x.second);
+        for (size_t k = 0; k < it.values.size(); k++) {
+          opts += (k ? "\n" : "") + it.values[k];
+          if (it.values[k] == cur) sel = (int)k;
+        }
+        lv_obj_t *dd = dropdown_row(it.name.c_str(), opts.c_str(), sel, zb_cfg_enum_cb);
+        lv_obj_set_user_data(dd, (void *)(intptr_t)i);
+      } else if (it.type == 1) {   // Ein/Aus: antippen schaltet um
+        ui_row(g, it.name.c_str(), zb_cfg_value(it).c_str(), zb_cfg_bin_cb, (void *)(intptr_t)i);
+      } else {   // Zahl oder Text: antippen = eingeben
+        ui_row(g, it.name.c_str(), zb_cfg_value(it).c_str(), zb_cfg_num_cb, (void *)(intptr_t)i);
+      }
+    }
+    lv_obj_t *h = ui_label(s_content, "Mit * markiert: geändert, noch nicht gespeichert.", F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, lv_pct(100));
+  }
+  lv_obj_t *row = button_row();
+  ui_button(row, ICON_CHECK, "Speichern", !s_zb_pending.empty(), s_zb_pending.empty() ? nullptr : zb_save_cb, nullptr);
+  if (!s_zb_pending.empty()) ui_button(row, ICON_CLOSE, "Verwerfen", false, zb_discard_cb, nullptr);
+  ui_button(row, ICON_CLOSE, "Gerät entfernen", false, zb_remove_cb, nullptr);
 }
 static void zb_reset_cb(lv_event_t *) {
   ui_confirm("Zigbee-Netz neu bilden?",
@@ -1647,6 +1838,12 @@ static void zb_reset_cb(lv_event_t *) {
 
 static void build_zigbee() {
   s_zb_sig = zbd_structure_sig();
+  if (!s_zb_dev.empty()) {
+    s_zb_status = s_zb_net = s_zb_open = s_zb_log = nullptr;
+    s_zb_rows.clear();
+    build_zigbee_device();
+    return;
+  }
   s_zb_status = s_zb_net = s_zb_open = s_zb_log = nullptr;
   s_zb_rows.clear();
   s_zb_ieee.clear();
@@ -1717,6 +1914,23 @@ static void build_zigbee() {
 
 void ui_settings_tick_zigbee() {
   if (!s_scr || s_sec != SEC_ZIGBEE || ui_input_is_open() || !zbd_enabled()) return;
+  if (!s_zb_dev.empty()) {   // Geraeteseite: Einstellungen fertig geladen -> neu aufbauen, sonst Werte nachfuehren
+    std::vector<ZbdCfgItem> tmp;
+    bool done = zbd_config_get(tmp);
+    if (done != s_zb_cfg_done) {
+      show_section(SEC_ZIGBEE);
+      return;
+    }
+    auto vals = zbd_values(s_zb_dev);
+    if (vals.size() != s_zb_valrows.size()) {
+      show_section(SEC_ZIGBEE);
+      return;
+    }
+    for (auto &r : s_zb_valrows)
+      for (auto &v : vals)
+        if (v.first == r.first) lv_label_set_text(r.second, zb_plain(v.second).c_str());
+    return;
+  }
   if (zbd_structure_sig() != s_zb_sig) {
     show_section(SEC_ZIGBEE);
     return;
@@ -2361,6 +2575,9 @@ static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, I
 static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Sicherung", "Info"};
 
 static void show_section(int sec) {
+#if WITH_ZB_DIRECT
+  if (sec != SEC_ZIGBEE) zb_leave_device();   // Einstellungen eines Zigbee-Geraets nur solange die Seite offen ist
+#endif
   s_sec = sec;
   for (int i = 0; i < SEC_COUNT; i++) {
     bool a = i == sec;
@@ -2483,6 +2700,9 @@ void ui_settings_open(int section) {
 
 void ui_settings_close() {
   if (!s_scr) return;
+#if WITH_ZB_DIRECT
+  zb_leave_device();
+#endif
   lv_obj_t *old = s_scr;
   s_scr = nullptr;
   s_content = nullptr;

@@ -58,6 +58,11 @@ struct Dev {
   std::string zv, zm;      // Hersteller/Modell laut Treiberliste (leer = kein Treiber gefunden)
   std::vector<Ep> eps;
   bool done = false;
+  uint32_t rec = 0;        // Definition in der Treiberliste (0 = keine)
+  uint16_t occ_timeout = 0;   // Bewegung nach … s zuruecksetzen (0 = aus, wie occupancy_timeout bei Zigbee2MQTT)
+  uint32_t occ_until = 0;
+  std::string occ_prop;
+  std::vector<std::pair<std::string, std::string>> last;   // letzte Werte (Name -> JSON), fuer "config"
 };
 
 // ---------------------------------------------------------------- Treiberliste (Bereich "zbdrv", zb_drivers.h)
@@ -204,6 +209,7 @@ void dev_json(JsonObject o, const Dev &d) {
     o["zm"] = d.zm;
   }
   o["done"] = d.done;
+  if (d.occ_timeout) o["ot"] = d.occ_timeout;
   JsonArray eps = o["eps"].to<JsonArray>();
   for (auto &e : d.eps) {
     JsonObject x = eps.add<JsonObject>();
@@ -297,6 +303,7 @@ void load_devs() {
     d.zv = (const char *)(j["zv"] | "");
     d.zm = (const char *)(j["zm"] | "");
     d.done = j["done"] | false;
+    d.occ_timeout = j["ot"] | 0;
     for (JsonObject x : j["eps"].as<JsonArray>()) {
       Ep e;
       e.ep = x["ep"] | 0;
@@ -306,10 +313,13 @@ void load_devs() {
       for (uint16_t c : x["out"].as<JsonArray>()) e.out.push_back(c);
       d.eps.push_back(e);
     }
+    d.rec = drv_find(d.mf.c_str(), d.model.c_str());   // Treiberliste ist schon geladen (setup)
     s_devs.push_back(d);
   }
   p.end();
 }
+
+#include "zb_conv.inc"   // Umrechnung wie Zigbee2MQTT (Standard-Cluster, Tuya, IAS, Einstellen)
 
 // ---------------------------------------------------------------- Attributwerte -> JSON
 void put_value(JsonObject o, const esp_zb_zcl_attribute_t &a) {
@@ -351,9 +361,19 @@ void put_value(JsonObject o, const esp_zb_zcl_attribute_t &a) {
   }
 }
 void send_attr(uint16_t nwk, uint8_t ep, uint16_t cl, const esp_zb_zcl_attribute_t &a) {
+  Dev *d = find_nwk(nwk);
+  {   // bekannte Werte als benannte Zustandsmeldung, sonst roh als "attr"
+    JsonDocument st;
+    st["t"] = "state";
+    if (d) st["ieee"] = ieee_str(d->ieee);
+    JsonObject p = st["p"].to<JsonObject>();
+    if (d && conv_attr(d, ep, cl, a, p)) {
+      if (p.size()) send_state(d, st);
+      return;
+    }
+  }
   JsonDocument j;
   j["t"] = "attr";
-  Dev *d = find_nwk(nwk);
   uint8_t ieee[8];
   if (d) j["ieee"] = ieee_str(d->ieee);
   else if (esp_zb_ieee_address_by_short(nwk, ieee) == ESP_OK) j["ieee"] = ieee_str(ieee);
@@ -444,13 +464,22 @@ void finish_job(uint8_t gen) {
   if (d) {
     d->done = !d->eps.empty();
     uint32_t rec = drv_find(d->mf.c_str(), d->model.c_str());
+    d->rec = rec;
     if (rec) {
       ZbdRecord r;
       memcpy(&r, s_drv + rec, sizeof(r));
       d->zv = drv_str(r.vendor) ? drv_str(r.vendor) : "";
       d->zm = drv_str(r.model) ? drv_str(r.model) : "";
     }
-    if (d->done) bind_and_report(*d);
+    if (d->done) {
+      bind_and_report(*d);
+      esp_zb_ieee_addr_t me;
+      esp_zb_get_long_address(me);
+      for (auto &e : d->eps)   // Alarmmelder: Koordinator als Zentrale eintragen (IAS_CIE_Address)
+        if (std::find(e.in.begin(), e.in.end(), 0x0500) != e.in.end()) write_attr(d, e.ep, 0x0500, 0x0010, 0xF0, me, 8);
+      ZbdRecord r;
+      if (drv_record(rec, r) && (r.flags & ZBD_F_TUYA)) tuya_query(*d);   // alle Datenpunkte einmal abfragen
+    }
     save_devs();
     send_dev(*d);
     if (rec) send_drv(ieee_str(d->ieee).c_str(), rec);
@@ -471,14 +500,15 @@ void read_basic() {
       ep = e.ep;
       break;
     }
-  static uint16_t ATTRS[] = {0x0004, 0x0005};   // Hersteller, Modell
+  // Hersteller, Modell + die Attribute, nach deren Abfrage Tuya-Geraete erst Daten liefern ("magic packet")
+  static uint16_t ATTRS[] = {0x0004, 0x0005, 0x0000, 0x0001, 0x0007, 0xFFFE};
   esp_zb_zcl_read_attr_cmd_t r = {};
   r.zcl_basic_cmd.dst_addr_u.addr_short = s_cur.nwk;
   r.zcl_basic_cmd.dst_endpoint = ep;
   r.zcl_basic_cmd.src_endpoint = COORD_EP;
   r.address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
   r.clusterID = 0x0000;
-  r.attr_number = 2;
+  r.attr_number = sizeof(ATTRS) / sizeof(ATTRS[0]);
   r.attr_field = ATTRS;
   esp_zb_zcl_read_attr_cmd_req(&r);
   esp_zb_scheduler_alarm(finish_alarm, s_gen, 6000);   // Antwort abwarten (oder ohne Antwort weiter)
@@ -596,6 +626,41 @@ esp_err_t action_cb(esp_zb_core_action_callback_id_t id, const void *msg) {
       }
       // Antwort auf die Hersteller/Modell-Abfrage: Interview gleich abschliessen
       if (basic && s_busy && m->info.src_address.u.short_addr == s_cur.nwk) finish_job(s_gen);
+      break;
+    }
+    case ESP_ZB_CORE_CMD_IAS_ZONE_ZONE_STATUS_CHANGE_NOT_ID: {
+      auto *m = (const esp_zb_zcl_ias_zone_status_change_notification_message_t *)msg;
+      Dev *d = find_nwk(m->info.src_address.u.short_addr);
+      if (!d) break;
+      JsonDocument j;
+      j["t"] = "state";
+      j["ieee"] = ieee_str(d->ieee);
+      conv_zone(d, m->info.src_endpoint, m->zone_status, j["p"].to<JsonObject>());
+      send_state(d, j);
+      break;
+    }
+    case ESP_ZB_CORE_CMD_IAS_ZONE_ZONE_ENROLL_REQUEST_ID: {   // Melder meldet sich an: immer annehmen
+      auto *m = (const esp_zb_zcl_ias_zone_enroll_request_message_t *)msg;
+      esp_zb_zcl_ias_zone_enroll_response_cmd_t r = {};
+      r.zcl_basic_cmd.dst_addr_u.addr_short = m->info.src_address.u.short_addr;
+      r.zcl_basic_cmd.dst_endpoint = m->info.src_endpoint;
+      r.zcl_basic_cmd.src_endpoint = COORD_EP;
+      r.address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+      r.enroll_rsp_code = ESP_ZB_ZCL_IAS_ZONE_ENROLL_RESPONSE_CODE_SUCCESS;
+      r.zone_id = 1;
+      esp_zb_zcl_ias_zone_enroll_cmd_resp(&r);
+      break;
+    }
+    case ESP_ZB_CORE_CMD_CUSTOM_CLUSTER_REQ_CB_ID: {   // Tuya (0xEF00) und andere Herstellerbefehle
+      auto *m = (const esp_zb_zcl_custom_cluster_command_message_t *)msg;
+      if (m->info.cluster != 0xEF00) break;
+      Dev *d = find_nwk(m->info.src_address.u.short_addr);
+      JsonDocument j;
+      j["t"] = "state";
+      if (d) j["ieee"] = ieee_str(d->ieee);
+      JsonObject p = j["p"].to<JsonObject>();
+      tuya_in(d, m->info.src_endpoint, m->info.command.id, (const uint8_t *)m->data.value, m->data.size, p);
+      if (p.size()) send_state(d, j);
       break;
     }
     default:
@@ -844,6 +909,32 @@ void handle(const char *line) {
       x.data.value = n ? pl : nullptr;
       esp_zb_zcl_custom_cluster_cmd_req(&x);
     }
+  } else if (!strcmp(cmd, "set")) {   // {"c":"set","ieee":…,"p":{"name":wert,…}} wie bei Zigbee2MQTT
+    uint8_t ieee[8];
+    Dev *d = ieee_parse(c["ieee"] | "", ieee) ? find_ieee(ieee) : nullptr;
+    if (!d) {
+      send_msg("err", "Geraet unbekannt");
+    } else {
+      JsonDocument r;
+      r["t"] = "set";
+      r["ieee"] = ieee_str(d->ieee);
+      JsonObject ok = r["ok"].to<JsonObject>(), bad = r["err"].to<JsonObject>();
+      for (JsonPairConst kv : c["p"].as<JsonObjectConst>()) {
+        std::string e = set_one(d, kv.key().c_str(), kv.value());
+        if (e.empty()) ok[kv.key().c_str()] = kv.value();
+        else bad[kv.key().c_str()] = e;
+      }
+      send(r);
+    }
+  } else if (!strcmp(cmd, "config")) {   // {"c":"config","ieee":…} -> einstellbare Werte mit aktuellem Stand
+    uint8_t ieee[8];
+    Dev *d = ieee_parse(c["ieee"] | "", ieee) ? find_ieee(ieee) : nullptr;
+    if (!d) send_msg("err", "Geraet unbekannt");
+    else send_config(d);
+  } else if (!strcmp(cmd, "time")) {   // {"c":"time","utc":Unixzeit,"tz":Sekunden} – fuer den Tuya-Zeitabgleich
+    s_utc = c["utc"] | 0;
+    s_utc_ms = millis();
+    s_tz = c["tz"] | 0;
   } else if (!strcmp(cmd, "drv_lookup")) {   // Test ohne Geraet: {"c":"drv_lookup","mf":"…","model":"…"}
     if (!s_drv_ok) send_msg("err", "Treiberliste: %s", s_drv_err);
     else send_drv(nullptr, drv_find(c["mf"] | "", c["model"] | ""));
@@ -916,7 +1007,9 @@ void zb_task(void *) {
   esp_zb_cluster_list_add_ias_zone_cluster(cl, esp_zb_zcl_attr_list_create(0x0500), CLI);
   esp_zb_cluster_list_add_metering_cluster(cl, esp_zb_zcl_attr_list_create(0x0702), CLI);
   esp_zb_cluster_list_add_electrical_meas_cluster(cl, esp_zb_zcl_attr_list_create(0x0B04), CLI);
-  esp_zb_cluster_list_add_custom_cluster(cl, esp_zb_zcl_attr_list_create(0xEF00), CLI);   // Tuya
+  // Tuya: in beiden Rollen, dann kommt jeder Befehl beim Rueckruf ESP_ZB_CORE_CMD_CUSTOM_CLUSTER_REQ_CB_ID an
+  esp_zb_cluster_list_add_custom_cluster(cl, esp_zb_zcl_attr_list_create(0xEF00), CLI);
+  esp_zb_cluster_list_add_custom_cluster(cl, esp_zb_zcl_attr_list_create(0xEF00), ESP_ZB_ZCL_CLUSTER_SERVER_ROLE);
   esp_zb_ep_list_t *eps = esp_zb_ep_list_create();
   esp_zb_endpoint_config_t ec = {};
   ec.endpoint = COORD_EP;
@@ -940,8 +1033,8 @@ void setup() {
   s_out_mx = xSemaphoreCreateMutex();
   pinMode(ZB_H2_LED, OUTPUT);
   digitalWrite(ZB_H2_LED, LOW);
+  drivers_open();   // zuerst: load_devs() sucht die Treiber der gespeicherten Geraete
   load_devs();
-  drivers_open();
   JsonDocument j;
   j["t"] = "hello";
   j["fw"] = SOC_VERSION;
@@ -958,6 +1051,14 @@ void loop() {
   // LED: blinkt, solange das Anlernen offen ist; leuchtet, wenn das Netz bereit ist
   bool open = s_open && (int32_t)(s_open_until - millis()) > 0;
   digitalWrite(ZB_H2_LED, open ? ((millis() / 250) & 1) : s_ready ? HIGH : LOW);
+  static uint32_t occ_t = 0;   // Nachlaufzeit der Bewegungsmelder
+  if (millis() - occ_t > 1000) {
+    occ_t = millis();
+    if (esp_zb_lock_acquire(pdMS_TO_TICKS(50))) {
+      occupancy_tick();
+      esp_zb_lock_release();
+    }
+  }
   // Lebenszeichen alle 30 s, damit das Panel ein neu gestartetes Modul bemerkt
   static uint32_t last = 0;
   if (millis() - last > 30000) {

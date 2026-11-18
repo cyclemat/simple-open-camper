@@ -20,6 +20,9 @@
 //   cmd      {"ieee","ep","cl","id","pl":"hex","mf":Herstellercode,"dir":0|1}   beliebiger ZCL-Befehl (Treiber)
 //   reset_net                             Netz neu bilden (alle Geraete muessen neu anlernen!)
 //   driver   {"ieee"}                     Treiber eines Geraets -> {"t":"drv"}
+//   set      {"ieee","p":{name:wert,…}}   Werte setzen wie bei Zigbee2MQTT -> {"t":"set","ok":{…},"err":{…}}
+//   config   {"ieee"}                     einstellbare Werte -> je {"t":"cfg",…}, dann {"t":"cfg_end"}
+//   time     {"utc","tz"}                 Uhrzeit (fuer den Tuya-Zeitabgleich)
 //   drv_lookup {"mf","model"}             Treiberliste durchsuchen (Test ohne Geraet) -> {"t":"drv"}
 //
 // Modul -> Panel   {"t":"<art>", ...}
@@ -28,7 +31,10 @@
 //   joined   {"ieee","nwk"}               neues/zurueckgekehrtes Geraet (Abfrage der Endpunkte laeuft)
 //   dev      {"ieee","nwk","mf","model","eps":[{"ep","prof","dev","in":[…],"out":[…]}],"done"}
 //   left     {"ieee"}
-//   attr     {"ieee","ep","cl","at","type","v"}   Meldung oder Leseantwort (v: Zahl, Text oder Hex)
+//   state    {"ieee","p":{name:wert,…}}   umgerechnete Werte (wie Zigbee2MQTT: temperature, state, battery …)
+//   attr     {"ieee","ep","cl","at","type","v"}   unbekannte Meldung roh (v: Zahl, Text oder Hex)
+//   cfg      {"ieee","n","ty","u","mi","ma","st","v":[…],"cur"}   ein einstellbarer Wert (Antwort auf config)
+//   cfg_end  {"ieee","n"}
 //   open     {"s"}                        Anlernen offen (Restsekunden) / 0 = zu
 //   drv      {"ieee"?,"found","vendor","model","desc","flags","exp":[[name,typ,einheit,zugriff,gruppe],…],"dps":n}
 //   log      {"m"}                        Klartext fuer die Fehlersuche

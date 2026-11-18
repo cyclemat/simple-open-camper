@@ -96,7 +96,7 @@ struct ZbdDp {
   uint8_t dp;          // Datenpunkt-Nummer
   uint8_t kind;        // ZbdDpKind
   uint8_t n_map;       // folgende ZbdDpMap-Eintraege
-  uint8_t reserved;
+  uint8_t reserved;    // Tuya-Datentyp beim Schreiben: 1 bool, 2 Zahl, 3 Text, 4 Auswahl (0 = aus "kind" ableiten)
   uint32_t name;       // Name des Wertes (wie Expose.property)
   float factor;        // ZBD_DP_NUMBER: Wert = Rohwert * factor
 };

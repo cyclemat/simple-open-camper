@@ -68,6 +68,23 @@ for (const [prefix, file, key] of [
 }
 const fzName = (c) => convNames.get(c) || (c && c.cluster ? `m:${c.cluster}:${[].concat(c.type || []).join("/")}` : "?");
 
+// Tuya-Datentyp beim Schreiben: Ergebnis von conv.to() mit einem passenden Beispielwert
+function probeTo(conv, sample) {
+    if (!conv || typeof conv.to !== "function" || sample === undefined) return 0;
+    let r;
+    try {
+        r = conv.to(sample, {device: undefined, state: {}, message: {}, options: {}});
+    } catch (e) {
+        return 0;
+    }
+    if (typeof r === "boolean") return 1;
+    if (typeof r === "number") return 2;
+    if (typeof r === "string") return 3;
+    if (r && typeof r === "object" && typeof r.valueOf === "function" && /enum/i.test((r.constructor && r.constructor.name) || ""))
+        return 4;
+    return 0;
+}
+
 // Tuya-Umrechnung durch Probieren bestimmen
 function probeDp(conv) {
     if (!conv || typeof conv.from !== "function") return {kind: 0, factor: 0, map: []};
@@ -186,6 +203,8 @@ for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort(
         for (const t of (d.meta && d.meta.tuyaDatapoints) || []) {
             if (!Array.isArray(t) || typeof t[0] !== "number") continue;
             const p = probeDp(t[2]);
+            const sample = p.kind === 1 ? 10 : p.kind === 2 ? p.map[0][1] === "true" : p.kind === 3 ? p.map[0][1] : undefined;
+            p.wtype = probeTo(t[2], sample);
             dps.push({dp: t[0], name: t[1], ...p});
             stat.dpsAll++;
             if (p.kind) stat.dpsKnown++;
@@ -222,6 +241,7 @@ for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort(
             b.writeUInt8(p.dp & 0xff, 0);
             b.writeUInt8(p.kind, 1);
             b.writeUInt8(map.length, 2);
+            b.writeUInt8(p.wtype || 0, 3);   // Tuya-Datentyp beim Schreiben (0 = aus der Art ableiten)
             b.writeUInt32LE(str(p.name), 4);
             b.writeFloatLE(p.factor || 0, 8);
             map.forEach(([raw, text], i) => {

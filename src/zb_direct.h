@@ -43,4 +43,18 @@ std::vector<ZbdDevice> zbd_devices();
 std::vector<std::string> zbd_log();
 uint32_t zbd_structure_sig();                      // aendert sich, wenn Geraete/Zustand neu aufgebaut werden muessen
 void zbd_remove(const std::string &ieee);          // Geraet abmelden und vergessen
+
+// Einstellungen eines Geraets: werden erst beim Oeffnen der Seite vom Modul geholt und nur so lange gehalten
+// (zbd_config_close gibt den Speicher frei). Speichern schickt nur die geaenderten Werte ans Modul.
+struct ZbdCfgItem {
+  std::string name, unit, cur;     // cur: aktueller Wert als JSON ("" = unbekannt)
+  uint8_t type = 0, group = 0;     // ZbdType (1 Ein/Aus, 2 Zahl, 3 Auswahl, 4 Text)
+  float min = 0, max = 0, step = 0;
+  std::vector<std::string> values; // Auswahlwerte bzw. [Ein, Aus]
+};
+void zbd_config_open(const std::string &ieee);     // Abfrage starten
+bool zbd_config_get(std::vector<ZbdCfgItem> &out); // true = vollstaendig empfangen
+void zbd_config_close();
+bool zbd_set(const std::string &ieee, const std::string &json_values);   // {"name":wert,…}
+std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &ieee);   // Name -> Wert (Text)
 void zbd_reset_network();                          // neues Netz (alle Geraete neu anlernen!)

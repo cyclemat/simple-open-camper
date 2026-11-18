@@ -7,6 +7,8 @@
 #include <Preferences.h>
 #include <driver/uart.h>
 
+#include <time.h>
+
 #include <deque>
 #include <map>
 #include <vector>
@@ -30,6 +32,7 @@ struct ZDev {
   std::string ieee, mf, model, eps;   // eps: JSON-Liste aus dem Modul
   std::string zv, zm, desc;           // laut Treiberliste: Hersteller, Modell, Beschreibung
   int n_exp = 0;                      // Anzahl Werte laut Treiber
+  std::vector<std::pair<std::string, std::string>> props;   // umgerechnete Werte (Name -> JSON), aus "state"
   uint16_t nwk = 0xFFFF;
   bool done = false;
   uint32_t seen_ms = 0;
@@ -47,6 +50,10 @@ uint16_t s_pan = 0;
 uint8_t s_ch = 0;
 uint8_t s_open = 0;
 uint32_t s_open_ms = 0;
+// Einstellungsseite: nur solange sie offen ist
+std::string s_cfg_ieee;
+std::vector<ZbdCfgItem> s_cfg;
+bool s_cfg_done = false;
 
 struct Lock {
   Lock() { xSemaphoreTake(s_mx, portMAX_DELAY); }
@@ -74,6 +81,17 @@ ZDev &get(const std::string &ieee) {
 void write_line(const std::string &s) {
   uart_write_bytes(ZBD_UART, s.data(), s.size());
   uart_write_bytes(ZBD_UART, "\n", 1);
+}
+// Uhrzeit fuer den Tuya-Zeitabgleich (nur, wenn das Panel die Zeit kennt)
+void send_time() {
+  time_t now = time(nullptr);
+  if (now < 1700000000) return;
+  struct tm lt, gm;
+  localtime_r(&now, &lt);
+  gmtime_r(&now, &gm);
+  gm.tm_isdst = lt.tm_isdst;
+  long tz = (long)(now - mktime(&gm));   // Abstand Ortszeit – UTC in Sekunden
+  write_line("{\"c\":\"time\",\"utc\":" + std::to_string((long)now) + ",\"tz\":" + std::to_string(tz) + "}");
 }
 void send_simple(const char *cmd) {
   std::string s = std::string("{\"c\":\"") + cmd + "\"}";
@@ -130,6 +148,43 @@ void on_line(const char *line) {
           break;
         }
       add_log("Geraet abgemeldet: " + ieee);
+    } else if (t == "state") {
+      std::string ieee = j["ieee"] | "";
+      if (!ieee.empty()) {
+        ZDev &d = get(ieee);
+        d.seen_ms = millis();
+        for (JsonPair kv : j["p"].as<JsonObject>()) {
+          std::string v;
+          serializeJson(kv.value(), v);
+          bool hit = false;
+          for (auto &x : d.props)
+            if (x.first == kv.key().c_str()) {
+              x.second = v;
+              hit = true;
+            }
+          if (!hit && d.props.size() < 48) d.props.push_back({kv.key().c_str(), v});
+        }
+      }
+    } else if (t == "cfg") {
+      if (s_cfg_ieee == (const char *)(j["ieee"] | "")) {
+        ZbdCfgItem it;
+        it.name = (const char *)(j["n"] | "");
+        it.unit = (const char *)(j["u"] | "");
+        it.type = j["ty"] | 0;
+        it.group = j["g"] | 0;
+        it.min = j["mi"] | 0.0f;
+        it.max = j["ma"] | 0.0f;
+        it.step = j["st"] | 0.0f;
+        for (const char *v : j["v"].as<JsonArray>()) it.values.push_back(v ? v : "");
+        if (!j["cur"].isNull()) serializeJson(j["cur"], it.cur);
+        s_cfg.push_back(it);
+      }
+    } else if (t == "cfg_end") {
+      if (s_cfg_ieee == (const char *)(j["ieee"] | "")) s_cfg_done = true;
+    } else if (t == "set") {
+      for (JsonPair kv : j["ok"].as<JsonObject>()) add_log(std::string("Gesetzt: ") + kv.key().c_str());
+      for (JsonPair kv : j["err"].as<JsonObject>())
+        add_log(std::string("Nicht gesetzt: ") + kv.key().c_str() + " – " + (const char *)(kv.value() | ""));
     } else if (t == "attr") {
       std::string ieee = j["ieee"] | "";
       if (!ieee.empty()) {
@@ -166,6 +221,7 @@ void on_line(const char *line) {
   }
   if (t == "log" || t == "err") log_i("Zigbee: %s", (const char *)(j["m"] | ""));
   if (ask_devices) send_simple("devices");
+  if (t == "hello" || ask_devices) send_time();
 }
 
 void rx_task(void *) {
@@ -191,6 +247,11 @@ void rx_task(void *) {
     if (millis() - last_info > 30000) {
       last_info = millis();
       send_simple("info");
+      static uint32_t last_time = 0;
+      if (!last_time || millis() - last_time > 3600000UL) {
+        last_time = millis();
+        send_time();
+      }
     }
   }
 }
@@ -283,6 +344,8 @@ void zbd_status_json(JsonObject o) {
     x["done"] = d.done;
     x["age"] = d.seen_ms ? (int)((millis() - d.seen_ms) / 1000) : -1;
     if (!d.eps.empty()) x["eps"] = serialized(d.eps);
+    JsonObject pr = x["props"].to<JsonObject>();
+    for (auto &kv : d.props) pr[kv.first] = serialized(kv.second);
     JsonObject v = x["vals"].to<JsonObject>();
     for (auto &kv : d.vals) v[kv.first] = serialized(kv.second.json);
   }
@@ -310,6 +373,42 @@ ZbdInfo zbd_info() {
 static std::string summary_of(const ZDev &d) {
   std::string s;
   auto add = [&](const std::string &t) { s += (s.empty() ? "" : " · ") + t; };
+  // benannte Werte (wie Zigbee2MQTT): die wichtigsten zuerst, mit Einheit
+  static const struct {
+    const char *name, *unit;
+    int dec;
+  } KNOWN[] = {{"state", "", -1},       {"temperature", " °C", 1}, {"local_temperature", " °C", 1},
+               {"humidity", " % rF", 0}, {"brightness", "", -2},     {"power", " W", 0},
+               {"energy", " kWh", 2},    {"contact", "", -3},        {"occupancy", "", -4},
+               {"presence", "", -4},     {"water_leak", "", -5},     {"illuminance", " lx", 0},
+               {"position", " %", 0},    {"battery", " %", -6}};
+  for (auto &k : KNOWN)
+    for (auto &p : d.props) {
+      if (p.first != k.name) continue;
+      const std::string &v = p.second;
+      char b[40];
+      if (k.dec == -1) add(v.find("ON") != std::string::npos ? tr("An") : tr("Aus"));
+      else if (k.dec == -2) {
+        snprintf(b, sizeof(b), "%d %%", (int)(atof(v.c_str()) * 100 / 254 + 0.5));
+        add(b);
+      } else if (k.dec == -3) add(v == "true" ? tr("zu") : tr("offen"));
+      else if (k.dec == -4) add(v == "true" ? tr("Bewegung") : tr("ruhig"));
+      else if (k.dec == -5) add(v == "true" ? tr("Wasser!") : tr("trocken"));
+      else if (k.dec == -6) {
+        snprintf(b, sizeof(b), "%s %d %%", tr("Batterie"), (int)(atof(v.c_str()) + 0.5));
+        add(b);
+      } else {
+        snprintf(b, sizeof(b), "%.*f%s", k.dec, atof(v.c_str()), k.unit);
+        add(b);
+      }
+    }
+  if (!s.empty()) {
+#if UI_DECIMAL_COMMA
+    for (auto &c : s)
+      if (c == '.') c = ',';
+#endif
+    return s;
+  }
   auto num = [](const std::string &js, double &out) {
     char *e;
     out = strtod(js.c_str(), &e);
@@ -401,6 +500,46 @@ void zbd_reset_network() {
   send_simple("reset_net");
 }
 
+void zbd_config_open(const std::string &ieee) {
+  if (!s_started) return;
+  {
+    Lock l;
+    s_cfg.clear();
+    s_cfg_done = false;
+    s_cfg_ieee = ieee;
+  }
+  write_line("{\"c\":\"config\",\"ieee\":\"" + ieee + "\"}");
+}
+
+bool zbd_config_get(std::vector<ZbdCfgItem> &out) {
+  if (!s_started) return false;
+  Lock l;
+  out = s_cfg;
+  return s_cfg_done;
+}
+
+void zbd_config_close() {
+  if (!s_started) return;
+  Lock l;
+  s_cfg_ieee.clear();
+  s_cfg.clear();
+  s_cfg.shrink_to_fit();   // Speicher wirklich freigeben
+  s_cfg_done = false;
+}
+
+bool zbd_set(const std::string &ieee, const std::string &json_values) {
+  if (!s_started || json_values.size() + ieee.size() + 40 >= ZB_LINK_MAX_LINE) return false;
+  write_line("{\"c\":\"set\",\"ieee\":\"" + ieee + "\",\"p\":" + json_values + "}");
+  return true;
+}
+
+std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &ieee) {
+  if (!s_started) return {};
+  Lock l;
+  ZDev *d = find(ieee);
+  return d ? d->props : std::vector<std::pair<std::string, std::string>>();
+}
+
 void zbd_debug(const char *args) {
   while (*args == ' ') args++;
   if (!strncmp(args, "permit", 6)) {
@@ -440,5 +579,10 @@ std::vector<std::string> zbd_log() { return {}; }
 uint32_t zbd_structure_sig() { return 0; }
 void zbd_remove(const std::string &) {}
 void zbd_reset_network() {}
+void zbd_config_open(const std::string &) {}
+bool zbd_config_get(std::vector<ZbdCfgItem> &) { return false; }
+void zbd_config_close() {}
+bool zbd_set(const std::string &, const std::string &) { return false; }
+std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &) { return {}; }
 
 #endif
