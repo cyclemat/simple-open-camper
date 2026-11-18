@@ -123,9 +123,24 @@ function flatten(list, out, group) {
     }
 }
 
+// Gemeinsame Bloecke: gleiche Werte-/Datenpunkt-/Namenslisten nur einmal speichern
+const blockParts = [];
+const blockMap = new Map();
+let blockLen = 0;
+const block = (buf) => {
+    if (!buf.length) return null;
+    const k = buf.toString("base64");
+    if (blockMap.has(k)) return blockMap.get(k);
+    const rel = blockLen;
+    blockMap.set(k, rel);
+    blockParts.push(buf);
+    blockLen += buf.length;
+    return rel;
+};
+
 // ---------------------------------------------------------------- Definitionen einlesen
 const devDir = path.join(ZHC, "dist", "devices");
-const records = []; // {buf, keys:[[hModel,hMf]]}
+const records = []; // {vendor, model, desc, n..., fz/exp/dp (relativ im Blockbereich), keys:[[hModel,hMf]]}
 const stat = {defs: 0, index: 0, tuya: 0, dpsAll: 0, dpsKnown: 0, dynamic: 0, failed: 0, fz: new Map(), noIdent: 0};
 for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort()) {
     let defs;
@@ -180,22 +195,10 @@ for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort(
         if (d.endpoint || (d.meta && d.meta.multiEndpoint)) flags |= 8;
         if (flags & 1) stat.tuya++;
 
-        // Binaerform der Definition
+        // Bloecke der Definition
+        const fzBuf = Buffer.alloc(4 * Math.min(fzNames.length, 255));
+        fzNames.slice(0, 255).forEach((n, i) => fzBuf.writeUInt32LE(str(n), 4 * i));
         const parts = [];
-        const head = Buffer.alloc(16);
-        head.writeUInt32LE(str(d.vendor), 0);
-        head.writeUInt32LE(str(d.model), 4);
-        head.writeUInt32LE(str(d.description), 8);
-        head.writeUInt8(Math.min(ex.length, 255), 12);
-        head.writeUInt8(Math.min(dps.length, 255), 13);
-        head.writeUInt8(flags, 14);
-        head.writeUInt8(Math.min(fzNames.length, 255), 15);
-        parts.push(head);
-        for (const n of fzNames.slice(0, 255)) {
-            const b = Buffer.alloc(4);
-            b.writeUInt32LE(str(n), 0);
-            parts.push(b);
-        }
         for (const e of ex.slice(0, 255)) {
             const b = Buffer.alloc(28 + 4 * e.values.length);
             b.writeUInt32LE(str(e.property), 0);
@@ -211,6 +214,8 @@ for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort(
             e.values.forEach((v, i) => b.writeUInt32LE(str(v), 28 + 4 * i));
             parts.push(b);
         }
+        const expBuf = Buffer.concat(parts);
+        parts.length = 0;
         for (const p of dps.slice(0, 255)) {
             const map = p.map.slice(0, 255);
             const b = Buffer.alloc(12 + 8 * map.length);
@@ -225,20 +230,46 @@ for (const file of fs.readdirSync(devDir).filter((f) => f.endsWith(".js")).sort(
             });
             parts.push(b);
         }
-        records.push({buf: Buffer.concat(parts), keys});
+        records.push({
+            vendor: str(d.vendor),
+            model: str(d.model),
+            desc: str(d.description),
+            nExp: Math.min(ex.length, 255),
+            nDp: Math.min(dps.length, 255),
+            flags,
+            nFz: Math.min(fzNames.length, 255),
+            fz: block(fzBuf),
+            exp: block(expBuf),
+            dp: block(Buffer.concat(parts)),
+            keys,
+        });
         stat.defs++;
     }
 }
 
 // ---------------------------------------------------------------- Datei zusammensetzen
 const HEADER = 48;
+const REC = 28;
+const blocksStart = HEADER + REC * records.length;
 let index = [];
-let off = HEADER;
-for (const r of records) {
-    r.off = off;
-    off += r.buf.length;
+const recBuf = Buffer.alloc(REC * records.length);
+records.forEach((r, i) => {
+    r.off = HEADER + REC * i;
+    const o = REC * i;
+    recBuf.writeUInt32LE(r.vendor, o);
+    recBuf.writeUInt32LE(r.model, o + 4);
+    recBuf.writeUInt32LE(r.desc, o + 8);
+    recBuf.writeUInt8(r.nExp, o + 12);
+    recBuf.writeUInt8(r.nDp, o + 13);
+    recBuf.writeUInt8(r.flags, o + 14);
+    recBuf.writeUInt8(r.nFz, o + 15);
+    const abs = (rel) => (rel === null ? NONE : blocksStart + rel);
+    recBuf.writeUInt32LE(abs(r.fz), o + 16);
+    recBuf.writeUInt32LE(abs(r.exp), o + 20);
+    recBuf.writeUInt32LE(abs(r.dp), o + 24);
     for (const [hm, hf] of r.keys) index.push([hm, hf, r.off]);
-}
+});
+let off = blocksStart + blockLen;
 // doppelte Kennungen entfernen (gleiche Hash-Paare: erste Definition gewinnt, wie bei Zigbee2MQTT)
 const seen = new Set();
 index = index.filter(([hm, hf]) => {
@@ -258,7 +289,7 @@ index.forEach(([hm, hf, ro], i) => {
 });
 const source = str(`zigbee-herdsman-converters ${pkg.version}`);
 const strOff = indexOff + idxBuf.length;
-const body = Buffer.concat([...records.map((r) => r.buf), idxBuf, ...strParts]);
+const body = Buffer.concat([recBuf].concat(blockParts, [idxBuf], strParts));
 const total = HEADER + body.length;
 
 const crcTable = new Uint32Array(256).map((_, n) => {
@@ -272,7 +303,7 @@ crc = (crc ^ 0xffffffff) >>> 0;
 
 const head = Buffer.alloc(HEADER);
 head.write("SOCZ", 0, "ascii");
-head.writeUInt16LE(1, 4);
+head.writeUInt16LE(2, 4);
 head.writeUInt32LE(stat.defs, 8);
 head.writeUInt32LE(index.length, 12);
 head.writeUInt32LE(indexOff, 16);
@@ -299,6 +330,7 @@ const lines = [
     `| Werte zur Laufzeit erzeugt (Liste unvollstaendig) | ${stat.dynamic} |`,
     `| ohne Kennung uebersprungen | ${stat.noIdent} |`,
     `| Groesse | ${kb(total)} von ${kb(MAX_SIZE)} (${((100 * total) / MAX_SIZE).toFixed(1)} %) |`,
+    `| davon Definitionen / gemeinsame Bloecke / Index / Texte | ${kb(recBuf.length)} / ${kb(blockLen)} (${blockMap.size} Bloecke) / ${kb(idxBuf.length)} / ${kb(strLen)} |`,
     "",
     "### Haeufigste Umrechner (fz) – Reihenfolge fuer den Code im Modul",
     "",

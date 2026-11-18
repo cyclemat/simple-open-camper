@@ -26,17 +26,19 @@
 //   u32 Abstand der Definition ab Dateianfang
 //   Suche: Modell-Hash; unter den Treffern zuerst passender Hersteller-Hash, sonst 0.
 //
-// Definition:
+// Definition (ZbdRecord, 28 Byte):
 //   u32 Hersteller, u32 Modell, u32 Beschreibung (Texte)
 //   u8 Anzahl Werte (Exposes), u8 Anzahl Tuya-Datenpunkte, u8 Merkmale (ZBD_F_*), u8 Anzahl fz-Namen
-//   je fz-Name: u32 Text (Name des Zigbee2MQTT-Umrechners, z. B. "fz.on_off", fuer spaeteren Code im Modul)
-//   je Wert (ZbdExpose, 28 Byte) + Anzahl Werte * u32 Text (Auswahlwerte bzw. Ein/Aus-Werte)
-//   je Datenpunkt (ZbdDp, 12 Byte) + Anzahl * ZbdDpMap (8 Byte)
+//   u32 Abstand fz-Block, u32 Abstand Werte-Block, u32 Abstand Datenpunkt-Block (ab Dateianfang, ZBD_NONE = leer)
+// Bloecke (gleiche Bloecke nur einmal gespeichert – viele Geraete teilen sich z. B. die Werte einer Dimmlampe):
+//   fz-Block:         je Name u32 Text (Zigbee2MQTT-Umrechner, z. B. "fz.on_off", fuer spaeteren Code im Modul)
+//   Werte-Block:      je Wert ZbdExpose (28 Byte) + n_values * u32 Text (Auswahlwerte bzw. Ein/Aus-Werte)
+//   Datenpunkt-Block: je Datenpunkt ZbdDp (12 Byte) + n_map * ZbdDpMap (8 Byte)
 #pragma once
 #include <stdint.h>
 
 #define ZBD_MAGIC "SOCZ"
-#define ZBD_FORMAT 1
+#define ZBD_FORMAT 2
 #define ZBD_NONE 0xFFFFFFFFu
 #define ZBD_HEADER_SIZE 48
 
@@ -71,6 +73,7 @@ struct ZbdIndex {
 struct ZbdRecord {
   uint32_t vendor, model, description;
   uint8_t n_exposes, n_dps, flags, n_fz;
+  uint32_t fz_off, exp_off, dp_off;   // Bloecke (ZBD_NONE = keiner)
 };
 struct ZbdExpose {
   uint32_t property;   // Name des Wertes ("temperature", "state", …)

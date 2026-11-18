@@ -238,15 +238,16 @@ void send_drv(const char *ieee, uint32_t rec) {
     if (const char *t = drv_str(r.description)) j["desc"] = t;
     j["flags"] = r.flags;
     j["dps"] = r.n_dps;
-    uint32_t p = rec + sizeof(r);
     JsonArray fz = j["fz"].to<JsonArray>();
-    for (int i = 0; i < r.n_fz && p + 4 <= s_drvh.total; i++, p += 4) {
+    uint32_t p = r.fz_off;
+    for (int i = 0; r.fz_off != ZBD_NONE && i < r.n_fz && p + 4 <= s_drvh.total; i++, p += 4) {
       uint32_t o;
       memcpy(&o, s_drv + p, 4);
       if (const char *t = drv_str(o)) fz.add(t);
     }
     JsonArray ex = j["exp"].to<JsonArray>();
-    for (int i = 0; i < r.n_exposes && p + sizeof(ZbdExpose) <= s_drvh.total; i++) {
+    p = r.exp_off;
+    for (int i = 0; r.exp_off != ZBD_NONE && i < r.n_exposes && p + sizeof(ZbdExpose) <= s_drvh.total; i++) {
       ZbdExpose e;
       memcpy(&e, s_drv + p, sizeof(e));
       p += sizeof(e) + 4 * e.n_values;
