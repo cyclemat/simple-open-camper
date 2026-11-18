@@ -172,6 +172,38 @@ jobs:
 # README: tools/victron_readme.md (mit Banner assets/banner_small.jpg)
 
 
+# Teile des Hauptprojekts, die im Victron-Display nichts zu suchen haben (Zusatzsensoren der Satelliten).
+# Jede Ersetzung MUSS passen – sonst bricht der Export ab, damit nichts unbemerkt durchrutscht.
+STRIP = {
+    "src/sat_proto.h": [
+        ("  SC_POWER = 10, SC_CO2 = 11, SC_WEIGHT = 12, SC_FLOW = 13, SC_VOLUME = 14,   // Zusatzsensoren (sat_sens.cpp)\n"
+         "  SC_COUNT = 15\n",
+         "  SC_COUNT = 10\n"),
+    ],
+    "src/sat/sat_io.h": [
+        ("// gemeinsamer I2C-Bus (MPU-6050, OLED, Zusatzsensoren)", "// gemeinsamer I2C-Bus (MPU-6050, OLED)"),
+        ("bool sat_io_mpu_pins(int &sda, int &scl);  // MPU-6050 eingeschaltet? Dann seine I2C-Pins\n", ""),
+        ("String sat_io_pin_owner(int pin);          // wer belegt diesen GPIO in der GPIO-Karte (\"\" = frei)\n", ""),
+    ],
+}
+
+
+def strip(rel, path):
+    rules = STRIP.get(rel)
+    if not rules:
+        return
+    with open(path, encoding="utf-8", newline="") as f:
+        text = f.read()
+    crlf = "\r\n" in text
+    text = text.replace("\r\n", "\n")
+    for old, new in rules:
+        if old not in text:
+            raise SystemExit("export_victron: Filter passt nicht mehr in %s:\n  %r" % (rel, old))
+        text = text.replace(old, new)
+    with open(path, "w", encoding="utf-8", newline="\r\n" if crlf else "\n") as f:
+        f.write(text)
+
+
 def write(rel, text):
     p = os.path.join(DST, rel)
     os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -186,6 +218,7 @@ def main():
         dst = os.path.join(DST, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
+        strip(rel, dst)
     write("platformio.ini", PLATFORMIO_INI)
     write(".gitignore", GITIGNORE)
     write(".github/workflows/build.yml", WORKFLOW)
