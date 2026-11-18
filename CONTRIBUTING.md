@@ -4,7 +4,7 @@ Danke für dein Interesse! Fehler und Ideen bitte als Issue melden – gern mit 
 
 ## Rechte an Beiträgen
 
-Simply Open Camper steht unter der **PolyForm Noncommercial License 1.0.0**; kommerzielle Lizenzen vergibt nur der
+Simple Open Camper steht unter der **PolyForm Noncommercial License 1.0.0**; kommerzielle Lizenzen vergibt nur der
 Urheber (cyclemat). Damit das so bleiben kann, gilt für jeden Beitrag (Pull Request, Patch, Code in Issues):
 
 > Mit dem Einreichen eines Beitrags räumst du cyclemat das nicht ausschließliche, weltweite, zeitlich unbegrenzte und
@@ -17,7 +17,7 @@ Fremden Code bitte nur nach Absprache und nur unter einer freizügigen Lizenz (M
 
 ## Rights in contributions
 
-Simply Open Camper is licensed under the **PolyForm Noncommercial License 1.0.0**; commercial licences are granted
+Simple Open Camper is licensed under the **PolyForm Noncommercial License 1.0.0**; commercial licences are granted
 by the copyright holder (cyclemat) only. To keep it that way, every contribution (pull request, patch, code in
 issues) is subject to:
 

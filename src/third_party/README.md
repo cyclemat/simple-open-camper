@@ -1,7 +1,7 @@
 # Fremder Code und fremde Daten / Third-party code and data
 
-Diese Teile stammen nicht aus Simply Open Camper und stehen unter ihren eigenen Lizenzen – nicht unter der
-Projektlizenz (PolyForm Noncommercial). / These parts are not from Simply Open Camper and keep their own licences –
+Diese Teile stammen nicht aus Simple Open Camper und stehen unter ihren eigenen Lizenzen – nicht unter der
+Projektlizenz (PolyForm Noncommercial). / These parts are not from Simple Open Camper and keep their own licences –
 not the project licence (PolyForm Noncommercial).
 
 | Pfad / Path | Herkunft / Origin | Lizenz / Licence |

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/banner.png" alt="Simply Open Camper (S.O.C.) – Touch-Panel für den Camper" width="100%">
+  <img src="assets/banner.png" alt="Simple Open Camper (S.O.C.) – Touch-Panel für den Camper" width="100%">
 </p>
 
-<h1 align="center"><img src="assets/van-right.svg" height="36" alt=""> Simply Open Camper <img src="assets/van-left.svg" height="36" alt=""></h1>
+<h1 align="center"><img src="assets/van-right.svg" height="36" alt=""> Simple Open Camper <img src="assets/van-left.svg" height="36" alt=""></h1>
 <h3 align="center">S.O.C. – Touch-Panel für den Camper: Zigbee2MQTT, Gas, Wasser, Heizung und Bordtechnik – lokal, ohne Cloud, ohne Home Assistant</h3>
 
 <p align="center">
@@ -49,7 +49,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 > gebracht: Wenn das Panel den Gasstand selbst per Bluetooth lesen kann, braucht es dafür kein Home Assistant.
 > Danach kamen Tanks, Victron, die Truma-Heizung, Alde und Satelliten dazu – Stück für Stück ist daraus das
 > Bordpanel für den ganzen Camper gewachsen. Daher auch der neue Name: aus dem „Zigbee-Panel“ wurde
-> **Simply Open Camper**.
+> **Simple Open Camper**.
 
 - 🏠 Alles läuft **lokal** auf dem Panel – keine Cloud, kein Konto
 - 📶 Eigenes WLAN möglich (Router-Modus) – kein Heimnetz nötig, ideal fürs Wohnmobil

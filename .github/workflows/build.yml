@@ -1,4 +1,4 @@
-# Simply Open Camper – Firmware auf GitHub bauen
+# Simple Open Camper – Firmware auf GitHub bauen
 # Baut bei jedem Push auf main (und auf Knopfdruck unter "Actions") Panel (S3, P4, CrowPanel 1.46"), Satelliten,
 # Victron-Display, Updater und Display-Test. Die fertigen .bin-Dateien haengen als "Artifacts" am jeweiligen Lauf und
 # liegen nach jedem Push auf main zusaetzlich im Ordner release/ (je Board eine Komplettdatei, dazu release/ota/).

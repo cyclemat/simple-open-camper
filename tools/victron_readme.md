@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/banner_small.jpg" alt="Simply Open Camper (S.O.C.)" width="100%">
+  <img src="assets/banner_small.jpg" alt="Simple Open Camper (S.O.C.)" width="100%">
 </p>
 
-<h1 align="center"><img src="assets/van-right.svg" height="32" alt=""> Simply Open Camper – Victron-Display <img src="assets/van-left.svg" height="32" alt=""></h1>
+<h1 align="center"><img src="assets/van-right.svg" height="32" alt=""> Simple Open Camper – Victron-Display <img src="assets/van-left.svg" height="32" alt=""></h1>
 
 <h3 align="center">Victron und Gas im Camper auf einem 2,8"-Touch-Display – Cerbo GX per WLAN, Victron-Geräte und Truma LevelControl direkt per Bluetooth. Lokal, ohne Cloud.</h3>
 
@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Status-Beta-yellow" alt="Status">
 </p>
 
-> Die abgespeckte Version von Simply Open Camper (S.O.C.) für alle,
+> Die abgespeckte Version von Simple Open Camper (S.O.C.) für alle,
 > die **nur Victron und den Gasvorrat** sehen und bedienen wollen – auf einem Display für rund 15 €, ohne großes Panel.
 
 <p align="center">

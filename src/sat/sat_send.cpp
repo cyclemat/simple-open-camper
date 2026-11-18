@@ -348,7 +348,7 @@ static void ha_sat_device() {
   JsonDocument dev;
   dev["ids"].add(g_sat.id.c_str());
   dev["name"] = g_sat.name.c_str();
-  dev["mf"] = "Simply Open Camper";
+  dev["mf"] = "Simple Open Camper";
   dev["mdl"] = "Satellit";
   dev["sw"] = SAT_FW_VERSION;
   HaField rssi = {"rssi", "WLAN-Signal", "dBm", "signal_strength", "measurement"};

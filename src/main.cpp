@@ -1,4 +1,4 @@
-// Simply Open Camper (S.O.C.) fuer Waveshare ESP32-S3-Touch-LCD-7B
+// Simple Open Camper (S.O.C.) fuer Waveshare ESP32-S3-Touch-LCD-7B
 // Steuert Zigbee2MQTT-Geraete direkt per MQTT; Layout per Web-Editor (http://<panel>/)
 #include <Arduino.h>
 #include <LittleFS.h>

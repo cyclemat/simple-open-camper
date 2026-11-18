@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/banner.png" alt="Simply Open Camper (S.O.C.) – touch panel for your camper" width="100%">
+  <img src="assets/banner.png" alt="Simple Open Camper (S.O.C.) – touch panel for your camper" width="100%">
 </p>
 
-<h1 align="center"><img src="assets/van-right.svg" height="36" alt=""> Simply Open Camper <img src="assets/van-left.svg" height="36" alt=""></h1>
+<h1 align="center"><img src="assets/van-right.svg" height="36" alt=""> Simple Open Camper <img src="assets/van-left.svg" height="36" alt=""></h1>
 <h3 align="center">S.O.C. – touch panel for your camper: Zigbee2MQTT, gas, water, heating and on-board systems – local, no cloud, no Home Assistant</h3>
 
 <p align="center">
@@ -48,7 +48,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 > [Truma LevelControl integration for Home Assistant](https://github.com/cyclemat/HAOS-Truma-Levelcontrol-Integration):
 > if the panel can read the gas level over Bluetooth by itself, there is no need for Home Assistant for that.
 > Then came tanks, Victron, the Truma heater, Alde and satellites – step by step it grew into a control panel
-> for the whole camper. Hence the new name: the "Zigbee-Panel" became **Simply Open Camper**.
+> for the whole camper. Hence the new name: the "Zigbee-Panel" became **Simple Open Camper**.
 
 - 🏠 Everything runs **locally** on the panel – no cloud, no account
 - 📶 Own Wi-Fi possible (router mode) – no home network needed, ideal for motorhomes

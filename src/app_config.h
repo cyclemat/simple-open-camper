@@ -3,7 +3,7 @@
 
 #include "soc_version.h"
 #define FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
-#define FW_NAME    "Simply Open Camper"
+#define FW_NAME    "Simple Open Camper"
 
 // ---------- Display und Bedienung je Board ----------
 // Merkmale, die jedes Board einzeln setzt (weitere Geraete, z. B. andere runde Displays, kombinieren sie neu):

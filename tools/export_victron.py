@@ -38,7 +38,7 @@ FILES = [
 ]
 
 PLATFORMIO_INI = """\
-; Simply Open Camper – Victron-Display (Beta)
+; Simple Open Camper – Victron-Display (Beta)
 ; Eigene, schlanke Firmware fuer das Mini-Display ESP32-2432S028R ("Cheap Yellow Display", 2,8" 320x240):
 ; Cerbo GX per WLAN (MQTT im LAN) und Victron-Geraete direkt per Bluetooth (Instant Readout), alles als Kacheln.
 ;
@@ -253,8 +253,8 @@ def write_flasher():
     os.makedirs(os.path.join(DST, "assets"), exist_ok=True)
     shutil.copyfile(os.path.join(ROOT, "assets", "splash.jpg"), os.path.join(DST, "assets", "flasher_bg.jpg"))
     # je Sprache ein Manifest; die Seite schaltet zwischen beiden um (Knopf Deutsch | English)
-    for fname, title, binf in (("manifest.json", "Victron-Display (Simply Open Camper)", "victron-display-cyd.bin"),
-                               ("manifest-en.json", "Victron display (Simply Open Camper, English)",
+    for fname, title, binf in (("manifest.json", "Victron-Display (Simple Open Camper)", "victron-display-cyd.bin"),
+                               ("manifest-en.json", "Victron display (Simple Open Camper, English)",
                                 "victron-display-cyd-en.bin")):
         manifest = {
             "name": title,
