@@ -31,6 +31,7 @@ struct Val {
 struct ZDev {
   std::string ieee, mf, model, eps;   // eps: JSON-Liste aus dem Modul
   std::string zv, zm, desc;           // laut Treiberliste: Hersteller, Modell, Beschreibung
+  std::string name;                   // eigener Name (im Modul gespeichert)
   int n_exp = 0;                      // Anzahl Werte laut Treiber
   std::vector<std::pair<std::string, std::string>> props;   // umgerechnete Werte (Name -> JSON), aus "state"
   uint16_t nwk = 0xFFFF;
@@ -128,6 +129,7 @@ void on_line(const char *line) {
       d.nwk = j["nwk"] | 0xFFFF;
       d.mf = (const char *)(j["mf"] | "");
       d.model = (const char *)(j["model"] | "");
+      d.name = (const char *)(j["name"] | "");
       if (j["zm"].is<const char *>()) {
         d.zv = (const char *)(j["zv"] | "");
         d.zm = (const char *)(j["zm"] | "");
@@ -220,7 +222,10 @@ void on_line(const char *line) {
     }
   }
   if (t == "log" || t == "err") log_i("Zigbee: %s", (const char *)(j["m"] | ""));
-  if (ask_devices) send_simple("devices");
+  if (ask_devices) {
+    send_simple("devices");
+    send_simple("values");   // letzte Werte, damit nach einem Neustart sofort alles dasteht
+  }
   if (t == "hello" || ask_devices) send_time();
 }
 
@@ -335,6 +340,7 @@ void zbd_status_json(JsonObject o) {
     x["nwk"] = d.nwk;
     x["mf"] = d.mf;
     x["model"] = d.model;
+    if (!d.name.empty()) x["name"] = d.name;
     if (!d.zm.empty()) {
       x["zv"] = d.zv;
       x["zm"] = d.zm;
@@ -382,6 +388,19 @@ static std::string summary_of(const ZDev &d) {
                {"energy", " kWh", 2},    {"contact", "", -3},        {"occupancy", "", -4},
                {"presence", "", -4},     {"water_leak", "", -5},     {"illuminance", " lx", 0},
                {"position", " %", 0},    {"battery", " %", -6}};
+  // Tastendruck: "4_single" -> "Taste 4 kurz", "on_2" -> "on 2"
+  for (auto &p : d.props)
+    if (p.first == "action") {
+      std::string a = p.second.size() >= 2 && p.second.front() == '"' ? p.second.substr(1, p.second.size() - 2) : p.second;
+      size_t us = a.find('_');
+      if (us != std::string::npos && us > 0 && isdigit((unsigned char)a[0])) {
+        std::string k = a.substr(us + 1);
+        const char *kind = k == "single" ? tr("kurz") : k == "double" ? tr("doppelt") : k == "hold" ? tr("lang") : k.c_str();
+        add(std::string(tr("Taste ")) + a.substr(0, us) + " " + kind);
+      } else {
+        add(a);
+      }
+    }
   for (auto &k : KNOWN)
     for (auto &p : d.props) {
       if (p.first != k.name) continue;
@@ -453,6 +472,7 @@ std::vector<ZbdDevice> zbd_devices() {
     x.mf = d.zv.empty() ? d.mf : d.zv;            // lieber die Namen aus der Treiberliste
     x.model = d.zm.empty() ? d.model : d.zm;
     x.desc = d.desc;
+    x.name = d.name;
     x.done = d.done;
     x.age = d.seen_ms ? (int)((millis() - d.seen_ms) / 1000) : -1;
     x.summary = summary_of(d);
@@ -487,6 +507,21 @@ uint32_t zbd_structure_sig() {
 void zbd_remove(const std::string &ieee) {
   if (!s_started) return;
   write_line("{\"c\":\"remove\",\"ieee\":\"" + ieee + "\"}");
+}
+
+void zbd_rename(const std::string &ieee, const std::string &name) {
+  if (!s_started) return;
+  {
+    Lock l;
+    if (ZDev *d = find(ieee)) d->name = name;   // sofort anzeigen, das Modul bestaetigt mit {"t":"dev"}
+  }
+  JsonDocument j;
+  j["c"] = "rename";
+  j["ieee"] = ieee;
+  j["name"] = name;
+  std::string s;
+  serializeJson(j, s);
+  write_line(s);
 }
 
 void zbd_reset_network() {
@@ -578,6 +613,7 @@ std::vector<ZbdDevice> zbd_devices() { return {}; }
 std::vector<std::string> zbd_log() { return {}; }
 uint32_t zbd_structure_sig() { return 0; }
 void zbd_remove(const std::string &) {}
+void zbd_rename(const std::string &, const std::string &) {}
 void zbd_reset_network() {}
 void zbd_config_open(const std::string &) {}
 bool zbd_config_get(std::vector<ZbdCfgItem> &) { return false; }

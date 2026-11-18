@@ -22,6 +22,9 @@
 //   driver   {"ieee"}                     Treiber eines Geraets -> {"t":"drv"}
 //   set      {"ieee","p":{name:wert,…}}   Werte setzen wie bei Zigbee2MQTT -> {"t":"set","ok":{…},"err":{…}}
 //   config   {"ieee"}                     einstellbare Werte -> je {"t":"cfg",…}, dann {"t":"cfg_end"}
+//   values                                letzte Werte aller Geraete -> je {"t":"state"}
+//   rename   {"ieee","name"}              eigener Name (im Modul gespeichert, "" = loeschen) -> {"t":"dev"}
+//   diag     {"on"}                       jede eingehende Zigbee-Nachricht als {"t":"log"} melden
 //   time     {"utc","tz"}                 Uhrzeit (fuer den Tuya-Zeitabgleich)
 //   drv_lookup {"mf","model"}             Treiberliste durchsuchen (Test ohne Geraet) -> {"t":"drv"}
 //
@@ -29,7 +32,7 @@
 //   hello    {"fw","ieee"}                nach dem Start
 //   info     {"fw","ready","pan","ch","ieee","open","devs","heap…","drv":{ok,defs,src,size}}
 //   joined   {"ieee","nwk"}               neues/zurueckgekehrtes Geraet (Abfrage der Endpunkte laeuft)
-//   dev      {"ieee","nwk","mf","model","eps":[{"ep","prof","dev","in":[…],"out":[…]}],"done"}
+//   dev      {"ieee","nwk","name","mf","model","eps":[{"ep","prof","dev","in":[…],"out":[…]}],"done"}
 //   left     {"ieee"}
 //   state    {"ieee","p":{name:wert,…}}   umgerechnete Werte (wie Zigbee2MQTT: temperature, state, battery …)
 //   attr     {"ieee","ep","cl","at","type","v"}   unbekannte Meldung roh (v: Zahl, Text oder Hex)

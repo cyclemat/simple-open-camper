@@ -21,6 +21,9 @@
 #include "esp_partition.h"
 #include "esp_rom_crc.h"
 #include "esp_zigbee_core.h"
+extern "C" {
+#include "zboss_api.h"   // Rohdaten-Rueckruf: ZCL-Kopf aus dem Puffer lesen (C-Bibliothek ohne eigenes extern "C")
+}
 #include "../soc_version.h"
 #include "../zb_drivers.h"
 #include "../zb_link.h"
@@ -56,6 +59,7 @@ struct Dev {
   uint16_t nwk = 0xFFFF;
   std::string mf, model;   // so meldet sich das Geraet (Basic 0x0004 / 0x0005)
   std::string zv, zm;      // Hersteller/Modell laut Treiberliste (leer = kein Treiber gefunden)
+  std::string name;        // eigener Name ("Bewegung Flur"), leer = keiner
   std::vector<Ep> eps;
   bool done = false;
   uint32_t rec = 0;        // Definition in der Treiberliste (0 = keine)
@@ -63,6 +67,7 @@ struct Dev {
   uint32_t occ_until = 0;
   std::string occ_prop;
   std::vector<std::pair<std::string, std::string>> last;   // letzte Werte (Name -> JSON), fuer "config"
+  bool tuya_btn = false;   // Tuya-Taster: sendet nach 0xFD noch Ein/Aus hinterher – das wird ignoriert
 };
 
 // ---------------------------------------------------------------- Treiberliste (Bereich "zbdrv", zb_drivers.h)
@@ -182,8 +187,9 @@ void send(JsonDocument &d) {
   serializeJson(d, s);
   s += '\n';
   if (s_out_mx) xSemaphoreTake(s_out_mx, portMAX_DELAY);
-  Link.print(s);
-  Serial.print(s);
+  Link.print(s);   // UART zum Panel: grosser Sendepuffer, der Zigbee-Task wartet nicht
+  // USB nur, wenn dort jemand liest – sonst wuerde jede Ausgabe bis zur Zeitgrenze warten und den Zigbee-Task bremsen
+  if (Serial && Serial.availableForWrite() >= (int)s.length()) Serial.print(s);
   if (s_out_mx) xSemaphoreGive(s_out_mx);
 }
 void send_msg(const char *t, const char *fmt, ...) {
@@ -204,6 +210,7 @@ void dev_json(JsonObject o, const Dev &d) {
   o["nwk"] = d.nwk;
   o["mf"] = d.mf;
   o["model"] = d.model;
+  if (!d.name.empty()) o["name"] = d.name;
   if (!d.zm.empty()) {
     o["zv"] = d.zv;   // Hersteller/Modell laut Treiberliste
     o["zm"] = d.zm;
@@ -300,6 +307,7 @@ void load_devs() {
     d.nwk = j["nwk"] | 0xFFFF;
     d.mf = (const char *)(j["mf"] | "");
     d.model = (const char *)(j["model"] | "");
+    d.name = (const char *)(j["name"] | "");
     d.zv = (const char *)(j["zv"] | "");
     d.zm = (const char *)(j["zm"] | "");
     d.done = j["done"] | false;
@@ -422,6 +430,19 @@ void bind_and_report(const Dev &d) {
   };
   esp_zb_ieee_addr_t me;
   esp_zb_get_long_address(me);
+  for (auto &e : d.eps)   // Fernbedienungen/Taster: Ausgangs-Cluster binden, damit Tastendruecke beim Koordinator ankommen
+    for (uint16_t cl : {(uint16_t)0x0006, (uint16_t)0x0008, (uint16_t)0x0300, (uint16_t)0x0005}) {
+      if (std::find(e.out.begin(), e.out.end(), cl) == e.out.end()) continue;
+      esp_zb_zdo_bind_req_param_t b = {};
+      memcpy(b.src_address, d.ieee, 8);
+      b.src_endp = e.ep;
+      b.cluster_id = cl;
+      b.dst_addr_mode = ESP_ZB_ZDO_BIND_DST_ADDR_MODE_64_BIT_EXTENDED;
+      memcpy(b.dst_address_u.addr_long, me, 8);
+      b.dst_endp = COORD_EP;
+      b.req_dst_addr = d.nwk;
+      esp_zb_zdo_device_bind_req(&b, [](esp_zb_zdp_status_t, void *) {}, nullptr);
+    }
   for (auto &e : d.eps) {
     for (auto &r : REPS) {
       if (std::find(e.in.begin(), e.in.end(), r.cl) == e.in.end()) continue;
@@ -609,6 +630,36 @@ void on_announce(uint16_t nwk, const uint8_t *ieee) {
   else if (moved) save_devs();
 }
 
+// Jede eingehende ZCL-Nachricht, bevor der Stack sie verarbeitet. Fuer die Fehlersuche ("diag") und als zweiter Weg
+// fuer Tastendruecke (Ein/Aus, Helligkeit, Farbe, Szenen), falls der Stack sie nicht als privilegierten Befehl liefert.
+bool s_diag = false;   // {"c":"diag","on":true} meldet jede eingehende Zigbee-Nachricht (Fehlersuche)
+bool raw_cb(uint8_t bufid) {
+  zb_zcl_parsed_hdr_t *h = ZB_BUF_GET_PARAM(bufid, zb_zcl_parsed_hdr_t);
+  if (!h) return false;
+  uint16_t src = h->addr_data.common_data.source.u.short_addr;
+  uint8_t sep = h->addr_data.common_data.src_endpoint, dep = h->addr_data.common_data.dst_endpoint;
+  const uint8_t *pl = (const uint8_t *)zb_buf_begin(bufid);
+  uint16_t n = (uint16_t)zb_buf_len(bufid);
+  if (s_diag) {
+    char hex[3 * 12 + 1] = "";
+    for (int i = 0; i < n && i < 12; i++) snprintf(hex + 3 * i, 4, "%02x ", pl[i]);
+    LOGZ("Roh: 0x%04x ep%u -> ep%u, Cluster 0x%04x, Befehl 0x%02x %s%s, %u Byte: %s", src, sep, dep, h->cluster_id,
+         h->cmd_id, h->is_common_command ? "allgemein" : "Cluster", h->cmd_direction ? " (an Client)" : "", n, hex);
+  }
+  uint16_t cl = h->cluster_id;
+  if (!h->is_common_command && (cl == 0x0006 || cl == 0x0008 || cl == 0x0300 || cl == 0x0005) &&
+      !cmd_repeat(src, h->seq_number, sep, cl, h->cmd_id)) {
+    Dev *d = find_nwk(src);
+    JsonDocument j;
+    j["t"] = "state";
+    if (d) j["ieee"] = ieee_str(d->ieee);
+    else j["nwk"] = src;
+    JsonObject p = j["p"].to<JsonObject>();
+    if (conv_command(d, sep, cl, h->cmd_id, pl, n, p)) send_state(d, j);
+  }
+  return false;   // normal weiterverarbeiten lassen
+}
+
 esp_err_t action_cb(esp_zb_core_action_callback_id_t id, const void *msg) {
   switch (id) {
     case ESP_ZB_CORE_REPORT_ATTR_CB_ID: {
@@ -649,6 +700,23 @@ esp_err_t action_cb(esp_zb_core_action_callback_id_t id, const void *msg) {
       r.enroll_rsp_code = ESP_ZB_ZCL_IAS_ZONE_ENROLL_RESPONSE_CODE_SUCCESS;
       r.zone_id = 1;
       esp_zb_zcl_ias_zone_enroll_cmd_resp(&r);
+      break;
+    }
+    case ESP_ZB_CORE_CMD_PRIVILEGE_COMMAND_REQ_CB_ID:
+    case ESP_ZB_CORE_CMD_PRIVILEGE_COMMAND_RESP_CB_ID: {   // Tastendruck / Fernbedienung
+      auto *m = (const esp_zb_zcl_privilege_command_message_t *)msg;
+      uint16_t nwk = m->info.src_address.u.short_addr;
+      if (cmd_repeat(nwk, m->info.header.tsn, m->info.src_endpoint, m->info.cluster, m->info.command.id)) break;
+      Dev *d = find_nwk(nwk);
+      JsonDocument j;
+      j["t"] = "state";
+      if (d) j["ieee"] = ieee_str(d->ieee);
+      else j["nwk"] = nwk;
+      JsonObject p = j["p"].to<JsonObject>();
+      if (conv_command(d, m->info.src_endpoint, m->info.cluster, m->info.command.id, (const uint8_t *)m->data, m->size, p))
+        send_state(d, j);
+      else
+        LOGZ("Befehl 0x%02x im Cluster 0x%04x von 0x%04x nicht ausgewertet", m->info.command.id, m->info.cluster, nwk);
       break;
     }
     case ESP_ZB_CORE_CMD_CUSTOM_CLUSTER_REQ_CB_ID: {   // Tuya (0xEF00) und andere Herstellerbefehle
@@ -931,6 +999,32 @@ void handle(const char *line) {
     Dev *d = ieee_parse(c["ieee"] | "", ieee) ? find_ieee(ieee) : nullptr;
     if (!d) send_msg("err", "Geraet unbekannt");
     else send_config(d);
+  } else if (!strcmp(cmd, "values")) {   // letzte Werte aller Geraete (Panel nach seinem Neustart)
+    for (auto &d : s_devs) {
+      if (d.last.empty()) continue;
+      JsonDocument j;
+      j["t"] = "state";
+      j["ieee"] = ieee_str(d.ieee);
+      JsonObject p = j["p"].to<JsonObject>();
+      for (auto &x : d.last) {
+        JsonDocument v;
+        if (!deserializeJson(v, x.second)) p[x.first] = v.as<JsonVariantConst>();
+      }
+      send(j);
+    }
+  } else if (!strcmp(cmd, "rename")) {   // {"c":"rename","ieee":…,"name":"Bewegung Flur"} ("" = Name loeschen)
+    uint8_t ieee[8];
+    Dev *d = ieee_parse(c["ieee"] | "", ieee) ? find_ieee(ieee) : nullptr;
+    if (!d) {
+      send_msg("err", "Geraet unbekannt");
+    } else {
+      d->name = std::string((const char *)(c["name"] | "")).substr(0, 32);
+      save_devs();
+      send_dev(*d);
+    }
+  } else if (!strcmp(cmd, "diag")) {   // {"c":"diag","on":true|false}: jede eingehende Zigbee-Nachricht melden
+    s_diag = c["on"] | true;
+    LOGZ("Diagnose %s", s_diag ? "an" : "aus");
   } else if (!strcmp(cmd, "time")) {   // {"c":"time","utc":Unixzeit,"tz":Sekunden} – fuer den Tuya-Zeitabgleich
     s_utc = c["utc"] | 0;
     s_utc_ms = millis();
@@ -999,6 +1093,12 @@ void zb_task(void *) {
   esp_zb_cluster_list_add_on_off_cluster(cl, esp_zb_zcl_attr_list_create(0x0006), CLI);
   esp_zb_cluster_list_add_level_cluster(cl, esp_zb_zcl_attr_list_create(0x0008), CLI);
   esp_zb_cluster_list_add_color_control_cluster(cl, esp_zb_zcl_attr_list_create(0x0300), CLI);
+  // auch als Server: Fernbedienungen senden ihre Befehle an die Server-Seite (Tuya-Taster an die Client-Seite)
+  const uint8_t SRV = ESP_ZB_ZCL_CLUSTER_SERVER_ROLE;
+  esp_zb_cluster_list_add_on_off_cluster(cl, esp_zb_zcl_attr_list_create(0x0006), SRV);
+  esp_zb_cluster_list_add_level_cluster(cl, esp_zb_zcl_attr_list_create(0x0008), SRV);
+  esp_zb_cluster_list_add_color_control_cluster(cl, esp_zb_zcl_attr_list_create(0x0300), SRV);
+  esp_zb_cluster_list_add_scenes_cluster(cl, esp_zb_zcl_attr_list_create(0x0005), SRV);
   esp_zb_cluster_list_add_temperature_meas_cluster(cl, esp_zb_zcl_attr_list_create(0x0402), CLI);
   esp_zb_cluster_list_add_pressure_meas_cluster(cl, esp_zb_zcl_attr_list_create(0x0403), CLI);
   esp_zb_cluster_list_add_humidity_meas_cluster(cl, esp_zb_zcl_attr_list_create(0x0405), CLI);
@@ -1018,7 +1118,13 @@ void zb_task(void *) {
   ec.app_device_version = 0;
   esp_zb_ep_list_add_ep(eps, cl, ec);
   esp_zb_device_register(eps);
+  // Tastendruecke und Fernbedienungsbefehle: am Stack vorbei an action_cb (ESP_ZB_CORE_CMD_PRIVILEGE_COMMAND_*)
+  for (uint8_t c : {0x00, 0x01, 0x02, 0x40, 0x42, 0xFD}) esp_zb_zcl_add_privilege_command(COORD_EP, 0x0006, c);
+  for (uint8_t c = 0x00; c <= 0x07; c++) esp_zb_zcl_add_privilege_command(COORD_EP, 0x0008, c);
+  for (uint8_t c : {0x0A, 0x47, 0x4B, 0x4C}) esp_zb_zcl_add_privilege_command(COORD_EP, 0x0300, c);
+  esp_zb_zcl_add_privilege_command(COORD_EP, 0x0005, 0x05);
   esp_zb_core_action_handler_register(action_cb);
+  esp_zb_raw_command_handler_register(raw_cb);
   esp_zb_set_primary_network_channel_set(ESP_ZB_TRANSCEIVER_ALL_CHANNELS_MASK);
   ESP_ERROR_CHECK(esp_zb_start(false));
   esp_zb_stack_main_loop();   // kehrt nicht zurueck
@@ -1028,7 +1134,9 @@ void zb_task(void *) {
 
 void setup() {
   Serial.begin(115200);   // USB des Moduls (Test, Log)
+  Serial.setTxTimeoutMs(0);   // USB-Ausgabe nie blockieren (niemand liest = verwerfen)
   Link.setRxBufferSize(ZB_LINK_MAX_LINE * 2);
+  Link.setTxBufferSize(ZB_LINK_MAX_LINE * 2);   // Sendepuffer: Meldungen ablegen statt warten
   Link.begin(ZB_LINK_BAUD, SERIAL_8N1, ZB_H2_RX, ZB_H2_TX);
   s_out_mx = xSemaphoreCreateMutex();
   pinMode(ZB_H2_LED, OUTPUT);

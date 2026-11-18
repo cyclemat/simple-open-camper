@@ -1705,6 +1705,21 @@ static void zb_discard_cb(lv_event_t *) {
   s_zb_pending.clear();
   lv_async_call(zb_rebuild, nullptr);
 }
+static void zb_rename_cb(lv_event_t *) {
+  std::string ieee = s_zb_dev, cur;
+  for (auto &d : zbd_devices())
+    if (d.ieee == ieee) cur = d.name;
+  InputOptions o;
+  o.title = tr("Name des Geräts");
+  o.hint = tr("z. B. „Bewegung Flur“ oder „Taster Bett“. Leer lassen = Modellname.");
+  o.initial = cur;
+  o.max_len = 32;
+  o.on_ok = [ieee](const std::string &t, bool) {
+    zbd_rename(ieee, t);
+    lv_async_call(zb_rebuild, nullptr);
+  };
+  ui_input_open(o);
+}
 static void zb_remove_cb(lv_event_t *) {
   std::string ieee = s_zb_dev;
   std::string txt = tr("Das Gerät ") + ieee + tr(" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.");
@@ -1779,8 +1794,11 @@ static void build_zigbee_device() {
     if (d.ieee == s_zb_dev) dev = d;
   lv_obj_t *top = button_row();
   ui_button(top, ICON_LEFT, "Zurück zur Liste", false, zb_back_cb, nullptr);
-  std::string title = dev.model.empty() ? s_zb_dev : (dev.mf.empty() ? dev.model : dev.mf + " " + dev.model);
-  heading(title.c_str(), dev.desc.empty() ? nullptr : dev.desc.c_str());
+  std::string model = dev.model.empty() ? s_zb_dev : (dev.mf.empty() ? dev.model : dev.mf + " " + dev.model);
+  if (!dev.desc.empty()) model += " – " + dev.desc;
+  heading(dev.name.empty() ? model.c_str() : dev.name.c_str(), dev.name.empty() ? (dev.desc.empty() ? nullptr : dev.desc.c_str()) : model.c_str());
+  lv_obj_t *nr = button_row();
+  ui_button(nr, ICON_PENCIL, "Umbenennen", false, zb_rename_cb, nullptr);
 
   subheading("Aktuelle Werte");
   auto vals = zbd_values(s_zb_dev);
@@ -1893,6 +1911,7 @@ static void build_zigbee() {
     for (auto &d : devs) {
       std::string title = d.model.empty() ? d.ieee : (d.mf.empty() ? d.model : d.mf + " " + d.model);
       if (!d.desc.empty()) title += " – " + d.desc;   // Beschreibung aus der Treiberliste
+      if (!d.name.empty()) title = d.name + "  (" + (d.model.empty() ? d.ieee : d.model) + ")";   // eigener Name zuerst
       lv_obj_t *v = ui_row(dg, title.c_str(), zb_dev_value(d).c_str(), zb_dev_cb, (void *)(intptr_t)s_zb_ieee.size());
       s_zb_ieee.push_back(d.ieee);
       s_zb_rows.push_back({d.ieee, v});

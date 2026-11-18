@@ -95,6 +95,23 @@ bool dp_raw(uint32_t map_off, int n, const char *text, int32_t &raw) {
   return false;
 }
 
+// Ein/Aus-Texte eines Ein/Aus-Wertes laut Treiber (z. B. "ON"/"OFF"); false = kein solcher Wert
+bool drv_binary(uint32_t rec, const char *prop, std::string &on, std::string &off) {
+  bool found = false;
+  drv_each_expose(rec, [&](const ZbdExpose &e, uint32_t vals) {
+    const char *n = drv_str(e.property);
+    if (!n || strcmp(n, prop) || e.type != ZBD_T_BINARY || e.n_values < 2) return false;
+    uint32_t o1, o2;
+    memcpy(&o1, s_drv + vals, 4);
+    memcpy(&o2, s_drv + vals + 4, 4);
+    on = drv_str(o1) ? drv_str(o1) : "";
+    off = drv_str(o2) ? drv_str(o2) : "";
+    found = true;
+    return true;
+  });
+  return found;
+}
+
 // ---------------------------------------------------------------- Namen mit Endpunkt ("state_l2" bei Doppelschaltern)
 std::string prop_name(const Dev *d, uint8_t ep, uint16_t cl, const char *base) {
   if (!d) return base;
@@ -343,11 +360,17 @@ void tuya_in(Dev *d, uint8_t ep, uint8_t cmd, const uint8_t *b, uint16_t n, Json
           if (t) p[name] = t;
           else p[name] = raw;
           break;
-        default:
-          if (isnum) p[name] = raw;
+        default: {
+          std::string on, off;
+          if (type == 0x01 && drv_binary(d->rec, name.c_str(), on, off)) {   // Ein/Aus laut Treiber ("ON"/"OFF", true/false)
+            const std::string &txt = raw ? on : off;
+            if (txt == "true" || txt == "false") p[name] = txt == "true";
+            else p[name] = txt;
+          } else if (isnum) p[name] = raw;
           else if (type == 0x03) p[name] = std::string((const char *)v, len);
           else p[name] = hex();
           break;
+        }
       }
       if (name == "occupancy" || name == "presence") occupancy_seen(d, name, p[name].as<bool>());
     } else {
@@ -376,8 +399,17 @@ bool tuya_set(Dev *d, const char *name, JsonVariantConst val, std::string &err) 
     if (t == "OFF" || t == "off") t = dpi.kind == ZBD_DP_BOOL ? "false" : t;
     if (!dp_raw(mo, dpi.n_map, t.c_str(), raw)) { err = "unbekannter Wert \"" + t + "\""; return true; }
   } else {
-    if (!val.is<long>()) { err = "Datenpunkt unbekannter Art"; return true; }
-    raw = val.as<long>();
+    std::string on, off;
+    if (drv_binary(d->rec, name, on, off)) {   // Ein/Aus-Wert ohne erkannte Umrechnung: als Tuya-bool schreiben
+      std::string tv = val.is<bool>() ? (val.as<bool>() ? "true" : "false") : val.is<const char *>() ? val.as<const char *>() : "";
+      if (tv == on || tv == "true") raw = 1;
+      else if (tv == off || tv == "false") raw = 0;
+      else { err = "\"" + on + "\" oder \"" + off + "\" erwartet"; return true; }
+      type = 0x01;
+    } else {
+      if (!val.is<long>()) { err = "Datenpunkt unbekannter Art"; return true; }
+      raw = val.as<long>();
+    }
   }
   uint8_t b[12];
   size_t n = 0;
@@ -559,4 +591,84 @@ void send_config(Dev *d) {
   e["ieee"] = ieee;
   e["n"] = n;
   send(e);
+}
+
+// ---------------------------------------------------------------- Befehle von Schaltern und Fernbedienungen
+// Tasten senden keine Attribute, sondern Befehle an den Koordinator. Daraus wird "action" wie bei Zigbee2MQTT:
+//   Tuya-Taster (TS004x): Befehl 0xFD im Ein/Aus-Cluster, 0 = kurz, 1 = doppelt, 2 = lang -> "1_single" …
+//   Standard: on/off/toggle, brightness_move_up/down, brightness_step_up/down, brightness_stop,
+//             color_temperature_move/step_up/down, recall_<szene>
+// Mehrere Endpunkte (mehrere Tasten): Endpunktnummer vorn ("2_single") bzw. hinten ("on_2").
+struct CmdSeen {
+  uint16_t nwk;
+  uint8_t tsn, ep;
+  uint16_t cl;
+  uint8_t cmd;
+  uint32_t ms;
+};
+CmdSeen s_cmd_last[8];   // Wiederholungen derselben Meldung (gleiche Folgenummer) verwerfen
+uint8_t s_cmd_pos = 0;
+
+bool cmd_repeat(uint16_t nwk, uint8_t tsn, uint8_t ep, uint16_t cl, uint8_t cmd) {
+  uint32_t now = millis();
+  for (auto &x : s_cmd_last)
+    if (x.ms && now - x.ms < 3000 && x.nwk == nwk && x.tsn == tsn && x.ep == ep && x.cl == cl && x.cmd == cmd) return true;
+  s_cmd_last[s_cmd_pos++ % 8] = {nwk, tsn, ep, cl, cmd, now};
+  return false;
+}
+
+bool multi_ep(const Dev *d, uint16_t cl) {
+  if (!d) return false;
+  int n = 0;
+  for (auto &e : d->eps)
+    if (std::find(e.in.begin(), e.in.end(), cl) != e.in.end() || std::find(e.out.begin(), e.out.end(), cl) != e.out.end())
+      n++;
+  return n > 1;
+}
+
+// liefert true, wenn eine Aktion erkannt wurde
+bool conv_command(Dev *d, uint8_t ep, uint16_t cl, uint8_t cmd, const uint8_t *b, uint16_t n, JsonObject p) {
+  std::string act;
+  bool multi = multi_ep(d, cl);
+  auto sfx = [&](const std::string &a) { return multi ? a + "_" + std::to_string(ep) : a; };
+  if (cl == 0x0006) {
+    if (cmd == 0xFD && n >= 1) {   // Tuya-Taster
+      static const char *K[] = {"single", "double", "hold"};
+      act = std::to_string(ep) + "_" + (b[0] < 3 ? K[b[0]] : std::to_string(b[0]));
+      if (d) d->tuya_btn = true;
+    } else if (d && d->tuya_btn && cmd <= 0x02) {
+      return false;   // Tuya-Taster schicken nach dem Tastendruck noch Ein/Aus/Umschalten – wie Zigbee2MQTT ignorieren
+    } else if (cmd == 0x00) act = sfx("off");
+    else if (cmd == 0x01) act = sfx("on");
+    else if (cmd == 0x02) act = sfx("toggle");
+    else if (cmd == 0x40) act = sfx("off");   // Aus mit Effekt
+    else if (cmd == 0x42) act = sfx("on");    // Ein mit Zeit
+    else return false;
+  } else if (cl == 0x0008) {
+    uint8_t c = cmd & 0x07;   // 0x04..0x07 = dieselben Befehle "mit Ein/Aus"
+    if (c == 0x00) {
+      act = sfx("brightness_move_to_level");
+      if (n >= 1) p["action_level"] = b[0];
+    } else if (c == 0x01) act = sfx(n >= 1 && b[0] ? "brightness_move_down" : "brightness_move_up");
+    else if (c == 0x02) {
+      act = sfx(n >= 1 && b[0] ? "brightness_step_down" : "brightness_step_up");
+      if (n >= 2) p["action_step_size"] = b[1];
+    } else if (c == 0x03) act = sfx("brightness_stop");
+    else return false;
+  } else if (cl == 0x0300) {
+    if (cmd == 0x0A) {
+      act = sfx("color_temperature_move");
+      if (n >= 2) p["action_color_temperature"] = b[0] | (b[1] << 8);
+    } else if (cmd == 0x4B) act = sfx(n >= 1 && b[0] == 3 ? "color_temperature_move_down" : n >= 1 && b[0] == 1 ? "color_temperature_move_up" : "color_temperature_move_stop");
+    else if (cmd == 0x4C) act = sfx(n >= 1 && b[0] == 3 ? "color_temperature_step_down" : "color_temperature_step_up");
+    else if (cmd == 0x47) act = sfx("color_temperature_move_stop");
+    else return false;
+  } else if (cl == 0x0005) {
+    if (cmd == 0x05 && n >= 3) act = "recall_" + std::to_string(b[2]);   // Szene aufrufen (Gruppe, Szene)
+    else return false;
+  } else {
+    return false;
+  }
+  p["action"] = act;
+  return true;
 }

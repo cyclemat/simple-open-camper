@@ -34,6 +34,7 @@ struct ZbdInfo {
 };
 struct ZbdDevice {
   std::string ieee, mf, model, desc;   // mf/model: aus der Treiberliste, sonst wie das Geraet sich meldet
+  std::string name;                    // eigener Name ("" = keiner)
   bool done = false;
   int age = -1;            // Sekunden seit der letzten Meldung (-1 = noch keine)
   std::string summary;     // lesbare Werte, z. B. "An · 21,4 °C · Batterie 87 %"
@@ -43,6 +44,7 @@ std::vector<ZbdDevice> zbd_devices();
 std::vector<std::string> zbd_log();
 uint32_t zbd_structure_sig();                      // aendert sich, wenn Geraete/Zustand neu aufgebaut werden muessen
 void zbd_remove(const std::string &ieee);          // Geraet abmelden und vergessen
+void zbd_rename(const std::string &ieee, const std::string &name);   // eigener Name (im Modul gespeichert)
 
 // Einstellungen eines Geraets: werden erst beim Oeffnen der Seite vom Modul geholt und nur so lange gehalten
 // (zbd_config_close gibt den Speicher frei). Speichern schickt nur die geaenderten Werte ans Modul.
