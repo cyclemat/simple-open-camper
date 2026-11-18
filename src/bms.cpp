@@ -82,6 +82,7 @@ BmsDev bms_dev_of(BmsModel m) {
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "victron.h"   // victron_state_text (Ladephase der Renogy-Geraete)
+#include "i18n/i18n.h"   // tr(), UI_DECIMAL_COMMA
 
 namespace {   // dateilokal: gleichnamige Typen anderer Dateien duerfen sich nicht vermischen
 
