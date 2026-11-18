@@ -1,6 +1,6 @@
 # Fertige Firmware – Version 0.2.0
 
-Automatisch von GitHub gebaut (zuletzt aus Commit f61d015, 2026-11-18 09:12 UTC).
+Automatisch von GitHub gebaut (zuletzt aus Commit 06ea155, 2026-11-18 11:16 UTC).
 Die jeweils vorige Fassung liegt in [`vorher/`](vorher/).
 
 **Per USB (komplett, Adresse 0x0):** die Datei des Boards in diesem Ordner, z. B.
@@ -16,13 +16,13 @@ Die jeweils vorige Fassung liegt in [`vorher/`](vorher/).
 |---|---|---|---|---|
 | panel-crowpanel-146 | 0.2.0 (f61d015) | [panel-crowpanel-146.bin](panel-crowpanel-146.bin) (2997 KB) | [ota/panel-crowpanel-146.bin](ota/panel-crowpanel-146.bin) (2933 KB) | 0.2.0 (a035d64): [komplett](vorher/panel-crowpanel-146.bin), [Update](vorher/ota/panel-crowpanel-146.bin) |
 | panel-crowpanel-p4 | 0.2.0 (f61d015) | [panel-crowpanel-p4.bin](panel-crowpanel-p4.bin) (3470 KB) | [ota/panel-crowpanel-p4.bin](ota/panel-crowpanel-p4.bin) (3406 KB) | 0.2.0 (a035d64): [komplett](vorher/panel-crowpanel-p4.bin), [Update](vorher/ota/panel-crowpanel-p4.bin) |
-| panel-waveshare-7b | 0.2.0 (f61d015) | [panel-waveshare-7b.bin](panel-waveshare-7b.bin) (3190 KB) | [ota/panel-waveshare-7b.bin](ota/panel-waveshare-7b.bin) (3126 KB) | 0.2.0 (a035d64): [komplett](vorher/panel-waveshare-7b.bin), [Update](vorher/ota/panel-waveshare-7b.bin) |
+| panel-waveshare-7b | 0.2.0 (06ea155) | [panel-waveshare-7b.bin](panel-waveshare-7b.bin) (3190 KB) | [ota/panel-waveshare-7b.bin](ota/panel-waveshare-7b.bin) (3126 KB) | 0.2.0 (f61d015): [komplett](vorher/panel-waveshare-7b.bin), [Update](vorher/ota/panel-waveshare-7b.bin) |
 | satellit-cyd | 0.2.0 (f61d015) | [satellit-cyd.bin](satellit-cyd.bin) (2043 KB) | [ota/satellit-cyd.bin](ota/satellit-cyd.bin) (1979 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-cyd.bin), [Update](vorher/ota/satellit-cyd.bin) |
 | satellit-esp32-c3 | 0.2.0 (f61d015) | [satellit-esp32-c3.bin](satellit-esp32-c3.bin) (1900 KB) | [ota/satellit-esp32-c3.bin](ota/satellit-esp32-c3.bin) (1836 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-esp32-c3.bin), [Update](vorher/ota/satellit-esp32-c3.bin) |
 | satellit-esp32-c6 | 0.2.0 (f61d015) | [satellit-esp32-c6.bin](satellit-esp32-c6.bin) (2060 KB) | [ota/satellit-esp32-c6.bin](ota/satellit-esp32-c6.bin) (1996 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-esp32-c6.bin), [Update](vorher/ota/satellit-esp32-c6.bin) |
 | satellit-esp32-s3 | 0.2.0 (f61d015) | [satellit-esp32-s3.bin](satellit-esp32-s3.bin) (1709 KB) | [ota/satellit-esp32-s3.bin](ota/satellit-esp32-s3.bin) (1645 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-esp32-s3.bin), [Update](vorher/ota/satellit-esp32-s3.bin) |
 | satellit-esp32 | 0.2.0 (f61d015) | [satellit-esp32.bin](satellit-esp32.bin) (1799 KB) | [ota/satellit-esp32.bin](ota/satellit-esp32.bin) (1735 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-esp32.bin), [Update](vorher/ota/satellit-esp32.bin) |
 | satellit-relay16 | 0.2.0 (f61d015) | [satellit-relay16.bin](satellit-relay16.bin) (1800 KB) | [ota/satellit-relay16.bin](ota/satellit-relay16.bin) (1736 KB) | 0.2.0 (092cfbb): [komplett](vorher/satellit-relay16.bin), [Update](vorher/ota/satellit-relay16.bin) |
-| updater-esp32 | 0.2.0 (f61d015) | – | [ota/updater-esp32.bin](ota/updater-esp32.bin) (936 KB) | 0.2.0 (a035d64): [komplett](vorher/updater-esp32.bin), [Update](vorher/ota/updater-esp32.bin) |
-| victron-display-cyd | 0.2.0 (f61d015) | [victron-display-cyd.bin](victron-display-cyd.bin) (3944 KB) | [ota/victron-display-cyd.bin](ota/victron-display-cyd.bin) (2316 KB) | 0.2.0 (a035d64): [komplett](vorher/victron-display-cyd.bin), [Update](vorher/ota/victron-display-cyd.bin) |
-| zusatzdisplay-cyd | 0.2.0 (f61d015) | [zusatzdisplay-cyd.bin](zusatzdisplay-cyd.bin) (3944 KB) | [ota/zusatzdisplay-cyd.bin](ota/zusatzdisplay-cyd.bin) (2222 KB) | 0.2.0 (a035d64): [komplett](vorher/zusatzdisplay-cyd.bin), [Update](vorher/ota/zusatzdisplay-cyd.bin) |
+| updater-esp32 | 0.2.0 (06ea155) | – | [ota/updater-esp32.bin](ota/updater-esp32.bin) (936 KB) | 0.2.0 (f61d015): [komplett](vorher/updater-esp32.bin), [Update](vorher/ota/updater-esp32.bin) |
+| victron-display-cyd | 0.2.0 (06ea155) | [victron-display-cyd.bin](victron-display-cyd.bin) (3944 KB) | [ota/victron-display-cyd.bin](ota/victron-display-cyd.bin) (2316 KB) | 0.2.0 (f61d015): [komplett](vorher/victron-display-cyd.bin), [Update](vorher/ota/victron-display-cyd.bin) |
+| zusatzdisplay-cyd | 0.2.0 (06ea155) | [zusatzdisplay-cyd.bin](zusatzdisplay-cyd.bin) (3944 KB) | [ota/zusatzdisplay-cyd.bin](ota/zusatzdisplay-cyd.bin) (2222 KB) | 0.2.0 (f61d015): [komplett](vorher/zusatzdisplay-cyd.bin), [Update](vorher/ota/zusatzdisplay-cyd.bin) |
