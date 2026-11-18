@@ -3,6 +3,7 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include "sat_oled.h"
+#include "sat_sens.h"
 #include <math.h>
 #include <algorithm>
 #include "driver/gpio.h"
@@ -511,13 +512,7 @@ static bool mpu_write(uint8_t reg, uint8_t v) {
 }
 
 static void mpu_setup() {
-#if !SAT_OLED   // mit OLED bleibt der Bus an (das OLED haengt daran)
-  if (s_wire) {
-    Wire.end();
-    s_wire = false;
-    s_bus_sda = s_bus_scl = -1;
-  }
-#endif
+  s_wire = false;   // der Bus bleibt an: OLED und Zusatzsensoren haengen ggf. mit daran
   s_mpu_ok = false;
   s_raw_x = s_raw_y = s_tilt_x = s_tilt_y = NAN;
   s_med_n = s_med_i = 0;
@@ -890,6 +885,11 @@ static String validate(const IoCfg &c) {
     use(c.mpu.scl, "MPU-6050 SCL", true, false);
   }
 #endif
+  // Zusatzsensoren (Karte "Weitere Sensoren"); deren I2C-Pins duerfen die des MPU-6050 sein (gemeinsamer Bus)
+  sat_sens_for_pins([&](int pin, const String &what, bool out, bool adc) {
+    if (c.mpu.on && (pin == c.mpu.sda || pin == c.mpu.scl) && what.indexOf("I²C") >= 0) return;
+    use(pin, what, out, adc);
+  });
   for (int i = 0; i < SAT_IO_SWITCHES; i++) use(c.sw[i].pin, "Schalter " + String(i + 1), true, false);
   for (int i = 0; i < SAT_IO_INPUTS; i++) use(c.in[i].pin, "Eingang " + String(i + 1), false, false);
   return err;
@@ -938,9 +938,43 @@ void sat_io_begin() {
     s_sw[i] = b == 1 || (b == 2 && (bits & (1UL << i)));
   }
   apply_pins();
+  sat_sens_begin();   // Zusatzsensoren (nach den Anschluessen: Pin-Pruefung)
 }
 
-uint32_t sat_io_version() { return s_ver + hymer_version() * 101; }
+uint32_t sat_io_version() { return s_ver + hymer_version() * 101 + sat_sens_version() * 7; }
+
+bool sat_io_mpu_pins(int &sda, int &scl) {
+  if (!s_cfg.mpu.on) return false;
+  sda = s_cfg.mpu.sda;
+  scl = s_cfg.mpu.scl;
+  return true;
+}
+
+String sat_io_pin_owner(int pin) {
+  if (pin < 0) return "";
+#if SAT_OLED
+  if (pin == SAT_OLED_SDA || pin == SAT_OLED_SCL) return "OLED (I²C)";
+#endif
+  for (int i = 0; i < SAT_IO_TANKS; i++) {
+    const TankCfg &t = s_cfg.tanks[i];
+    if (t.mode == 1) {
+      for (int p = 0; p < SAT_IO_PROBES; p++)
+        if (t.pins[p] == pin) return "Tank " + String(i + 1);
+      if (t.gnd == pin) return "Tank " + String(i + 1) + " Masse";
+    } else if (t.mode == 2 && t.apin == pin) {
+      return "Tank " + String(i + 1);
+    }
+  }
+  if (s_cfg.ow_pin == pin) return "DS18B20-Bus";
+  for (int i = 0; i < SAT_IO_ANALOG; i++)
+    if (s_cfg.an[i].pin == pin) return "Analog " + String(i + 1);
+  if (s_cfg.mpu.on && (s_cfg.mpu.sda == pin || s_cfg.mpu.scl == pin)) return "MPU-6050";
+  for (int i = 0; i < SAT_IO_SWITCHES; i++)
+    if (s_cfg.sw[i].pin == pin) return "Schalter " + String(i + 1);
+  for (int i = 0; i < SAT_IO_INPUTS; i++)
+    if (s_cfg.in[i].pin == pin) return "Eingang " + String(i + 1);
+  return "";
+}
 uint32_t sat_io_last_switch_ms() { return s_sw_ms; }
 
 bool sat_io_has_switches() {
@@ -1084,6 +1118,7 @@ std::vector<SatPoint> sat_io_points() {
     if (p.kind == SP_SWITCH) p.nonce = s_nonce;
     r.push_back(p);
   }
+  sat_sens_points(r);   // Zusatzsensoren (Karte "Weitere Sensoren")
   return r;
 }
 

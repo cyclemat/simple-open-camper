@@ -161,8 +161,10 @@ void sat_from_json(JsonObjectConst o, VictronInfo &v) {
 
 // ---------------------------------------------------------------- eigene Anschluesse ("Punkte")
 static const char *const KIND_NAMES[] = {"", "tank", "temp", "analog", "tilt", "input", "switch"};
-static const char *const CLASS_NAMES[SC_COUNT] = {"", "temperature", "humidity", "level", "voltage", "pressure", "current", "tilt", "binary", "onoff"};
-static const char *const CLASS_UNITS[SC_COUNT] = {"", "\xC2\xB0" "C", "%", "%", "V", "bar", "A", "\xC2\xB0", "", ""};
+static const char *const CLASS_NAMES[SC_COUNT] = {"", "temperature", "humidity", "level", "voltage", "pressure", "current", "tilt", "binary", "onoff",
+                                                   "power", "co2", "weight", "flow", "volume"};
+static const char *const CLASS_UNITS[SC_COUNT] = {"", "\xC2\xB0" "C", "%", "%", "V", "bar", "A", "\xC2\xB0", "", "",
+                                                   "W", "ppm", "kg", "l/min", "l"};
 
 const char *sat_kind_name(SatPointKind k) { return k <= SP_SWITCH ? KIND_NAMES[k] : ""; }
 const char *sat_class_name(uint8_t cls) { return cls < SC_COUNT ? CLASS_NAMES[cls] : ""; }

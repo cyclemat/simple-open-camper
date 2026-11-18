@@ -282,8 +282,9 @@ static SioText sio_text(const SatPoint &p, bool small) {
       }
       break;
     case SP_ANALOG: {
-      r.icon = p.cls == SC_TEMP ? ICON_THERMO : (p.cls == SC_LEVEL || p.cls == SC_HUMIDITY) ? ICON_BATH
-             : (p.cls == SC_VOLTAGE || p.cls == SC_CURRENT) ? ICON_LIGHTNING : ICON_INFO;
+      r.icon = p.cls == SC_TEMP ? ICON_THERMO
+             : (p.cls == SC_LEVEL || p.cls == SC_HUMIDITY || p.cls == SC_FLOW || p.cls == SC_VOLUME) ? ICON_BATH
+             : (p.cls == SC_VOLTAGE || p.cls == SC_CURRENT || p.cls == SC_POWER) ? ICON_LIGHTNING : ICON_INFO;
       if (val) {
         float a = fabsf(p.value);
         r.value = ui_num(p.value, a >= 100 ? 0 : a >= 10 ? 1 : 2, p.unit.c_str());

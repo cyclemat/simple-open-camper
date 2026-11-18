@@ -2,7 +2,21 @@
 #pragma once
 #include <pgmspace.h>
 
-static const char SAT_PAGE[] PROGMEM = R"HTML(<!doctype html>
+// Die Seite besteht aus Teilen; jede Firmware enthaelt nur die Karten, die sie wirklich hat (spart Flash).
+// Ausgeliefert nacheinander (sat_web.cpp, SAT_PAGE_PARTS). Teile ohne Gegenstueck: siehe #if.
+#include "sat_oled.h"
+#include "sat_sens.h"
+#ifndef SAT_DISPLAY
+#define SAT_DISPLAY 0
+#endif
+#ifndef SAT_REMOTE
+#define SAT_REMOTE 0
+#endif
+#ifndef SAT_ROUND
+#define SAT_ROUND 0
+#endif
+#define SAT_PAGE_DP (SAT_DISPLAY || SAT_REMOTE || SAT_ROUND)
+static const char SAT_PAGE_A[] PROGMEM = R"HTML(<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PanelSat</title>
 <style>
@@ -94,8 +108,14 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div id="ioBody"><p class="hint">Lädt …</p></div>
 <div class="row" style="margin-top:10px"><button class="p" id="bIoSave" style="flex:none">Belegung speichern</button><button id="bIoTank" style="flex:none">Tanks jetzt messen</button></div>
 </div>
-
-<div class="card" id="trCard"><h2>Truma LevelControl</h2><div id="trList"></div>
+)HTML";
+#if SAT_SENS
+static const char SAT_PAGE_SN_CARD[] PROGMEM = R"HTML(<div class="card" id="snCard" style="display:none"><h2>Weitere Sensoren</h2>
+<p class="hint">Klima (BME280, SHT, AHT20, DHT22, CO₂), Strom (INA219/226), Gewicht (HX711, z. B. Gasflasche), Durchfluss und Tanks (Ultraschall, Schwimmer mit Widerstandsgeber, Schwimmerschalter). Jeder Wert erscheint als eigene Kachel – der Name steht davor (z. B. „Bad Temperatur“). Tanks erscheinen als Tank mit %.</p>
+<div id="snBus"></div><div id="snBody"></div>
+<div class="row" style="margin-top:8px"><button id="bSnAdd" style="flex:none">+ Sensor</button><button id="bSnSave" style="flex:none">Speichern</button></div></div>)HTML";
+#endif
+static const char SAT_PAGE_B[] PROGMEM = R"HTML(<div class="card" id="trCard"><h2>Truma LevelControl</h2><div id="trList"></div>
 <div class="row" style="margin-top:8px"><label class="f" style="flex:none;width:200px"><span>Messen alle … Minuten</span><input id="trInt" type="number" min="1" max="1440"></label></div>
 <div class="row"><button id="bTrScan" style="flex:none">Sensoren suchen</button><button id="bTrMeasure" style="flex:none">Jetzt messen</button></div>
 <div id="trFound"></div></div>
@@ -115,8 +135,9 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <p class="hint" id="hyStatus"></p>
 <div id="hyList"></div>
 <div class="row" style="margin-top:8px"><button id="bHyPair" style="flex:none">Koppeln</button><button class="d" id="bHyForget" style="flex:none">Kopplung lösen</button></div></div>
-
-<div class="card" id="rdCard" style="display:none"><h2>Kacheln vom Hauptpanel</h2>
+)HTML";
+#if SAT_PAGE_DP
+static const char SAT_PAGE_DP_CARD[] PROGMEM = R"HTML(<div class="card" id="rdCard" style="display:none"><h2>Kacheln vom Hauptpanel</h2>
 <p class="hint">Welche Kacheln dieses Display zeigt. „Geräteliste holen“ fragt das Hauptpanel nach allen Kacheln – die Liste wird hier nicht gespeichert, gemerkt wird nur deine Auswahl (im Hauptpanel). Anordnen auf Seiten: Karte „Display“ darunter.</p>
 <div class="row"><button id="bRdLoad" style="flex:none">Geräteliste vom Hauptpanel holen</button></div>
 <div id="rdList"></div>
@@ -138,8 +159,10 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <p class="hint"><span id="ldrNow">Lichtsensor: …</span> Größerer Wert = dunkler. Zum Einstellen: Raum abdunkeln, Wert ablesen und etwas darunter als Grenze eintragen.</p>
 </div>
 <div class="row" style="margin-top:8px"><button id="bDpSave" style="flex:none">Speichern</button></div></div>
-
-<div class="card" id="olCard" style="display:none"><h2>OLED</h2>
+)HTML";
+#endif
+#if SAT_OLED
+static const char SAT_PAGE_OL_CARD[] PROGMEM = R"HTML(<div class="card" id="olCard" style="display:none"><h2>OLED</h2>
 <p class="hint">Was das kleine Display zeigt. <b>Automatisch</b>: mit Lagesensor (MPU-6050) die Wasserwaage in zwei Richtungen, sonst alle Sensoren nacheinander, ohne Sensor Name und Adresse des Satelliten. Der MPU-6050 hängt am selben I²C wie das OLED (SDA GPIO <span id="olSda"></span>, SCL GPIO <span id="olScl"></span>). Läuft die Blase falsch herum: unter Anschlüsse beim MPU-6050 die Achsen tauschen bzw. umkehren.</p>
 <p class="hint" id="olMiss" style="display:none;color:#e5534b">Das OLED antwortet nicht – Anschluss bzw. Board prüfen.</p>
 <div class="row">
@@ -148,8 +171,9 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 </div>
 <label class="ck"><input type="checkbox" id="olOn">Display an</label>
 <label class="ck"><input type="checkbox" id="olRot">Um 180° drehen</label>
-<div class="row" style="margin-top:8px"><button id="bOlSave" style="flex:none">Speichern</button></div></div>
-<div class="card"><h2>Firmware</h2>
+<div class="row" style="margin-top:8px"><button id="bOlSave" style="flex:none">Speichern</button></div></div>)HTML";
+#endif
+static const char SAT_PAGE_C[] PROGMEM = R"HTML(<div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div id="updRow" style="display:none"><p class="hint">Update: „Update-Modus starten“ – das Gerät startet in den kleinen Updater (gleiche Adresse, gleiches Passwort). Dort die neue Firmware hochladen; danach startet sie von selbst. Hier unten lässt sich nur der Updater selbst erneuern (max. 1 MB).</p>
 <div class="row"><button id="bUpd" style="flex:none">Update-Modus starten</button></div></div>
@@ -234,7 +258,7 @@ $('#bPw').onclick=async()=>{const o=prompt('Aktuelles Zugangspasswort');if(o==nu
  try{await post('/api/setpw',{old:o,new:n});toast('Passwort geändert.')}catch(e){toast(e.message,true)}};
 $('#netList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const n=$('#netList')._n[+b.dataset.net];$('#cSsid').value=n.ssid;$('#netList').innerHTML='';$('#cWpass').value='';$('#cWpass').focus();toast('„'+n.ssid+'“ gewählt – Passwort eingeben und speichern.')});
 async function load(){try{const r=await fetch('/api/state');if(r.status===401){const j=await r.json();if(AUTH!==j.auth)showAuth(j.auth);return}
- AUTH=null;$('#authCard').style.display='none';$('#app').style.display='';S=await r.json();if(!loaded){fill();apLoad();loaded=true}render();ioLive();ldrShow()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
+ AUTH=null;$('#authCard').style.display='none';$('#app').style.display='';S=await r.json();if(!loaded){fill();apLoad();loaded=true}render();ioLive();if(window.ldrShow)ldrShow()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
 // ---------------- Anschluesse (GPIO)
 let IO=null,PINS=[];
 const CLS=[['','Allgemein'],['temperature','Temperatur'],['humidity','Luftfeuchte'],['level','Füllstand'],['voltage','Spannung'],['pressure','Druck'],['current','Strom']];
@@ -315,11 +339,11 @@ function ioLive(){if(!IO||!S||!S.io)return;const L=S.io;
  IO.switches.forEach((x,i)=>{const e=$('#ls'+i);if(e)e.innerHTML=L.switches[i]?'<b style="color:var(--ok)">an</b>':'aus'});
  IO.inputs.forEach((x,i)=>{const e=$('#li'+i);if(e)e.textContent=L.inputs[i]?'Kontakt geschlossen':'offen'});
  const io=S.io;void io}
-async function ioLoad(){try{const r=await (await fetch('/api/io')).json();IO=r.config;PINS=r.pins;ioRender()}catch(e){$('#ioBody').innerHTML='<p class="hint">Belegung konnte nicht geladen werden.</p>'}}
+async function ioLoad(){try{const r=await (await fetch('/api/io')).json();IO=r.config;PINS=r.pins;ioRender();if(window.snRender)snRender()}catch(e){$('#ioBody').innerHTML='<p class="hint">Belegung konnte nicht geladen werden.</p>'}}
 document.addEventListener('change',e=>{const t=e.target;if(!t.dataset||!t.dataset.k||!IO)return;let v=t.type=='checkbox'?t.checked:('n' in t.dataset)?+t.value:t.value;
  if(t.dataset.k.endsWith('.inv')&&t.tagName=='SELECT'||t.dataset.k.endsWith('.low'))v=!!+t.value;setK(t.dataset.k,v);if('r' in t.dataset||t.type=='checkbox'&&(t.dataset.k=='mpu.on'||t.dataset.k=='mpu.still'))ioRender()});
 $('#ioInt').onchange=e=>IO&&(IO.interval=+e.target.value);$('#ioTInt').onchange=e=>IO&&(IO.tank_interval=+e.target.value);
-$('#bIoSave').onclick=()=>post('/api/io',IO).then(()=>{toast('Belegung gespeichert.');ioLoad();olLoad();setTimeout(load,800)}).catch(e=>toast(e.message,true));
+$('#bIoSave').onclick=()=>post('/api/io',IO).then(()=>{toast('Belegung gespeichert.');ioLoad();if(window.olLoad)olLoad();setTimeout(load,800)}).catch(e=>toast(e.message,true));
 $('#bIoTank').onclick=()=>act('/api/io/action',{tanks_now:true},'Tanks werden gemessen.');
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!IO)return;const d=b.dataset;
  if(d.ioadd){const C=IO;
@@ -378,8 +402,9 @@ $('#bUpd').onclick=async()=>{if(!confirm('In den Update-Modus starten? Das Gerä
  try{await post('/api/updater',{});toast('Starte den Updater … die Seite lädt gleich neu.');setTimeout(()=>location.reload(),12000)}catch(e){toast(e.message,true)}};
 $('#bFw').onclick=async()=>{const f=$('#fwFile').files[0];if(!f)return toast('Erst eine .bin-Datei wählen',true);if(S.upd_slot&&f.size>S.upd_slot)return toast('Zu groß für den Updater-Bereich – die Firmware bitte über den Update-Modus aufspielen.',true);const fd=new FormData();fd.append('fw',f);$('#bFw').disabled=true;$('#bFw').textContent='Lädt hoch …';
  try{const r=await fetch('/api/update?size='+f.size,{method:'POST',body:fd});const j=await r.json();if(j.ok){toast('Firmware übernommen – Neustart …');setTimeout(()=>location.reload(),9000)}else toast(j.error||'Fehlgeschlagen',true)}catch(e){toast('Hochladen fehlgeschlagen',true)}$('#bFw').disabled=false;$('#bFw').textContent='Hochladen'};
-$('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');
-let RDA=null;   // Kachelliste vom Hauptpanel (nur im Browser, wird nicht gespeichert)
+$('#bReboot').onclick=()=>confirm('Satellit neu starten?')&&act('/api/reboot',{},'Startet neu …');)HTML";
+#if SAT_PAGE_DP
+static const char SAT_PAGE_DP_JS[] PROGMEM = R"HTML(let RDA=null;   // Kachelliste vom Hauptpanel (nur im Browser, wird nicht gespeichert)
 function rdRender(){if(!RDA)return;const g=[...new Set(RDA.avail.map(x=>x.p))];
  $('#rdList').innerHTML=RDA.avail.length?g.map(p=>`<h2 style="margin:10px 0 4px;font-size:14px">${esc(p)}</h2>`+RDA.avail.filter(x=>x.p===p).map(x=>`<label class="ck"><input type="checkbox" data-rdk="${esc(x.k)}" ${RDA.sel.has(x.k)?'checked':''}>${esc(x.n)}</label>`).join('')).join(''):'<p class="hint">Das Hauptpanel hat keine Kacheln.</p>';
  $('#rdSaveRow').style.display=''}
@@ -435,8 +460,80 @@ $('#dpPer').onchange=e=>{DP.per=+e.target.value};
 $('#bDpSave').onclick=()=>{const P=DP.P.filter(p=>p.k.length),tiles=[];P.forEach((p,pi)=>p.k.forEach(k=>{const t=dT(k);tiles.push({k,on:true,n:t.n||'',pg:pi})}));
  DP.tiles.filter(t=>!t.on).forEach(t=>tiles.push({k:t.k,on:false,n:t.n||''}));
  post('/api/display',{tiles,pl:P.map(p=>p.n),saver:+$('#dpSv').value,...(DP.led_tiles?{led:$('#dpLed').value.startsWith('k:')?2:+$('#dpLed').value,led_key:$('#dpLed').value.startsWith('k:')?$('#dpLed').value.slice(2):''}:{}),per:+$('#dpPer').value,bright:+$('#dpBright').value,dim:+$('#dpDim').value,auto:$('#dpAuto').checked,night:+$('#dpNight').value,ldr_thr:+$('#dpThr').value}).then(()=>{toast('Display gespeichert.');dpLoad()}).catch(e=>toast(e.message,true))};
-async function olLoad(){try{const r=await fetch('/api/oled');if(!r.ok)return;const o=await r.json();$('#olCard').style.display='';$('#olSda').textContent=o.sda;$('#olScl').textContent=o.scl;$('#olMiss').style.display=o.present?'none':'';
+dpLoad();)HTML";
+#endif
+#if SAT_OLED
+static const char SAT_PAGE_OL_JS[] PROGMEM = R"HTML(async function olLoad(){try{const r=await fetch('/api/oled');if(!r.ok)return;const o=await r.json();$('#olCard').style.display='';$('#olSda').textContent=o.sda;$('#olScl').textContent=o.scl;$('#olMiss').style.display=o.present?'none':'';
  $('#olSrc').innerHTML='<option value="">Automatisch</option><option value="level">Wasserwaage (MPU-6050)</option>'+(o.pts||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');$('#olSrc').value=o.src||'';if($('#olSrc').value!==(o.src||''))$('#olSrc').value='';$('#olCon').value=o.con;$('#olOn').checked=o.on;$('#olRot').checked=o.rot}catch(e){}}
 $('#bOlSave').onclick=()=>post('/api/oled',{src:$('#olSrc').value,con:+$('#olCon').value,on:$('#olOn').checked,rot:$('#olRot').checked}).then(()=>toast('OLED gespeichert.')).catch(e=>toast(e.message,true));
-load();ioLoad();dpLoad();olLoad();setInterval(load,3000);
+olLoad();)HTML";
+#endif
+#if SAT_SENS
+static const char SAT_PAGE_SN_JS[] PROGMEM = R"HTML(// ---------------- Weitere Sensoren
+let SN=null;
+const SNU={1:['°C','% rF','hPa'],2:['°C','','hPa'],3:['°C','% rF'],4:['°C','% rF'],5:['°C','% rF'],6:['ppm','°C','% rF'],7:['V','A','W'],8:['V','A','W'],9:['°C','% rF'],10:['kg','%'],11:['%'],12:['l/min','l'],13:['%'],14:['%']};
+const SND={7:{a:100},8:{a:100},10:{a:21000,b:0,c:0,d:11},11:{a:25,b:100},12:{a:450},13:{a:330,b:240,c:33}};
+const CLIM=[1,2,3,4,5,6,9];
+function snPin(i,k,v,need,opt){return `<select data-sn="${i}.${k}" data-num>${opt?`<option value="-1" ${v<0?'selected':''}>– keiner –</option>`:''}${PINS.filter(p=>fits(p,need)).map(p=>`<option value="${p.pin}" ${p.pin==v?'selected':''}>${p.label||'GPIO '+p.pin}${p.note?' – '+esc(p.note):''}</option>`).join('')}</select>`}
+const snIn=(i,k,v,a)=>`<input data-sn="${i}.${k}" data-num type="number" value="${v==null?'':v}" ${a||''}>`;
+function snLive(i){const l=SN.live[i]||{},u=SNU[SN.list[i].type]||[];let t=(l.v||[]).map((x,j)=>x==null||!u[j]?'':String(x).replace('.',',')+' '+u[j]).filter(Boolean).join(' · ');if(l.status)t+=(t?' · ':'')+l.status;return t||'misst …'}
+function snRender(){if(!SN)return;$('#snCard').style.display='';
+ $('#snBus').innerHTML=SN.oled?`<p class="hint">I²C-Sensoren hängen am Bus des OLED: SDA GPIO ${SN.bus_sda}, SCL GPIO ${SN.bus_scl}.</p>`:`<div class="row">${fld('I²C SDA',snPin('bus','sda',SN.sda,'out',1))}${fld('I²C SCL',snPin('bus','scl',SN.scl,'out',1))}</div><p class="hint">Gemeinsamer Bus für alle I²C-Sensoren und den MPU-6050 („– keiner –“ = Standard des Boards: SDA ${SN.bus_sda}, SCL ${SN.bus_scl}). VCC an 3,3 V.</p>`;
+ let h='';SN.list.forEach((c,i)=>{if(!c.type)return;const t=c.type,ti=SN.types.find(x=>x.id==t)||{};
+  h+=`<div class="io"><div class="ioh"><b>Sensor ${i+1}</b><span class="live" id="sl${i}">${esc(snLive(i))}</span><button class="d s" data-sndel="${i}">Entfernen</button></div>
+  <div class="row">${fld('Typ',`<select data-sntype="${i}">${SN.types.map(x=>`<option value="${x.id}" ${x.id==t?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`)}${fld('Name',`<input data-sn="${i}.name" value="${esc(c.name||'')}" maxlength="32" placeholder="z. B. Bad">`)}</div><div class="row">`;
+  if(ti.i2c)h+=fld('I²C-Adresse',`<input data-sn="${i}.addr" data-hex value="${c.addr?'0x'+c.addr.toString(16):''}" placeholder="0x${(ti.addr||0).toString(16)}">`,'flex:.5');
+  if(t==9)h+=fld('Daten an GPIO',snPin(i,'p1',c.p1,'out'));
+  if(CLIM.includes(t))h+=fld('Temperatur-Korrektur (°C)',snIn(i,'a',c.a,'step="0.1"'),'flex:.6');
+  if(t==7||t==8)h+=fld('Shunt (mΩ)',snIn(i,'a',c.a,'step="0.1" min="0.1"'),'flex:.6')+`<label class="ck"><input type="checkbox" data-sn="${i}.inv" ${c.inv?'checked':''}>Strom umkehren</label>`;
+  if(t==10)h+=fld('DT an GPIO',snPin(i,'p1',c.p1,'in'))+fld('SCK an GPIO',snPin(i,'p2',c.p2,'out'))+'</div><div class="row">'+fld('Leergewicht Behälter (kg)',snIn(i,'c',c.c,'step="0.1"'))+fld('Inhalt voll (kg, 0 = nur wiegen)',snIn(i,'d',c.d,'step="0.1"'))+`<button class="s" style="flex:none;align-self:center" data-snact="${i}|tare">Tara (ohne Last)</button><button class="s" style="flex:none;align-self:center" data-snact="${i}|cal">Kalibrieren …</button>`;
+  if(t==11)h+=fld('Trig an GPIO',snPin(i,'p1',c.p1,'out'))+fld('Echo an GPIO',snPin(i,'p2',c.p2,'in'))+'</div><div class="row">'+fld('Abstand bei voll (cm)',snIn(i,'a',c.a,'step="1"'))+fld('Abstand bei leer (cm)',snIn(i,'b',c.b,'step="1"'))+`<button class="s" style="flex:none;align-self:center" data-snact="${i}|full">jetzt = voll</button><button class="s" style="flex:none;align-self:center" data-snact="${i}|empty">jetzt = leer</button>`;
+  if(t==12)h+=fld('Impuls an GPIO',snPin(i,'p1',c.p1,'in'))+fld('Impulse je Liter',snIn(i,'a',c.a,'step="1" min="1"'))+`<button class="s" style="flex:none;align-self:center" data-snact="${i}|reset">Zähler auf 0</button>`;
+  if(t==13)h+=fld('Geber an Analog-Pin',snPin(i,'p1',c.p1,'adc'))+fld('Vorwiderstand (Ω)',snIn(i,'a',c.a,'step="1" min="1"'))+'</div><div class="row">'+fld('Ω bei leer',snIn(i,'b',c.b,'step="1"'))+fld('Ω bei voll',snIn(i,'c',c.c,'step="1"'))+`<button class="s" style="flex:none;align-self:center" data-snact="${i}|empty">jetzt = leer</button><button class="s" style="flex:none;align-self:center" data-snact="${i}|full">jetzt = voll</button>`;
+  if(t==14)h+=fld('Schalter „voll“ an GPIO',snPin(i,'p1',c.p1,'in',1))+fld('Schalter „leer“ an GPIO',snPin(i,'p2',c.p2,'in',1))+`<label class="ck"><input type="checkbox" data-sn="${i}.inv" ${c.inv?'checked':''}>Kontakt meldet High (statt gegen Masse)</label>`;
+  h+='</div>';
+  const H={9:'Daten-Pin mit 10 kΩ an 3,3 V (Module haben ihn meist schon).',10:'Wägezelle an E+/E−/A+/A−. Erst ohne Last „Tara“, dann ein bekanntes Gewicht auflegen und „Kalibrieren“. Für die Gasflasche: Leergewicht (steht auf der Flasche) und Inhalt (z. B. 11 kg) eintragen.',11:'JSN-SR04T/HC-SR04 mit 5 V versorgen; Echo über Spannungsteiler (z. B. 1 kΩ/2 kΩ) an den GPIO – 5 V nicht direkt anschließen! Der JSN-SR04T misst erst ab ca. 25 cm.',12:'YF-S201: Signal an den GPIO (interner Pull-up), 5 V und GND. Der Zähler wird jede Minute gesichert.',13:'3,3 V – Vorwiderstand – Pin – Geber – Masse. Übliche Geber: EU 240 Ω leer / 33 Ω voll, US 0 Ω leer / 190 Ω voll.',14:'Schalter gegen Masse (interner Pull-up). „voll“ meldet oben erreicht, „leer“ meldet unten unterschritten; dazwischen = 50 %.'};
+  if(H[t])h+=`<p class="hint">${H[t]}</p>`;
+  h+='</div>'});
+ $('#snBody').innerHTML=h||'<p class="hint">Noch kein Sensor – „+ Sensor“ wählen.</p>';
+ $('#bSnAdd').style.display=SN.list.some(c=>!c.type)?'':'none'}
+async function snLoad(){try{const r=await fetch('/api/sens');if(!r.ok)return;const j=await r.json();const keep=SN&&SN._dirty;if(!keep)SN=j;else SN.live=j.live;snRender()}catch(e){}}
+function snLiveUpd(){if(!SN||!SN._dirty)return snLoad();fetch('/api/sens').then(r=>r.json()).then(j=>{SN.live=j.live;SN.list.forEach((c,i)=>{const e=$('#sl'+i);if(e)e.textContent=snLive(i)})}).catch(()=>{})}
+$('#snCard').addEventListener('change',e=>{const t=e.target;if(t.dataset.sntype!=null){const i=+t.dataset.sntype,ty=+t.value;SN.list[i]=Object.assign({type:ty,name:SN.list[i].name||'',p1:-1,p2:-1,addr:0,a:0,b:0,c:0,d:0,inv:false},SND[ty]||{});SN._dirty=1;return snRender()}
+ const k=t.dataset.sn;if(!k)return;const [i,f]=k.split('.');let v=t.type=='checkbox'?t.checked:t.value;if(t.dataset.num!=null)v=v===''?0:+v;if(t.dataset.hex!=null)v=v?parseInt(v,16)||0:0;if(i=='bus')SN[f]=v;else SN.list[+i][f]=v;SN._dirty=1});
+$('#snCard').addEventListener('input',e=>{if(SN&&e.target.dataset.sn)SN._dirty=1});
+$('#snCard').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.sndel!=null){SN.list[+b.dataset.sndel]={type:0};SN._dirty=1;return snRender()}
+ if(b.dataset.snact){const [i,a]=b.dataset.snact.split('|');if(SN._dirty)return toast('Erst speichern.',true);let kg;if(a=='cal'){kg=prompt('Bekanntes Gewicht, das jetzt auf der Waage liegt (kg)');if(!kg)return;kg=+kg.replace(',','.')}
+  post('/api/sens/action',{slot:+i,act:a,kg}).then(()=>{toast('Übernommen.');snLoad()}).catch(er=>toast(er.message,true))}});
+$('#bSnAdd').onclick=()=>{const i=SN.list.findIndex(c=>!c.type);if(i<0)return;const ty=SN.types[0].id;SN.list[i]=Object.assign({type:ty,name:'',p1:-1,p2:-1,addr:0,a:0,b:0,c:0,d:0,inv:false},SND[ty]||{});SN._dirty=1;snRender()};
+$('#bSnSave').onclick=()=>post('/api/sens',{sda:SN.sda,scl:SN.scl,list:SN.list}).then(()=>{toast('Sensoren gespeichert.');SN._dirty=0;snLoad();setTimeout(load,1500)}).catch(e=>toast(e.message,true));
+setInterval(snLiveUpd,5000);
+snLoad();)HTML";
+#endif
+static const char SAT_PAGE_END[] PROGMEM = R"HTML(load();ioLoad();setInterval(load,3000);
 </script></body></html>)HTML";
+static const char *const SAT_PAGE_PARTS[] = {
+    SAT_PAGE_A,
+#if SAT_SENS
+    SAT_PAGE_SN_CARD,
+#endif
+    SAT_PAGE_B,
+#if SAT_PAGE_DP
+    SAT_PAGE_DP_CARD,
+#endif
+#if SAT_OLED
+    SAT_PAGE_OL_CARD,
+#endif
+    SAT_PAGE_C,
+#if SAT_PAGE_DP
+    SAT_PAGE_DP_JS,
+#endif
+#if SAT_OLED
+    SAT_PAGE_OL_JS,
+#endif
+#if SAT_SENS
+    SAT_PAGE_SN_JS,
+#endif
+    SAT_PAGE_END,
+};

@@ -11,6 +11,7 @@
 #include "sat_page.h"
 #include "sat_display.h"
 #include "sat_oled.h"
+#include "sat_sens.h"
 #include "../sat_proto.h"
 #include "../truma.h"
 #include "../mopeka.h"
@@ -434,6 +435,27 @@ static void h_oled_set() {
   send_ok();
 }
 
+// Zusatzsensoren (Karte "Weitere Sensoren"): Einstellungen, Typen, Live-Werte; Aktionen (Tara, voll/leer …)
+static void h_sens_get() {
+  JsonDocument d;
+  sat_sens_json(d.to<JsonObject>());
+  send_json(d);
+}
+static void h_sens_set() {
+  JsonDocument d;
+  if (!body(d)) return;
+  String err = sat_sens_set(d.as<JsonObjectConst>());
+  if (!err.isEmpty()) return send_err(err);
+  send_ok();
+}
+static void h_sens_act() {
+  JsonDocument d;
+  if (!body(d)) return;
+  String err = sat_sens_action(d.as<JsonObjectConst>());
+  if (!err.isEmpty()) return send_err(err);
+  send_ok();
+}
+
 static void h_io_get() {
   JsonDocument d;
   sat_io_config_json(d["config"].to<JsonObject>());
@@ -488,7 +510,11 @@ void sat_web_begin() {
   devsetup::begin(s_srv);   // Anmeldung, Pflicht-Passwort, Captive Portal (auch onNotFound)
   s_srv.on("/", HTTP_GET, [] {
     sat_display_web_touch();
-    s_srv.send_P(200, "text/html; charset=utf-8", SAT_PAGE);
+    // Seite in Teilen (nur die Karten, die diese Firmware hat – sat_page.h)
+    s_srv.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    s_srv.send(200, "text/html; charset=utf-8", "");
+    for (const char *part : SAT_PAGE_PARTS) s_srv.sendContent_P(part);
+    s_srv.sendContent("");
   });
   s_srv.on("/api/state", HTTP_GET, G(h_state));
   s_srv.on("/api/config", HTTP_POST, G(h_config));
@@ -544,6 +570,11 @@ void sat_web_begin() {
              String err = updater_start(g_sat.wifi_ssid, g_sat.wifi_pass, g_sat.id);
              s_srv.send(400, "application/json", "{\"error\":\"" + err + "\"}");
            }));
+  if (SAT_SENS) {
+    s_srv.on("/api/sens", HTTP_GET, G(h_sens_get));
+    s_srv.on("/api/sens", HTTP_POST, G(h_sens_set));
+    s_srv.on("/api/sens/action", HTTP_POST, G(h_sens_act));
+  }
   if (SAT_OLED) {
     s_srv.on("/api/oled", HTTP_GET, G(h_oled_get));
     s_srv.on("/api/oled", HTTP_POST, G(h_oled_set));

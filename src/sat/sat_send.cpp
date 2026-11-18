@@ -404,8 +404,11 @@ static void ha_point(const Snap &s) {
     if (!p.unit.empty()) d["unit_of_meas"] = p.unit;
     d["stat_cla"] = "measurement";
     const char *dc = p.cls == SC_TEMP ? "temperature" : p.cls == SC_HUMIDITY ? "humidity" : p.cls == SC_VOLTAGE ? "voltage"
-                   : p.cls == SC_PRESSURE ? "pressure" : p.cls == SC_CURRENT ? "current" : nullptr;
+                   : p.cls == SC_PRESSURE ? (p.unit == "hPa" ? "atmospheric_pressure" : "pressure") : p.cls == SC_CURRENT ? "current"
+                   : p.cls == SC_POWER ? "power" : p.cls == SC_CO2 ? "carbon_dioxide" : p.cls == SC_WEIGHT ? "weight"
+                   : p.cls == SC_FLOW ? "volume_flow_rate" : p.cls == SC_VOLUME ? "water" : nullptr;
     if (dc) d["dev_cla"] = dc;
+    if (p.cls == SC_VOLUME) d["stat_cla"] = "total_increasing";   // Verbrauchszaehler
     if (p.kind == SP_TANK) d["ic"] = "mdi:water-percent";
     if (p.kind == SP_TILT) d["ic"] = "mdi:angle-acute";
   }

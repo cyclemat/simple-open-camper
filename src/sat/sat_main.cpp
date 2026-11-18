@@ -16,6 +16,7 @@
 #include "sat_web.h"
 #include "sat_display.h"
 #include "sat_oled.h"
+#include "sat_sens.h"
 #include "sat_pair.h"
 #include "rd_client.h"
 #include "../truma.h"
@@ -113,6 +114,7 @@ void setup() {
 void loop() {
   wifi_loop();
   sat_io_loop();
+  sat_sens_loop();      // Zusatzsensoren (nur mit SAT_SENS)
   sat_web_loop();
   sat_send_loop();
   sat_pair_loop();
