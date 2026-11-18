@@ -11,7 +11,14 @@
 #include <algorithm>
 #include <math.h>
 #include <vector>
+// Weboberflaeche: Deutsch aus vd_page.h, Englisch als erzeugte Kopie (tools/i18n_page.py, Woerterbuch
+// tools/i18n/vicdisp_en.json) – Umgebung esp32-cyd-victron-en setzt VD_PAGE_EN
+#if VD_PAGE_EN
+#include "../generated/vd_page_en.h"
+#else
 #include "vd_page.h"
+#endif
+#include "../i18n/i18n.h"
 #include "../cerbo.h"
 #include "../victron.h"
 #include "../truma.h"
@@ -245,7 +252,7 @@ void send_json(JsonDocument &d) {
 void send_ok() { s_srv.send(200, "application/json", "{\"ok\":true}"); }
 void send_err(const char *e) {
   JsonDocument d;
-  d["error"] = e;
+  d["error"] = tr(e);
   String s;
   serializeJson(d, s);
   s_srv.send(400, "application/json", s);
@@ -285,11 +292,11 @@ void h_state() {
   c["has_pass"] = !cc.pass.empty();
   c["portal"] = cerbo_portal_id();
   c["connected"] = cerbo_connected();
-  c["status"] = cerbo_status();
-  c["find"] = gx_find_status();
+  c["status"] = tr_parts(cerbo_status());
+  c["find"] = tr_parts(gx_find_status());
   JsonObject l = d["led"].to<JsonObject>();
   l["mode"] = s_cfg.led;
-  l["src"] = s_led_src == 'b' ? "Batterie" : s_led_src == 'g' ? "Gas" : "";
+  l["src"] = tr(s_led_src == 'b' ? "Batterie" : s_led_src == 'g' ? "Gas" : "");
   l["pct"] = s_led_pct;
   // Einstellbares am GX (MultiPlus: an Netz/Ladegeraet/Wechselrichter gleich -> nur einmal je Geraeteart)
   JsonArray ctl = c["ctl"].to<JsonArray>();
@@ -305,11 +312,11 @@ void h_state() {
     if (v.can_mode) o["mode"] = v.mode;
   }
 
-  JsonObject tr = d["truma"].to<JsonObject>();
-  tr["interval"] = truma_interval();
-  tr["scanning"] = truma_scan_running();
-  tr["max"] = TRUMA_MAX_SENSORS;
-  JsonArray ts = tr["sensors"].to<JsonArray>();
+  JsonObject tm = d["truma"].to<JsonObject>();
+  tm["interval"] = truma_interval();
+  tm["scanning"] = truma_scan_running();
+  tm["max"] = TRUMA_MAX_SENSORS;
+  JsonArray ts = tm["sensors"].to<JsonArray>();
   for (auto &t : truma_list()) {
     JsonObject o = ts.add<JsonObject>();
     o["mac"] = t.mac;
@@ -320,9 +327,9 @@ void h_state() {
     o["battery"] = t.battery;
     o["age"] = t.age_s;
     o["busy"] = t.busy;
-    o["status"] = t.status;
+    o["status"] = tr_parts(t.status);
   }
-  JsonArray tf = tr["found"].to<JsonArray>();
+  JsonArray tf = tm["found"].to<JsonArray>();
   for (auto &f : truma_scan_results()) {
     JsonObject o = tf.add<JsonObject>();
     o["mac"] = f.mac;
@@ -340,7 +347,7 @@ void h_state() {
   bm["ef_uid_set"] = bms_ef_uid_set();
   bm["ef_uid_hint"] = bms_ef_uid_hint();
   bm["ef_login_state"] = bms_ef_login_state();
-  bm["ef_login_text"] = bms_ef_login_text();
+  bm["ef_login_text"] = tr_parts(bms_ef_login_text());
   JsonArray bd = bm["devices"].to<JsonArray>();
   for (auto &b : bms_list()) {
     JsonObject o = bd.add<JsonObject>();
@@ -374,9 +381,9 @@ void h_state() {
     }
     o["serial"] = b.serial;
     o["fw"] = b.firmware;
-    o["status"] = b.status;
+    o["status"] = tr_parts(b.status);
     o["dev"] = b.dev;
-    o["sum"] = bms_value_text(b);
+    o["sum"] = tr_parts(bms_value_text(b));
     // Power Station: Ausgaenge (-1 = unbekannt)
     if (b.can_ac) o["ac"] = b.ac_on;
     if (b.can_dc) o["dc"] = b.dc_on;
@@ -407,16 +414,16 @@ void h_state() {
     JsonObject o = vs.add<JsonObject>();
     o["mac"] = v.mac;
     o["name"] = v.name;
-    o["kind_text"] = victron_kind_text(v.kind);
+    o["kind_text"] = tr(victron_kind_text(v.kind));
     o["has"] = v.has;
     o["age"] = v.age_s;
-    o["status"] = v.status;
+    o["status"] = tr_parts(v.status);
     if (v.has) {
       if (!isnan(v.bat_v)) o["v"] = v.bat_v;
       if (!isnan(v.bat_i)) o["i"] = v.bat_i;
       if (v.kind == VIC_SOLAR && !isnan(v.pv_w)) o["pv"] = v.pv_w;
       if (v.kind == VIC_SHUNT && !isnan(v.soc)) o["soc"] = v.soc;
-      if (v.state >= 0) o["state_text"] = victron_state_text(v.state);
+      if (v.state >= 0) o["state_text"] = tr(victron_state_text(v.state));
     }
   }
   JsonArray vf = vi["found"].to<JsonArray>();
@@ -600,7 +607,8 @@ void h_display_set() {
 void h_update_done() {
   if (!s_upl_ok) return devsetup::deny();
   bool ok = !Update.hasError();
-  s_srv.send(ok ? 200 : 400, "application/json", ok ? "{\"ok\":true}" : "{\"error\":\"Update fehlgeschlagen\"}");
+  if (!ok) return send_err("Update fehlgeschlagen");
+  send_ok();
   if (ok) {
     delay(500);
     ESP.restart();

@@ -2772,8 +2772,10 @@ static std::string fnum(float v, int dec, const char *unit) {
   if (!isfinite(v)) return "–";
   char t[32];
   snprintf(t, sizeof(t), "%.*f %s", dec, v, unit);
+#if UI_DECIMAL_COMMA
   for (char *q = t; *q; q++)
     if (*q == '.') *q = ',';
+#endif
   return t;
 }
 static std::string both(const std::string &a, const std::string &b) {
@@ -2790,8 +2792,8 @@ std::string bms_value_text(const BmsInfo &b) {
     case BMS_DEV_DCDC: return fnum(b.amp, 1, "A") + dot + fnum(b.volt, 1, "V") + dot + victron_state_text(b.chg_state);
     case BMS_DEV_INVERTER: return fnum(b.ac_w, 0, "W") + dot + fnum(b.ac_v, 0, "V") + dot + fnum(b.volt, 1, "V");
     case BMS_DEV_PSTATION:
-      return (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + "rein " + fnum(b.ps_in_w, 0, "W") + dot +
-             "raus " + fnum(b.ps_out_w, 0, "W");
+      return (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + tr("rein ") + fnum(b.ps_in_w, 0, "W") + dot +
+             tr("raus ") + fnum(b.ps_out_w, 0, "W");
     default: {
       std::string s = (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + fnum(b.volt, 2, "V");
       if (isfinite(b.volt) && isfinite(b.amp)) s += dot + fnum(b.volt * b.amp, 0, "W");

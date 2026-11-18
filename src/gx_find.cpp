@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "i18n/i18n.h"
 
 namespace {
 
@@ -214,13 +215,13 @@ void apply_default(const std::string &host, const std::string &) {
 
 bool try_host(uint32_t ip, bool named, const char *what) {
   if (!ip) return false;
-  set_status(std::string("Prüfe ") + what + " (" + ip_str(ip) + ") …");
+  set_status(std::string(tr("Prüfe ")) + tr(what) + " (" + ip_str(ip) + ") …");
   if (probe({ip}).empty()) return false;
   std::string portal = verify(ip);
   // eigener Name/Adresse des GX: auch ohne Antwort annehmen (aeltere Venus-Versionen senden die Kennung erst nach
   // einer Anforderung); im Netz gefundene Broker nur mit Kennung
   if (portal.empty() && !named) return false;
-  set_status("Gefunden: " + ip_str(ip) + (portal.empty() ? "" : " (Portal-ID " + portal + ")"));
+  set_status(tr("Gefunden: ") + ip_str(ip) + (portal.empty() ? "" : " (Portal-ID " + portal + ")"));
   (s_cb ? s_cb : s_handler ? s_handler : GxFound(apply_default))(ip_str(ip), portal);
   return true;
 }
@@ -240,7 +241,7 @@ void find_task(void *) {
   if (!ok && gw && !seen(gw)) ok = try_host(gw, true, "Router/GX");
   for (const char *n : {"venus.local", "einstein.local"}) {
     if (ok) break;
-    set_status(std::string("Suche ") + n + " …");
+    set_status(std::string(tr("Suche ")) + n + " …");
     uint32_t ip = resolve(n);
     if (ip && !seen(ip)) ok = try_host(ip, true, n);
   }
@@ -253,7 +254,7 @@ void find_task(void *) {
         uint32_t ip = net | htonl(h);
         if (ip != me && !seen(ip)) ips.push_back(ip);
       }
-      set_status("Durchsuche das Netz " + ip_str(net) + "/24 …");
+      set_status(tr("Durchsuche das Netz ") + ip_str(net) + "/24 …");
       for (uint32_t ip : probe(ips)) {
         if (try_host(ip, false, "Fund")) {
           ok = true;

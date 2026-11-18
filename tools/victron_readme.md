@@ -24,7 +24,8 @@
 </p>
 
 <p align="center"><b><a href="https://cyclemat.github.io/simply-open-camper-victron-beta/">⚡ Direkt im Browser aufspielen – Web-Flasher</a></b><br>
-<sub>Chrome oder Edge am PC/Mac, Display per USB anschließen, „Installieren“ klicken.</sub></p>
+<sub>Deutsch oder Englisch · Chrome oder Edge am PC/Mac, Display per USB anschließen, Sprache wählen, „Installieren“ klicken.</sub><br>
+<sub>🇬🇧 German or English · <a href="https://cyclemat.github.io/simply-open-camper-victron-beta/">web flasher</a>: connect via USB, pick the language, click “Install”.</sub></p>
 
 ---
 
@@ -193,8 +194,8 @@ Auch ohne Touch und ohne Passwort kommst du immer wieder ran – über **schnell
 ## 🔧 Firmware aufspielen
 
 **Am einfachsten:** im Browser mit dem **[⚡ Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)**
-(Chrome oder Edge am PC/Mac) – Display per USB anschließen, „Installieren“ klicken, fertig. Löscht die Einstellungen,
-also nur für neue Displays; eingerichtete Displays über ihre Weboberfläche aktualisieren.
+(Chrome oder Edge am PC/Mac) – Display per USB anschließen, **Deutsch oder Englisch** wählen, „Installieren“ klicken,
+fertig. Löscht die Einstellungen, also nur für neue Displays; eingerichtete Displays über ihre Weboberfläche aktualisieren.
 
 **Fertige Dateien** liegen im Ordner [`release/`](release/) dieses Repositorys – immer die neueste Fassung, die vorige
 in `release/vorher/`:
@@ -205,12 +206,17 @@ in `release/vorher/`:
   **Achtung:** löscht dabei die Einstellungen (WLAN, Geräte, Kacheln). Ein schon eingerichtetes Display per USB
   aktualisieren, ohne die Einstellungen zu verlieren: `esptool.py --chip esp32 write_flash 0x10000 ota/victron-display-cyd.bin`,
 - `release/ota/victron-display-cyd.bin` – für spätere **Updates über die Weboberfläche** (**Firmware → Hochladen**).
+- Englische Fassung: dieselben Dateien mit `-en` (`release/victron-display-cyd-en.bin`, `release/ota/victron-display-cyd-en.bin`).
 
 **Selbst bauen** mit [PlatformIO](https://platformio.org/) (VS Code):
 
 ```
-pio run -t upload
+pio run -t upload                      # Deutsch
+pio run -e cyd-victron-en -t upload    # Englisch
 ```
+
+Englisch: Display-Texte stehen in `src/i18n/en.h`, die Weboberfläche entsteht beim Bauen aus `src/vicdisp/vd_page.h`
+und dem Wörterbuch `tools/i18n/vicdisp_en.json` (`tools/i18n_page.py`).
 
 Der erste Build lädt Framework und Werkzeuge in `.pio/packages` (eigener Paketordner) und dauert entsprechend.
 Eigenes Startbild: `splash_cyd.jpg` (320×240, JPEG „baseline“) in den Projektordner legen.
@@ -242,7 +248,11 @@ tile to set the MultiPlus input current limit and mode. Setup: join WiFi `SOC-Vi
 `panelsat`), the setup page opens automatically (captive portal, http://4.3.2.1/), set your own access password
 (web UI), then your WiFi. The setup WiFi password is separate (default `panelsat`, can be changed or switched off).
 Emergency: power-cycle 3× quickly = setup WiFi on, 5× = reset WiFi and both passwords. Build with
-PlatformIO: `pio run -t upload`. German UI, beta.
+PlatformIO: `pio run -t upload` (German) or `pio run -e cyd-victron-en -t upload` (English). Beta.
+
+**Install from the browser:** [web flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/) – choose **English**,
+click “Install”. Ready-made files: `release/victron-display-cyd-en.bin` (first install via USB, address 0x0, erases
+settings) and `release/ota/victron-display-cyd-en.bin` (update via the web interface).
 
 If it helps you: **[☕ support CycleMat on PayPal](https://paypal.me/cyclemat)**
 </details>

@@ -442,6 +442,17 @@ mounted the other way round.
 
 ---
 
+## 📟 Victron display (small stand-alone firmware)
+
+For everyone who only wants to see **Victron and the gas level**, there is a lean firmware for the 2.8" display
+ESP32-2432S028R (“Cheap Yellow Display”, about €15): Cerbo GX via WiFi, Victron devices, Truma LevelControl,
+batteries with Bluetooth BMS and power stations – as tiles, without a big panel. **English or German.**
+
+- **⚡ [Web flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – install from the browser
+  (Chrome/Edge), choose the language there
+- Code, manual and ready-made files: [simply-open-camper-victron-beta](https://github.com/cyclemat/simply-open-camper-victron-beta)
+- In this project: environments `satellite-cyd-victron` (German) and `satellite-cyd-victron-en` (English)
+
 ## ⚠ Known limitations
 
 | Problem | What to adjust |

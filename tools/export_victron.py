@@ -19,7 +19,7 @@ FILES = [
     "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h", "src/bms.cpp", "src/bms.h",
     "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
     "src/hymer.cpp", "src/hymer.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
-    "src/i18n/i18n.cpp", "src/i18n/i18n.h",
+    "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h",
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
     "src/fonts/font_ui_26.c", "src/fonts/font_ui_40.c",
     "src/fonts/font_icons_24.c",
@@ -33,7 +33,7 @@ FILES = [
     "src/third_party/micro-ecc/uECC.c.inc", "src/third_party/micro-ecc/uECC.h", "src/third_party/micro-ecc/uECC_vli.h",
     "include/lv_conf.h", "include/lv_psram_alloc.h",
     "assets/splash_cyd.jpg", "assets/banner_small.jpg", "assets/victron_preview.png", "assets/van-left.svg", "assets/van-right.svg",
-    "tools/embed_splash_cyd.py", "tools/upload_wait.py",
+    "tools/embed_splash_cyd.py", "tools/upload_wait.py", "tools/i18n_page.py", "tools/i18n/vicdisp_en.json",
     "LICENSE", "CONTRIBUTING.md",
 ]
 
@@ -43,6 +43,7 @@ PLATFORMIO_INI = """\
 ; Cerbo GX per WLAN (MQTT im LAN) und Victron-Geraete direkt per Bluetooth (Instant Readout), alles als Kacheln.
 ;
 ; Bauen und hochladen:   pio run -t upload            (VS Code: PlatformIO -> cyd-victron -> Upload)
+; Englisch / English:    pio run -e cyd-victron-en -t upload
 ; Einrichten:            WLAN "SOC-Victron-XXXXXX", Standardpasswort panelsat (muss beim ersten Mal geaendert werden)
 ;
 ; Wird automatisch erzeugt – Aenderungen hier werden beim naechsten Abgleich ueberschrieben.
@@ -74,6 +75,9 @@ ant = 1
 vatrer = 1
 
 [env:cyd-victron]
+; Sprache (de | en) – Englisch: Umgebung cyd-victron-en
+custom_lang = de
+custom_lang_flags = -DVD_PAGE_EN=0
 platform = https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip
 framework = arduino
 board = esp32dev
@@ -85,11 +89,13 @@ monitor_filters = esp32_exception_decoder
 upload_speed = 921600
 ; Startbild: assets/splash_cyd.jpg (320x240, JPEG baseline). Eigenes Bild als splash_cyd.jpg ins Projekt legen.
 extra_scripts = pre:tools/embed_splash_cyd.py
+    pre:tools/i18n_page.py
     post:tools/upload_wait.py
 build_flags =
     -DCORE_DEBUG_LEVEL=2
     -DPANEL_SATELLITE=1
-    -DPANEL_LANG=de
+    -DPANEL_LANG=${this.custom_lang}
+    ${this.custom_lang_flags}
     -DWITH_CERBO=1
     -DWITH_HYMER=0
     -DWITH_TRUMA_INETX=0
@@ -122,6 +128,12 @@ lib_deps =
     h2zero/NimBLE-Arduino@^2.3.0
     lvgl/lvgl@8.4.0
     lovyan03/LovyanGFX@^1.1.16
+
+; English version: display texts from src/i18n/en.h, web interface generated from tools/i18n/vicdisp_en.json
+[env:cyd-victron-en]
+extends = env:cyd-victron
+custom_lang = en
+custom_lang_flags = -DVD_PAGE_EN=1 -DUI_DECIMAL_COMMA=0
 """
 
 GITIGNORE = """\
@@ -159,7 +171,7 @@ jobs:
             .pio
           key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
       - name: Bauen
-        run: pio run -e cyd-victron
+        run: pio run -e cyd-victron -e cyd-victron-en
       - name: Firmware ablegen
         uses: actions/upload-artifact@v4
         with:
@@ -167,6 +179,8 @@ jobs:
           path: |
             .pio/build/cyd-victron/firmware.bin
             .pio/build/cyd-victron/firmware.factory.bin
+            .pio/build/cyd-victron-en/firmware.bin
+            .pio/build/cyd-victron-en/firmware.factory.bin
 """
 
 # README: tools/victron_readme.md (mit Banner assets/banner_small.jpg)
@@ -225,7 +239,7 @@ def main():
     shutil.copyfile(os.path.join(ROOT, "tools", "victron_readme.md"), os.path.join(DST, "README.md"))
     shutil.copyfile(os.path.join(ROOT, "satellite", "partitions_upd.csv"), os.path.join(DST, "partitions_upd.csv"))
     write_flasher()
-    print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 8))
+    print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 9))
 
 
 def write_flasher():
@@ -238,14 +252,17 @@ def write_flasher():
     shutil.copyfile(os.path.join(ROOT, "tools", "victron_flasher.html"), os.path.join(DST, "index.html"))
     os.makedirs(os.path.join(DST, "assets"), exist_ok=True)
     shutil.copyfile(os.path.join(ROOT, "assets", "splash.jpg"), os.path.join(DST, "assets", "flasher_bg.jpg"))
-    manifest = {
-        "name": "Victron-Display (Simply Open Camper)",
-        "version": ver,
-        "new_install_prompt_erase": True,
-        "builds": [{"chipFamily": "ESP32",
-                    "parts": [{"path": "release/victron-display-cyd.bin", "offset": 0}]}],
-    }
-    write("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    # je Sprache ein Manifest; die Seite schaltet zwischen beiden um (Knopf Deutsch | English)
+    for fname, title, binf in (("manifest.json", "Victron-Display (Simply Open Camper)", "victron-display-cyd.bin"),
+                               ("manifest-en.json", "Victron display (Simply Open Camper, English)",
+                                "victron-display-cyd-en.bin")):
+        manifest = {
+            "name": title,
+            "version": ver,
+            "new_install_prompt_erase": True,
+            "builds": [{"chipFamily": "ESP32", "parts": [{"path": "release/" + binf, "offset": 0}]}],
+        }
+        write(fname, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     write(".nojekyll", "")
 
 

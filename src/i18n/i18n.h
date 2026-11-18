@@ -17,9 +17,16 @@
 #ifndef PANEL_LANG
 #define PANEL_LANG de
 #endif
+// Dezimaltrenner in Zahlen auf dem Display: 1 = Komma (deutsch, Standard), 0 = Punkt (englisches Victron-Display)
+#ifndef UI_DECIMAL_COMMA
+#define UI_DECIMAL_COMMA 1
+#endif
 
 const char *tr(const char *de);
 static inline const char *tr(const std::string &de) { return tr(de.c_str()); }
 const char *i18n_lang();                 // Sprachkuerzel, z. B. "en"
 // Mehrzeilige Auswahlliste ("Nie\n30 Sekunden\n...") zeilenweise uebersetzen
 std::string tr_lines(const char *de);
+// Zusammengesetzte Werte ("Absorption  ·  14,2 V", "86 %  ·  laedt") stueckweise uebersetzen: jedes Stueck zwischen
+// den Trennern " · " / ", " fuer sich (Zahlen bleiben, wie sie sind). Ohne Uebersetzungstabelle (Deutsch) unveraendert.
+std::string tr_parts(const std::string &de);

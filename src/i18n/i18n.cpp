@@ -48,6 +48,31 @@ const char *tr(const char *de) {
 
 const char *i18n_lang() { return I18N_STR(PANEL_LANG); }
 
+std::string tr_parts(const std::string &de) {
+  if (!s_map) build();
+  if (s_map->empty() || de.empty()) return de;
+  auto whole = s_map->find(de.c_str());
+  if (whole != s_map->end()) return whole->second;
+  // Trenner: Mittelpunkt mit Leerraum ("  ·  " bzw. " · ") und Komma mit Leerzeichen
+  std::string out, part;
+  size_t i = 0;
+  auto flush = [&] {
+    // Leerraum am Rand erhalten, nur den Kern nachschlagen
+    size_t a = part.find_first_not_of(' '), b = part.find_last_not_of(' ');
+    if (a == std::string::npos) { out += part; part.clear(); return; }
+    std::string core = part.substr(a, b - a + 1);
+    out += part.substr(0, a) + tr(core.c_str()) + part.substr(b + 1);
+    part.clear();
+  };
+  while (i < de.size()) {
+    if (de.compare(i, 2, "\xC2\xB7") == 0) { flush(); out += "\xC2\xB7"; i += 2; continue; }
+    if (de.compare(i, 2, ", ") == 0) { flush(); out += ", "; i += 2; continue; }
+    part += de[i++];
+  }
+  flush();
+  return out;
+}
+
 std::string tr_lines(const char *de) {
   std::string out, line;
   for (const char *p = de;; p++) {

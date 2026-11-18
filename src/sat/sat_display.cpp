@@ -243,8 +243,10 @@ static std::string num(float v, int dec, const char *unit) {
   if (isnan(v)) return "–";
   char b[32];
   snprintf(b, sizeof(b), "%.*f %s", dec, v, unit);
+#if UI_DECIMAL_COMMA
   for (char *p = b; *p; p++)
     if (*p == '.') *p = ',';
+#endif
   return b;
 }
 
@@ -273,7 +275,7 @@ static const char *point_icon(const SatPoint &p) {
 static Item vic_item(const VictronInfo &v, const std::string &key) {
   Item it;
   it.key = key;
-  it.name = v.name.empty() ? std::string(victron_kind_text(v.kind)) : v.name;
+  it.name = v.name.empty() ? std::string(tr(victron_kind_text(v.kind))) : v.name;
   it.accent = v.has ? C_BLUE : C_TEXT3;
   if (v.gx && (v.can_limit || v.can_mode)) it.ctl = v.key;
   switch (v.kind) {
@@ -320,7 +322,7 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
       it.accent = (!isnan(v.ac_w) && v.ac_w > 5) ? C_AMBER : C_TEXT2;
       break;
     case VIC_PSTATION:
-      it.value = num(v.soc, 0, "%") + "  ·  raus " + num(v.ps_out_w, 0, "W");
+      it.value = num(v.soc, 0, "%") + "  ·  " + tr("raus ") + num(v.ps_out_w, 0, "W");
       it.accent = (!isnan(v.soc) && v.soc < 20) ? C_RED : C_GREEN;
       break;
     case VIC_DCDC: {   // Booster: Leistung gross, darunter Strom und Spannung (ohne Strom: Spannung und Zustand)
@@ -345,7 +347,7 @@ static Item vic_item(const VictronInfo &v, const std::string &key) {
       if (!isnan(lo)) {
         std::string l = num(lo, 2, "");
         l.pop_back();   // Leerzeichen vor der (leeren) Einheit
-        it.value += "  ·  Zellen " + l + "–" + num(hi, 2, "V");
+        it.value += std::string("  ·  ") + tr("Zellen ") + l + "–" + num(hi, 2, "V");
       }
       it.accent = v.alarm ? C_RED : C_GREEN;
       break;
@@ -448,7 +450,7 @@ static void collect_raw(ItemList &s_items) {
     }
     Item it;
     it.key = "b:" + b.mac;
-    it.name = b.name.empty() ? "Akku" : b.name;
+    it.name = b.name.empty() ? tr("Akku") : b.name;
     it.icon = ICON_BATTERY;
     std::string second = num(b.volt, 1, "V");
     if (isfinite(b.volt) && isfinite(b.amp)) second += "  ·  " + num(b.volt * b.amp, 0, "W");
@@ -464,7 +466,7 @@ static void collect_raw(ItemList &s_items) {
 #endif
     Item it;
     it.key = "t:" + t.mac;
-    it.name = t.name.empty() ? "Gasflasche" : t.name;
+    it.name = t.name.empty() ? tr("Gasflasche") : t.name;
     it.icon = ICON_GAS;
     if (t.has_reading) {
       it.value = std::to_string(t.percent) + " %  ·  " + num(t.kg, 1, "kg");
@@ -800,7 +802,7 @@ static void info_open() {
     info_line(y, "Einrichtungs-WLAN verbinden", std::string(WiFi.softAPSSID().c_str()), &font_ui_20);
     info_line(y, "Seite öffnet sich, sonst im Browser", std::string("http://") + WiFi.softAPIP().toString().c_str(), &font_ui_20);
   } else {
-    info_line(y, "WLAN", "nicht verbunden", &font_ui_20);
+    info_line(y, "WLAN", tr("nicht verbunden"), &font_ui_20);
   }
   lv_obj_t *l = lv_label_create(s_info);
   lv_obj_set_style_text_font(l, &font_ui_16, 0);
@@ -834,8 +836,8 @@ static void bat_sync() {
   auto rows = bms_rows(b);
   for (int i = 0; i < BAT_N; i++) {
     if (i < (int)rows.size()) {
-      (lv_label_set_text)(s_bat_lbl[i], rows[i].first.c_str());
-      (lv_label_set_text)(s_bat_val[i], rows[i].second.c_str());
+      (lv_label_set_text)(s_bat_lbl[i], tr(rows[i].first));
+      (lv_label_set_text)(s_bat_val[i], tr_parts(rows[i].second).c_str());
       lv_obj_clear_flag(s_bat_lbl[i], LV_OBJ_FLAG_HIDDEN);
       lv_obj_clear_flag(s_bat_val[i], LV_OBJ_FLAG_HIDDEN);
     } else {
@@ -1260,8 +1262,9 @@ static void set_text(lv_obj_t *l, const std::string &s) {
 }
 
 // "Wert1  ·  Wert2  ·  …": erster Wert gross, der Rest in der Zeile darunter (nebeneinander war nur der erste lesbar)
-static void set_value(Tile &t, const std::string &s) {
+static void set_value(Tile &t, const std::string &s0) {
   static const char SEP[] = "  ·  ";
+  const std::string s = tr_parts(s0);   // feste Teile ("Absorption", "Ausgang an") uebersetzen, Zahlen bleiben
   size_t p = s.find(SEP);
   std::string a = p == std::string::npos ? s : s.substr(0, p);
   std::string b = p == std::string::npos ? std::string() : s.substr(p + sizeof(SEP) - 1);
@@ -1316,8 +1319,8 @@ static void render() {
   set_text(s_title, std::string(g_sat.name.length() ? g_sat.name.c_str() : g_sat.id.c_str()));
 #endif
   std::string net = WiFi.isConnected() ? std::string(WiFi.localIP().toString().c_str())
-                    : (WiFi.getMode() & WIFI_AP) ? std::string("Einrichtung ") + WiFi.softAPIP().toString().c_str()
-                                                 : std::string("kein WLAN");
+                    : (WiFi.getMode() & WIFI_AP) ? std::string(tr("Einrichtung ")) + WiFi.softAPIP().toString().c_str()
+                                                 : std::string(tr("kein WLAN"));
   set_text(s_net, net);
   for (int i = 0; i < MAX_TILES; i++) {
     Tile &t = s_tiles[i];
@@ -1331,13 +1334,13 @@ static void render() {
         lv_obj_clear_flag(t.box, LV_OBJ_FLAG_HIDDEN);
         set_text(t.icon, ICON_INFO);
 #if SAT_REMOTE
-        set_text(t.name, s_oom ? "Zu viele Kacheln" : rd_panel_seen() ? "Keine Kacheln" : "Suche Hauptpanel");
+        set_text(t.name, tr(s_oom ? "Zu viele Kacheln" : rd_panel_seen() ? "Keine Kacheln" : "Suche Hauptpanel"));
         set_value(t, s_oom ? "Speicher reicht nicht  ·  weniger auswählen" : rd_panel_seen() ? "im Editor des Hauptpanels wählen" : "Antippen  ·  für Adresse");
 #elif SAT_VICTRON_ONLY
-        set_text(t.name, "Einrichten");
+        set_text(t.name, tr("Einrichten"));
         set_value(t, "Antippen  ·  für Adresse");
 #else
-        set_text(t.name, "Noch nichts da");
+        set_text(t.name, tr("Noch nichts da"));
         set_value(t, "Antippen  ·  für Adresse");
 #endif
         lv_obj_set_style_text_color(t.icon, C_TEXT3, 0);

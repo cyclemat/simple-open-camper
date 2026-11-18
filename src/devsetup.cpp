@@ -4,6 +4,7 @@
 #include <DNSServer.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include "i18n/i18n.h"
 
 namespace devsetup {
 namespace {
@@ -61,7 +62,7 @@ void send_json(int code, JsonDocument &d) {
 
 void send_err(const char *e) {
   JsonDocument d;
-  d["error"] = e;
+  d["error"] = tr(e);   // Victron-Display auf Englisch: Meldung uebersetzen (Deutsch: unveraendert)
   send_json(400, d);
 }
 

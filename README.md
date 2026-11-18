@@ -510,6 +510,17 @@ falls die Platine anders herum eingebaut ist.
 
 ---
 
+## 📟 Victron-Display (eigene kleine Firmware)
+
+Für alle, die nur **Victron und den Gasvorrat** sehen wollen, gibt es eine schlanke Firmware für das 2,8"-Display
+ESP32-2432S028R („Cheap Yellow Display“, rund 15 €): Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl, Akkus mit
+Bluetooth-BMS und Power Stations – als Kacheln, ohne großes Panel. **Deutsch oder Englisch.**
+
+- **⚡ [Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – im Browser (Chrome/Edge) aufspielen,
+  Sprache dort wählen
+- Code, Anleitung und fertige Dateien: [simply-open-camper-victron-beta](https://github.com/cyclemat/simply-open-camper-victron-beta)
+- Hier im Projekt: Umgebungen `satellite-cyd-victron` (Deutsch) und `satellite-cyd-victron-en` (Englisch)
+
 ## ⚠ Bekannte Einschränkungen
 
 | Problem | Stellschraube |
