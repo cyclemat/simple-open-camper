@@ -21,7 +21,7 @@ def generate(root):
     src = os.path.join(root, 'src', 'vicdisp', 'vd_page.h')
     dic = os.path.join(root, 'tools', 'i18n', 'vicdisp_en.json')
     out = os.path.join(root, 'src', 'generated', 'vd_page_en.h')
-    text = open(src, encoding='utf-8').read()
+    text = open(src, encoding='utf-8').read().replace('\r\n', '\n')   # Windows-Checkout mit CRLF: Eintraege mit \n passen sonst nicht
     pairs = json.load(open(dic, encoding='utf-8'))
     missing = []
     # laengste zuerst, damit ganze Saetze vor einzelnen Woertern ersetzt werden
