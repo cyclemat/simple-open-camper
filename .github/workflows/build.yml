@@ -37,6 +37,11 @@ jobs:
             envs: crowpanel-p4
             artifact: panel-crowpanel-p4
             out: p4/.pio/build/crowpanel-p4
+          - name: Zigbee-Modul
+            dir: h2
+            envs: zigbee-h2
+            artifact: zigbee-h2
+            out: h2/.pio/build/zigbee-h2
           - name: CrowPanel 1.46
             dir: crowpanel146
             envs: crowpanel-146
@@ -136,11 +141,38 @@ jobs:
           path: dist/
           retention-days: 30
 
+  # Treiberliste fuer das Zigbee-Funkmodul (ESP32-H2) aus der Geraetedatenbank von Zigbee2MQTT
+  # (zigbee-herdsman-converters, MIT, Version in tools/z2m_version.txt) – Format: src/zb_drivers.h
+  drivers:
+    name: Zigbee-Treiber
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Geraetedatenbank laden
+        run: |
+          V=$(tr -d '[:space:]' < tools/z2m_version.txt)
+          echo "zigbee-herdsman-converters $V"
+          npm install --prefix z2m --no-audit --no-fund --omit=dev "zigbee-herdsman-converters@$V"
+      - name: Treiberliste erzeugen
+        run: |
+          mkdir -p dist
+          node tools/z2m_drivers.js z2m/node_modules dist/zb_drivers.bin dist/zb_drivers.md
+          cat dist/zb_drivers.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: zigbee-treiber
+          path: dist/
+          retention-days: 30
+
   # Nach jedem Push auf main: pro Board eine Datei in release/ (Komplettdatei fuer USB, Adresse 0x0) und die reine
   # Firmware fuer das Update ueber die Weboberflaeche in release/ota/. Commit nur, wenn sich etwas geaendert hat.
   publish:
     name: Firmware nach release/ legen
-    needs: build
+    needs: [build, drivers]
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
@@ -177,8 +209,11 @@ jobs:
             [esp32-relay16]=satellit-relay16
             [esp32-cyd]=satellit-cyd
             [esp32-cyd-remote]=zusatzdisplay-cyd
+            [zigbee-h2]=zigbee-modul-h2
           )
           UPD=$(ls art/*/esp32-updater/firmware.bin 2>/dev/null | head -1 || true)
+          ZBD=$(ls art/zigbee-treiber/zb_drivers.bin 2>/dev/null | head -1 || true)
+          [ -n "$ZBD" ] && cp "$ZBD" new/zb_drivers.bin && cp art/zigbee-treiber/zb_drivers.md new/zb_drivers.md 2>/dev/null || true
           for d in art/*/*/; do
             e=$(basename "$d")
             n=${NAME[$e]:-}
@@ -188,6 +223,9 @@ jobs:
               if { [ "$e" = "esp32-cyd-victron" ] || [ "$e" = "esp32-cyd-victron-en" ] || [ "$e" = "esp32-cyd-remote" ]; } && [ -n "$UPD" ]; then
                 # Victron-Display/Zusatzdisplay: Updater (app1, 0x2F0000) gleich mit in die Komplettdatei
                 python -m esptool --chip esp32 merge-bin -o "new/$n.bin" 0x0 "$d/firmware.factory.bin" 0x2F0000 "$UPD"
+              elif [ "$e" = "zigbee-h2" ] && [ -n "$ZBD" ]; then
+                # Zigbee-Modul: Treiberliste (Bereich zbdrv, 0x1F0000) gleich mit in die Komplettdatei
+                python -m esptool --chip esp32h2 merge-bin -o "new/$n.bin" 0x0 "$d/firmware.factory.bin" 0x1F0000 "$ZBD"
               else
                 cp "$d/firmware.factory.bin" "new/$n.bin"
               fi
@@ -235,6 +273,11 @@ jobs:
               prev="–"; [ -f "release/vorher/ota/$b.bin" ] && prev="${PREV[ota/$b.bin]:-?}: [komplett](vorher/$b.bin), [Update](vorher/ota/$b.bin)"
               echo "| $b | ${CUR[ota/$b.bin]:-?} | $full | [ota/$b.bin](ota/$b.bin) ($(kb "$f")) | $prev |"
             done
+            if [ -f release/zb_drivers.bin ]; then
+              echo
+              echo "**Zigbee-Modul (ESP32-H2):** [zb_drivers.bin](zb_drivers.bin) ($(kb release/zb_drivers.bin)) = Geraetetreiber allein,"
+              echo "per USB nach \`0x1F0000\` – das Programm (\`ota/zigbee-modul-h2.bin\` nach \`0x10000\`) bleibt dabei unberuehrt."
+            fi
           } > release/README.md
           ls -lR release
       - name: Committen (nur bei Aenderungen)

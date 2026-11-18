@@ -19,19 +19,22 @@
 //   level    {"ieee","ep","v":0..254,"tt":Zehntelsekunden}
 //   cmd      {"ieee","ep","cl","id","pl":"hex","mf":Herstellercode,"dir":0|1}   beliebiger ZCL-Befehl (Treiber)
 //   reset_net                             Netz neu bilden (alle Geraete muessen neu anlernen!)
+//   driver   {"ieee"}                     Treiber eines Geraets -> {"t":"drv"}
+//   drv_lookup {"mf","model"}             Treiberliste durchsuchen (Test ohne Geraet) -> {"t":"drv"}
 //
 // Modul -> Panel   {"t":"<art>", ...}
 //   hello    {"fw","ieee"}                nach dem Start
-//   info     {"fw","ready","pan","ch","ieee","open","devs"}
+//   info     {"fw","ready","pan","ch","ieee","open","devs","heap…","drv":{ok,defs,src,size}}
 //   joined   {"ieee","nwk"}               neues/zurueckgekehrtes Geraet (Abfrage der Endpunkte laeuft)
 //   dev      {"ieee","nwk","mf","model","eps":[{"ep","prof","dev","in":[…],"out":[…]}],"done"}
 //   left     {"ieee"}
 //   attr     {"ieee","ep","cl","at","type","v"}   Meldung oder Leseantwort (v: Zahl, Text oder Hex)
 //   open     {"s"}                        Anlernen offen (Restsekunden) / 0 = zu
+//   drv      {"ieee"?,"found","vendor","model","desc","flags","exp":[[name,typ,einheit,zugriff,gruppe],…],"dps":n}
 //   log      {"m"}                        Klartext fuer die Fehlersuche
 //   err      {"m"}
 #pragma once
 
 #define ZB_LINK_BAUD 115200
-#define ZB_LINK_MAX_LINE 1024   // laengste Zeile (Geraet mit vielen Clustern)
+#define ZB_LINK_MAX_LINE 4096   // laengste Zeile (Treiber eines Geraets mit vielen Werten)
 #define ZB_MAX_DEVICES 32

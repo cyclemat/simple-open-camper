@@ -1695,6 +1695,7 @@ static void build_zigbee() {
     lv_obj_t *dg = group();
     for (auto &d : devs) {
       std::string title = d.model.empty() ? d.ieee : (d.mf.empty() ? d.model : d.mf + " " + d.model);
+      if (!d.desc.empty()) title += " – " + d.desc;   // Beschreibung aus der Treiberliste
       lv_obj_t *v = ui_row(dg, title.c_str(), zb_dev_value(d).c_str(), zb_dev_cb, (void *)(intptr_t)s_zb_ieee.size());
       s_zb_ieee.push_back(d.ieee);
       s_zb_rows.push_back({d.ieee, v});

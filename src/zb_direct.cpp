@@ -28,6 +28,8 @@ struct Val {
 };
 struct ZDev {
   std::string ieee, mf, model, eps;   // eps: JSON-Liste aus dem Modul
+  std::string zv, zm, desc;           // laut Treiberliste: Hersteller, Modell, Beschreibung
+  int n_exp = 0;                      // Anzahl Werte laut Treiber
   uint16_t nwk = 0xFFFF;
   bool done = false;
   uint32_t seen_ms = 0;
@@ -108,6 +110,10 @@ void on_line(const char *line) {
       d.nwk = j["nwk"] | 0xFFFF;
       d.mf = (const char *)(j["mf"] | "");
       d.model = (const char *)(j["model"] | "");
+      if (j["zm"].is<const char *>()) {
+        d.zv = (const char *)(j["zv"] | "");
+        d.zm = (const char *)(j["zm"] | "");
+      }
       d.done = j["done"] | false;
       d.eps.clear();
       serializeJson(j["eps"], d.eps);
@@ -135,6 +141,20 @@ void on_line(const char *line) {
         v.json.clear();
         serializeJson(j["v"], v.json);
         v.ms = millis();
+      }
+    } else if (t == "drv") {
+      std::string ieee = j["ieee"] | "";
+      if (!ieee.empty() && (j["found"] | false)) {
+        ZDev &d = get(ieee);
+        d.zv = (const char *)(j["vendor"] | "");
+        d.zm = (const char *)(j["model"] | "");
+        d.desc = (const char *)(j["desc"] | "");
+        d.n_exp = j["exp"].size();
+        add_log("Treiber: " + d.zv + " " + d.zm + (d.desc.empty() ? "" : " – " + d.desc));
+      } else if (ieee.empty()) {   // Antwort auf drv_lookup (Test)
+        add_log((j["found"] | false) ? "Treiber gefunden: " + std::string(j["vendor"] | "") + " " +
+                                           std::string(j["model"] | "") + " (" + std::to_string(j["exp"].size()) + " Werte)"
+                                     : std::string("Kein Treiber gefunden"));
       }
     } else if (t == "open") {
       s_open = j["s"] | 0;
@@ -254,6 +274,12 @@ void zbd_status_json(JsonObject o) {
     x["nwk"] = d.nwk;
     x["mf"] = d.mf;
     x["model"] = d.model;
+    if (!d.zm.empty()) {
+      x["zv"] = d.zv;
+      x["zm"] = d.zm;
+      x["desc"] = d.desc;
+      x["n_exp"] = d.n_exp;
+    }
     x["done"] = d.done;
     x["age"] = d.seen_ms ? (int)((millis() - d.seen_ms) / 1000) : -1;
     if (!d.eps.empty()) x["eps"] = serialized(d.eps);
@@ -325,8 +351,9 @@ std::vector<ZbdDevice> zbd_devices() {
   for (auto &d : s_devs) {
     ZbdDevice x;
     x.ieee = d.ieee;
-    x.mf = d.mf;
-    x.model = d.model;
+    x.mf = d.zv.empty() ? d.mf : d.zv;            // lieber die Namen aus der Treiberliste
+    x.model = d.zm.empty() ? d.model : d.zm;
+    x.desc = d.desc;
     x.done = d.done;
     x.age = d.seen_ms ? (int)((millis() - d.seen_ms) / 1000) : -1;
     x.summary = summary_of(d);

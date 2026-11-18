@@ -18,8 +18,11 @@
 #include <string>
 #include <vector>
 
+#include "esp_partition.h"
+#include "esp_rom_crc.h"
 #include "esp_zigbee_core.h"
 #include "../soc_version.h"
+#include "../zb_drivers.h"
 #include "../zb_link.h"
 
 #ifndef ZB_H2_TX
@@ -51,10 +54,91 @@ struct Ep {
 struct Dev {
   uint8_t ieee[8] = {0};
   uint16_t nwk = 0xFFFF;
-  std::string mf, model;
+  std::string mf, model;   // so meldet sich das Geraet (Basic 0x0004 / 0x0005)
+  std::string zv, zm;      // Hersteller/Modell laut Treiberliste (leer = kein Treiber gefunden)
   std::vector<Ep> eps;
   bool done = false;
 };
+
+// ---------------------------------------------------------------- Treiberliste (Bereich "zbdrv", zb_drivers.h)
+const uint8_t *s_drv = nullptr;   // in den Speicher eingeblendet
+ZbdHeader s_drvh = {};
+bool s_drv_ok = false;
+const char *s_drv_err = "noch nicht geprueft";
+
+void drivers_open() {
+  const esp_partition_t *p =
+      esp_partition_find_first(ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "zbdrv");
+  if (!p) {
+    s_drv_err = "Bereich zbdrv fehlt (alte Speicheraufteilung – Modul komplett neu aufspielen)";
+    return;
+  }
+  if (esp_partition_read(p, 0, &s_drvh, sizeof(s_drvh)) != ESP_OK) {
+    s_drv_err = "Bereich zbdrv nicht lesbar";
+    return;
+  }
+  if (memcmp(s_drvh.magic, ZBD_MAGIC, 4)) {
+    s_drv_err = "leer – Treiberliste noch nicht aufgespielt (zb_drivers.bin nach 0x1F0000)";
+    return;
+  }
+  if (s_drvh.format != ZBD_FORMAT) {
+    s_drv_err = "Treiberliste hat ein anderes Format – passende zb_drivers.bin aufspielen";
+    return;
+  }
+  if (s_drvh.total > p->size || s_drvh.total < ZBD_HEADER_SIZE || s_drvh.str_off > s_drvh.total ||
+      s_drvh.index_off + 12ULL * s_drvh.index_n > s_drvh.total) {
+    s_drv_err = "Treiberliste beschaedigt";
+    return;
+  }
+  const void *m;
+  esp_partition_mmap_handle_t h;
+  if (esp_partition_mmap(p, 0, s_drvh.total, ESP_PARTITION_MMAP_DATA, &m, &h) != ESP_OK) {
+    s_drv_err = "Treiberliste laesst sich nicht einblenden";
+    return;
+  }
+  const uint8_t *b = (const uint8_t *)m;
+  if (esp_rom_crc32_le(0, b + ZBD_HEADER_SIZE, s_drvh.total - ZBD_HEADER_SIZE) != s_drvh.crc) {
+    s_drv_err = "Pruefsumme der Treiberliste falsch";
+    esp_partition_munmap(h);
+    return;
+  }
+  s_drv = b;
+  s_drv_ok = true;
+  s_drv_err = "";
+}
+
+const char *drv_str(uint32_t off) {
+  if (!s_drv || off == ZBD_NONE) return nullptr;
+  uint32_t a = s_drvh.str_off + off;
+  return a < s_drvh.total ? (const char *)s_drv + a : nullptr;
+}
+
+// Definition zu Hersteller/Modell suchen (Abstand ab Dateianfang, 0 = keine)
+uint32_t drv_find(const char *mf, const char *model) {
+  if (!s_drv_ok || !model || !*model) return 0;
+  uint32_t hm = zbd_hash(model), hf = (mf && *mf) ? zbd_hash(mf) : 0;
+  auto at = [](uint32_t i) {
+    ZbdIndex x;
+    memcpy(&x, s_drv + s_drvh.index_off + 12 * i, sizeof(x));
+    return x;
+  };
+  uint32_t lo = 0, hi = s_drvh.index_n;
+  while (lo < hi) {   // erster Eintrag mit h_model >= hm
+    uint32_t mid = (lo + hi) / 2;
+    if (at(mid).h_model < hm) lo = mid + 1;
+    else hi = mid;
+  }
+  uint32_t any = 0;
+  for (uint32_t i = lo; i < s_drvh.index_n; i++) {
+    ZbdIndex x = at(i);
+    if (x.h_model != hm) break;
+    if (hf && x.h_mf == hf) return x.rec;   // Modell und Hersteller passen (Tuya: gleiches Modell, viele Hersteller)
+    if (!x.h_mf && !any) any = x.rec;
+  }
+  return any;
+}
+
+void send_drv(const char *ieee, uint32_t rec);
 std::vector<Dev> s_devs;   // nur im Stack-Task oder unter esp_zb_lock
 
 std::string ieee_str(const uint8_t *ieee) {   // "0x00124b0012345678" (wie Zigbee2MQTT, hoechstes Byte zuerst)
@@ -115,6 +199,10 @@ void dev_json(JsonObject o, const Dev &d) {
   o["nwk"] = d.nwk;
   o["mf"] = d.mf;
   o["model"] = d.model;
+  if (!d.zm.empty()) {
+    o["zv"] = d.zv;   // Hersteller/Modell laut Treiberliste
+    o["zm"] = d.zm;
+  }
   o["done"] = d.done;
   JsonArray eps = o["eps"].to<JsonArray>();
   for (auto &e : d.eps) {
@@ -133,6 +221,44 @@ void send_dev(const Dev &d) {
   j["t"] = "dev";
   dev_json(j.to<JsonObject>(), d);
   j["t"] = "dev";
+  send(j);
+}
+
+// Treiber einer Definition ans Panel: Hersteller, Modell, Beschreibung und die Liste der Werte
+void send_drv(const char *ieee, uint32_t rec) {
+  JsonDocument j;
+  j["t"] = "drv";
+  if (ieee) j["ieee"] = ieee;
+  j["found"] = rec != 0;
+  if (rec && rec + sizeof(ZbdRecord) <= s_drvh.total) {
+    ZbdRecord r;
+    memcpy(&r, s_drv + rec, sizeof(r));
+    if (const char *t = drv_str(r.vendor)) j["vendor"] = t;
+    if (const char *t = drv_str(r.model)) j["model"] = t;
+    if (const char *t = drv_str(r.description)) j["desc"] = t;
+    j["flags"] = r.flags;
+    j["dps"] = r.n_dps;
+    uint32_t p = rec + sizeof(r);
+    JsonArray fz = j["fz"].to<JsonArray>();
+    for (int i = 0; i < r.n_fz && p + 4 <= s_drvh.total; i++, p += 4) {
+      uint32_t o;
+      memcpy(&o, s_drv + p, 4);
+      if (const char *t = drv_str(o)) fz.add(t);
+    }
+    JsonArray ex = j["exp"].to<JsonArray>();
+    for (int i = 0; i < r.n_exposes && p + sizeof(ZbdExpose) <= s_drvh.total; i++) {
+      ZbdExpose e;
+      memcpy(&e, s_drv + p, sizeof(e));
+      p += sizeof(e) + 4 * e.n_values;
+      JsonArray x = ex.add<JsonArray>();
+      x.add(drv_str(e.property) ? drv_str(e.property) : "");
+      x.add(e.type);
+      x.add(drv_str(e.unit) ? drv_str(e.unit) : "");
+      x.add(e.access);
+      x.add(e.group);
+      if (const char *t = drv_str(e.endpoint)) x.add(t);
+    }
+  }
   send(j);
 }
 
@@ -167,6 +293,8 @@ void load_devs() {
     d.nwk = j["nwk"] | 0xFFFF;
     d.mf = (const char *)(j["mf"] | "");
     d.model = (const char *)(j["model"] | "");
+    d.zv = (const char *)(j["zv"] | "");
+    d.zm = (const char *)(j["zm"] | "");
     d.done = j["done"] | false;
     for (JsonObject x : j["eps"].as<JsonArray>()) {
       Ep e;
@@ -314,9 +442,18 @@ void finish_job(uint8_t gen) {
   Dev *d = find_ieee(s_cur.ieee);
   if (d) {
     d->done = !d->eps.empty();
+    uint32_t rec = drv_find(d->mf.c_str(), d->model.c_str());
+    if (rec) {
+      ZbdRecord r;
+      memcpy(&r, s_drv + rec, sizeof(r));
+      d->zv = drv_str(r.vendor) ? drv_str(r.vendor) : "";
+      d->zm = drv_str(r.model) ? drv_str(r.model) : "";
+    }
     if (d->done) bind_and_report(*d);
     save_devs();
     send_dev(*d);
+    if (rec) send_drv(ieee_str(d->ieee).c_str(), rec);
+    else if (d->done) LOGZ("Kein Treiber fuer \"%s\" / \"%s\" – nur Standardwerte", d->mf.c_str(), d->model.c_str());
     LOGZ("Abfrage %s fertig: %u Endpunkt(e), %s %s", ieee_str(d->ieee).c_str(), (unsigned)d->eps.size(), d->mf.c_str(),
          d->model.c_str());
   }
@@ -570,6 +707,15 @@ void send_info() {
   }
   j["open"] = (s_open && (int32_t)(s_open_until - millis()) > 0) ? (int)((s_open_until - millis()) / 1000) : 0;
   j["devs"] = s_devs.size();
+  JsonObject dv = j["drv"].to<JsonObject>();
+  dv["ok"] = s_drv_ok;
+  if (s_drv_ok) {
+    dv["defs"] = s_drvh.defs;
+    dv["size"] = s_drvh.total;
+    if (const char *t = drv_str(s_drvh.source)) dv["src"] = t;
+  } else {
+    dv["err"] = s_drv_err;
+  }
   j["heap"] = ESP.getFreeHeap();         // freier RAM (Byte)
   j["heap_min"] = ESP.getMinFreeHeap();  // Tiefstwert seit dem Start
   j["heap_blk"] = ESP.getMaxAllocHeap(); // groesster zusammenhaengender Block
@@ -697,6 +843,14 @@ void handle(const char *line) {
       x.data.value = n ? pl : nullptr;
       esp_zb_zcl_custom_cluster_cmd_req(&x);
     }
+  } else if (!strcmp(cmd, "drv_lookup")) {   // Test ohne Geraet: {"c":"drv_lookup","mf":"…","model":"…"}
+    if (!s_drv_ok) send_msg("err", "Treiberliste: %s", s_drv_err);
+    else send_drv(nullptr, drv_find(c["mf"] | "", c["model"] | ""));
+  } else if (!strcmp(cmd, "driver")) {
+    uint8_t ieee[8];
+    Dev *d = ieee_parse(c["ieee"] | "", ieee) ? find_ieee(ieee) : nullptr;
+    if (!d) send_msg("err", "Geraet unbekannt");
+    else send_drv(ieee_str(d->ieee).c_str(), drv_find(d->mf.c_str(), d->model.c_str()));
   } else if (!strcmp(cmd, "reset_net")) {
     LOGZ("Zigbee-Netz wird zurueckgesetzt – alle Geraete muessen neu angelernt werden");
     s_devs.clear();
@@ -786,11 +940,13 @@ void setup() {
   pinMode(ZB_H2_LED, OUTPUT);
   digitalWrite(ZB_H2_LED, LOW);
   load_devs();
+  drivers_open();
   JsonDocument j;
   j["t"] = "hello";
   j["fw"] = SOC_VERSION;
   j["tx"] = ZB_H2_TX;
   j["rx"] = ZB_H2_RX;
+  j["drv"] = s_drv_ok ? "ok" : s_drv_err;
   send(j);
   xTaskCreate(zb_task, "zigbee", 8192, nullptr, 5, nullptr);
 }

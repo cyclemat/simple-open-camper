@@ -33,7 +33,7 @@ struct ZbdInfo {
   int open = 0;   // Anlernen offen: Restsekunden
 };
 struct ZbdDevice {
-  std::string ieee, mf, model;
+  std::string ieee, mf, model, desc;   // mf/model: aus der Treiberliste, sonst wie das Geraet sich meldet
   bool done = false;
   int age = -1;            // Sekunden seit der letzten Meldung (-1 = noch keine)
   std::string summary;     // lesbare Werte, z. B. "An · 21,4 °C · Batterie 87 %"
