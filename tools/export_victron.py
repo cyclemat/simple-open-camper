@@ -224,7 +224,29 @@ def main():
     write(".github/workflows/build.yml", WORKFLOW)
     shutil.copyfile(os.path.join(ROOT, "tools", "victron_readme.md"), os.path.join(DST, "README.md"))
     shutil.copyfile(os.path.join(ROOT, "satellite", "partitions_upd.csv"), os.path.join(DST, "partitions_upd.csv"))
-    print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 4))
+    write_flasher()
+    print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 8))
+
+
+def write_flasher():
+    """Web-Flasher fuer GitHub Pages (ESP Web Tools): index.html + manifest.json + Hintergrundbild."""
+    import json
+    import re
+    with open(os.path.join(ROOT, "src", "soc_version.h"), encoding="utf-8") as f:
+        m = re.search(r'SOC_VERSION\s+"([^"]+)"', f.read())
+    ver = m.group(1) if m else "?"
+    shutil.copyfile(os.path.join(ROOT, "tools", "victron_flasher.html"), os.path.join(DST, "index.html"))
+    os.makedirs(os.path.join(DST, "assets"), exist_ok=True)
+    shutil.copyfile(os.path.join(ROOT, "assets", "splash.jpg"), os.path.join(DST, "assets", "flasher_bg.jpg"))
+    manifest = {
+        "name": "Victron-Display (Simply Open Camper)",
+        "version": ver,
+        "new_install_prompt_erase": True,
+        "builds": [{"chipFamily": "ESP32",
+                    "parts": [{"path": "release/victron-display-cyd.bin", "offset": 0}]}],
+    }
+    write("manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    write(".nojekyll", "")
 
 
 if __name__ == "__main__":

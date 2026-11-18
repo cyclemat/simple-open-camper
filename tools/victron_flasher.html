@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Victron-Display Flasher</title>
+<meta name="description" content="Victron-Display (CYD) direkt aus dem Browser aufspielen.">
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+:root{--bg:#0b1118;--card:rgba(255,255,255,.93);--fg:#1c2530;--muted:#5b6876;--line:rgba(0,0,0,.08);--acc:#0b6bcb;--warn-bg:#fff4e0;--warn-fg:#7a4b00;--warn-line:#f0c46c;--code:#eef2f6}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--card:rgba(20,28,37,.88);--fg:#e6edf3;--muted:#a3b1be;--line:rgba(255,255,255,.10);--acc:#4ea3ff;--warn-bg:#3a2a0c;--warn-fg:#ffd58a;--warn-line:#6b4d12;--code:#0f161d}}
+:root[data-theme="dark"]{--card:rgba(20,28,37,.88);--fg:#e6edf3;--muted:#a3b1be;--line:rgba(255,255,255,.10);--acc:#4ea3ff;--warn-bg:#3a2a0c;--warn-fg:#ffd58a;--warn-line:#6b4d12;--code:#0f161d}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+ background:linear-gradient(rgba(5,10,16,.55),rgba(5,10,16,.80)),url("assets/flasher_bg.jpg") center top/cover no-repeat fixed,var(--bg)}
+main{max-width:720px;margin:0 auto;padding:clamp(28px,8vh,72px) 16px 48px}
+h1{font-size:1.8rem;margin:0 0 4px;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.7)}
+.sub{color:#dbe6f0;margin:0 0 20px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0;
+ -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.card h2{font-size:1.1rem;margin:0 0 10px}
+ol,ul{margin:0;padding-left:1.3em}
+li{margin:4px 0}
+.warn{background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);border-radius:10px;padding:12px 14px;margin:14px 0}
+.btn{display:flex;justify-content:center;padding:8px 0 4px}
+esp-web-install-button button[slot=activate]{font:600 1.05rem system-ui,sans-serif;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:14px 26px;cursor:pointer}
+.nosup{color:var(--warn-fg);text-align:center}
+.ver{color:var(--muted);font-size:.9rem;text-align:center;margin-top:6px}
+a{color:var(--acc)}
+code{background:var(--code);border:1px solid var(--line);border-radius:5px;padding:0 4px;font-size:.92em}
+footer{color:#c9d5e0;font-size:.9rem;text-align:center;margin-top:28px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+footer a{color:#9fd0ff}
+</style>
+</head>
+<body>
+<main>
+<h1>Victron-Display aufspielen</h1>
+<p class="sub">Firmware für das ESP32-2432S028R („Cheap Yellow Display“) direkt aus dem Browser – ohne Programme.</p>
+
+<div class="card">
+<h2>So geht's</h2>
+<ol>
+<li>Display per USB-Kabel an den PC anschließen (Datenkabel, kein reines Ladekabel).</li>
+<li>Auf <b>Installieren</b> klicken und im Fenster den Anschluss wählen (meist „USB-SERIAL CH340“ oder „CP210x“).</li>
+<li>Warten, bis „Installation complete“ erscheint, dann das Display neu starten.</li>
+<li>Am Handy mit dem WLAN <code>SOC-Victron-…</code> verbinden (Passwort <code>panelsat</code>) – die Einrichtung öffnet sich von selbst.</li>
+</ol>
+<div class="warn"><b>Achtung:</b> Das Aufspielen hier löscht alle Einstellungen (WLAN, Geräte, Kacheln). Ein schon eingerichtetes
+Display bitte über seine eigene Weboberfläche aktualisieren (<b>Firmware → Hochladen</b>, Datei
+<a href="release/ota/victron-display-cyd.bin">ota/victron-display-cyd.bin</a>).</div>
+<div class="btn">
+<esp-web-install-button manifest="manifest.json">
+<button slot="activate">Installieren</button>
+<p slot="unsupported" class="nosup">Dein Browser kann nicht auf USB zugreifen. Bitte <b>Chrome</b> oder <b>Edge</b> am PC/Mac verwenden.</p>
+<p slot="not-allowed" class="nosup">Diese Seite muss über https geöffnet werden.</p>
+</esp-web-install-button>
+</div>
+<p class="ver" id="ver"></p>
+</div>
+
+<div class="card">
+<h2>Kein Anschluss in der Liste?</h2>
+<ul>
+<li>Anderes USB-Kabel probieren – viele Kabel laden nur.</li>
+<li>Treiber für den USB-Wandler installieren (CH340 bzw. CP210x).</li>
+<li>Bricht das Schreiben ab: Display über einen USB-Hub mit eigenem Netzteil anschließen.</li>
+</ul>
+</div>
+
+<div class="card" lang="en">
+<h2>English</h2>
+<p style="margin:0">Connect the display via USB, click <b>Installieren</b> (install) and pick the serial port (Chrome or Edge on a
+desktop). This erases all settings – to update a display that is already set up, use its own web interface
+(<b>Firmware → Hochladen</b>). Afterwards join the WiFi <code>SOC-Victron-…</code> (password <code>panelsat</code>).</p>
+</div>
+
+<footer><a href="https://github.com/cyclemat/simply-open-camper-victron-beta">Code und Anleitung auf GitHub</a> ·
+<a href="https://paypal.me/cyclemat">☕ Support</a></footer>
+</main>
+<script>
+fetch('manifest.json').then(r=>r.json()).then(m=>{document.getElementById('ver').textContent='Version '+m.version}).catch(()=>{});
+</script>
+</body>
+</html>

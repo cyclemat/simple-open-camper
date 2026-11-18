@@ -185,6 +185,10 @@ Auch ohne Touch und ohne Passwort kommst du immer wieder ran – über **schnell
 
 ## 🔧 Firmware aufspielen
 
+**Am einfachsten:** im Browser mit dem **[⚡ Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)**
+(Chrome oder Edge am PC/Mac) – Display per USB anschließen, „Installieren“ klicken, fertig. Löscht die Einstellungen,
+also nur für neue Displays; eingerichtete Displays über ihre Weboberfläche aktualisieren.
+
 **Fertige Dateien** liegen im Ordner [`release/`](release/) dieses Repositorys – immer die neueste Fassung, die vorige
 in `release/vorher/`:
 
