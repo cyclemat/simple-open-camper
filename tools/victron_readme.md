@@ -19,6 +19,13 @@
 > Die abgespeckte Version von Simply Open Camper (S.O.C.) für alle,
 > die **nur Victron und den Gasvorrat** sehen und bedienen wollen – auf einem Display für rund 15 €, ohne großes Panel.
 
+<p align="center">
+  <img src="assets/victron_preview.png" alt="Vorschau: zwei Seiten mit je vier Kacheln (Batterie, Solar, MultiPlus, Gas, Booster, Landstrom, Ladegerät)" width="100%">
+</p>
+
+<p align="center"><b><a href="https://cyclemat.github.io/simply-open-camper-victron-beta/">⚡ Direkt im Browser aufspielen – Web-Flasher</a></b><br>
+<sub>Chrome oder Edge am PC/Mac, Display per USB anschließen, „Installieren“ klicken.</sub></p>
+
 ---
 
 ## 🚧 Beta

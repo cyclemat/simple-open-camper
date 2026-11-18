@@ -39,6 +39,7 @@ on:
       - 'tools/victron_readme.md'
       - 'tools/victron_flasher.html'
       - 'assets/splash.jpg'
+      - 'assets/victron_preview.png'
       - 'src/soc_version.h'
       - 'tools/embed_splash_cyd.py'
       - 'tools/upload_wait.py'

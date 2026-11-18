@@ -32,7 +32,7 @@ FILES = [
     "src/third_party/micro-ecc/platform-specific.inc", "src/third_party/micro-ecc/types.h",
     "src/third_party/micro-ecc/uECC.c.inc", "src/third_party/micro-ecc/uECC.h", "src/third_party/micro-ecc/uECC_vli.h",
     "include/lv_conf.h", "include/lv_psram_alloc.h",
-    "assets/splash_cyd.jpg", "assets/banner_small.jpg", "assets/van-left.svg", "assets/van-right.svg",
+    "assets/splash_cyd.jpg", "assets/banner_small.jpg", "assets/victron_preview.png", "assets/van-left.svg", "assets/van-right.svg",
     "tools/embed_splash_cyd.py", "tools/upload_wait.py",
     "LICENSE", "CONTRIBUTING.md",
 ]
