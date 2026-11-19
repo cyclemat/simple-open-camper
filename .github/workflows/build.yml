@@ -78,6 +78,12 @@ jobs:
       # neueste Version 6.2.0.post1. Die meldet sich als "6.2.0-post.1", das gilt als Vorabversion (< 6.2.0), und die
       # Plattform bricht nach dem Framework-Neubau ab ("IncompatiblePlatform ... depends on PlatformIO Core >=6.2.0").
       # Deshalb die Umgebung selbst anlegen, mit fester Version 6.2.0 wie lokal. Erfuellt ">=6.2.0", nichts wird ersetzt.
+      # "stable" wandert mit (2026-11-19: 61.04.00 = Arduino 4.0, baut NimBLE nicht). Fest wie lokal: 55.03.312
+      - name: Plattform festhalten
+        run: |
+          find . -name platformio.ini -not -path "*/.pio/*" -exec sed -i 's#releases/download/stable/platform-espressif32.zip#releases/download/55.03.312/platform-espressif32.zip#' {} +
+          grep -rn "platform-espressif32.zip" --include=platformio.ini . | grep -v "/.pio/" | head -3
+
       - name: PlatformIO installieren
         run: |
           python -m venv ~/.platformio/penv

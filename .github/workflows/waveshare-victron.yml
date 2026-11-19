@@ -29,6 +29,12 @@ jobs:
           python-version: '3.12'
 
       # wie in build.yml: penv selbst anlegen (pioarduino 6.2.0, nicht 6.2.0.post1)
+      # "stable" wandert mit (2026-11-19: 61.04.00 = Arduino 4.0, baut NimBLE nicht). Fest wie lokal: 55.03.312
+      - name: Plattform festhalten
+        run: |
+          find . -name platformio.ini -not -path "*/.pio/*" -exec sed -i 's#releases/download/stable/platform-espressif32.zip#releases/download/55.03.312/platform-espressif32.zip#' {} +
+          grep -rn "platform-espressif32.zip" --include=platformio.ini . | grep -v "/.pio/" | head -3
+
       - name: PlatformIO installieren
         run: |
           python -m venv ~/.platformio/penv
