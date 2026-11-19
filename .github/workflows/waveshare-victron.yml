@@ -1,0 +1,76 @@
+# Victron-Edition fuers Waveshare 7" (Umgebung waveshare-7b-victron) – nur diese eine Firmware bauen.
+# Nur von Hand starten (Actions -> "Waveshare Victron-Edition bauen"). Ergebnis als Artifact "waveshare-7b-victron"
+# (firmware/bootloader/partitions + Komplettdatei). In die Victron-Beta legt sie Claude von Hand (nach Pruefung,
+# dass keine kommenden Funktionen im Programm erkennbar sind).
+name: Waveshare Victron-Edition bauen
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ws7-victron-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Waveshare Victron-Edition
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Platz schaffen
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # wie in build.yml: penv selbst anlegen (pioarduino 6.2.0, nicht 6.2.0.post1)
+      - name: PlatformIO installieren
+        run: |
+          python -m venv ~/.platformio/penv
+          ~/.platformio/penv/bin/pip install "platformio==6.2.0" "pioarduino==6.2.0" esptool
+          echo "$HOME/.platformio/penv/bin" >> "$GITHUB_PATH"
+
+      - name: Cache (Plattform, Pakete, Framework)
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.platformio/platforms
+            ~/.platformio/packages
+            ~/.platformio/.cache
+            .pio
+          key: pio2-ws7-victron-${{ hashFiles('platformio.ini') }}-${{ github.sha }}
+          # beim ersten Mal den Stand vom Panel-Build nehmen (gleiche Plattform und Pakete)
+          restore-keys: |
+            pio2-ws7-victron-${{ hashFiles('platformio.ini') }}-
+            pio2-ws7-victron-
+            pio2-panel-waveshare-7b-
+
+      - name: Bauen
+        env:
+          PANEL_UPLOAD_NOWAIT: '1'
+        run: |
+          pio run -e waveshare-7b-victron
+          src=.pio/build/waveshare-7b-victron
+          mkdir -p dist
+          cp "$src/"{firmware,bootloader,partitions}.bin dist/
+          ls -la dist
+          echo "Groesse: $(stat -c %s dist/firmware.bin) Bytes"
+
+      # Komplettdatei fuer den Web-Flasher (ESP32-S3: Bootloader 0x0, Partitionen 0x8000, boot_app0 0xe000, App 0x10000)
+      - name: Komplettdatei
+        run: |
+          b0=$(find ~/.platformio/packages -name boot_app0.bin | head -1)
+          python -m esptool --chip esp32s3 merge_bin -o dist/victron-display-ws7.bin \
+            0x0 dist/bootloader.bin 0x8000 dist/partitions.bin 0xe000 "$b0" 0x10000 dist/firmware.bin
+          ls -la dist
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: waveshare-7b-victron
+          path: dist/
+          retention-days: 30
