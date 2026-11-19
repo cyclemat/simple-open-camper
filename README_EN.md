@@ -634,6 +634,10 @@ protocol analysis has no licence. This is not legal advice.
 
 ---
 
+## 📝 Changes
+
+What changed from version to version (German): **[CHANGELOG.md](CHANGELOG.md)**
+
 ## 🛠 Feedback & contributions
 
 - Please report bugs and ideas as issues – ideally with a log from the "UART" port

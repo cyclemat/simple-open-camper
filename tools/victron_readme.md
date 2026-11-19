@@ -331,6 +331,10 @@ Eigenes Startbild: `splash_cyd.jpg` (320×240, JPEG „baseline“) in den Proje
   „Jetzt messen“ drücken.
 - **Cerbo trennt ab und zu?** Meist schwaches WLAN – näher an den GX oder dessen eigenes WLAN verwenden.
 
+## 📝 Änderungen
+
+Was sich von Version zu Version geändert hat: **[CHANGELOG.md](CHANGELOG.md)**
+
 ## 🔗 Fehler und Wünsche
 
 Bitte hier als [Issue](../../issues) melden. Der Code wird automatisch aktualisiert – Pull Requests werden deshalb

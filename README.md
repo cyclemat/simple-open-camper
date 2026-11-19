@@ -702,6 +702,10 @@ der ursprünglichen Protokoll-Analyse ohne Lizenz. Das ist keine Rechtsberatung.
 
 ---
 
+## 📝 Änderungen
+
+Was sich von Version zu Version geändert hat: **[CHANGELOG.md](CHANGELOG.md)**
+
 ## 🛠 Feedback & Beiträge
 
 - Fehler und Ideen bitte als Issue melden – gern mit Log von der Buchse „UART“

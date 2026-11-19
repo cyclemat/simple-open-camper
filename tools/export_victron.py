@@ -278,6 +278,7 @@ def main():
     write(".gitignore", GITIGNORE)
     write(".github/workflows/build.yml", WORKFLOW)
     shutil.copyfile(os.path.join(ROOT, "tools", "victron_readme.md"), os.path.join(DST, "README.md"))
+    shutil.copyfile(os.path.join(ROOT, "tools", "victron_changelog.md"), os.path.join(DST, "CHANGELOG.md"))
     shutil.copyfile(os.path.join(ROOT, "satellite", "partitions_upd.csv"), os.path.join(DST, "partitions_upd.csv"))
     write_flasher()
     print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 9))
