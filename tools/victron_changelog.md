@@ -2,7 +2,7 @@
 
 Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet – Rückmeldungen willkommen.
 
-## In Arbeit (nächste Version)
+## 0.2.4 – 2026-11-19
 
 **Neu**
 - 🔋 **Zellspannungen** jetzt auch bei JK-BMS, ANT, Eco-Worthy, Renogy-Akku und Vatrer.
