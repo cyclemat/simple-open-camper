@@ -100,6 +100,11 @@
 #ifndef BMS_SIMARINE_ON
 #define BMS_SIMARINE_ON 1
 #endif
+// BTHome v2 (offener Standard: Shelly BLU, Xiaomi mit pvvx-Firmware …): Werte in Werbepaketen (Dienst 0xFCD2), optional
+// AES-CCM mit Geraeteschluessel (32 Hex im Feld PIN / Passwort). BETA, ungetestet. docs/protokolle/bthome_v2.md
+#ifndef BMS_BTHOME_ON
+#define BMS_BTHOME_ON 1
+#endif
 #define BMS_TANKS 4   // Kanaele je SuperSense-Tankmodul
 
 #define BMS_MAX 6
@@ -119,7 +124,8 @@ enum BmsModel : uint8_t {
   BMS_SS_TANK = 26,  // SuperSense Tankmodul (SSBT)
   BMS_RUUVI = 27,    // Ruuvi Tag / Air (nur Werbepakete)
   BMS_SWITCHBOT = 28,// SwitchBot Meter / Meter Plus / Outdoor Meter (nur Werbepakete)
-  BMS_SIMARINE = 29  // Simarine STRx Tanksensor (nur Werbepakete)
+  BMS_SIMARINE = 29, // Simarine STRx Tanksensor (nur Werbepakete)
+  BMS_BTHOME = 30    // BTHome v2 (nur Werbepakete)
 };
 
 // Geraeteart (bestimmt die Kachel: Akku/Shunt = Batteriewaechter, sonst Solar, Ladebooster, Wechselrichter)
@@ -178,6 +184,8 @@ struct BmsInfo {
   // 4 Kraftstoff (-1 unbekannt), Modus 1..3 verschluesselt / 4 offen (0 unbekannt)
   float tank_l = NAN, tank_cap_l = NAN;
   int tank_kind = -1, sm_mode = 0;
+  // BTHome: Zustaende als Text ("Tür offen", "Bewegung", "Taster: kurz" …), "" = keine
+  std::string note;
 };
 
 struct BmsFound {

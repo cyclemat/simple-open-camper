@@ -466,7 +466,8 @@ bool victron_from_bms(const BmsInfo &b, VictronInfo &v) {
       v.press = b.press;
       v.pm25 = b.pm25;
       v.co2 = b.co2;
-      v.soc = b.soc >= 0 ? (float)b.soc : NAN;   // Batterie % (SwitchBot)
+      v.soc = b.soc >= 0 ? (float)b.soc : NAN;   // Batterie % (SwitchBot, BTHome)
+      v.note = b.note;
       v.power_w = NAN;
       return true;
     case BMS_DEV_TANK:   // SuperSense-Tankmodul

@@ -172,10 +172,16 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (!small && !isnan(lo)) t.sub += tr("  ·  Zellen ") + ui_num_bare(lo, 2) + "–" + ui_num(hi, 2, "V");
       break;
     }
-    case VIC_CLIMATE:   // Ruuvi: Temperatur gross, Feuchte (und CO2) darunter
+    case VIC_CLIMATE:   // Ruuvi/SwitchBot/BTHome: Temperatur gross (ohne: Zustand), Feuchte (und CO2) darunter
+      if (isnan(v.aux) && !v.note.empty()) {
+        t.value = v.note;
+        t.accent = C_BLUE;
+        break;
+      }
       t.value = ui_num(v.aux, 1, "°C");
       t.accent = C_BLUE;
       t.sub = isnan(v.hum) ? std::string() : ui_num(v.hum, 0, "%");
+      if (!v.note.empty()) t.sub += (t.sub.empty() ? "" : "  ·  ") + v.note;
       if (v.co2 >= 0) t.sub += (t.sub.empty() ? "" : "  ·  ") + std::to_string(v.co2) + " ppm";
       else if (!small && !isnan(v.press)) t.sub += (t.sub.empty() ? "" : "  ·  ") + ui_num(v.press, 0, "hPa");
       break;

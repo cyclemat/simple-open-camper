@@ -216,7 +216,7 @@ function bmAddDlg(f){const o=document.createElement('div');o.style.cssText='posi
  <label class="f"><span>Ist eine Kopplungs-PIN nötig?</span><select id="dQ"><option value="0">Nein</option><option value="1">Ja</option></select></label>
  <label class="f" id="dPl" style="display:none"><span>Kopplungs-PIN bzw. Passwort aus der Akku-App (steht auf dem Akku, in der Anleitung bzw. in der App)</span><input id="dP" maxlength="32" autocomplete="off"></label>
  <div style="display:flex;gap:8px;justify-content:flex-end"><button id="dC">Abbrechen</button><button class="p" id="dO">Hinzufügen</button></div></div>`;
- document.body.appendChild(o);const q=s=>o.querySelector(s);q('#dN').value=f.name||'Akku';q('#dQ').value=f.model==1?'1':'0';if(f.model==27||f.model==28)q('#dQ').parentNode.style.display='none';
+ document.body.appendChild(o);const q=s=>o.querySelector(s);q('#dN').value=f.name||'Akku';q('#dQ').value=f.model==1?'1':'0';if(f.model==27||f.model==28||f.model==30)q('#dQ').parentNode.style.display='none';
  const sh=()=>{q('#dPl').style.display=q('#dQ').value=='1'?'':'none'};sh();q('#dQ').onchange=()=>{sh();if(q('#dQ').value=='1')q('#dP').focus()};
  q('#dC').onclick=()=>o.remove();
  q('#dO').onclick=()=>{const pin=q('#dQ').value=='1'?q('#dP').value.replace(/[^0-9A-Za-z]/g,''):'';if(q('#dQ').value=='1'&&!pin)return toast('Bitte die PIN bzw. das Passwort eingeben.',true);

@@ -95,6 +95,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 💧 **Simarine STRx** *(beta)* – tank sensors STR1/STR2/STR3 via Bluetooth broadcast, open or encrypted
 - 🌡️ **Climate sensors** *(beta)* – **Ruuvi** Tag/Air and **SwitchBot** Meter/Meter Plus/Outdoor Meter: temperature,
   humidity, pressure, CO₂ and particulate matter on the Ruuvi Air; the panel only listens, no pairing
+- 📡 **BTHome** *(beta)* – Shelly BLU (door, motion, button, H&T), Xiaomi with pvvx firmware and more, also encrypted
 - 🐝 **Zigbee direct** *(beta, P4 only)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
   sockets (with power and energy), switches and sensors as tiles
 - 🧩 **Rules** *(beta, P4 only)* – automations with graphical blocks (Blockly) in the editor, e.g. motion light,
@@ -345,6 +346,16 @@ Bluetooth. The panel only listens – no pairing, **no app key needed**.
 
 If there is no value, the status says why: broadcast off, key missing, key does not match. If you regenerate the key
 in the Simarine app, enter the new one. Do not use it as the only measurement for safety-critical levels.
+
+### 📡 BTHome *(beta, untested)*
+
+- Open standard for many cheap wireless sensors: **Shelly BLU** (door/window, motion, button, H&T), **Xiaomi
+  thermometers with pvvx firmware** and many more. The panel only listens, no pairing.
+- Set up like a battery: **Batteries (BMS) → Search**, the device shows up as "BTHome".
+- Tile: temperature and humidity, or the state for door/motion sensors ("door open", "motion", "wet!" …). Button
+  events ("button: short/double/long") show in the state.
+- **Encrypted** (e.g. Shelly BLU with key): enter the key (32 characters, from the Shelly app) in the **PIN / password**
+  field.
 
 ### 🌡️ Ruuvi and SwitchBot *(beta, untested)*
 
@@ -617,6 +628,7 @@ authors!
 | CS-BATTERIES, SuperSense (`src/bms.cpp`) | own analysis of the apps | – | CS-BATTERIES login (app key, password), SuperSense tank module |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | see project | Data formats 3, 5 and 6 (advertisements) |
 | Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | see project | Advertisements, metadata, AES-CCM encryption |
+| BTHome (`src/bms.cpp`) | [bthome.io](https://bthome.io), [Bluetooth-Devices/bthome-ble](https://github.com/Bluetooth-Devices/bthome-ble) | MIT | Object table, encryption |
 | Senso4s (`src/mopeka.cpp`) | [ksanislo/senso4s_ble](https://github.com/ksanislo/senso4s_ble) | Apache-2.0 | Advertisements, error and warning codes |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | see project | Advertisements of the thermo-hygrometers |
 | | Manufacturer documents or own analysis of the apps | – | Super B (older batteries), Power Quarry/Shentec |

@@ -77,6 +77,7 @@ struct VictronInfo {
   float tank_temp[4] = {NAN, NAN, NAN, NAN};
   // Klima-Sensor (VIC_CLIMATE): aux = Temperatur, bat_v = Batterie des Sensors; NAN/-1 = nicht gemeldet
   float hum = NAN, press = NAN, pm25 = NAN;
+  std::string note;   // Klima-Sensor: Zustaende (BTHome: "Tür offen", "Bewegung" …)
   int co2 = -1;
 };
 

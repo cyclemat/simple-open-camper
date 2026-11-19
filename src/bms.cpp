@@ -50,6 +50,7 @@ const char *bms_model_text(BmsModel m) {
     case BMS_RUUVI: return "Ruuvi";
     case BMS_SWITCHBOT: return "SwitchBot Meter";
     case BMS_SIMARINE: return "Simarine STRx";
+    case BMS_BTHOME: return "BTHome";
     default: return "Akku";
   }
 }
@@ -72,7 +73,8 @@ BmsDev bms_dev_of(BmsModel m) {
     case BMS_SS_TANK:
     case BMS_SIMARINE: return BMS_DEV_TANK;
     case BMS_RUUVI:
-    case BMS_SWITCHBOT: return BMS_DEV_CLIMATE;
+    case BMS_SWITCHBOT:
+    case BMS_BTHOME: return BMS_DEV_CLIMATE;
     default: return BMS_DEV_BATTERY;
   }
 }
@@ -206,6 +208,10 @@ struct Bat {
   uint32_t sm_meta_ms = 0;
   uint64_t sm_last = 0;
   std::string sm_err;   // Grund, warum es keinen Wert gibt (Status)
+  // BTHome: Zustaende, letzte Paket-ID (Wiederholungen), letzter Zaehler (verschluesselt)
+  std::string bt_note;
+  int bt_pid = -1;
+  uint32_t bt_cnt = 0;
   uint32_t alarms = 0;
   bool chg_on = true, dis_on = true;
   std::string rx;   // Empfangspuffer (Notify)
@@ -228,7 +234,7 @@ struct Bat {
     return model != BMS_SUPERB && model != BMS_UNKNOWN && !adv_only() && !is_anker(model) && !is_ecoflow(model);
   }
   bool adv_only() const {   // nur Werbepakete (Ruuvi, SwitchBot), nie verbinden
-    return model == BMS_RUUVI || model == BMS_SWITCHBOT || model == BMS_SIMARINE;
+    return model == BMS_RUUVI || model == BMS_SWITCHBOT || model == BMS_SIMARINE || model == BMS_BTHOME;
   }
   int8_t daly_x81 = -1;    // Daly: -1 noch unbekannt, 0 Protokoll D2, 1 Protokoll 0x81 (Antwort 0x51)
   int jk_sw = -1;          // JK: Firmware-Hauptversion (ab 11 Aufbau 32S)
@@ -1306,7 +1312,10 @@ static BmsModel renogy_detect(const std::string &un, uint16_t mid) {
 }
 
 // ---------------------------------------------------------------- Bluetooth-Ablauf (Scan-Task von truma.cpp)
-#if BMS_RUUVI_ON || BMS_SWITCHBOT_ON
+#if BMS_SIMARINE_ON || BMS_BTHOME_ON
+#include <mbedtls/ccm.h>
+#endif
+#if BMS_RUUVI_ON || BMS_SWITCHBOT_ON || BMS_BTHOME_ON
 // Ruuvi (offizielle Doku "Data formats"): Herstellerdaten 99 04 FORMAT …, Werte Big Endian.
 // Format 5 (Tag, 24 Byte): 1-2 °C int16 x 0,005, 3-4 % rF x 0,0025, 5-6 Pa - 50000, 13-14 Batterie (11 Bit, mV - 1600).
 // Format 3 (aeltere Firmware, 14 Byte): 1 % rF x 0,5, 2 °C ganzzahlig (Bit 7 = minus), 3 Hundertstel, 4-5 Pa - 50000,
@@ -1393,7 +1402,7 @@ static bool sbot_parse(const NimBLEAdvertisedDevice *dev, RuuviVals &r, int &bat
   return got || type_ok;
 }
 #endif
-#if BMS_RUUVI_ON || BMS_SWITCHBOT_ON
+#if BMS_RUUVI_ON || BMS_SWITCHBOT_ON || BMS_BTHOME_ON
 // Werte eines eingerichteten Ruuvi uebernehmen (unter Lock). Neue Version nur bei spuerbarer Aenderung, die Sensoren
 // senden etwa jede Sekunde.
 static void ruuvi_take(Bat &b, const RuuviVals &v, int rssi) {
@@ -1425,7 +1434,6 @@ static void ruuvi_take(Bat &b, const RuuviVals &v, int rssi) {
 //   [8..9] Inhalt l (0xFFFF unbekannt), [10] Tankart (0xFF unbekannt).
 // Verschluesselt: AES-128-CCM, 2 Byte, Pruefwert 4 Byte, Nonce 13 Byte = Serie LE16, Start LE16, Folge LE24, Konfig, 5x 0;
 //   Zusatzdaten 1 Byte = Modus.
-#include <mbedtls/ccm.h>
 static const char *SM_ADV_UUID = "ea4a9703-a497-42a7-a177-f5a0b3214a0e";
 static const char *SM_META_UUID = "ea4a96f3-a497-42a7-a177-f5a0b3214a0e";
 static bool sm_key(const std::string &hex, uint8_t key[16]) {
@@ -1516,6 +1524,169 @@ static void sm_take(Bat &b, const std::string &adv, const std::string &meta, int
 }
 #endif
 
+#if BMS_BTHOME_ON
+#if !BMS_SIMARINE_ON
+static bool sm_key(const std::string &hex, uint8_t key[16]) {   // 32 Hex-Zeichen -> 16 Byte
+  if (hex.size() != 32) return false;
+  for (int i = 0; i < 16; i++) {
+    unsigned v;
+    if (sscanf(hex.c_str() + i * 2, "%2x", &v) != 1) return false;
+    key[i] = (uint8_t)v;
+  }
+  return true;
+}
+#endif
+// BTHome v2: Dienstdaten 0xFCD2 = [Geraeteinfo][ID Wert]… (LE). Laenge je ID, 0 = unbekannt (Rest nicht lesbar),
+// 0xFF = Laenge im ersten Byte (Text/Rohdaten). Nach bthome.io bzw. Bluetooth-Devices/bthome-ble (MIT).
+static uint8_t bth_len(uint8_t id) {
+  static const uint8_t L[0x66] = {
+      1, 1, 2, 2, 3, 3, 2, 2, 2, 1, 3, 3, 2, 2, 2, 1,   // 0x00
+      1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   // 0x10
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,   // 0x20
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 4, 2,   // 0x30 (0x3B Befehl: 2)
+      2, 2, 3, 2, 2, 2, 1, 2, 2, 2, 2, 3, 4, 4, 4, 4,   // 0x40
+      4, 2, 2, 0xFF, 0xFF, 4, 2, 1, 1, 1, 2, 4, 4, 2, 2, 2,   // 0x50
+      1, 2, 4, 4, 1, 1};                                // 0x60
+  if (id < 0x66) return L[id];
+  if (id == 0xF0) return 2;
+  if (id == 0xF1) return 4;
+  if (id == 0xF2) return 3;
+  return 0;
+}
+static int32_t bth_val(const uint8_t *p, int n, bool sign) {
+  uint32_t v = 0;
+  for (int i = n - 1; i >= 0; i--) v = v << 8 | p[i];
+  if (sign && n < 4 && (v & (1u << (n * 8 - 1)))) v |= ~0u << (n * 8);
+  return (int32_t)v;
+}
+// Werte auswerten (Objekte ab p, Laenge n). Liefert false bei unbekannter ID (dann nur bis dorthin gelesen).
+static bool bth_parse(const uint8_t *p, size_t n, RuuviVals &r, int &batt, std::string &note, int &pid) {
+  auto add = [&](const char *t) {
+    if (!note.empty()) note += "  ·  ";
+    note += t;
+  };
+  size_t i = 0;
+  while (i < n) {
+    uint8_t id = p[i++], len = bth_len(id);
+    if (len == 0xFF) {   // Text/Rohdaten: Laenge im naechsten Byte
+      if (i >= n) return false;
+      i += 1 + p[i];
+      continue;
+    }
+    if (!len || i + len > n) return false;
+    const uint8_t *q = p + i;
+    i += len;
+    uint8_t b = q[0];
+    switch (id) {
+      case 0x00: pid = b; break;
+      case 0x01: batt = b; break;
+      case 0x02: r.t = bth_val(q, 2, true) * 0.01f; break;
+      case 0x45: r.t = bth_val(q, 2, true) * 0.1f; break;
+      case 0x57: r.t = (int8_t)b; break;
+      case 0x58: r.t = (int8_t)b * 0.35f; break;
+      case 0x03: r.h = bth_val(q, 2, false) * 0.01f; break;
+      case 0x2E: r.h = b; break;
+      case 0x04: r.p = bth_val(q, 3, false) * 0.01f; break;
+      case 0x0C: r.bat = bth_val(q, 2, false) * 0.001f; break;
+      case 0x4A: r.bat = bth_val(q, 2, false) * 0.1f; break;
+      case 0x0D: r.pm = bth_val(q, 2, false); break;
+      case 0x12: r.co2 = bth_val(q, 2, false); break;
+      case 0x11:   // offen
+      case 0x1A:   // Tuer
+      case 0x1B:   // Garagentor
+      case 0x2D:   // Fenster
+        add(id == 0x2D ? (b ? "Fenster offen" : "Fenster zu") : (b ? "Tür offen" : "Tür zu"));
+        break;
+      case 0x21:
+      case 0x23:
+      case 0x25: add(b ? "Bewegung" : "keine Bewegung"); break;
+      case 0x20: if (b) add("Nässe!"); break;
+      case 0x29: if (b) add("Rauch!"); break;
+      case 0x17: if (b) add("CO!"); break;
+      case 0x1C: if (b) add("Gas!"); break;
+      case 0x15: if (b) add("Batterie schwach"); break;
+      case 0x2B: if (b) add("Manipulation"); break;
+      case 0x2C: if (b) add("Erschütterung"); break;
+      case 0x3A: {   // Taster-Ereignis
+        static const char *EV[] = {"", "Taster: kurz", "Taster: doppelt", "Taster: dreifach", "Taster: lang",
+                                   "Taster: sehr lang", "Taster: lang doppelt", "Taster: lang dreifach"};
+        if (b && b < 8) add(EV[b]);
+        break;
+      }
+      default: break;
+    }
+  }
+  return true;
+}
+// Paket eines eingerichteten BTHome-Geraets uebernehmen (unter Lock)
+static void bth_take(Bat &b, const std::string &sd, int rssi) {
+  if (sd.size() < 2) return;
+  uint8_t info = (uint8_t)sd[0];
+  if ((info >> 5) != 2) {
+    b.sm_err = "Kein BTHome v2";
+    return;
+  }
+  std::string plain;
+  if (info & 1) {   // verschluesselt: [info][Daten…][Zaehler 4][MIC 4]
+    uint8_t key[16];
+    if (!sm_key(b.pin, key)) {
+      b.sm_err = "Verschluesselt – Schluessel (32 Zeichen) als PIN / Passwort eintragen";
+      return;
+    }
+    if (sd.size() < 1 + 8 + 1) return;
+    size_t dn = sd.size() - 9;
+    const uint8_t *cnt = (const uint8_t *)sd.data() + 1 + dn;
+    uint32_t c = cnt[0] | cnt[1] << 8 | cnt[2] << 16 | (uint32_t)cnt[3] << 24;
+    if (b.bt_cnt && c <= b.bt_cnt) return;   // Wiederholung
+    unsigned m[6];
+    if (sscanf(b.mac.c_str(), "%x:%x:%x:%x:%x:%x", &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) != 6) return;
+    uint8_t nonce[13] = {(uint8_t)m[0], (uint8_t)m[1], (uint8_t)m[2], (uint8_t)m[3], (uint8_t)m[4], (uint8_t)m[5],
+                         0xD2, 0xFC, info, cnt[0], cnt[1], cnt[2], cnt[3]};
+    plain.resize(dn);
+    mbedtls_ccm_context ctx;
+    mbedtls_ccm_init(&ctx);
+    int rc = mbedtls_ccm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, key, 128);
+    if (!rc) rc = mbedtls_ccm_auth_decrypt(&ctx, dn, nonce, 13, nullptr, 0, (const uint8_t *)sd.data() + 1,
+                                           (uint8_t *)&plain[0], cnt + 4, 4);
+    mbedtls_ccm_free(&ctx);
+    if (rc) {
+      b.sm_err = "Schluessel passt nicht";
+      return;
+    }
+    b.bt_cnt = c;
+  } else {
+    if (!b.pin.empty()) {   // Schluessel eingetragen, Paket aber offen: nicht annehmen
+      b.sm_err = "Unverschluesselt, obwohl ein Schluessel eingetragen ist – Paket verworfen";
+      return;
+    }
+    plain = sd.substr(1);
+  }
+  RuuviVals v;
+  int batt = -1, pid = -1;
+  std::string note;
+  bth_parse((const uint8_t *)plain.data(), plain.size(), v, batt, note, pid);
+  if (pid >= 0 && pid == b.bt_pid) {   // gleiches Paket nochmal
+    b.rssi = rssi;
+    b.last_ms = millis();
+    return;
+  }
+  b.bt_pid = pid;
+  // Nur gemeldete Werte ueberschreiben (Geraete senden je Paket oft nur einen Teil)
+  if (!isfinite(v.t)) v.t = b.temp;
+  if (!isfinite(v.h)) v.h = b.hum;
+  if (!isfinite(v.p)) v.p = b.press;
+  if (!isfinite(v.bat)) v.bat = b.volt;
+  if (!isfinite(v.pm)) v.pm = b.pm25;
+  if (v.co2 < 0) v.co2 = b.co2;
+  bool ch = note != b.bt_note || (batt >= 0 && batt != b.soc);
+  if (!note.empty()) b.bt_note = note;
+  if (batt >= 0) b.soc = batt;
+  b.sm_err.clear();
+  if (ch) s_ver++;
+  ruuvi_take(b, v, rssi);
+}
+#endif
+
 bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   bool ruuvi = false;
 #if BMS_RUUVI_ON
@@ -1579,6 +1750,26 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
     }
   }
 #endif
+  bool bth = false;
+#if BMS_BTHOME_ON
+  if (!ruuvi && !sbot && !strx && dev->haveServiceData()) {
+    std::string sd = dev->getServiceData(NimBLEUUID((uint16_t)0xFCD2));
+    if (!sd.empty()) {
+      std::string mac = lower(dev->getAddress().toString());
+      {
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) {
+          if (b->model == BMS_BTHOME && !b->remove) bth_take(*b, sd, dev->getRSSI());
+          return true;
+        }
+      }
+      if (!s_disc_until) return true;
+      bth = ((uint8_t)sd[0] >> 5) == 2;
+      if (!bth) return true;
+    }
+  }
+#endif
   if (!s_disc_until) return false;
   bool svc = dev->isAdvertisingService(NimBLEUUID(SB_SERVICE)) || dev->isAdvertisingService(NimBLEUUID(SB2_SERVICE));
   if (!svc && dev->haveManufacturerData()) {   // Epsilon V2: Hersteller-ID 0x50BE
@@ -1598,7 +1789,8 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   if (ruuvi) model = BMS_RUUVI;
   if (sbot) model = BMS_SWITCHBOT;
   if (strx) model = BMS_SIMARINE;
-  if (!svc && !hint && !ss && !ruuvi && !sbot && !strx) {
+  if (bth) model = BMS_BTHOME;
+  if (!svc && !hint && !ss && !ruuvi && !sbot && !strx && !bth) {
     model = pq_detect(name, dev->haveManufacturerData() ? dev->getManufacturerData() : std::string(), &prod);
     std::string un = name;
     for (auto &ch : un) ch = toupper((unsigned char)ch);
@@ -1712,6 +1904,7 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       case BMS_RUUVI: on = BMS_RUUVI_ON; break;
       case BMS_SWITCHBOT: on = BMS_SWITCHBOT_ON; break;
       case BMS_SIMARINE: on = BMS_SIMARINE_ON; break;
+      case BMS_BTHOME: on = BMS_BTHOME_ON; break;
       default: break;
     }
     if (!on) return false;
@@ -3168,6 +3361,7 @@ static BmsInfo info_of(const Bat &b) {
     i.tank_kind = b.sm_meta && b.sm_kind <= 4 ? b.sm_kind : -1;
     i.sm_mode = b.sm_meta ? b.sm_mode : 0;
   }
+  i.note = b.bt_note;
   if (b.adv_only()) {   // nur Werbepakete: "verbunden" = kuerzlich gehoert
     i.connected = b.last_ms && millis() - b.last_ms < 60000;
     i.status = !b.sm_err.empty() && (!b.has || !i.connected) ? b.sm_err
@@ -3358,7 +3552,8 @@ void bms_set_pin(const std::string &mac, const std::string &pin) {
   Lock l;
   Bat *b = find_mac(lower(mac));
   if (!b) return;
-  b->pin = digits.substr(0, b->model == BMS_SIMARINE ? 32 : 6);   // Simarine: Schluessel 32 Hex-Zeichen
+  b->pin = digits.substr(0, b->model == BMS_SIMARINE || b->model == BMS_BTHOME ? 32 : 6);   // Schluessel 32 Hex
+  b->bt_cnt = 0;
   b->sm_seen = false;   // neuer Schluessel: Wiederholungsschutz neu beginnen
   if (!b->pin.empty() && b->model != BMS_JBD) b->auth_fail = true;   // alte Kopplung (ohne PIN) vor dem naechsten Versuch loeschen
   b->cs_pw_bad = false;
@@ -3410,8 +3605,10 @@ std::string bms_value_text(const BmsInfo &b) {
     case BMS_DEV_PSTATION:
       return (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + tr("rein ") + fnum(b.ps_in_w, 0, "W") + dot +
              tr("raus ") + fnum(b.ps_out_w, 0, "W");
-    case BMS_DEV_CLIMATE: {   // "21,5 °C  ·  45 %  ·  650 ppm"
+    case BMS_DEV_CLIMATE: {   // "21,5 °C  ·  45 %  ·  650 ppm" (BTHome ohne Temperatur: nur Zustand)
+      if (!isfinite(b.temp) && !b.note.empty()) return b.note;
       std::string s = fnum(b.temp, 1, "°C");
+      if (!b.note.empty()) s += dot + b.note;
       if (isfinite(b.hum)) s += dot + fnum(b.hum, 0, "%");
       if (b.co2 >= 0) s += dot + std::to_string(b.co2) + " ppm";
       return s;
@@ -3468,8 +3665,9 @@ std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b) {
   std::string temp = fnum(b.temp, 0, "°C");
   std::string today = b.yield_wh >= 0 ? fnum((float)b.yield_wh, 0, "Wh") : "–";
   bool bat = b.dev == BMS_DEV_BATTERY || b.dev == BMS_DEV_SHUNT;
-  if (b.dev == BMS_DEV_CLIMATE) {   // Ruuvi: nur gemeldete Werte
-    add("Temperatur", fnum(b.temp, 1, "°C"));
+  if (b.dev == BMS_DEV_CLIMATE) {   // Ruuvi/SwitchBot/BTHome: nur gemeldete Werte
+    if (!b.note.empty()) add("Zustand", b.note);
+    if (isfinite(b.temp) || b.note.empty()) add("Temperatur", fnum(b.temp, 1, "°C"));
     if (isfinite(b.hum)) add("Luftfeuchte", fnum(b.hum, 0, "%"));
     if (isfinite(b.press)) add("Luftdruck", fnum(b.press, 0, "hPa"));
     if (b.co2 >= 0) add("CO2", std::to_string(b.co2) + " ppm");

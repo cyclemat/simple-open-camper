@@ -11,6 +11,8 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   Zustand – und alle **Zellen als Kästchen**, höchste orange, niedrigste blau umrandet.
 - 🔋 **Zellspannungen** jetzt auch bei JK-BMS, ANT, Eco-Worthy, Renogy-Akku und Vatrer.
 - Rundes Panel: je Zelle eine Datenseite. CYD: Akku-Übersicht scrollbar, mit allen Zellen.
+- 📡 **BTHome** *(Beta)* – Shelly BLU, Xiaomi mit pvvx-Firmware u. v. a.: Temperatur/Feuchte bzw. Zustand
+  (Tür, Bewegung, Nässe, Taster), auch verschlüsselt.
 - ⚖️ **Senso4s** *(Beta)* – Gasflaschen-Waage Basic/Plus per Bluetooth (wie Mopeka): Füllstand in % und kg,
   Hinweise (Nullabgleich, Einstellfehler, Batterien leer, Warnungen beim Plus).
 

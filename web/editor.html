@@ -2262,7 +2262,7 @@ async function openSettings(tab = 'net') {
   loadBms();
   const bmsPost = data => (S.demo ? Promise.resolve() : post('/api/bms', data));
   // Kopplungs-PIN beim Hinzufuegen (leer = keine; Super B = Modell 1 verlangt immer eine). null = abgebrochen
-  const bmsPinAsk = model => model === 27 || model === 28 ? Promise.resolve('') : promptDlg('Kopplungs-PIN', model === 1
+  const bmsPinAsk = model => model === 27 || model === 28 || model === 30 ? Promise.resolve('') : promptDlg('Kopplungs-PIN', model === 1
       ? 'Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.'
       : 'Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen.', '')
     .then(p => p == null ? null : String(p).replace(/[^0-9A-Za-z]/g, '').slice(0, 32));
