@@ -6,6 +6,10 @@
 // Ausgeliefert nacheinander (sat_web.cpp, SAT_PAGE_PARTS). Teile ohne Gegenstueck: siehe #if.
 #include "sat_oled.h"
 #include "sat_sens.h"
+#include "sat_shunt.h"
+#ifndef SAT_BLE_SENS
+#define SAT_BLE_SENS 1
+#endif
 #ifndef SAT_DISPLAY
 #define SAT_DISPLAY 0
 #endif
@@ -114,6 +118,25 @@ static const char SAT_PAGE_SN_CARD[] PROGMEM = R"HTML(<div class="card" id="snCa
 <p class="hint">Klima (BME280, SHT, AHT20, DHT22, CO₂), Strom (INA219/226), Gewicht (HX711, z. B. Gasflasche), Durchfluss und Tanks (Ultraschall, Schwimmer mit Widerstandsgeber, Schwimmerschalter). Jeder Wert erscheint als eigene Kachel – der Name steht davor (z. B. „Bad Temperatur“). Tanks erscheinen als Tank mit %.</p>
 <div id="snBus"></div><div id="snBody"></div>
 <div class="row" style="margin-top:8px"><button id="bSnAdd" style="flex:none">+ Sensor</button><button id="bSnSave" style="flex:none">Speichern</button></div></div>)HTML";
+#endif
+#if !SAT_BLE_SENS
+// Firmware ohne Bluetooth-Sensoren: Karten bleiben im Dokument (das Skript greift darauf zu), sind aber unsichtbar
+static const char SAT_PAGE_NOBLE[] PROGMEM = R"HTML(<style>#trCard,#moCard,#viCard,#hyCard,#pHymerL,label:has(#pTruma),label:has(#pMopeka),label:has(#pVictron){display:none!important}</style>)HTML";
+#endif
+#if SAT_SHUNT
+static const char SAT_PAGE_SH_CARD[] PROGMEM = R"HTML(<div class="card" id="shCard" style="display:none"><h2>SmartShunt</h2>
+<p class="hint">Batteriewächter mit INA228 und externem Shunt (Kelvin-Leitungen direkt an die Messschrauben). Strom + = Laden, − = Entladen. Keine Schutzfunktion – Sicherungen und BMS bleiben nötig.</p>
+<div id="shLive" class="hint"></div>
+<div class="row"><label class="ck"><input type="checkbox" id="shOn">SmartShunt an</label></div>
+<div class="row"><label class="f"><span>I²C SDA (GPIO)</span><input id="shSda" type="number" min="0" max="48"></label><label class="f"><span>I²C SCL (GPIO)</span><input id="shScl" type="number" min="0" max="48"></label><label class="f"><span>Adresse</span><input id="shAddr" placeholder="0x40"></label></div>
+<div class="row"><label class="f"><span>Shunt Nennstrom (A)</span><input id="shA" type="number" step="1"></label><label class="f"><span>Shunt Nennspannung (mV)</span><input id="shMv" type="number" step="1"></label><label class="ck"><input type="checkbox" id="shInv">Strom umkehren</label></div>
+<div class="row"><label class="f"><span>Kapazität (Ah)</span><input id="shCap" type="number" step="1"></label><label class="f"><span>Bezugszeit (h, z. B. 20 = C20)</span><input id="shRh" type="number" step="1"></label><label class="f"><span>Entladeboden (%)</span><input id="shFloor" type="number" step="1"></label></div>
+<div class="row"><label class="f"><span>Ladespannung „voll“ (V)</span><input id="shCv" type="number" step="0.01"></label><label class="f"><span>Schweifstrom (% der Kapazität)</span><input id="shTail" type="number" step="0.1"></label><label class="f"><span>Erkennungszeit (min)</span><input id="shDet" type="number" step="1"></label><label class="ck"><input type="checkbox" id="shAuto">Automatisch auf 100 %</label></div>
+<div class="row"><label class="f"><span>Peukert-Exponent</span><input id="shPk" type="number" step="0.01"></label><label class="f"><span>Ladewirkungsgrad (%)</span><input id="shCef" type="number" step="1"></label><label class="f"><span>Stromschwelle (A)</span><input id="shThr" type="number" step="0.01"></label><label class="f"><span>Restzeit-Mittel (min)</span><input id="shTtg" type="number" step="1"></label></div>
+<div class="row"><label class="f"><span>Alarm Ladezustand unter (%) – 0 = aus</span><input id="shAlS" type="number" step="1"></label><label class="f"><span>… aus ab (%)</span><input id="shAlSc" type="number" step="1"></label><label class="f"><span>Alarm unter (V) – 0 = aus</span><input id="shAlLo" type="number" step="0.1"></label><label class="f"><span>Alarm über (V) – 0 = aus</span><input id="shAlHi" type="number" step="0.1"></label></div>
+<details><summary class="hint">Kalibrierung</summary><div class="row"><label class="f"><span>Strom-Offset (A)</span><input id="shIo" type="number" step="0.001"></label><label class="f"><span>Strom-Faktor</span><input id="shIg" type="number" step="0.0001"></label><label class="f"><span>Spannungs-Offset (V)</span><input id="shVo" type="number" step="0.001"></label><label class="f"><span>Spannungs-Faktor</span><input id="shVg" type="number" step="0.0001"></label></div></details>
+<div class="row" style="margin-top:8px"><button class="p" id="bShSave" style="flex:none">Speichern</button><button id="bShSync" style="flex:none">Auf 100 % setzen</button><button id="bShSoc" style="flex:none">Ladezustand setzen …</button><button id="bShZero" style="flex:none">Nullpunkt abgleichen</button><button class="d" id="bShHist" style="flex:none">Historie löschen</button></div>
+<div id="shHist" class="hint" style="margin-top:8px"></div></div>)HTML";
 #endif
 static const char SAT_PAGE_B[] PROGMEM = R"HTML(<div class="card" id="trCard"><h2>Truma LevelControl</h2><div id="trList"></div>
 <div class="row" style="margin-top:8px"><label class="f" style="flex:none;width:200px"><span>Messen alle … Minuten</span><input id="trInt" type="number" min="1" max="1440"></label></div>
@@ -468,6 +491,26 @@ static const char SAT_PAGE_OL_JS[] PROGMEM = R"HTML(async function olLoad(){try{
 $('#bOlSave').onclick=()=>post('/api/oled',{src:$('#olSrc').value,con:+$('#olCon').value,on:$('#olOn').checked,rot:$('#olRot').checked}).then(()=>toast('OLED gespeichert.')).catch(e=>toast(e.message,true));
 olLoad();)HTML";
 #endif
+#if SAT_SHUNT
+static const char SAT_PAGE_SH_JS[] PROGMEM = R"HTML(// ---------------- SmartShunt
+let SH=null;const shF={shSda:'sda',shScl:'scl',shA:'shunt_a',shMv:'shunt_mv',shCap:'cap_ah',shRh:'rated_h',shFloor:'floor_pct',shCv:'charged_v',shTail:'tail_pct',shDet:'det_min',shPk:'peukert',shCef:'cef_pct',shThr:'thr_a',shTtg:'ttg_min',shAlS:'al_soc',shAlSc:'al_soc_clr',shAlLo:'al_vlo',shAlHi:'al_vhi',shIo:'i_off',shIg:'i_gain',shVo:'v_off',shVg:'v_gain'};
+const shN=(v,d,u)=>v==null?'–':String(v.toFixed(d)).replace('.',',')+(u?' '+u:'');
+function shLive(){if(!SH)return;const m=SH.live||{},h=SH.hist||{};
+ $('#shLive').innerHTML=(m.err?`<b style="color:var(--err)">${esc(m.err)}</b><br>`:'')+(m.alarm?`<b style="color:var(--warn)">Alarm: ${esc(m.alarm)}</b><br>`:'')+
+  `<b>${shN(m.v,2,'V')} · ${shN(m.i,2,'A')} · ${shN(m.p,0,'W')}</b> · Ladezustand ${m.soc==null?'unbekannt':shN(m.soc,1,'%')}${m.rem_ah!=null?' ('+shN(m.rem_ah,1,'Ah')+')':''} · Restzeit ${m.ttg_h==null?'–':shN(m.ttg_h,1,'h')} · Shunt ${shN(m.vsh_mv,3,'mV')} · Chip ${shN(m.chip,1,'°C')}`;
+ $('#shHist').innerHTML=`Geladen ${shN(h.chg_ah,1,'Ah')} / ${shN(h.chg_kwh,2,'kWh')} · Entladen ${shN(h.dis_ah,1,'Ah')} / ${shN(h.dis_kwh,2,'kWh')} · Zyklen ${h.cycles} · tiefste Entladung ${shN(h.deepest_ah,1,'Ah')} · letzte ${shN(h.last_ah,1,'Ah')} · Synchronisierungen ${h.syncs_auto} auto / ${h.syncs_man} von Hand · vollständige Entladungen ${h.full_dis} · Spannung ${shN(h.v_min,2,'')}–${shN(h.v_max,2,'V')} · max. ${shN(h.i_max_c,1,'A')} laden / ${shN(h.i_max_d,1,'A')} entladen · Alarme ${h.alarms}`}
+async function shLoad(full){try{const r=await fetch('/api/shunt');if(!r.ok)return;const j=await r.json();$('#shCard').style.display='';const first=!SH;SH=j;
+ if(first||full){const c=j.cfg;for(const id in shF)$('#'+id).value=c[shF[id]];$('#shAddr').value='0x'+c.addr.toString(16);$('#shOn').checked=c.on;$('#shInv').checked=c.inv;$('#shAuto').checked=c.auto_sync}
+ shLive()}catch(e){}}
+$('#bShSave').onclick=()=>{const b={on:$('#shOn').checked,inv:$('#shInv').checked,auto_sync:$('#shAuto').checked,addr:parseInt($('#shAddr').value,16)||64};for(const id in shF)b[shF[id]]=+$('#'+id).value;
+ post('/api/shunt',b).then(()=>{toast('SmartShunt gespeichert.');shLoad(1)}).catch(e=>toast(e.message,true))};
+const shAct=(b,m)=>post('/api/shunt/action',b).then(()=>{toast(m);shLoad()}).catch(e=>toast(e.message,true));
+$('#bShSync').onclick=()=>shAct({act:'sync'},'Auf 100 % gesetzt.');
+$('#bShSoc').onclick=()=>{const v=prompt('Ladezustand in %');if(v!=null&&v!=='')shAct({act:'soc',soc:+String(v).replace(',','.')},'Ladezustand gesetzt.')};
+$('#bShZero').onclick=()=>{if(confirm('Nur abgleichen, wenn wirklich kein Strom fließt (alle Verbraucher und Lader getrennt). Weiter?'))shAct({act:'zero'},'Nullpunkt übernommen.')};
+$('#bShHist').onclick=()=>{if(confirm('Historie löschen? Der Ladezustand bleibt.'))shAct({act:'reset_hist'},'Historie gelöscht.')};
+setInterval(()=>shLoad(),2000);shLoad();)HTML";
+#endif
 #if SAT_SENS
 static const char SAT_PAGE_SN_JS[] PROGMEM = R"HTML(// ---------------- Weitere Sensoren
 let SN=null;
@@ -515,6 +558,12 @@ static const char SAT_PAGE_END[] PROGMEM = R"HTML(load();ioLoad();setInterval(lo
 </script></body></html>)HTML";
 static const char *const SAT_PAGE_PARTS[] = {
     SAT_PAGE_A,
+#if !SAT_BLE_SENS
+    SAT_PAGE_NOBLE,
+#endif
+#if SAT_SHUNT
+    SAT_PAGE_SH_CARD,
+#endif
 #if SAT_SENS
     SAT_PAGE_SN_CARD,
 #endif
@@ -534,6 +583,9 @@ static const char *const SAT_PAGE_PARTS[] = {
 #endif
 #if SAT_SENS
     SAT_PAGE_SN_JS,
+#endif
+#if SAT_SHUNT
+    SAT_PAGE_SH_JS,
 #endif
     SAT_PAGE_END,
 };

@@ -44,6 +44,9 @@ void sat_config_load() {
   // iNet X gibt es im Satelliten (noch) nicht; Hymer nur mit WITH_HYMER
   // ab Werk alles aus (Wunsch 2026-11-15): nur einschalten, was am Satelliten gebraucht wird
   g_sat.ble = p.getUChar("ble", 0) & (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON | (WITH_HYMER ? BLE_P_HYMER : 0));
+#if defined(SAT_BLE_SENS) && !SAT_BLE_SENS
+  g_sat.ble = 0;   // Firmware ohne Bluetooth-Sensoren (z. B. SmartShunt): Bluetooth nur zum Einrichten
+#endif
   // Sendewege: MQTT und UDP (ab Werk aus; die Einrichtung per Knopf schaltet UDP ein). Bluetooth als Datenweg ist
   // entfallen (zu langsam) – Bluetooth dient nur noch zum Einrichten (sat_pair.cpp)
   g_sat.modes = p.getUChar("modes", 0) & (SAT_M_MQTT | SAT_M_UDP);
@@ -69,6 +72,9 @@ void sat_config_save() {
   p.putString("base", g_sat.base);
   p.putBool("ha", g_sat.ha);
   p.putString("hapre", g_sat.ha_prefix);
+#if defined(SAT_BLE_SENS) && !SAT_BLE_SENS
+  g_sat.ble = 0;
+#endif
   p.putUChar("ble", g_sat.ble);
   p.putUChar("modes", g_sat.modes);
   p.putString("udpip", g_sat.udp_target);

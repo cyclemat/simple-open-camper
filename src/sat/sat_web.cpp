@@ -12,6 +12,7 @@
 #include "sat_display.h"
 #include "sat_oled.h"
 #include "sat_sens.h"
+#include "sat_shunt.h"
 #include "../sat_proto.h"
 #include "../truma.h"
 #include "../mopeka.h"
@@ -456,6 +457,26 @@ static void h_sens_act() {
   send_ok();
 }
 
+static void h_shunt_get() {
+  JsonDocument d;
+  sat_shunt_json(d.to<JsonObject>());
+  send_json(d);
+}
+static void h_shunt_set() {
+  JsonDocument d;
+  if (!body(d)) return;
+  String err = sat_shunt_set(d.as<JsonObjectConst>());
+  if (!err.isEmpty()) return send_err(err);
+  send_ok();
+}
+static void h_shunt_act() {
+  JsonDocument d;
+  if (!body(d)) return;
+  String err = sat_shunt_action(d.as<JsonObjectConst>());
+  if (!err.isEmpty()) return send_err(err);
+  send_ok();
+}
+
 static void h_io_get() {
   JsonDocument d;
   sat_io_config_json(d["config"].to<JsonObject>());
@@ -574,6 +595,11 @@ void sat_web_begin() {
     s_srv.on("/api/sens", HTTP_GET, G(h_sens_get));
     s_srv.on("/api/sens", HTTP_POST, G(h_sens_set));
     s_srv.on("/api/sens/action", HTTP_POST, G(h_sens_act));
+  }
+  if (SAT_SHUNT) {
+    s_srv.on("/api/shunt", HTTP_GET, G(h_shunt_get));
+    s_srv.on("/api/shunt", HTTP_POST, G(h_shunt_set));
+    s_srv.on("/api/shunt/action", HTTP_POST, G(h_shunt_act));
   }
   if (SAT_OLED) {
     s_srv.on("/api/oled", HTTP_GET, G(h_oled_get));

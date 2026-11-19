@@ -17,6 +17,10 @@
 #include "sat_display.h"
 #include "sat_oled.h"
 #include "sat_sens.h"
+#include "sat_shunt.h"
+#ifndef SAT_BLE_SENS
+#define SAT_BLE_SENS 1   // 0 = keine Bluetooth-Sensoren (Truma, Mopeka, Victron, Hymer); Bluetooth nur zum Einrichten
+#endif
 #include "sat_pair.h"
 #include "rd_client.h"
 #include "../truma.h"
@@ -86,13 +90,16 @@ void setup() {
     sat_config_save();
   }
   log_i("PanelSat %s (%s) startet", SAT_FW_VERSION, g_sat.id.c_str());
+#if SAT_BLE_SENS
   victron_begin();
   mopeka_begin();
   hymer_begin();       // Hymer Connect (nur mit WITH_HYMER, sonst leer)
+#endif
   // Bluetooth gleich starten, wenn der Satellit Werbepakete senden soll (sonst erst mit dem ersten Sensor)
   if (g_sat.modes & SAT_M_BLE) truma_ble_init();
   truma_begin();
   sat_io_begin();
+  sat_shunt_begin();    // SmartShunt (nur mit SAT_SHUNT)
   wifi_begin();
   sat_web_begin();
   sat_send_begin();
@@ -115,6 +122,7 @@ void loop() {
   wifi_loop();
   sat_io_loop();
   sat_sens_loop();      // Zusatzsensoren (nur mit SAT_SENS)
+  sat_shunt_loop();     // SmartShunt (nur mit SAT_SHUNT)
   sat_web_loop();
   sat_send_loop();
   sat_pair_loop();

@@ -3,6 +3,16 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- 🔋 **SmartShunt-Satellit** *(Beta)* – ESP32-C3 Super Mini + INA228 + externer Shunt (50–2000 A): Spannung, Strom,
+  Leistung, Ladezustand (Peukert, Ladewirkungsgrad, automatische Vollerkennung), Restzeit, Historie, Alarme;
+  eigenes Projekt `shunt/`, ohne Bluetooth-Sensoren. Siehe `docs/smartshunt.md`.
+
+**Behoben**
+- GitHub-Build: NimBLE-Arduino fest auf 2.5.2 (neuere Version baut mit diesem Framework nicht).
+
 ## 0.2.4 – 2026-11-19
 
 **Neu**

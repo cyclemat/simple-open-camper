@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include "sat_oled.h"
 #include "sat_sens.h"
+#include "sat_shunt.h"
 #include <math.h>
 #include <algorithm>
 #include "driver/gpio.h"
@@ -890,6 +891,11 @@ static String validate(const IoCfg &c) {
     if (c.mpu.on && (pin == c.mpu.sda || pin == c.mpu.scl) && what.indexOf("I²C") >= 0) return;
     use(pin, what, out, adc);
   });
+  // SmartShunt: I2C darf derselbe Bus wie MPU-6050/Zusatzsensoren sein
+  sat_shunt_for_pins([&](int pin, const String &what, bool out, bool adc) {
+    if (c.mpu.on && (pin == c.mpu.sda || pin == c.mpu.scl)) return;
+    use(pin, what, out, adc);
+  });
   for (int i = 0; i < SAT_IO_SWITCHES; i++) use(c.sw[i].pin, "Schalter " + String(i + 1), true, false);
   for (int i = 0; i < SAT_IO_INPUTS; i++) use(c.in[i].pin, "Eingang " + String(i + 1), false, false);
   return err;
@@ -941,7 +947,7 @@ void sat_io_begin() {
   sat_sens_begin();   // Zusatzsensoren (nach den Anschluessen: Pin-Pruefung)
 }
 
-uint32_t sat_io_version() { return s_ver + hymer_version() * 101 + sat_sens_version() * 7; }
+uint32_t sat_io_version() { return s_ver + hymer_version() * 101 + sat_sens_version() * 7 + sat_shunt_version() * 13; }
 
 bool sat_io_mpu_pins(int &sda, int &scl) {
   if (!s_cfg.mpu.on) return false;
@@ -1119,6 +1125,7 @@ std::vector<SatPoint> sat_io_points() {
     r.push_back(p);
   }
   sat_sens_points(r);   // Zusatzsensoren (Karte "Weitere Sensoren")
+  sat_shunt_points(r);  // SmartShunt (Karte "SmartShunt")
   return r;
 }
 
