@@ -3,6 +3,19 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- 🔋 **Akku-Fenster** (Kachel lange drücken): nur die Werte, die der Akku wirklich liefert – Spannung, Strom,
+  Leistung, Restzeit, Temperatur, Zyklen, Gesundheit, Kapazität (Rest/Nenn), Zellen min–max mit Δ, Alarmcode,
+  Zustand – und alle **Zellen als Kästchen**, höchste orange, niedrigste blau umrandet.
+- 🔋 **Zellspannungen** jetzt auch bei JK-BMS, ANT, Eco-Worthy, Renogy-Akku und Vatrer.
+- Rundes Panel: je Zelle eine Datenseite. CYD: Akku-Übersicht scrollbar, mit allen Zellen.
+
+**Geändert**
+- Im Kachel-Fenster eines Akkus gibt es keine Knöpfe „PIN“ und „Entfernen“ mehr – das geht nur noch über die
+  Einstellungen.
+
 ## 0.2.3 – 2026-11-19
 
 **Neu**

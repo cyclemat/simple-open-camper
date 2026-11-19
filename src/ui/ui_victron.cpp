@@ -254,7 +254,8 @@ std::string ui_vic_summary(const VictronInfo &v) {
 }
 
 // ---------------------------------------------------------------- Detailansicht
-static const int MAX_ROWS = 8;
+static const int MAX_ROWS = 16;
+static const int MAX_CELLS = 32;
 struct VicDlg {
   std::string key, mac;
   VicKind kind = VIC_UNKNOWN;
@@ -272,6 +273,11 @@ struct VicDlg {
   int nmode = 0;
   // Power Station: AC-/DC-Ausgang schalten (bms_set_output)
   lv_obj_t *ps_btn[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
+  // Akku mit BMS: Zeilen aus bms_rows() (nur vorhandene Werte), Zellen als Kaestchen; sig = Aufbau (Zeilen, Zellzahl)
+  bool bat = false;
+  std::string sig;
+  int ncells = 0;
+  lv_obj_t *cell_box[MAX_CELLS] = {nullptr}, *cell_val[MAX_CELLS] = {nullptr};
 };
 static VicDlg *s_v = nullptr;
 
@@ -505,29 +511,6 @@ static void v_key_cb(lv_event_t *) {
   ui_input_open(o);
 }
 
-#if WITH_BMS
-static void v_pin_cb(lv_event_t *) {
-  if (!s_v) return;
-  std::string mac = s_v->mac;
-  BmsInfo b;
-  bool have = bms_get(s_v->key, b);
-  InputOptions o;
-  o.title = "Kopplungs-PIN";
-  o.hint = have && b.pin_need && !b.pin_set
-               ? "Der Akku verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung."
-               : "Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). "
-                 "Leer = keine PIN.";
-  if (have && b.pin_set) o.hint += tr(" Eine PIN ist gespeichert.");
-  o.numeric = true;
-  o.max_len = 32;   // Simarine-Schluessel; sonst kuerzt bms.cpp auf 6
-  o.on_ok = [mac](const std::string &t, bool) {
-    bms_set_pin(mac, t);
-    ui_toast(t.empty() ? "PIN gelöscht." : "PIN gespeichert – das Panel koppelt neu.");
-  };
-  ui_vic_close();
-  ui_input_open(o);
-}
-#endif
 
 static void v_remove_cb(lv_event_t *) {
   if (!s_v) return;
@@ -819,8 +802,47 @@ void ui_vic_update() {
     lv_obj_set_style_bg_color(s_v->bar, tt.accent, LV_PART_INDICATOR);
   }
   std::string val[MAX_ROWS];
-  row_values(v, val, s_v->nrows);
-  for (int i = 0; i < s_v->nrows; i++) lv_label_set_text(s_v->rows[i], val[i].c_str());
+#if WITH_BMS
+  if (s_v->bat) {
+    BmsInfo bi;
+    if (!bms_get(s_v->key, bi)) {
+      ui_vic_close();
+      return;
+    }
+    auto rr = bms_rows(bi);
+    int nc = bi.cells_mv.size() >= 2 ? std::min((int)bi.cells_mv.size(), MAX_CELLS) : 0;
+    std::string sig = std::to_string(nc);
+    int n = 0;
+    for (auto &r : rr)
+      if (n < MAX_ROWS - 1) {
+        sig += "|" + r.first;
+        val[n++] = r.second;
+      }
+    sig += "|Empfang";
+    if (sig != s_v->sig) {   // neue Werte oder Zellen gemeldet: Fenster neu aufbauen
+      std::string key = s_v->key;
+      lv_obj_del(s_v->ov);
+      ui_vic_open(key);
+      return;
+    }
+    val[n] = reception(v);
+    for (int i = 0; i < s_v->nrows; i++) lv_label_set_text(s_v->rows[i], val[i].c_str());
+    if (nc) {
+      uint16_t lo = *std::min_element(bi.cells_mv.begin(), bi.cells_mv.begin() + nc);
+      uint16_t hi = *std::max_element(bi.cells_mv.begin(), bi.cells_mv.begin() + nc);
+      for (int i = 0; i < nc; i++) {
+        uint16_t mv = bi.cells_mv[i];
+        lv_label_set_text(s_v->cell_val[i], ui_num(mv / 1000.0f, 3, "V").c_str());
+        lv_color_t c = hi > lo && mv == hi ? C_AMBER : hi > lo && mv == lo ? C_BLUE : C_FIELD;
+        lv_obj_set_style_border_color(s_v->cell_box[i], c, 0);
+      }
+    }
+  } else
+#endif
+  {
+    row_values(v, val, s_v->nrows);
+    for (int i = 0; i < s_v->nrows; i++) lv_label_set_text(s_v->rows[i], val[i].c_str());
+  }
   std::string st = v.status == "OK" ? "" : v.status;
   if (v.gx) st = (v.status == "OK" || v.age_s == 0) ? "" : v.status;
   if (v.error > 0) st = tr("Gerät meldet Fehler ") + std::to_string(v.error) + tr(" – Details in VictronConnect.");
@@ -907,12 +929,54 @@ void ui_vic_open(const std::string &key) {
   lv_obj_set_size(grp, lv_pct(100), LV_SIZE_CONTENT);
   lv_obj_set_flex_flow(grp, LV_FLEX_FLOW_COLUMN);
   const char *titles[MAX_ROWS];
-  d->nrows = row_titles(v, titles);
+  std::vector<std::string> bat_titles;
+#if WITH_BMS
+  BmsInfo bi;
+  d->bat = v.bms && v.kind == VIC_SHUNT && bms_get(key, bi);
+  if (d->bat) {   // Akku: nur die Zeilen, die dieser Akku liefert
+    for (auto &r : bms_rows(bi))
+      if ((int)bat_titles.size() < MAX_ROWS - 1) bat_titles.push_back(r.first);
+    bat_titles.push_back("Empfang");
+    d->ncells = bi.cells_mv.size() >= 2 ? std::min((int)bi.cells_mv.size(), MAX_CELLS) : 0;
+    d->sig = std::to_string(d->ncells);
+    for (auto &t : bat_titles) d->sig += "|" + t;
+  }
+#endif
+  if (d->bat) {
+    d->nrows = bat_titles.size();
+    for (int i = 0; i < d->nrows; i++) titles[i] = bat_titles[i].c_str();
+  } else {
+    d->nrows = row_titles(v, titles);
+  }
   for (int i = 0; i < d->nrows; i++) {
     lv_obj_t *r = nullptr;
-    d->rows[i] = ui_row(grp, titles[i], "", nullptr, nullptr, false, &r);
+    d->rows[i] = ui_row(grp, tr(titles[i]), "", nullptr, nullptr, false, &r);
     lv_obj_set_height(r, 44);
     lv_obj_set_width(d->rows[i], 330);
+  }
+  if (d->ncells) {   // Zellen: je ein Kaestchen mit Nummer und Spannung, hoechste/niedrigste farbig umrandet
+    lv_obj_t *cg = lv_obj_create(card);
+    ui_plain(cg);
+    lv_obj_set_size(cg, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(cg, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_column(cg, 8, 0);
+    lv_obj_set_style_pad_row(cg, 8, 0);
+    lv_obj_set_style_pad_top(cg, 6, 0);
+    for (int i = 0; i < d->ncells; i++) {
+      lv_obj_t *bx = lv_obj_create(cg);
+      ui_plain(bx);
+      lv_obj_set_size(bx, 136, 52);
+      lv_obj_set_style_radius(bx, 12, 0);
+      lv_obj_set_style_bg_opa(bx, LV_OPA_COVER, 0);
+      lv_obj_set_style_bg_color(bx, C_FIELD, 0);
+      lv_obj_set_style_border_width(bx, 2, 0);
+      lv_obj_set_style_border_color(bx, C_FIELD, 0);
+      lv_obj_t *n = ui_label(bx, std::to_string(i + 1).c_str(), F_SMALL, C_TEXT2);
+      lv_obj_align(n, LV_ALIGN_LEFT_MID, 12, 0);
+      d->cell_val[i] = ui_label(bx, "", F_BODY, C_TEXT);
+      lv_obj_align(d->cell_val[i], LV_ALIGN_RIGHT_MID, -12, 0);
+      d->cell_box[i] = bx;
+    }
   }
   d->status = ui_label(card, "", F_SMALL, C_TEXT2);
   lv_label_set_long_mode(d->status, LV_LABEL_LONG_WRAP);
@@ -926,13 +990,10 @@ void ui_vic_open(const std::string &key) {
   lv_obj_set_style_pad_top(row, 4, 0);
   lv_obj_set_style_pad_column(row, 12, 0);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-  if (remote(key, v)) {   // Cerbo GX/Satellit: eingerichtet wird dort
+  if (remote(key, v) || v.bms) {   // Cerbo GX/Satellit: eingerichtet wird dort; Akkus: PIN/Entfernen nur in den Einstellungen
     lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
   } else {
-    if (!v.bms) ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);   // Akku (BMS): kein Schluessel
-#if WITH_BMS
-    else if (v.kind != VIC_PSTATION) ui_button(row, ICON_LOCK, "PIN", false, v_pin_cb, nullptr);   // Kopplungs-PIN
-#endif
+    ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);
     lv_obj_t *rm = ui_button(row, ICON_CLOSE, "Entfernen", false, v_remove_cb, nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_cnt(rm); i++) lv_obj_set_style_text_color(lv_obj_get_child(rm, i), C_RED, 0);
   }

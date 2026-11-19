@@ -832,7 +832,9 @@ static RoundRows round_rows(const std::string &key, std::string *name = nullptr)
   if (bms_get(key, b)) {
     VictronInfo v;
     if (name && ui_vic_get(key, v)) *name = ui_vic_label(s_lay, v);
-    return bms_rows(b);
+    RoundRows r = bms_rows(b);
+    for (auto &c : bms_cell_rows(b)) r.push_back(c);   // je Zelle eine Datenseite
+    return r;
   }
 #endif
   VictronInfo v;
