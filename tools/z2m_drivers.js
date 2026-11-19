@@ -68,6 +68,9 @@ for (const [prefix, file, key] of [
 }
 const fzName = (c) => convNames.get(c) || (c && c.cluster ? `m:${c.cluster}:${[].concat(c.type || []).join("/")}` : "?");
 
+// Umrechner werden nur probiert: Fehler aus asynchronen Umrechnern (z. B. engo.js) duerfen den Lauf nicht beenden
+process.on("unhandledRejection", () => {});
+
 // Tuya-Datentyp beim Schreiben: Ergebnis von conv.to() mit einem passenden Beispielwert
 function probeTo(conv, sample) {
     if (!conv || typeof conv.to !== "function" || sample === undefined) return 0;
@@ -75,6 +78,11 @@ function probeTo(conv, sample) {
     try {
         r = conv.to(sample, {device: undefined, state: {}, message: {}, options: {}});
     } catch (e) {
+        return 0;
+    }
+    // asynchrone Umrechner (Promise): Fehler abfangen, sonst bricht Node am Ende mit "unhandled rejection" ab
+    if (r && typeof r.then === "function") {
+        r.then(() => {}, () => {});
         return 0;
     }
     if (typeof r === "boolean") return 1;
