@@ -308,6 +308,11 @@ Pull requests with new or improved translations are very welcome!
   it in the "PIN / password" field. The panel shows when the battery asks for it.
 - **CS-BATTERIES** *(beta, untested)*: JBD BMS with login – the panel handles the app login itself, only a password
   you set yourself has to be entered.
+- **Cell voltages:** many batteries now show every single cell – JBD/Xiaoxiang, CS-BATTERIES, JK-BMS, Daly/Bulltron,
+  ANT, Eco-Worthy, Renogy, Vatrer and Power Quarry/Shentec. **Long-press the battery tile**: window with all values the
+  battery reports (voltage, current, power, remaining time, temperature, cycles, health, capacity, alarms) and all
+  cells as boxes – highest outlined orange, lowest blue, plus the difference (Δ).
+- PIN/password and removing are only in the settings, not in the tile window.
 - Read-only – nothing is switched or changed on the battery. Power stations: AC/DC output can be switched.
 
 ### 💧 Simarine STRx tank sensors *(beta, untested)*
