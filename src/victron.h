@@ -22,6 +22,7 @@ enum VicKind : uint8_t {
   VIC_PSTATION = 8,  // Power Station (bms.cpp: Bluetti, Allpowers …)
   VIC_PROTECT = 9,   // Smart BatteryProtect (Lasttrenner, Datensatz 0x09)
   VIC_LITHIUM = 10,  // Smart Lithium Akku (Datensatz 0x05)
+  VIC_TANK = 11,     // Tankmodul (bms.cpp: SuperSense SSBT, bis 4 Kanaele) – Beta
 };
 
 struct VictronInfo {
@@ -70,6 +71,9 @@ struct VictronInfo {
   // Smart Lithium: Zellspannungen (NAN = keine), Balancer 0 unbekannt / 1 ausgeglichen / 2 gleicht aus / 3 Ungleichgewicht
   float cell_v[8] = {NAN, NAN, NAN, NAN, NAN, NAN, NAN, NAN};
   uint8_t balancer = 0;
+  // Tankmodul (VIC_TANK): Fuellstand % und Temperatur je Kanal, -1/NAN = kein Sensor
+  int tank_pct[4] = {-1, -1, -1, -1};
+  float tank_temp[4] = {NAN, NAN, NAN, NAN};
 };
 
 // Smart Battery Sense meldet sich als Batteriemonitor (0x02), aber ohne Ladezustand und Strom

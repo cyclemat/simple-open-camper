@@ -1,4 +1,5 @@
 // Detailansicht (langes Druecken auf eine Kachel): Ein/Aus, Helligkeit, Farbtemperatur, Farbe
+#include "../app_config.h"
 #include "ui_internal.h"
 #include "../i18n/i18n.h"
 #include "theme.h"
@@ -201,7 +202,7 @@ void ui_detail_update() {
 void ui_detail_open(const std::string &key) {
   ControlView v;
   if (!z2m_get(key, v)) {
-    ui_toast("Dieses Gerät ist in Zigbee2MQTT nicht vorhanden.");
+    ui_toast(TXT_DEV_GONE);
     return;
   }
   if (s_d) lv_obj_del(s_d->overlay);

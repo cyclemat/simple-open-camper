@@ -204,8 +204,12 @@ static void print_info() {
              g_settings.ap_channel, net_ap_clients(), net_ap_ip().c_str());
   log_printf("MQTT: %s (%s), %u Geraete\n", z2m_connected() ? "verbunden" : "getrennt", z2m_status_text(), (unsigned)z2m_count());
   log_printf("Bluetooth-Protokolle:%s%s%s%s%s%s\n", ble_proto_on(BLE_P_TRUMA) ? " Truma" : "", ble_proto_on(BLE_P_MOPEKA) ? " Mopeka" : "",
-             ble_proto_on(BLE_P_VICTRON) ? " Victron" : "", ble_proto_on(BLE_P_INETX) ? " iNetX" : "",
+             ble_proto_on(BLE_P_VICTRON) ? " Victron" : "", ble_proto_on(BLE_P_INETX) && WITH_TRUMA_INETX ? " iNetX" : "",
+#if SOC_VICTRON_EDITION
+             "", "");
+#else
              ble_proto_on(BLE_P_SAT) ? " Satelliten" : "", ble_proto_on(BLE_P_HYMER) ? " Hymer" : "");
+#endif
   if (hymer_enabled()) log_printf("Hymer: %s\n", hymer_status().c_str());
   if (cerbo_configured()) log_printf("Cerbo GX: %s – %s\n", cerbo_status().c_str(), cerbo_debug_text().c_str());
 #if HAS_C6

@@ -1,6 +1,13 @@
 // Zentrale Hardware- und Projektkonstanten
 #pragma once
 
+// Victron-Edition (Waveshare 7" als grosses Victron-Display, Umgebung waveshare-7b-victron): nur Victron, Cerbo GX,
+// Gas (Truma LevelControl, Mopeka), Akkus/Power Stations und Shellys (ueber MQTT). Zigbee2MQTT und alles, was erst
+// mit dem grossen Panel kommt, ist abgeschaltet und auf dem Bildschirm nicht sichtbar.
+#ifndef SOC_VICTRON_EDITION
+#define SOC_VICTRON_EDITION 0
+#endif
+
 #include "soc_version.h"
 #define FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
 #define FW_NAME    "Simple Open Camper"
@@ -130,5 +137,19 @@
 
 // ---------- Netzwerk ----------
 #define DEFAULT_HOSTNAME "simply-open-camper"
+#if SOC_VICTRON_EDITION
+#define DEFAULT_MQTT_BASE "soc"
+#define TXT_DEV_MISSING "nicht verfügbar"
+#define TXT_DEV_GONE "Dieses Gerät ist gerade nicht verfügbar."
+#define TXT_SAT_OFFLINE "offline"
+#define TXT_SAT_SILENT "meldet sich nicht"
+#define TXT_HEAT "–"
+#else
 #define DEFAULT_MQTT_BASE "zigbee2mqtt"
+#define TXT_DEV_MISSING "nicht in Zigbee2MQTT"
+#define TXT_DEV_GONE "Dieses Gerät ist in Zigbee2MQTT nicht (mehr) vorhanden."
+#define TXT_SAT_OFFLINE "Satellit offline"
+#define TXT_SAT_SILENT "Satellit meldet sich nicht"
+#define TXT_HEAT "Heizung"
+#endif
 #define DEFAULT_TZ "CET-1CEST,M3.5.0,M10.5.0/3"

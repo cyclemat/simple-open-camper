@@ -22,6 +22,7 @@
 #include "../truma_heat.h"
 #endif
 #include "../cerbo.h"
+#include "../bms.h"   // Victron-Edition: automatische Kacheln auch fuer Akkus
 
 #include <Arduino.h>
 #include <time.h>
@@ -113,7 +114,7 @@ static void tile_paint(TileUi &t, bool force) {
   lv_obj_set_style_outline_width(o, (found && v.pending) ? 2 : 0, 0);
 
   char sub[48];
-  if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? "nicht in Zigbee2MQTT" : "…");
+  if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? TXT_DEV_MISSING : "…");
   else if (!v.online) snprintf(sub, sizeof(sub), "nicht erreichbar");
   else if (!v.known) snprintf(sub, sizeof(sub), "…");
   else if (!v.on) snprintf(sub, sizeof(sub), "Aus");
@@ -223,7 +224,7 @@ static void vic_paint(TileUi &t, bool force) {
 static void heat_paint(TileUi &t, bool force) {
   TrumaHeatInfo h;
   bool found = ui_heat_get(t.key, h);
-  std::string label = found ? ui_heat_label(s_lay, h) : (s_lay.names.count(t.key) ? s_lay.names[t.key] : tr("Heizung"));
+  std::string label = found ? ui_heat_label(s_lay, h) : (s_lay.names.count(t.key) ? s_lay.names[t.key] : tr(TXT_HEAT));
   std::string value = found && h.has ? ui_temp_text(h.room_actual) : "–";
   std::string sub = found ? ui_heat_sub(h, t.small) : "in der Firmware ausgeschaltet";
   uint32_t sig = found ? 13 : 7;
@@ -324,7 +325,7 @@ static SioText sio_text(const SatPoint &p, bool small) {
     r.dim = true;
   }
   if (!p.status.empty()) r.sub = tr(p.status.c_str());
-  if (p.status == "Satellit offline") r.dim = true;
+  if (p.status == tr(TXT_SAT_OFFLINE)) r.dim = true;
   return r;
 }
 
@@ -337,7 +338,7 @@ static void sio_paint(TileUi &t, bool force) {
   if (found) tt = sio_text(p, t.small);
   else {
     tt.value = "–";
-    tt.sub = tr("Satellit meldet sich nicht");
+    tt.sub = tr(TXT_SAT_SILENT);
     tt.dim = true;
   }
   uint32_t sig = found ? 17 : 9;
@@ -366,7 +367,9 @@ static void sio_paint(TileUi &t, bool force) {
 static void sio_click(const std::string &key, bool long_press) {
   SatPoint p;
   if (!panelsat_point_get(key, p)) {
+#if WITH_SATELLITES
     ui_toast("Der Satellit meldet diesen Anschluss gerade nicht.");
+#endif
     return;
   }
   if (p.kind == SP_SWITCH && !long_press) {
@@ -481,7 +484,7 @@ static void tile_event(lv_event_t *e) {
     if (millis() - s_last_gesture < 500) return;
     ControlView v;
     if (!z2m_get(key, v)) {
-      ui_toast("Dieses Gerät ist in Zigbee2MQTT nicht (mehr) vorhanden.");
+      ui_toast(TXT_DEV_GONE);
       return;
     }
     if (!z2m_connected()) {
@@ -589,10 +592,10 @@ enum OnboardMode { OB_NONE = 0, OB_WIFI, OB_MQTT, OB_ROUTER_WAIT, OB_EMPTY_ALL, 
 
 static int onboard_mode() {
   if (net_mode() != NET_AP && net_mode() != NET_OFF && g_settings.wifi_ssid.isEmpty()) return OB_WIFI;
-  if (g_settings.mqtt_on && !settings_mqtt_configured()) return OB_MQTT;
+  if (!SOC_VICTRON_EDITION && g_settings.mqtt_on && !settings_mqtt_configured()) return OB_MQTT;
   size_t total = 0;
   for (auto &p : s_lay.pages) total += p.tiles.size();
-  if (total == 0 && settings_mqtt_auto_active() && !z2m_connected()) return OB_ROUTER_WAIT;
+  if (!SOC_VICTRON_EDITION && total == 0 && settings_mqtt_auto_active() && !z2m_connected()) return OB_ROUTER_WAIT;
   if (total == 0) return OB_EMPTY_ALL;
   if (s_page < (int)s_lay.pages.size() && s_lay.pages[s_page].tiles.empty()) return OB_EMPTY_PAGE;
   return OB_NONE;
@@ -603,7 +606,11 @@ static void ob_settings_cb(lv_event_t *e) { ui_settings_open((int)(intptr_t)lv_e
 static void ob_arrange_cb(lv_event_t *) {
   auto all = ui_arrange_items();
   if (all.empty()) {
+#if SOC_VICTRON_EDITION
+    ui_toast("Noch keine Geräte – zuerst Victron, Cerbo GX, Gas oder Akkus einrichten.");
+#else
     ui_toast(z2m_connected() ? z2m_diag_text() : "Noch keine Verbindung zum MQTT-Broker.");
+#endif
     return;
   }
   layout_auto_arrange(all, true);
@@ -631,13 +638,20 @@ static void build_onboarding(int mode) {
     case OB_WIFI:
       icon = ICON_WIFI;
       title = "Willkommen";
+#if SOC_VICTRON_EDITION
+      text = "Verbinde das Panel mit deinem WLAN (dort, wo auch der Cerbo GX ist). Victron-Geräte, Gasflaschen und "
+             "Akkus per Bluetooth laufen auch ohne WLAN.";
+#else
       text = "Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für "
              "deinen Zigbee-Hub öffnen.";
+#endif
       break;
     case OB_MQTT:
       icon = ICON_LINK;
       title = "MQTT-Broker eintragen";
+#if !SOC_VICTRON_EDITION
       text = "Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.";
+#endif
       break;
     case OB_ROUTER_WAIT:
       icon = ICON_WIFI;
@@ -651,8 +665,14 @@ static void build_onboarding(int mode) {
     case OB_EMPTY_ALL:
       icon = ICON_GRID;
       title = "Noch keine Geräte auf dem Panel";
+#if SOC_VICTRON_EDITION
+      snprintf(buf, sizeof(buf), "%s",
+               tr("Richte Victron-Geräte, den Cerbo GX, Gasflaschen oder Akkus ein – sobald sie Werte liefern, erscheinen "
+                  "ihre Kacheln von selbst. Anordnen geht im Browser-Editor."));
+#else
       snprintf(buf, sizeof(buf), tr("Ordne sie im Browser an: http://%s/ – oder lass alle Lampen und Schalter automatisch verteilen."),
                ip.length() ? ip.c_str() : (g_settings.hostname + ".local").c_str());
+#endif
       text = buf;
       break;
     default:
@@ -678,8 +698,14 @@ static void build_onboarding(int mode) {
   else if (mode == OB_ROUTER_WAIT) ui_button(row, ICON_INFO, "Status", false, ob_settings_cb, (void *)(intptr_t)SEC_INFO);
   else if (mode == OB_MQTT) ui_button(row, ICON_LINK, "MQTT einrichten", true, ob_settings_cb, (void *)(intptr_t)SEC_MQTT);
   else if (mode == OB_EMPTY_ALL) {
+#if SOC_VICTRON_EDITION
+    ui_button(row, ICON_SUN, "Victron", true, ob_settings_cb, (void *)(intptr_t)SEC_VICTRON);
+    ui_button(row, ICON_GAS, "Gas", false, ob_settings_cb, (void *)(intptr_t)SEC_GAS);
+    ui_button(row, ICON_BATTERY, "Akkus", false, ob_settings_cb, (void *)(intptr_t)SEC_BMS);
+#else
     ui_button(row, ICON_WAND, "Automatisch anordnen", true, ob_arrange_cb, nullptr);
     ui_button(row, ICON_INFO, "Adresse anzeigen", false, ob_settings_cb, (void *)(intptr_t)SEC_INFO);
+#endif
   }
 }
 
@@ -837,7 +863,7 @@ static RoundRows round_rows(const std::string &key, std::string *name = nullptr)
     if (name) *name = ui_heat_label(s_lay, h);
     r.push_back({tr("Raum"), ui_num(h.room_actual, 1, "°C")});
     r.push_back({tr("Solltemperatur"), ui_num(h.room_target, 1, "°C")});
-    r.push_back({tr("Heizung"), round_onoff(h.heat_on)});
+    r.push_back({tr(TXT_HEAT), round_onoff(h.heat_on)});
     if (!isnan(h.water_actual)) r.push_back({tr("Boiler"), ui_num(h.water_actual, 0, "°C")});
     if (!isnan(h.outdoor)) r.push_back({tr("Außen"), ui_num(h.outdoor, 1, "°C")});
     if (!isnan(h.battery_v)) r.push_back({tr("Batterie"), ui_num(h.battery_v, 1, "V")});
@@ -1219,7 +1245,7 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
     if (found) tt = sio_text(p, false);
     else {
       tt.value = "–";
-      tt.sub = tr("Satellit meldet sich nicht");
+      tt.sub = tr(TXT_SAT_SILENT);
       tt.dim = true;
     }
     m.icon = tt.icon;
@@ -1279,7 +1305,7 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   if (truma_heat_is_key(key)) {
     TrumaHeatInfo h;
     bool found = ui_heat_get(key, h);
-    m.name = found ? ui_heat_label(s_lay, h) : (!own.empty() ? own : std::string(tr("Heizung")));
+    m.name = found ? ui_heat_label(s_lay, h) : (!own.empty() ? own : std::string(tr(TXT_HEAT)));
     m.icon = ICON_THERMO;
     m.value = found && h.has ? ui_temp_text(h.room_actual) : "–";
     m.sub = found ? ui_heat_sub(h, false) : std::string();
@@ -1298,7 +1324,7 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
   if (!found) {
     m.value = "–";
-    m.sub = z2m_count() ? "nicht in Zigbee2MQTT" : "…";
+    m.sub = z2m_count() ? TXT_DEV_MISSING : "…";
     m.dim = true;
     return true;
   }
@@ -1491,7 +1517,46 @@ void ui_bg_changed(const char *page) {
 
 void ui_settings_changed() { ui_settings_refresh(); }
 
+#if SOC_VICTRON_EDITION
+// Wie das kleine Victron-Display: Geraete, die Werte liefern und noch keine Kachel haben, bekommen automatisch eine
+// (hinten angefuegt). Entfernt der Nutzer eine Kachel, kommt sie nicht wieder (gemerkt bis zum Neustart).
+static void edition_auto_tiles() {
+  static uint32_t last = 0;
+  static std::vector<std::string> seen;   // schon einmal angelegt
+  if (millis() - last < 10000) return;
+  last = millis();
+  std::vector<ControlView> add;
+  auto want = [&](const std::string &key, const std::string &name) {
+    if (std::find(seen.begin(), seen.end(), key) != seen.end()) return;
+    seen.push_back(key);
+    for (auto &p : s_lay.pages)
+      for (auto &t : p.tiles)
+        if (t.key == key) return;
+    ControlView v;
+    v.key = key;
+    v.name = name;
+    add.push_back(v);
+  };
+  for (auto &g : ui_gas_list())
+    if (g.has) want(g.key, g.name);
+  for (auto &x : victron_list())
+    if (x.has) want(x.key, x.name);
+#if WITH_CERBO
+  for (auto &x : cerbo_list())
+    if (x.has) want(x.key, x.name);
+#endif
+#if WITH_BMS
+  for (auto &b : bms_list())
+    if (b.has) want(b.key, b.name);
+#endif
+  if (!add.empty()) layout_auto_arrange(add, true);
+}
+#endif
+
 void ui_loop() {
+#if SOC_VICTRON_EDITION
+  edition_auto_tiles();
+#endif
   static uint32_t t_fast = 0, t_slow = 0;
   uint32_t now = millis();
 #if UI_ROUND

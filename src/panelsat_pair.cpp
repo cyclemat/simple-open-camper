@@ -1,5 +1,7 @@
 // Panel: Satelliten per Knopf einrichten – siehe panelsat_pair.h und sat_pair_proto.h
 #include "panelsat_pair.h"
+#include "panelsat.h"   // WITH_SATELLITES
+#if WITH_SATELLITES   // ohne Satelliten (z. B. Victron-Edition) gar nicht einbauen – leere Fassungen am Ende
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <NimBLEDevice.h>
@@ -251,3 +253,19 @@ std::string satpair_ip() {
   return s_ip;
 }
 uint32_t satpair_version() { return s_ver; }
+
+#else   // ---------------------------------------------------------------- ohne Satelliten
+bool satpair_searching() { return false; }
+bool satpair_on_adv(const NimBLEAdvertisedDevice *) { return false; }
+bool satpair_want_connect() { return false; }
+void satpair_connect_now() {}
+void satpair_search_start() {}
+void satpair_search_stop() {}
+uint32_t satpair_search_left() { return 0; }
+std::vector<SatPairCand> satpair_candidates() { return {}; }
+std::string satpair_start(const std::string &) { return ""; }
+int satpair_state() { return 0; }
+std::string satpair_status() { return ""; }
+std::string satpair_ip() { return ""; }
+uint32_t satpair_version() { return 0; }
+#endif

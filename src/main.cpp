@@ -8,6 +8,7 @@
 #include "rules.h"
 #include "app_config.h"
 #include "esp_heap_caps.h"
+#include "esp_task_wdt.h"
 #include "board.h"
 #include "layout.h"
 #include "net.h"
@@ -99,7 +100,28 @@ void setup() {
   app_events_init();
   debug_mark("start");
   settings_load();
-  if (!LittleFS.begin(true)) log_e("LittleFS konnte nicht eingebunden werden");
+  if (!LittleFS.begin(false)) {
+    // Erster Start nach dem Loeschen: LittleFS formatiert die ganze Partition (fast 8 MB, viele Sekunden). Solange
+    // kommen die Leerlauf-Tasks nicht dran -> Watchdog-Neustart. Darum fuer das Formatieren nur warnen statt neu starten.
+    esp_task_wdt_config_t slow = {.timeout_ms = 120000, .idle_core_mask = 0, .trigger_panic = false};
+    esp_task_wdt_reconfigure(&slow);
+    log_w("Dateisystem wird eingerichtet (erster Start) …");
+    if (!LittleFS.begin(true)) log_e("LittleFS konnte nicht eingebunden werden");
+    uint32_t mask = 0;
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+    mask |= 1u << 0;
+#endif
+#if CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1
+    mask |= 1u << 1;
+#endif
+    esp_task_wdt_config_t normal = {.timeout_ms = CONFIG_ESP_TASK_WDT_TIMEOUT_S * 1000, .idle_core_mask = mask,
+#if CONFIG_ESP_TASK_WDT_PANIC
+                                    .trigger_panic = true};
+#else
+                                    .trigger_panic = false};
+#endif
+    esp_task_wdt_reconfigure(&normal);
+  }
   layout_init();
   debug_mark("layout");
 
@@ -120,7 +142,7 @@ void setup() {
   net_begin();         // WLAN/Netzwerk-Stack zuerst – MQTT setzt darauf auf
   debug_mark("wlan");
   panelsat_begin();    // Satelliten (MQTT/UDP/Bluetooth) – vor z2m und Bluetooth-Scan, die hineinliefern
-  debug_mark("satelliten");
+  debug_mark(SOC_VICTRON_EDITION ? "module" : "satelliten");
   z2m_begin();         // vor der Oberflaeche, damit das Geraetemodell existiert
   debug_mark("mqtt");
   cerbo_begin();       // Victron Cerbo GX per MQTT – nur mit WITH_CERBO, sonst leer

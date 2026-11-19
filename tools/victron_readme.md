@@ -99,6 +99,21 @@ Nur ein Board, keine Verkabelung: **ESP32-2432S028R** („Cheap Yellow Display�
 | RGB-LED | Rückseite, rot GPIO 4, grün GPIO 16, blau GPIO 17 (Low = an) – Ampel-Anzeige |
 | Lichtsensor | LDR vorne neben dem Display, GPIO 34 – automatische Helligkeit |
 
+### 🖥️ Großes Display: Waveshare 7" *(Beta)*
+
+Das Victron-Display gibt es auch **groß**: auf dem **Waveshare ESP32-S3 Touch-LCD 7"** (1024×600, kapazitiver
+Multitouch, 8 MB PSRAM). Gleiche Geräte wie beim kleinen Display, aber mit **Einstellungen direkt am Bildschirm**:
+
+- WLAN wählen, Victron-Geräte und Akkus suchen, Cerbo GX finden, Gasflaschen einrichten – alles per Fingertipp
+- **Victron** (Bluetooth und Cerbo GX), **Gas** (Truma LevelControl, Mopeka), **Akkus und Power Stations**,
+  **SuperSense-Tankmodul** (Beta)
+- **Shelly**-Schalter und -Dimmer über MQTT – auf Wunsch mit **eingebautem MQTT-Broker**, kein eigener Server nötig
+- Kacheln erscheinen von selbst, sobald ein Gerät Werte liefert; Feinschliff (Seiten, Größen, Hintergründe) im
+  Browser-Editor des Displays
+- vorerst **nur Deutsch** und **nur als fertige Firmware** (Web-Flasher: Gerät „Waveshare 7"“ wählen)
+
+👉 **Bezugsquelle:** [Waveshare ESP32-S3 Touch-LCD 7" bei Amazon](https://www.amazon.de/dp/B0FDQXKFJ5)
+
 ## 🔑 Die zwei Passwörter
 
 | | Wofür | Ab Werk | Ändern |
@@ -243,8 +258,8 @@ Auch ohne Touch und ohne Passwort kommst du immer wieder ran – über **schnell
 ## 🔧 Firmware aufspielen
 
 **Am einfachsten:** im Browser mit dem **[⚡ Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)**
-(Chrome oder Edge am PC/Mac) – Display per USB anschließen, **Deutsch oder Englisch** wählen, „Installieren“ klicken,
-fertig. Löscht die Einstellungen, also nur für neue Displays; eingerichtete Displays über ihre Weboberfläche aktualisieren.
+(Chrome oder Edge am PC/Mac) – Display per USB anschließen, **Gerät** (CYD 2,8" oder Waveshare 7") und **Sprache**
+wählen, „Installieren“ klicken, fertig. Löscht die Einstellungen, also nur für neue Displays; eingerichtete Displays über ihre Weboberfläche aktualisieren.
 
 **Fertige Dateien** liegen im Ordner [`release/`](release/) dieses Repositorys – immer die neueste Fassung, die vorige
 in `release/vorher/`:
@@ -302,6 +317,10 @@ PlatformIO: `pio run -t upload` (German) or `pio run -e cyd-victron-en -t upload
 **Home Assistant (in progress):** the display will report its **local** Bluetooth devices to HA via MQTT discovery
 and show HA values as tiles. No data loop: values it already receives via MQTT (Cerbo GX) are not reported, values
 from HA never go back to HA, topics below `homeassistant/` are never read as input.
+
+**Big display (beta):** the Victron display also runs on the **Waveshare ESP32-S3 Touch LCD 7"**
+([Amazon](https://www.amazon.de/dp/B0FDQXKFJ5)) with settings right on the screen, Shelly support and a built-in
+MQTT broker – German only for now, ready-made firmware via the web flasher (choose “Waveshare 7"”).
 
 **Coming soon:** the big brother – a 7" touch panel for the whole camper (Zigbee lights and switches, rules with
 graphical blocks, Truma/Alde heating, everything from this display and more) will be released in a few days.

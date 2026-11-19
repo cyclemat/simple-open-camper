@@ -193,7 +193,9 @@ static void handle_message(const std::string &topic, char *payload, size_t len) 
       JsonDocument doc;
       if (!deserializeJson(doc, payload, len)) {
         if (strcmp(doc["status"] | "", "ok") == 0) {
+#if !SOC_VICTRON_EDITION
           app_toast("In Zigbee2MQTT umbenannt: %s", (const char *)(doc["data"]["to"] | ""));
+#endif
           Job j{JOB_RELOAD_DEVICES, nullptr, 0};   // neuer Name: Liste neu holen (Topics aendern sich)
           xQueueSend(s_jobs, &j, 0);
         }
@@ -680,7 +682,9 @@ static void parse_devices_inner(char *json, size_t len) {
   }
   snprintf(s_diag, sizeof(s_diag), "%d Geräte empfangen, %u mit Lampe/Schalter (%u Kacheln, %u auf dem Panel)%s", total,
            (unsigned)s_devs.size(), (unsigned)ctl, (unsigned)s_placed.size(), no_def ? tr(", einige ohne Gerätedefinition") : "");
+#if !SOC_VICTRON_EDITION
   log_i("Zigbee2MQTT: %s", s_diag);
+#endif
 }
 
 // Geraete auf dem Panel aus dem Layout (Schluessel "<ieee>" bzw. "<ieee>#<endpoint>")
@@ -744,6 +748,7 @@ static void request_devices() {
 static void resubscribe_all() {
   s_subscribed.clear();
   s_devices_wanted = false;
+#if !SOC_VICTRON_EDITION   // Victron-Edition: MQTT nur fuer Shellys, kein Zigbee2MQTT
   subscribe(s_base + "/bridge/state");
   subscribe(s_base + "/bridge/response/device/rename");
   {
@@ -754,6 +759,7 @@ static void resubscribe_all() {
   if (!s_cache_loaded || s_cache_base != s_base) request_devices();
   else s_got_devices = true;
   sync_device_topics(true);
+#endif
   std::vector<std::string> topics;
   for (auto &t : shelly_topics()) topics.push_back(t);
   for (auto &t : wled_topics()) topics.push_back(t);
@@ -852,7 +858,9 @@ static void worker(void *) {
           break;
         }
         case JOB_RELOAD_DEVICES:
+#if !SOC_VICTRON_EDITION
           request_devices();
+#endif
           break;
         case JOB_RESTART:
           s_get_queue.clear();
@@ -899,7 +907,9 @@ void z2m_begin() {
   shelly_init();
   wled_init();
   s_jobs = xQueueCreate(8, sizeof(Job));
+#if !SOC_VICTRON_EDITION   // Victron-Edition: kein Zigbee2MQTT – auch keinen alten Zwischenspeicher laden
   load_cache();
+#endif
   xTaskCreatePinnedToCore(worker, "z2m", 6144, nullptr, 4, nullptr, 0);   // gemessen: max. ~2,2 KB benutzt
   z2m_restart();
 }

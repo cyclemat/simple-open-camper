@@ -12,6 +12,29 @@ src = os.path.join(root, "web", "editor.html")
 dst = os.path.join(root, "src", "generated", "editor_html_gz.h")
 with open(src, "rb") as f:
     raw = f.read()
+
+# Victron-Edition (-DSOC_VICTRON_EDITION=1): Editor ohne alles, was erst mit dem grossen Panel kommt.
+# /*@@FULL{*/ … /*@@FULL}*/ faellt weg, /*@@ED{ … @@ED}*/ wird zu Code, das Woerterbuch (I18N) wird leer
+# (die Edition ist deutsch, das Woerterbuch nennt alle Funktionen). Siehe edition_strip() unten.
+import re
+
+
+def edition_strip(text):
+    text = re.sub(r"/\*@@FULL\{\*/.*?/\*@@FULL\}\*/", "", text, flags=re.S)
+    text = re.sub(r"<!--@@FULL\{-->.*?<!--@@FULL\}-->", "", text, flags=re.S)
+    text = re.sub(r"/\*@@ED\{(.*?)@@ED\}\*/", lambda m: m.group(1), text, flags=re.S)
+    text = re.sub(r"/\*@@I18N@@\*/.*?/\*@@I18N-END@@\*/", "const I18N = {};", text, flags=re.S)
+    text = re.sub(r"(?m)^[ \t]*//[^\n]*\n", "", text)   # reine Kommentarzeilen (verraten sonst zu viel)
+    return text
+
+
+try:
+    _edefs = str(env.get("CPPDEFINES", "")) + str(env.GetProjectOption("build_flags", ""))  # noqa: F821
+except NameError:
+    _edefs = ""
+if "SOC_VICTRON_EDITION=1" in _edefs:
+    raw = edition_strip(raw.decode("utf-8")).encode("utf-8")
+    print("Editor: Victron-Edition (bereinigt)")
 data = gzip.compress(raw, compresslevel=9, mtime=0)
 os.makedirs(os.path.dirname(dst), exist_ok=True)
 rows = [", ".join("0x%02x" % b for b in data[i:i + 20]) for i in range(0, len(data), 20)]

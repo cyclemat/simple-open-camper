@@ -212,10 +212,10 @@ body.round .tile .tb{left:60px;right:60px;bottom:92px}
 .tabs{display:flex;flex-wrap:wrap;gap:4px;padding:6px 20px 0;border-bottom:1px solid var(--line-soft)}
 .tabs button{border:0;background:none;padding:10px 12px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button.act{color:var(--ink);border-bottom-color:var(--amber)}
-.blk-ov{position:fixed;inset:0;z-index:150;background:#15191E;display:flex;flex-direction:column}
+/*@@FULL{*/.blk-ov{position:fixed;inset:0;z-index:150;background:#15191E;display:flex;flex-direction:column}
 .blk-ov ~ .scrim{z-index:160}
 .blk-bar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line-soft)}
-#blkWs{flex:1;min-height:0}
+#blkWs{flex:1;min-height:0}/*@@FULL}*/
 .rule-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-soft)}
 .rule-row .tx{flex:1;min-width:0}
 .rule-row .st{font-size:12px;color:var(--muted)}
@@ -452,6 +452,7 @@ async function api(path, opt = {}, retry = true) {
 }
 const post = (path, data) => api(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
 
+/*@@FULL{*/
 // ---------------------------------------------------------------- Regeln (Blockly)
 // Blockly (Apache-2.0) liefert das Panel selbst aus (/blockly.js, /blockly_msg.js) – erst beim Oeffnen geladen.
 // Die Bloecke werden beim Speichern in das Regel-JSON der Firmware uebersetzt (Format: src/rules.h);
@@ -740,7 +741,7 @@ async function openRuleEditor(onSaved) {
     confirmDlg(T('Ohne Speichern schließen?'), T('Die Änderungen an den Regeln gehen verloren.'), T('Schließen'), true).then(ok => { if (ok) close(); });
   };
 }
-
+/*@@FULL}*/
 function modal({title, body, actions = [], wide = false, onClose}) {
   const scrim = document.createElement('div');
   scrim.className = 'scrim';
@@ -835,6 +836,7 @@ const kgText = kg => kg.toFixed(1).replace('.', ',') + '\u202Fkg';
 // Inhalt: Truma liefert immer kg, Mopeka kg (Gas) oder Liter (Wasser) oder gar nichts
 const amountText = st => st.kg != null ? kgText(st.kg) : st.amount != null ? Math.round(st.amount) + '\u202Fl' : '';
 const isGasKey = k => k.startsWith('truma:') || k.startsWith('mopeka:');
+/*@@FULL{*/
 // Truma-Heizung (CP Plus / iNet X)
 const isHeatKey = k => k.startsWith('trumaheat:');
 const tempText = c => c == null ? '–' : c.toFixed(1).replace('.', ',') + ' °C';
@@ -902,7 +904,7 @@ function heatHTML(h) {
         <button class="btn small ${h.inetx.paired ? '' : 'primary'}" id="bIxPair" ${h.inetx.pairing ? 'disabled' : ''} style="flex:none">${icon('bluetooth', 16)}${h.inetx.pairing ? 'Kopplung läuft …' : h.inetx.paired ? 'Neu koppeln' : 'iNet X koppeln'}</button>
         ${h.inetx.paired ? `<button class="btn small danger" id="bIxForget" style="flex:none">Kopplung lösen</button>` : ''}</div>
       <p class="hint">Erst hier „Koppeln“ klicken, dann am Bedienteil „Gerät hinzufügen“ öffnen (3 Minuten Zeit). Das iNet X merkt sich höchstens vier Geräte.</p>` : ''}`;
-}
+}/*@@FULL}*//*@@ED{const isHeatKey = k => false;const tempText = c => c == null ? '–' : c.toFixed(1).replace('.', ',') + ' °C';function heatTileHTML(){return ''}function heatInspectorHTML(){return ''}function heatHTML(){return ''}@@ED}*/
 function ageText(s) {
   if (s == null || s < 0) return T('Zeitpunkt unbekannt');
   if (s < 60) return T('gerade eben');
@@ -929,6 +931,7 @@ function bleHTML(ble, items) {
     <p class="hint">Was aus ist, sucht das Panel nicht – das schont Funk und WLAN.</p></div>`;
 }
 
+/*@@FULL{*/
 // Hymer Connect: einmalige Anmeldung (Hymer-Konto, QR-Code, App-Kennung) im Reiter "Gas"
 let hyForm = {user: '', pass: '', brand: '', qr: '', basic: '', bmode: ''};
 const HY_BRANDS = [['hymer', 'Hymer'], ['buerstner', 'Bürstner'], ['dethleffs', 'Dethleffs'], ['eriba', 'Eriba'], ['lmc', 'LMC'],
@@ -967,6 +970,7 @@ function hymHTML(h) {
           : '<p class="hint">Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.</p>'}`}`;
 }
 
+/*@@FULL}*/
 // Mopeka-Abschnitt im Reiter "Gas" der Einstellungen
 function mopHTML(m) {
   if (!m) return '';
@@ -1003,7 +1007,7 @@ function mopHTML(m) {
 const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', protect: 'power', lithium: 'battery', other: 'bluetooth'};
 const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', protect: 'BatteryProtect', lithium: 'Lithium-Akku', other: 'Victron-Gerät'};
 const isVicKey = k => k.startsWith('victron:') || k.startsWith('cerbo:');
-// Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
+/*@@FULL{*/// Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
 const isSioKey = k => k.startsWith('satio:');
 const SIO_ICON = {tank: 'bath', temp: 'thermo', analog: 'info', tilt: 'house', input: 'door', switch: 'plug'};
 const SIO_KIND = {tank: 'Tank', temp: 'Temperatur', analog: 'Analogsensor', tilt: 'Neigung', input: 'Eingang', switch: 'Schalter'};
@@ -1043,6 +1047,7 @@ function sioReadout(d) {
   rows.push(['Satellit', d.sat || '–']);
   return `<div class="readout">${rows.map(([k, v]) => `<div><span>${esc(T(k))}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
 }
+/*@@FULL}*//*@@ED{const isSioKey = k => false;const SIO_ICON = {};const SIO_KIND = {};function sioText(){return {}}function sioReadout(){return ''}@@ED}*/
 const vnum = (v, dec, unit) => v == null ? '–' : (v < 0 ? '−' : '') + Math.abs(v).toFixed(dec).replace('.', ',') + ' ' + unit;
 const remText = m => m == null ? '–' : m >= 14400 ? 'über 10 Tage' : m >= 1440 ? `${Math.floor(m / 1440)} d ${Math.floor(m / 60) % 24} h` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`;
 const vicStale = st => st.age == null || st.age < 0 || st.age > 120;
@@ -1264,7 +1269,7 @@ function visual(t) {
     v.border = '#272E36';
     v.fg = [0xE9, 0xED, 0xF1]; v.fg2 = [0x8D, 0x97, 0xA2]; v.ic = [0x9A, 0xA5, 0xB1];
   }
-  if (!d) v.sub = S.devices.length ? 'nicht in Zigbee2MQTT' : '…';
+  if (!d) v.sub = S.devices.length ? /*@@FULL{*/'nicht in Zigbee2MQTT'/*@@FULL}*//*@@ED{'nicht verfügbar'@@ED}*/ : '…';
   else if (!online) v.sub = 'nicht erreichbar';
   else if (!known) v.sub = '…';
   else if (!st.on) v.sub = 'Aus';
@@ -1355,7 +1360,7 @@ function renderTop() {
     const m = S.info.mqtt || {};
     const ok = m.connected && m.bridge !== false;
     const cls = m.connected ? (m.bridge ? 'ok' : 'warn') : 'bad';
-    const txt = m.connected ? (m.bridge ? `Zigbee2MQTT verbunden, ${S.devices.length} schaltbare Geräte` : 'Broker verbunden, Zigbee2MQTT meldet sich nicht')
+    const txt = m.connected ? /*@@FULL{*/(m.bridge ? `Zigbee2MQTT verbunden, ${S.devices.length} schaltbare Geräte` : 'Broker verbunden, Zigbee2MQTT meldet sich nicht')/*@@FULL}*//*@@ED{'Broker verbunden'@@ED}*/
       : (m.status || 'Keine Verbindung zum MQTT-Broker');
     const net = S.info.net || {};
     const mode = MODE_INFO[net.mode || 0].t;
@@ -1404,7 +1409,7 @@ function renderList() {
   const f = S.filter.trim().toLowerCase();
   const devs = sortedDevices().filter(d => !f || (labelOf(d) + ' ' + d.name + ' ' + (d.model || '') + ' ' + (d.vendor || '')).toLowerCase().includes(f));
   $('#devCount').textContent = S.devices.length ? S.devices.length : '';
-  const caps = d => T(d.kind === 'gas' ? 'Gasflasche' : d.kind === 'heat' ? 'Heizung' : d.kind === 'victron' ? (VIC_KIND[d.vtype] || 'Victron') : d.kind === 'satio' ? (SIO_KIND[d.sio] || 'Sensor') : '') || [T(d.kind === 'switch' ? 'Schalter' : (d.color ? 'Farbe' : d.ct ? 'Weißtöne' : d.bri ? 'Dimmbar' : 'Ein/Aus')), d.ep && TF('Kanal {}', d.ep)].filter(Boolean).join(', ');
+  const caps = d => T(d.kind === 'gas' ? 'Gasflasche' : /*@@FULL{*/d.kind === 'heat' ? 'Heizung' : /*@@FULL}*/d.kind === 'victron' ? (VIC_KIND[d.vtype] || 'Victron') : d.kind === 'satio' ? (SIO_KIND[d.sio] || 'Sensor') : '') || [T(d.kind === 'switch' ? 'Schalter' : (d.color ? 'Farbe' : d.ct ? 'Weißtöne' : d.bri ? 'Dimmbar' : 'Ein/Aus')), d.ep && TF('Kanal {}', d.ep)].filter(Boolean).join(', ');
   const row = (d, placed) => {
     const p = pl.get(d.key);
     const gs = d.state || {};
@@ -1427,7 +1432,7 @@ function renderList() {
     const m = (S.info && S.info.mqtt) || {};
     html = `<div class="empty">${!m.connected
       ? 'Das Panel ist noch nicht mit dem MQTT-Broker verbunden. Prüfe die Einstellungen.'
-      : esc(m.devlist || 'Zigbee2MQTT hat noch keine Lampen oder Schalter gemeldet.')}</div>`;
+      : esc(m.devlist || /*@@FULL{*/'Zigbee2MQTT hat noch keine Lampen oder Schalter gemeldet.'/*@@FULL}*//*@@ED{'Noch keine Shellys gefunden.'@@ED}*/)}</div>`;
   } else {
     if (free.length) html += `<div class="group-title">Noch nicht auf dem Panel (${free.length})</div>` + free.map(d => row(d, false)).join('');
     if (placed.length) html += `<div class="group-title">Auf dem Panel (${placed.length})</div>` + placed.map(d => row(d, true)).join('');
@@ -1567,14 +1572,14 @@ function renderInspector() {
       <p class="sub">${sio ? esc(T(d ? (SIO_KIND[d.sio] || 'Sensor') : 'Sensor')) + ', ' + esc(t.key.slice(6))
         : esc(d ? T(VIC_KIND[d.vtype] || 'Victron') : 'Victron') + ', ' + esc(gx ? 'Cerbo GX' : t.key.slice(8))}</p>
       ${d ? (sio ? sioReadout(d) : vicReadout(d)) + (d.state && d.state.status && d.state.status !== 'OK' ? `<p class="hint">${esc(d.state.status)}</p>` : '')
-          : `<div class="warn">${sio ? T('Der Satellit meldet diesen Anschluss gerade nicht. Belegung in der Weboberfläche des Satelliten prüfen.')
+          : `<div class="warn">${sio ? /*@@FULL{*/T('Der Satellit meldet diesen Anschluss gerade nicht. Belegung in der Weboberfläche des Satelliten prüfen.')/*@@FULL}*//*@@ED{''@@ED}*/
             : gx ? T('Der Cerbo GX ist am Panel nicht eingerichtet (Einstellungen → Victron) oder in der Firmware ausgeschaltet.') : T('Dieses Victron-Gerät ist am Panel nicht mehr eingerichtet.')}</div>`}
       ${sio && d && d.sio === 'switch' ? `<button class="btn small" id="bSioToggle" style="margin-top:10px">${T(d.state && d.state.on ? 'Ausschalten' : 'Einschalten')}</button>` : ''}
     </div>
     <div class="sec">
       <h3>Name auf dem Panel</h3>
       <label class="field"><input id="fLabel" value="${esc((S.layout.names[t.key] || '').trim())}" placeholder="${esc(d ? defName(d) : (sio ? T('Sensor') : 'Victron'))}" maxlength="48"></label>
-      <p class="hint">${sio ? T('Leer lassen, um den Namen aus der Weboberfläche des Satelliten zu verwenden.') : T('Leer lassen, um den Namen aus den Victron-Einstellungen zu verwenden.')}</p>
+      <p class="hint">${sio ? /*@@FULL{*/T('Leer lassen, um den Namen aus der Weboberfläche des Satelliten zu verwenden.')/*@@FULL}*//*@@ED{''@@ED}*/ : T('Leer lassen, um den Namen aus den Victron-Einstellungen zu verwenden.')}</p>
     </div>
     ${ROUND ? roundOrderHTML() : ''}<div class="sec${ROUND ? ' rhide' : ''}">
       <h3>Größe und Lage</h3>
@@ -1596,7 +1601,7 @@ function renderInspector() {
     const tb = $('#bSioToggle');
     if (tb) tb.onclick = async () => {
       if (S.demo) { d.state.on = !d.state.on; renderAll(); return; }
-      try { await post('/api/satellites', {switch: t.key, on: !(d.state && d.state.on)}); toast(T('Schaltbefehl gesendet.')); setTimeout(pollDevices, 1500); }
+      try { await post(/*@@FULL{*/'/api/satellites'/*@@FULL}*//*@@ED{''@@ED}*/, {switch: t.key, on: !(d.state && d.state.on)}); toast(T('Schaltbefehl gesendet.')); setTimeout(pollDevices, 1500); }
       catch (e) { toast(e.message, 'error'); }
     };
     return;
@@ -1624,8 +1629,8 @@ function renderInspector() {
     </div>`}
     <div class="sec">
       <h3>Name auf dem Panel</h3>
-      <label class="field"><input id="fLabel" value="${esc((S.layout.names[t.key] || '').trim())}" placeholder="${esc(d ? defName(d) : heat ? 'Heizung' : 'Gasflasche')}" maxlength="48"></label>
-      <p class="hint">${heat ? 'Leer lassen für „Heizung“.' : 'Leer lassen, um den Namen aus den Gas-Einstellungen zu verwenden.'}</p>
+      <label class="field"><input id="fLabel" value="${esc((S.layout.names[t.key] || '').trim())}" placeholder="${esc(d ? defName(d) : heat ? /*@@FULL{*/'Heizung'/*@@FULL}*//*@@ED{''@@ED}*/ : 'Gasflasche')}" maxlength="48"></label>
+      <p class="hint">${heat ? /*@@FULL{*/'Leer lassen für „Heizung“.'/*@@FULL}*//*@@ED{''@@ED}*/ : 'Leer lassen, um den Namen aus den Gas-Einstellungen zu verwenden.'}</p>
     </div>
     ${ROUND ? roundOrderHTML() : ''}<div class="sec${ROUND ? ' rhide' : ''}">
       <h3>Größe und Lage</h3>
@@ -1646,21 +1651,21 @@ function renderInspector() {
     <div class="sec">
       <h2 data-notr>${esc(name)}</h2>
       ${d ? `<p class="sub">${esc([d.vendor, d.model].filter(Boolean).join(' ') || d.description || '')}</p><div class="chips">${capChips(d)}</div>`
-          : `<div class="warn">Dieses Gerät meldet Zigbee2MQTT nicht mehr. Die Kachel bleibt leer, bis es wieder auftaucht.</div>`}
+          : `<div class="warn">${/*@@FULL{*/"Dieses Gerät meldet Zigbee2MQTT nicht mehr. Die Kachel bleibt leer, bis es wieder auftaucht."/*@@FULL}*//*@@ED{"Dieses Gerät meldet sich nicht mehr. Die Kachel bleibt leer, bis es wieder auftaucht."@@ED}*/}</div>`}
     </div>
     <div class="sec">
       <h3>Name auf dem Panel</h3>
       <label class="field"><input id="fLabel" value="${esc(d ? ((S.layout.names[t.key] || '').trim() ? S.layout.names[t.key] : '') : (S.layout.names[t.key] || ''))}" placeholder="${esc(d ? defName(d) : 'Name')}" maxlength="48"></label>
-      <p class="hint">Leer lassen, um den Namen aus Zigbee2MQTT zu verwenden. Gilt nur für dieses Panel.</p>
+      <p class="hint">${/*@@FULL{*/"Leer lassen, um den Namen aus Zigbee2MQTT zu verwenden. Gilt nur für dieses Panel."/*@@FULL}*//*@@ED{"Leer lassen, um den Gerätenamen zu verwenden. Gilt nur für dieses Panel."@@ED}*/}</p>
     </div>
     ${d && String(d.key).startsWith('shelly:') ? `<div class="sec"><h3>Shelly</h3><p class="hint">${esc(d.model || '')} – ${esc(d.ieee)}. Shellys lassen sich hier nur für das Panel umbenennen.</p></div>` : ''}
-    ${d && String(d.key).startsWith('wled:') ? `<div class="sec"><h3>WLED</h3><p class="hint">Topic wled/${esc(d.ieee)}. Den Namen auf dem Gerät änderst du in WLED (Einstellungen → Benutzeroberfläche → Servername); hier gilt er nur für das Panel.</p></div>` : ''}
-    ${d && !String(d.key).startsWith('shelly:') && !String(d.key).startsWith('wled:') ? `<div class="sec">
+    ${/*@@FULL{*/d && String(d.key).startsWith('wled:') ? `<div class="sec"><h3>WLED</h3><p class="hint">Topic wled/${esc(d.ieee)}. Den Namen auf dem Gerät änderst du in WLED (Einstellungen → Benutzeroberfläche → Servername); hier gilt er nur für das Panel.</p></div>` : ''/*@@FULL}*//*@@ED{''@@ED}*/}
+    ${/*@@FULL{*/d && !String(d.key).startsWith('shelly:') && !String(d.key).startsWith('wled:') ? `<div class="sec">
       <h3>In Zigbee2MQTT umbenennen</h3>
       <div class="row"><label class="field" style="margin:0"><input id="fZ2m" value="${esc(d.name)}" maxlength="64"></label>
       <button class="btn small" id="bZ2m" style="flex:none">Umbenennen</button></div>
       <p class="hint">Ändert den Gerätenamen überall – auch in Home Assistant${d.ep ? ' und für alle Kanäle dieses Geräts' : ''}.</p>
-    </div>` : ''}
+    </div>` : ''/*@@FULL}*//*@@ED{''@@ED}*/}
     <div class="sec">
       <h3>Symbol</h3>
       <div class="icons" id="icons">
@@ -1686,7 +1691,7 @@ function renderInspector() {
       <button class="btn danger" id="bRemove" style="margin-top:12px;width:100%;justify-content:center">${icon('trash', 18)}Von der Seite entfernen</button>
     </div>`;
   bindTileInspector(t, d);
-  // Heizung bedienen
+/*@@FULL{*/  // Heizung bedienen
   const heatPost = data => S.demo ? Promise.resolve(toast('Demo: kein Bedienteil verbunden.'))
     : post('/api/heat', Object.assign({src: t.key.slice(10)}, data)).then(() => { toast('Gesendet.'); setTimeout(pollDevices, 2500); }).catch(e => toast(e.message, 'error'));
   el.querySelectorAll('[data-hon]').forEach(b => b.onclick = () => heatPost({heat: {on: !gst.on, target: gst.target ?? 20, mode: gst.mode || 0}}));
@@ -1701,7 +1706,7 @@ function renderInspector() {
   if ($('#bGasMeasure')) $('#bGasMeasure').onclick = () => {
     if (S.demo) { toast('Demo: kein Sensor verbunden.'); return; }
     post('/api/truma', {measure: t.key.slice(6)}).then(() => toast('Messung angefordert. Der Sensor meldet sich nur alle paar Minuten.')).catch(e => toast(e.message, 'error'));
-  };
+  };/*@@FULL}*/
 }
 
 function renderPageInspector(el, pg) {
@@ -1732,7 +1737,7 @@ function renderPageInspector(el, pg) {
       <h3>Anordnen</h3>
       <button class="btn small" id="pFill" ${missing ? '' : 'disabled'} style="width:100%;justify-content:center">${icon('wand', 16)}Fehlende Geräte verteilen${missing ? ` (${missing})` : ''}</button>
       <button class="btn small ghost" id="pAll" style="width:100%;justify-content:center;margin-top:6px">Alles neu anordnen</button>
-      ${orphans ? `<div class="warn">${orphans} ${orphans === 1 ? 'Kachel gehört' : 'Kacheln gehören'} zu Geräten, die Zigbee2MQTT nicht mehr meldet.</div>` : ''}
+      ${orphans ? `<div class="warn">${orphans} ${orphans === 1 ? 'Kachel gehört' : 'Kacheln gehören'} ${/*@@FULL{*/"zu Geräten, die Zigbee2MQTT nicht mehr meldet."/*@@FULL}*//*@@ED{"zu Geräten, die sich nicht mehr melden."@@ED}*/}</div>` : ''}
     </div>
     ${S.layout.pages.length > 1 ? `<div class="sec"><button class="btn danger" id="pDel" style="width:100%;justify-content:center">${icon('trash', 18)}Seite löschen</button></div>` : ''}
   `;
@@ -1781,7 +1786,7 @@ function bindTileInspector(t, d) {
     renderTop(); renderCanvas(); renderList();
     $('#insp h2').textContent = tileLabel(t);
   };
-  if ($('#bZ2m')) $('#bZ2m').onclick = async () => {
+/*@@FULL{*/  if ($('#bZ2m')) $('#bZ2m').onclick = async () => {
     const nn = $('#fZ2m').value.trim();
     if (!nn || nn === d.name) return;
     if (/[#+]/.test(nn) || /\/\d+$/.test(nn)) { toast('Zigbee2MQTT erlaubt # und + nicht und keinen Namen, der auf /Zahl endet.', 'error'); return; }
@@ -1789,7 +1794,7 @@ function bindTileInspector(t, d) {
     if (S.demo) { S.devices.filter(x => x.ieee === d.ieee).forEach(x => { x.name = nn; }); setDevices(S.devices); renderAll(); toast('Demo: umbenannt.'); return; }
     try { await post('/api/rename', {ieee: d.ieee, name: nn}); toast('An Zigbee2MQTT gesendet. Der neue Name erscheint gleich.'); setTimeout(pollDevices, 1500); }
     catch (e) { toast(e.message, 'error'); }
-  };
+  };/*@@FULL}*/
   if ($('#icons')) $('#icons').onclick = e => {
     const b = e.target.closest('button[data-icon]');
     if (!b) return;
@@ -2163,7 +2168,8 @@ async function openSettings(tab = 'net') {
   // Neu zeichnen nur aussetzen, solange in ein Feld getippt wird (ein angeklickter Knopf behielt sonst den Fokus
   // und z. B. gefundene Akkus erschienen erst nach einem Klick daneben)
   const typing = () => { const a = document.activeElement; return !!a && body.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox' && a.type !== 'range'; };
-  const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sat', 'Satelliten'], ['rd', 'Zusatzdisplays'], ['rules', 'Regeln'], ['sd', 'SD-Karte'], ['sys', 'System']];
+  /*@@FULL{*/const tabs = [['net', 'Netzwerk'], ['mqtt', 'MQTT'], ['disp', 'Anzeige'], ['gas', 'Gas/Heizung'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sat', 'Satelliten'], ['rd', 'Zusatzdisplays'], ['rules', 'Regeln'], ['sd', 'SD-Karte'], ['sys', 'System']];/*@@FULL}*/
+  /*@@ED{const tabs = [['net', 'Netzwerk'], ['mqtt', 'Shelly'], ['disp', 'Anzeige'], ['gas', 'Gas'], ['vic', 'Victron'], ['bms', 'Akkus'], ['ps', 'Power Stations'], ['sd', 'SD-Karte'], ['sys', 'System']];@@ED}*/
   let gasData = null;
   const loadGas = async () => {
     try { gasData = S.demo ? S.demoTruma : await api('/api/truma'); } catch (e) { gasData = null; }
@@ -2210,12 +2216,12 @@ async function openSettings(tab = 'net') {
     setTimeout(poll, 2500);
   };
   let hymData = null;
-  const loadHym = async () => {
+  /*@@FULL{*/const loadHym = async () => {
     try { hymData = S.demo ? null : await api('/api/hymer'); } catch (e) { hymData = null; }
     if (tab === 'gas' && body.isConnected && !typing()) render();
   };
   loadHym();
-  const hymTimer = setInterval(() => { if (!body.isConnected) clearInterval(hymTimer); else if (tab === 'gas') loadHym(); }, 3000);
+  const hymTimer = setInterval(() => { if (!body.isConnected) clearInterval(hymTimer); else if (tab === 'gas') loadHym(); }, 3000);/*@@FULL}*/
   let mopData = null;
   const loadMop = async () => {
     try { mopData = S.demo ? S.demoMopeka : await api('/api/mopeka'); } catch (e) { mopData = null; }
@@ -2359,6 +2365,7 @@ async function openSettings(tab = 'net') {
     if (tab === 'sd' && body.isConnected) render();
   };
   loadBk();
+  /*@@FULL{*/
   let satData = null, satPw = null;
   const loadSat = async () => {
     try { satData = S.demo ? S.demoSat : await api('/api/satellites'); } catch (e) { satData = null; }
@@ -2465,6 +2472,7 @@ async function openSettings(tab = 'net') {
           ${x.ip ? `<a class="btn small" href="http://${esc(x.ip)}/" target="_blank" rel="noopener">Öffnen</a>` : '<span></span>'}
           <button class="btn small" data-tab="rd">Kacheln wählen</button></div>`).join('') : '');
   };
+  /*@@FULL}*/
   const render = () => {
     const m = draft.net.mode;
     let html = '';
@@ -2474,7 +2482,7 @@ async function openSettings(tab = 'net') {
           <div class="row"><label class="field"><span>Name</span><input data-f="ap_ssid" value="${esc(draft.net.ap_ssid)}" maxlength="32"></label>
           <label class="field" style="flex:.5"><span>Kanal</span><select data-f="ap_channel">${Array.from({length: 13}, (_, i) => `<option ${i + 1 === draft.net.ap_channel ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label></div>
           <label class="field"><span>Passwort (8–63 Zeichen)</span><input data-f="ap_pass" value="${esc(draft.net.ap_pass)}" maxlength="63"></label>
-          <p class="hint">Am SMHUB Nano unter WLAN dieses Netz wählen (2,4 GHz). Wähle einen Kanal weit weg vom Zigbee-Kanal – bei Zigbee 11 eignet sich 13, bei Zigbee 25 eignet sich 1.${m === 2 ? ' Im Kombi-Modus folgt der Kanal automatisch dem Camp-WLAN.' : ''}</p>` : ''}
+          <p class="hint">${/*@@FULL{*/"Am SMHUB Nano unter WLAN dieses Netz wählen (2,4 GHz). Wähle einen Kanal weit weg vom Zigbee-Kanal – bei Zigbee 11 eignet sich 13, bei Zigbee 25 eignet sich 1."/*@@FULL}*//*@@ED{"Mit dem Handy dieses WLAN wählen (2,4 GHz) – der Editor ist dann unter http://192.168.4.1/ erreichbar."@@ED}*/}${m === 2 ? ' Im Kombi-Modus folgt der Kanal automatisch dem Camp-WLAN.' : ''}</p>` : ''}
         ${m !== 1 ? `<h3 style="font-size:13px;margin:14px 0 8px">Camp-WLAN</h3>
           <div class="row"><label class="field"><span>Netzname (SSID)</span><input data-w="ssid" value="${esc(draft.newWifi.ssid)}" maxlength="32"></label>
           <label class="field"><span>Passwort</span><input data-w="pass" type="password" placeholder="unverändert" maxlength="64"></label></div>
@@ -2493,18 +2501,18 @@ async function openSettings(tab = 'net') {
       const auto = m !== 0 && draft.mqtt.auto;
       const mon = draft.mqtt.on !== false;
       html = `<label class="switch"><input type="checkbox" data-m="on" ${mon ? 'checked' : ''}>MQTT verwenden</label>
-        ${mon ? '' : '<p class="hint">MQTT ist aus: keine Zigbee-Geräte. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit am Panel. Zum Übernehmen speichern.</p>'}
+        ${mon ? '' : /*@@FULL{*/'<p class="hint">MQTT ist aus: keine Zigbee-Geräte. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit am Panel. Zum Übernehmen speichern.</p>'/*@@FULL}*//*@@ED{'<p class="hint">MQTT ist aus: keine Shellys. Zum Übernehmen speichern.</p>'@@ED}*/}
         <div ${mon ? '' : 'style="display:none"'}>${m !== 0 ? `<label class="switch"><input type="checkbox" data-m="auto" ${draft.mqtt.auto ? 'checked' : ''}>Broker im Panel-WLAN automatisch finden</label>` : ''}
         <div class="row"><label class="field"><span>Server</span><input data-m="host" value="${esc(draft.mqtt.host)}" placeholder="${auto ? 'automatisch' : 'z. B. 192.168.1.20 oder smhub.local'}" ${auto ? 'disabled' : ''}></label>
         <label class="field" style="flex:.45"><span>Port</span><input data-m="port" type="number" value="${draft.mqtt.port}"></label></div>
         <div class="row"><label class="field"><span>Benutzer</span><input data-m="user" value="${esc(draft.mqtt.user)}" autocomplete="off"></label>
         <label class="field"><span>Passwort</span><input data-m="pass" type="password" placeholder="${draft.mqtt.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
-        <label class="field"><span>Basis-Topic von Zigbee2MQTT</span><input data-m="base" value="${esc(draft.mqtt.base)}"></label>
-        <p class="hint">Beim SMHUB Nano läuft der Broker auf dem Hub selbst. Dort unter Einstellungen → MQTT „Allow External“ einschalten, sonst darf sich das Panel nicht verbinden.</p></div>
+        ${/*@@FULL{*/`<label class="field"><span>Basis-Topic von Zigbee2MQTT</span><input data-m="base" value="${esc(draft.mqtt.base)}"></label>`/*@@FULL}*//*@@ED{''@@ED}*/}
+        <p class="hint">${/*@@FULL{*/"Beim SMHUB Nano läuft der Broker auf dem Hub selbst. Dort unter Einstellungen → MQTT „Allow External“ einschalten, sonst darf sich das Panel nicht verbinden."/*@@FULL}*//*@@ED{"Für Shellys: in der Shelly-App bzw. Weboberfläche MQTT einschalten und denselben Broker eintragen – oder unten den eingebauten Broker nutzen."@@ED}*/}</p></div>
         <p class="hint">Stand: ${esc((info.mqtt || {}).status || '–')}</p>
         ${draft.broker && draft.broker.avail ? (() => { const b = draft.broker; return `<h3 style="font-size:13px;margin:18px 0 8px">Eingebauter Broker</h3>
         <label class="switch"><input type="checkbox" data-bk="on" ${b.on ? 'checked' : ''}>Dieses Panel ist der MQTT-Broker (Port 1883)</label>
-        <p class="hint">Für Camper ohne eigenen Server: Zigbee2MQTT, Home Assistant, Satelliten und Zusatzdisplays verbinden sich mit diesem Panel (Adresse ${esc(info.ip || '–')}). Das Panel nutzt ihn dann selbst – die Felder oben gelten solange nicht. Nur der aktuelle Stand wird gehalten (gespeicherte Nachrichten, Letzter Wille), keine Warteschlangen. Satelliten bekommen den Zugang beim Anlernen.</p>
+        <p class="hint">${/*@@FULL{*/"Für Camper ohne eigenen Server: Zigbee2MQTT, Home Assistant, Satelliten und Zusatzdisplays verbinden sich mit diesem Panel"/*@@FULL}*//*@@ED{"Ohne eigenen Server: die Shellys verbinden sich mit diesem Panel"@@ED}*/} (Adresse ${esc(info.ip || '–')}). Das Panel nutzt ihn dann selbst – die Felder oben gelten solange nicht. Nur der aktuelle Stand wird gehalten (gespeicherte Nachrichten, Letzter Wille), keine Warteschlangen.${/*@@FULL{*/" Satelliten bekommen den Zugang beim Anlernen."/*@@FULL}*//*@@ED{""@@ED}*/}</p>
         <div ${b.on ? '' : 'style="display:none"'}><div class="row"><label class="field"><span>Benutzer</span><input data-bk="user" value="${esc(b.user || '')}" autocomplete="off"></label>
         <label class="field"><span>Passwort (leer = ohne Anmeldung)</span><input data-bk="pass" type="password" placeholder="${b.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
         <p class="hint">${b.running ? `Läuft: ${b.clients} Verbindung(en), ${b.retained} gespeicherte Nachrichten (${b.retained_kb} KB), ${b.msgs} weitergeleitet.` : b.on ? 'Startet nach dem Speichern.' : ''}</p></div>`; })() : ''}`;
@@ -2541,8 +2549,8 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       if (!g) html = '<p class="hint">Lade …</p>';
       else {
         const ble = draft.ble || {};
-        html = bleHTML(ble, [['truma', 'Truma LevelControl (Gasflaschen)'], ['mopeka', 'Mopeka (Gas- und Tanksensoren)'], ['inetx', 'Truma iNet X (Heizung)'], ['hymer', 'Hymer Connect (Licht, Batterie, Tanks über die SCU)']])
-          + (ble.truma === false ? '' : `<h3 style="font-size:13px;margin:0 0 6px">Truma LevelControl</h3><p class="hint" style="margin-top:0">Direkt per Bluetooth – bis zu vier Flaschen. Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.</p>
+        html = bleHTML(ble, [['truma', 'Truma LevelControl (Gasflaschen)'], ['mopeka', 'Mopeka (Gas- und Tanksensoren)']/*@@FULL{*/, ['inetx', 'Truma iNet X (Heizung)'], ['hymer', 'Hymer Connect (Licht, Batterie, Tanks über die SCU)']/*@@FULL}*/])
+          + (ble.truma === false ? '' : `<h3 style="font-size:13px;margin:0 0 6px">Truma LevelControl</h3><p class="hint" style="margin-top:0">Direkt per Bluetooth – bis zu vier Flaschen. Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, ${/*@@FULL{*/"Home Assistant oder der Victron GX"/*@@FULL}*//*@@ED{"der Victron GX"@@ED}*/} verbunden, misst das Panel beim nächsten Durchgang.</p>
           ${g.sensors.length ? g.sensors.map(x => `<div class="gasrow">
               <label class="field" style="margin:0"><span>Name</span><input data-gname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
               <button class="btn small" data-gmeasure="${esc(x.mac)}">${icon('refresh', 16)}Messen</button>
@@ -2559,7 +2567,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
                 <button class="btn small" data-gadd="${i}" ${f.configured ? 'disabled' : ''}>Hinzufügen</button></div>`).join('')
               : '<p class="hint">Noch nichts gefunden. Der Sensor sendet nur alle paar Minuten.</p>'}` : ''}
           <p class="hint">Häufigeres Messen kostet die Batterie des Sensors mehr.</p>`)
-          + (ble.mopeka === false ? '' : mopHTML(mopData)) + heatHTML(heatData) + (ble.hymer === false ? '' : hymHTML(hymData));
+          + (ble.mopeka === false ? '' : mopHTML(mopData)) /*@@FULL{*/+ heatHTML(heatData) + (ble.hymer === false ? '' : hymHTML(hymData))/*@@FULL}*/;
       }
     } else if (tab === 'vic') {
       const v = vicData;
@@ -2584,13 +2592,13 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       if ((draft.ble || {}).victron === false) html = gxHTML(gxData) + bleHTML(draft.ble, [['victron', 'Victron']]);
     } else if (tab === 'bms' || tab === 'ps') {
       html = bmsData ? bmsHTML(bmsData, tab === 'ps') : '<p class="hint">Lade … (diese Firmware hat vielleicht keine Akku-Unterstützung)</p>';
-    } else if (tab === 'sat') {
+    /*@@FULL{*/} else if (tab === 'sat') {
       html = satHTML(satData);
     } else if (tab === 'rd') {
       html = rdHTML(rdData);
     } else if (tab === 'rules') {
       html = ruHTML(ruData);
-    } else if (tab === 'sd') {
+    /*@@FULL}*/} else if (tab === 'sd') {
       const b = bkData, sd = b ? b.sd : null;
       if (!b) html = '<p class="hint">Lade …</p>';
       else if (!sd.ok) html = `<p class="hint" style="margin-top:0">SD-Karte: <b>${esc(sd.status || 'nicht gefunden')}</b>.</p>
@@ -2611,7 +2619,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
         <dt>Firmware</dt><dd class="num">${esc(info.fw || '–')}</dd>
         <dt>Adresse</dt><dd>${esc(info.ip || '–')}${info.net && info.net.ap_active ? `, Panel-WLAN ${esc(info.net.ap_ip)}` : ''}</dd>
         <dt>Netzwerk</dt><dd>${esc((info.net || {}).status || '–')}</dd>
-        <dt>Zigbee2MQTT</dt><dd>${esc((info.mqtt || {}).status || '–')}</dd>
+        ${/*@@FULL{*/`<dt>Zigbee2MQTT</dt><dd>${esc((info.mqtt || {}).status || '–')}</dd>`/*@@FULL}*//*@@ED{`<dt>MQTT</dt><dd>${esc((info.mqtt || {}).status || '–')}</dd>`@@ED}*/}
         <dt>Geräteliste</dt><dd>${esc((info.mqtt || {}).devlist || '–')}</dd>
         <dt>Geräte</dt><dd class="num">${info.devices ?? '–'}</dd>
         <dt>Touch</dt><dd>${esc(info.touch || '–')}</dd>
@@ -2634,6 +2642,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     body.innerHTML = `<div class="tabs" style="margin:-6px -20px 16px">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? 'act' : ''}">${l}</button>`).join('')}</div>` + html;
     body.querySelectorAll('details').forEach(d => { const k = dKey(d); if (dOpen.has(k)) d.open = dOpen.get(k); });
   };
+  /*@@FULL{*/
   // Zusatzdisplays: Auswahl, Reihenfolge, Name, Speichern, Entfernen
   const rdFind = id => (rdData && rdData.displays || []).find(x => x.id === id);
   body.addEventListener('change', e => {
@@ -2674,6 +2683,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       (S.demo ? Promise.resolve() : post('/api/rdisp', {forget: id})).then(() => { delete rdDraft[id]; loadRd(); }).catch(er => toast(er.message, 'error'));
     }
   });
+  /*@@FULL}*/
   render();
   if (!S.demo && st.display && st.display.saver_logo && !S.logoUrl) S.logoUrl = '/api/saver_logo?v=' + Date.now();
   startSaverPreview(body, draft);
@@ -2682,7 +2692,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     if (tb) { tab = tb.dataset.tab; render(); return; }
     const md = e.target.closest('[data-mode]');
     if (md) { draft.net.mode = +md.dataset.mode; render(); return; }
-    if (e.target.closest('#bDevReload')) { if (!S.demo) post('/api/refresh', {devices: true}).then(() => toast('Geräteliste wird von Zigbee2MQTT geholt – dauert einige Sekunden.')).catch(er => toast(er.message, 'error')); return; }
+    /*@@FULL{*/if (e.target.closest('#bDevReload')) { if (!S.demo) post('/api/refresh', {devices: true}).then(() => toast('Geräteliste wird von Zigbee2MQTT geholt – dauert einige Sekunden.')).catch(er => toast(er.message, 'error')); return; }/*@@FULL}*/
     if (e.target.closest('#bRefresh')) { if (!S.demo) post('/api/refresh', {}).then(() => toast('Zustände werden neu abgefragt.')).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bReboot')) { confirmDlg('Panel neu starten?', 'Das dauert etwa zehn Sekunden.', 'Neu starten').then(ok => { if (ok && !S.demo) post('/api/reboot', {}).then(() => toast('Panel startet neu …')).catch(() => {}); }); return; }
     if (e.target.closest('#bOta')) { runOta(); return; }
@@ -2727,8 +2737,8 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     const gr = e.target.closest('[data-gremove]');
     if (gr) { confirmDlg('Sensor entfernen?', 'Das Panel fragt diese Gasflasche dann nicht mehr ab.', 'Entfernen', true).then(ok => ok && gasPost({remove: gr.dataset.gremove}).then(loadGas)); return; }
     if (e.target.closest('#bGasScan')) { gasPost({scan: true}).then(() => { toast('Suche gestartet. Bitte etwas Geduld.'); loadGas(); }).catch(er => toast(er.message, 'error')); return; }
-    if (e.target.closest('#bCpClock')) { heatAct({src: 'cpplus', clock: true}).then(() => toast('Die Uhrzeit geht beim nächsten Abruf ans CP Plus.')); return; }
-    if (e.target.closest('#bWifiScan')) { wifiScanStart(); return; }
+    /*@@FULL{*/if (e.target.closest('#bCpClock')) { heatAct({src: 'cpplus', clock: true}).then(() => toast('Die Uhrzeit geht beim nächsten Abruf ans CP Plus.')); return; }
+    /*@@FULL}*/if (e.target.closest('#bWifiScan')) { wifiScanStart(); return; }
     if (e.target.closest('#bPwChange')) {
       const o = ($('#pwOld', body) || {}).value || '', n = ($('#pwNew', body) || {}).value || '';
       if (n.length < 8) { toast('Das neue Passwort braucht mindestens 8 Zeichen.', 'error'); return; }
@@ -2739,7 +2749,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     }
     const wsel = e.target.closest('[data-wssid]');
     if (wsel) { draft.newWifi.ssid = wsel.dataset.wssid; render(); const pw = $('[data-w="pass"]', body); if (pw) pw.focus(); return; }
-    const hyp = e.target.closest('[data-hypair]');
+    /*@@FULL{*/const hyp = e.target.closest('[data-hypair]');
     if (hyp) { post('/api/hymer', {pair_with: hyp.dataset.hypair}).then(() => { toast('Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken.'); loadHym(); }).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bHyPair')) { post('/api/hymer', {pair: true}).then(() => { toast('Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken.'); loadHym(); }).catch(er => toast(er.message, 'error')); return; }
     if (e.target.closest('#bHyUnpair')) {
@@ -2760,7 +2770,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       return;
     }
     if (e.target.closest('#bIxForget')) { confirmDlg('Kopplung lösen?', 'Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.', 'Lösen', true).then(ok => ok && heatAct({src: 'inetx', forget: true})); return; }
-    if (e.target.closest('#bMopScan')) { mopPost({scan: true}).then(() => { toast('Suche gestartet. Kurz die Sync-Taste am Sensor drücken.'); loadMop(); }).catch(er => toast(er.message, 'error')); return; }
+    /*@@FULL}*/if (e.target.closest('#bMopScan')) { mopPost({scan: true}).then(() => { toast('Suche gestartet. Kurz die Sync-Taste am Sensor drücken.'); loadMop(); }).catch(er => toast(er.message, 'error')); return; }
     const mr = e.target.closest('[data-mremove]');
     if (mr) { confirmDlg('Sensor entfernen?', 'Das Panel wertet diesen Mopeka-Sensor dann nicht mehr aus.', 'Entfernen', true).then(ok => ok && mopPost({remove: mr.dataset.mremove}).then(loadMop)); return; }
     const ms = e.target.closest('[data-msave]');
@@ -2778,7 +2788,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       });
       return;
     }
-    if (e.target.closest('#bSatPw')) {
+    /*@@FULL{*/if (e.target.closest('#bSatPw')) {
       const pw = $('#satPw', body).value.trim();
       (S.demo ? Promise.resolve(S.demoSat.password = pw) : post('/api/satellites', {password: pw}))
         .then(() => { satPw = null; toast('Passwort gespeichert.'); loadSat(); }).catch(er => toast(er.message, 'error'));
@@ -2789,7 +2799,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
     if (spair && !spair.disabled) { satAct({pair: spair.dataset.satpair}); toast('Einrichtung läuft – das dauert bis zu 30 Sekunden.'); return; }
     const sf = e.target.closest('[data-satforget]');
     if (sf) { confirmDlg('Satellit vergessen?', 'Seine Geräte verschwinden aus der Liste, bis er sich wieder meldet.', 'Vergessen', true).then(ok => ok && satAct({forget: sf.dataset.satforget})); return; }
-    if (e.target.closest('#bGxSave')) {
+    /*@@FULL}*/if (e.target.closest('#bGxSave')) {
       const val = k => (($(`[data-gx="${k}"]`, body) || {}).value || '').trim();
       const data = {host: val('host'), port: +val('port') || 1883, portal: val('portal')};
       if (val('pass')) data.pass = val('pass');
@@ -2889,11 +2899,11 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
   });
   body.addEventListener('input', e => {
     const el = e.target;
-    if (el.id === 'satPw') satPw = el.value;
-    if (el.dataset.hy) {   // Hymer-Anmeldung bis zum Absenden merken
+    /*@@FULL{*/if (el.id === 'satPw') satPw = el.value;
+    if (el.dataset.hy) {
       hyForm[el.dataset.hy] = el.value;
       if (el.dataset.hy === 'bmode') render();
-    }
+    }/*@@FULL}*/
     if (el.dataset.gx) {   // Cerbo-Felder bis zum Speichern merken (die Seite wird regelmaessig neu gezeichnet)
       const v = k => (($(`[data-gx="${k}"]`, body) || {}).value || '');
       gxDraft = {host: v('host'), port: v('port'), portal: v('portal'), pass: v('pass')};
@@ -3191,8 +3201,8 @@ function loadDemo() {
   S.demoTruma = {interval: 10, scanning: false, max: 2, found: [], sensors: [{key: 'truma:d4:12:7f:30:5c:e1', mac: 'd4:12:7f:30:5c:e1', name: 'Gasflasche links', has: true, level: 62, kg: 6.8, battery: 85, temp: 11, quality: 3, age: 260, busy: false, status: 'OK'}]};
   S.demoMopeka = {scanning: false, max: 4, found: [], sensors: [], tanks: [{name: '11 kg (Europa)', empty: 38, full: 366, capacity: 11}, {name: '6 kg (Europa)', empty: 38, full: 336, capacity: 6},
     {name: '14 kg (Europa)', empty: 38, full: 467, capacity: 14}, {name: '20 lb (USA)', empty: 38, full: 254, capacity: 9.1}, {name: '30 lb (USA)', empty: 38, full: 381, capacity: 13.6}, {name: '40 lb (USA)', empty: 38, full: 508, capacity: 18.1}]};
-  S.demoSat = {enabled: true, ble: false, password: 'panelsat', satellites: [{id: 'sat-3f2a10', name: 'Satellit Heck', ip: '192.168.1.71', fw: '1.0.0', rssi: -58, online: true, mqtt: true, udp: false, bt: false, age: 4, devices: 2}]};
-  S.demoCerbo = {enabled: true, host: '192.168.1.60', port: 1883, portal: '', user: '', has_pass: false, connected: true, status: 'OK', portal_id: 'c0619ab2f3e4'};
+  /*@@FULL{*/S.demoSat = {enabled: true, ble: false, password: 'panelsat', satellites: [{id: 'sat-3f2a10', name: 'Satellit Heck', ip: '192.168.1.71', fw: '1.0.0', rssi: -58, online: true, mqtt: true, udp: false, bt: false, age: 4, devices: 2}]};
+  /*@@FULL}*/S.demoCerbo = {enabled: true, host: '192.168.1.60', port: 1883, portal: '', user: '', has_pass: false, connected: true, status: 'OK', portal_id: 'c0619ab2f3e4'};
   S.demoVictron = {scanning: false, max: 6, found: [], devices: list.filter(d => d.kind === 'victron' && d.key.startsWith('victron:')).map(d => ({key: d.key, mac: d.ieee, name: d.name, vtype: d.vtype, kind_text: VIC_KIND[d.vtype], state: d.state}))};
   S.demoBackup = {sd: {ok: true, status: 'bereit', total: 31.9e9, free: 31.2e9}, backups: [
     {name: '2026-11-02_1914', fw: '1.0.0', bg: 2, complete: true}, {name: '2026-10-20_0841', fw: '1.0.0', bg: 1, complete: true}]};
@@ -3220,7 +3230,7 @@ async function init() {
       const [devs, lay] = await Promise.all([api('/api/devices'), api('/api/layout')]);
       setDevices(devs.devices);
       S.layout = normLayout(lay);
-      post('/api/refresh', {devices: true}).catch(() => {});   // Geraeteliste frisch von Zigbee2MQTT holen
+      post('/api/refresh', {devices: true}).catch(() => {});
       if (S.info && !S.info.time_valid) post('/api/time', {epoch: Math.floor(Date.now() / 1000)}).catch(() => {});
     } catch (e) { loadDemo(); toast('Das Panel antwortet unvollständig – Demo-Daten werden gezeigt.', 'error'); }
   }

@@ -47,7 +47,7 @@ void settings_load() {
   prefs.begin("panel", true);
   g_settings.net_mode = prefs.getUChar("net_mode", NET_STA);
   g_settings.web_mode = prefs.getUChar("web_mode", 0) ? 1 : 0;
-  g_settings.mqtt_on = prefs.getBool("mqtt_on", true);
+  g_settings.mqtt_on = prefs.getBool("mqtt_on", !SOC_VICTRON_EDITION);   // Victron-Edition: nur fuer Shellys
   g_settings.ap_ssid = prefs.getString("ap_ssid", "");
   g_settings.ap_pass = prefs.getString("ap_pass", "");
 #if UI_WEB_SETUP
@@ -90,7 +90,7 @@ void settings_load() {
   {
     String h = g_settings.hostname;
     h.toLowerCase();
-    if (h.isEmpty() || h.startsWith("zigbee") || h == "simply-open-camper") {
+    if (h.isEmpty() || (!SOC_VICTRON_EDITION && (h.startsWith("zigbee") || h == "simply-open-camper"))) {
       if (g_settings.hostname != DEFAULT_HOSTNAME) fresh = true;
       g_settings.hostname = DEFAULT_HOSTNAME;
     }

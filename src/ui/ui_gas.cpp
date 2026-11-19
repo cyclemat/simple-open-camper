@@ -1,4 +1,5 @@
 // Gasflaschen und Tanks (Truma LevelControl, Mopeka): Detailansicht, Hilfsfunktionen fuer Kacheln und Einrichtung
+#include "../app_config.h"
 #include "../cerbo.h"
 #include "../bms.h"
 #include "ui_internal.h"
@@ -160,7 +161,7 @@ std::vector<ControlView> ui_arrange_items() {
   for (auto &h : ui_heat_list()) {
     ControlView v;
     v.key = h.key;
-    v.name = "Heizung";
+    v.name = TXT_HEAT;
     all.push_back(v);
   }
   for (auto &x : panelsat_victron_list()) {
@@ -216,8 +217,10 @@ static void g_measure_cb(lv_event_t *) {
   if (!s_g) return;
   GasView g;
   if (ui_gas_get(s_g->key, g) && !g.sat.empty()) {
+#if WITH_SATELLITES
     ui_toast(panelsat_measure(s_g->key) ? "Messung beim Satelliten angefordert."
                                         : "Messen geht nur, wenn der Satellit per MQTT verbunden ist.");
+#endif
     return;
   }
   truma_measure(s_g->mac);
@@ -233,7 +236,9 @@ static void g_rename_cb(lv_event_t *) {
     std::string key = s_g->key, def = g.name;
     InputOptions o;
     o.title = "Umbenennen";
+#if WITH_SATELLITES
     o.hint = "Der Name gilt nur für dieses Panel. Leer lassen für den Namen vom Satelliten.";
+#endif
     o.initial = ui_gas_label(layout_get(), g);
     o.max_len = 48;
     o.on_ok = [key, def](const std::string &t, bool) {

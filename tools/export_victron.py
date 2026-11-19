@@ -17,7 +17,7 @@ FILES = [
     "src/vicdisp/vd_main.cpp", "src/vicdisp/vd_main.h", "src/vicdisp/vd_ble.cpp", "src/vicdisp/vd_page.h",
     "src/sat/sat_display.cpp", "src/sat/sat_display.h", "src/sat/rd_client.h",
     "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h", "src/bms.cpp", "src/bms.h",
-    "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/tpms.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
+    "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
     "src/hymer.cpp", "src/hymer.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
     "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h",
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
@@ -205,14 +205,45 @@ STRIP = {
 }
 
 
+# Alpha-Funktionen (Wunsch des Nutzers: im Hauptprojekt vorhanden, aber im oeffentlichen Repo nicht erkennbar).
+# Reifendruck (src/tpms.*): Bloecke "#if WITH_TPMS … #endif", Einbindung, Bedingungen, Weboberflaeche, Woerterbuecher.
+import re as _re
+ALPHA_WORDS = _re.compile(r"tpms|TPMS|Reifen|Rad drehen|vorne links|vorne rechts|hinten links|hinten rechts")
+
+
+def strip_alpha(rel, text):
+    if rel.endswith((".cpp", ".h", ".c", ".inc")):
+        text = _re.sub(r"(?ms)^[ \t]*#if WITH_TPMS\b.*?^[ \t]*#endif[^\n]*\n", "", text)
+        text = _re.sub(r"(?m)^[ \t]*#include \"(\.\./)?tpms\.h\"[^\n]*\n", "", text)
+        text = _re.sub(r"\(ble_proto_on\(BLE_P_TPMS\) && tpms_\w+\(\)\)\s*\|\|\s*", "", text)
+        text = _re.sub(r"\s*\|\|\s*\(ble_proto_on\(BLE_P_TPMS\) && tpms_\w+\(\)\)", "", text)
+        text = _re.sub(r"\s*\|\|\s*\(WITH_TPMS && p == BLE_P_TPMS\)", "", text)
+        text = _re.sub(r"(?m)^[^\n]*(tpms_begin\(\)|BLE_P_TPMS = |Reifen)[^\n]*\n", "", text)
+        text = text.replace("; mit WITH_TPMS auch Reifendruck (tpms.cpp)", "")
+        text = text.replace("// SuperSense (Beta): Tankmodul, Reifendruck", "// SuperSense (Beta): Tankmodul")
+        text = _re.sub(r'(?m)^\{"(vorne links|vorne rechts|hinten links|hinten rechts|Kein Empfang – Sensor schlaeft)[^\n]*\n', "", text)
+    if rel == "src/vicdisp/vd_page.h":
+        text = _re.sub(r'(?s)<div class="card" id="tpCard".*?<div id="tpFound"></div></div>\n\n', "", text)
+        text = _re.sub(r"(?s) const P=S\.tpms;.*?\n(?= const B=S\.bms)", "", text)
+        text = text.replace(",#mpList,#tpList')", ",#mpList')")
+        text = _re.sub(r"(?m)^[^\n]*/api/tpms[^\n]*\n", "", text)
+    if rel == "tools/i18n/vicdisp_en.json":
+        import json as _json
+        pairs = [x for x in _json.loads(text) if not ALPHA_WORDS.search(x[0]) and "{id:" not in x[0] and "Rad:" not in x[0]
+                 and "'Batterie '+num(x.mv" not in x[0]]
+        text = "[\n" + ",\n".join(_json.dumps(x, ensure_ascii=False) for x in pairs) + "\n]\n"
+    return text
+
+
 def strip(rel, path):
-    rules = STRIP.get(rel)
-    if not rules:
-        return
+    rules = STRIP.get(rel, [])
+    if not rules and not rel.endswith((".cpp", ".h", ".c", ".inc", ".json")):
+        return   # Bilder usw. unveraendert
     with open(path, encoding="utf-8", newline="") as f:
         text = f.read()
     crlf = "\r\n" in text
     text = text.replace("\r\n", "\n")
+    text = strip_alpha(rel, text)
     for old, new in rules:
         if old not in text:
             raise SystemExit("export_victron: Filter passt nicht mehr in %s:\n  %r" % (rel, old))
@@ -228,8 +259,15 @@ def write(rel, text):
         f.write(text)
 
 
+# frueher exportiert, jetzt nicht mehr (Alpha) – im Ziel-Repo entfernen
+REMOVED = ["src/tpms.h", "src/tpms.cpp"]
+
+
 def main():
     os.makedirs(DST, exist_ok=True)
+    for rel in REMOVED:
+        if os.path.exists(os.path.join(DST, rel)):
+            os.remove(os.path.join(DST, rel))
     for rel in FILES:
         src = os.path.join(ROOT, rel)
         dst = os.path.join(DST, rel)
@@ -258,12 +296,14 @@ def write_flasher():
     # je Sprache ein Manifest; die Seite schaltet zwischen beiden um (Knopf Deutsch | English)
     for fname, title, binf in (("manifest.json", "Victron-Display (Simple Open Camper)", "victron-display-cyd.bin"),
                                ("manifest-en.json", "Victron display (Simple Open Camper, English)",
-                                "victron-display-cyd-en.bin")):
+                                "victron-display-cyd-en.bin"),
+                               ("manifest-ws7.json", "Victron-Display 7\" (Waveshare ESP32-S3)", "victron-display-ws7.bin")):
         manifest = {
             "name": title,
             "version": ver,
             "new_install_prompt_erase": True,
-            "builds": [{"chipFamily": "ESP32", "parts": [{"path": "release/" + binf, "offset": 0}]}],
+            "builds": [{"chipFamily": "ESP32-S3" if "ws7" in binf else "ESP32",
+                        "parts": [{"path": "release/" + binf, "offset": 0}]}],
         }
         write(fname, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     write(".nojekyll", "")

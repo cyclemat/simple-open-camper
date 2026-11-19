@@ -132,6 +132,7 @@ static esp_err_t h_info(httpd_req_t *req) {
   Settings st = settings_copy();
   JsonDocument d(&s_ps);
   d["fw"] = FW_VERSION;
+  if (SOC_VICTRON_EDITION) d["edition"] = "victron";   // Editor blendet alles aus, was die Edition nicht hat
   d["round"] = (bool)UI_ROUND;   // rundes Display (CrowPanel 1.46"): der Editor zeigt dann Kreis und Reihenfolge
   d["lcd_w"] = LCD_H_RES;
   d["lcd_h"] = LCD_V_RES;
@@ -420,9 +421,9 @@ static esp_err_t h_devices(httpd_req_t *req) {
     JsonObject o = arr.add<JsonObject>();
     o["key"] = h.key;
     o["ieee"] = h.key == TRUMA_HEAT_KEY_INETX ? "BLE" : "LIN";
-    o["name"] = "Heizung";
+    o["name"] = TXT_HEAT;
     auto it = lay.names.find(h.key);
-    o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : "Heizung";
+    o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : TXT_HEAT;
     bool alde = h.key == TRUMA_HEAT_KEY_ALDE;
     // als std::string: ArduinoJson merkt sich bei const char* nur den Zeiger, h lebt nicht bis zum Serialisieren
     o["model"] = alde ? h.source.substr(5) : std::string(h.key == TRUMA_HEAT_KEY_CPPLUS ? "CP Plus" : "iNet X");
@@ -463,6 +464,7 @@ static esp_err_t h_devices(httpd_req_t *req) {
     o["online"] = b.connected && b.has;
     vic_state(o["state"].to<JsonObject>(), v);
   }
+#if WITH_SATELLITES
   // Satelliten: Gasflaschen, Tanks und Victron von eigenen ESP32 (MQTT/UDP/Bluetooth)
   {
     std::set<std::string> local;
@@ -551,6 +553,7 @@ static esp_err_t h_devices(httpd_req_t *req) {
     }
     if (!p.status.empty()) st["status"] = p.status;
   }
+#endif
   // Victron Cerbo GX (MQTT): Solar, Netz, Ladegeraet, Batterie, DC-System
   for (auto &v : cerbo_list()) {
     JsonObject o = arr.add<JsonObject>();
@@ -1048,6 +1051,7 @@ static esp_err_t h_mopeka_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+#if WITH_HYMER
 // ---------------------------------------------------------------- Hymer Connect: Konto, QR-Code, Kopplung
 static esp_err_t h_hymer_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
@@ -1126,6 +1130,7 @@ static esp_err_t h_hymer_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+#endif
 // ---------------------------------------------------------------- Truma-Heizung
 static esp_err_t h_heat_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
@@ -1415,6 +1420,7 @@ static esp_err_t h_victron_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+#if WITH_SATELLITES
 // ---------------------------------------------------------------- Satelliten
 static esp_err_t h_sat_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
@@ -1531,6 +1537,7 @@ static esp_err_t h_rdisp_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+#endif
 // ---------------------------------------------------------------- Cerbo GX
 static esp_err_t h_cerbo_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
@@ -1825,7 +1832,11 @@ static esp_err_t h_auth_post(httpd_req_t *req) {
 // Ohne Anmeldung: die Seite selbst (Editor, Captive Portal) und die Anmeldung. /api/rdisp prueft selbst (Zusatzdisplays).
 static bool web_open(const char *uri) {
   if (strncmp(uri, "/api/", 5) != 0) return true;
+#if WITH_SATELLITES
   return !strncmp(uri, "/api/auth", 9) || !strncmp(uri, "/api/rdisp", 10);
+#else
+  return !strncmp(uri, "/api/auth", 9);
+#endif
 }
 
 // Jede Anfrage merkt sich die Zeit (fuer das Abschalten bei Bedarf), dann der eigentliche Handler
@@ -1916,8 +1927,10 @@ void web_start() {
   reg("/api/truma", HTTP_POST, h_truma_post);
   reg("/api/heat", HTTP_GET, h_heat_get);
   reg("/api/heat", HTTP_POST, h_heat_post);
+#if WITH_HYMER
   reg("/api/hymer", HTTP_GET, h_hymer_get);
   reg("/api/hymer", HTTP_POST, h_hymer_post);
+#endif
   reg("/api/mopeka", HTTP_GET, h_mopeka_get);
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);
   reg("/api/victron", HTTP_GET, h_victron_get);
@@ -1938,10 +1951,12 @@ void web_start() {
 #endif
   reg("/api/cerbo", HTTP_GET, h_cerbo_get);
   reg("/api/cerbo", HTTP_POST, h_cerbo_post);
+#if WITH_SATELLITES
   reg("/api/satellites", HTTP_GET, h_sat_get);
   reg("/api/satellites", HTTP_POST, h_sat_post);
   reg("/api/rdisp", HTTP_GET, h_rdisp_get);
   reg("/api/rdisp", HTTP_POST, h_rdisp_post);
+#endif
   reg("/api/saver_logo", HTTP_GET, h_logo_get);
   reg("/api/saver_logo", HTTP_POST, h_logo_post);
   reg("/api/backup", HTTP_GET, h_backup_get);

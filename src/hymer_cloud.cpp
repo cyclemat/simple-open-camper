@@ -280,7 +280,7 @@ void hymer_cloud_forget() {
 
 #else
 bool hymer_cloud_start(const HymerCloudReq &, std::string &err) {
-  err = "Hymer ist in der Firmware nicht eingeschaltet";
+  err = "nicht eingebaut";
   return false;
 }
 int hymer_cloud_state() { return HC_IDLE; }

@@ -59,6 +59,7 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_PSTATION: return ICON_BATTERY;
     case VIC_LITHIUM: return ICON_BATTERY;
     case VIC_PROTECT: return ICON_POWER;
+    case VIC_TANK: return ICON_BATH;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -170,6 +171,25 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (!small && !isnan(lo)) t.sub += tr("  ·  Zellen ") + ui_num_bare(lo, 2) + "–" + ui_num(hi, 2, "V");
       break;
     }
+    case VIC_TANK: {   // erster Tank gross, weitere darunter
+      int first = -1;
+      std::string rest;
+      for (int k = 0; k < 4; k++) {
+        if (v.tank_pct[k] < 0) continue;
+        if (first < 0) first = k;
+        else rest += (rest.empty() ? "" : "  ·  ") + std::string("T") + std::to_string(k + 1) + " " + std::to_string(v.tank_pct[k]) + "\xE2\x80\xAF%";
+      }
+      if (first < 0) {
+        t.value = "–";
+        t.sub = tr("kein Tanksensor angeschlossen");
+        break;
+      }
+      t.value = std::to_string(v.tank_pct[first]) + "\xE2\x80\xAF%";
+      t.fill = v.tank_pct[first];
+      t.accent = C_BLUE;
+      t.sub = rest.empty() ? (isnan(v.tank_temp[first]) ? std::string() : ui_num(v.tank_temp[first], 1, "°C")) : rest;
+      break;
+    }
     case VIC_PROTECT:
       t.value = v.output == 1 ? tr("an") : v.output == 0 ? tr("aus") : "–";
       t.accent = v.alarm || v.error > 0 ? C_RED : v.output == 1 ? C_GREEN : C_AMBER;
@@ -205,6 +225,12 @@ std::string ui_vic_summary(const VictronInfo &v) {
       if (victron_is_sense(v)) return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 1, "°C");
       return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
     case VIC_LITHIUM: return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 0, "°C");
+    case VIC_TANK: {
+      std::string s;
+      for (int k = 0; k < 4; k++)
+        if (v.tank_pct[k] >= 0) s += (s.empty() ? "" : ", ") + std::string("T") + std::to_string(k + 1) + " " + std::to_string(v.tank_pct[k]) + " %";
+      return s.empty() ? std::string(tr("kein Tanksensor angeschlossen")) : s;
+    }
     case VIC_PROTECT:
       return std::string(v.output == 1 ? tr("Ausgang an") : v.output == 0 ? tr("Ausgang aus") : "–") + ", " + ui_num(v.in_v, 2, "V");
     case VIC_DCDC: return ui_num(v.bat_v, 2, "V") + ", " + victron_state_text(v.state);
@@ -561,6 +587,11 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 6;
     }
+    case VIC_TANK: {
+      static const char *a[] = {"Tank 1", "Tank 2", "Tank 3", "Tank 4", "Empfang"};
+      memcpy(t, a, sizeof(a));
+      return 5;
+    }
     case VIC_PROTECT: {
       static const char *a[] = {"Ausgang", "Eingang Spannung", "Ausgang Spannung", "Alarm", "Empfang"};
       memcpy(t, a, sizeof(a));
@@ -694,6 +725,13 @@ static void row_values(const VictronInfo &v, std::string *val, int n) {
       val[5] = reception(v);
       break;
     }
+    case VIC_TANK:
+      for (int k = 0; k < 4; k++)
+        val[k] = v.tank_pct[k] < 0 ? std::string("–")
+                                   : std::to_string(v.tank_pct[k]) + " %" +
+                                         (isnan(v.tank_temp[k]) ? std::string() : "  ·  " + ui_num(v.tank_temp[k], 1, "°C"));
+      val[4] = reception(v);
+      break;
     case VIC_PROTECT:
       val[0] = v.output == 1 ? tr("an") : v.output == 0 ? tr("aus") : "–";
       val[1] = ui_num(v.in_v, 2, "V");

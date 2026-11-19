@@ -15,6 +15,8 @@
 // neu; die Auswahl je Display gespeichert unter <base>/<Display>/rd/keys/<Teil>; Uhrzeit alle 30 s unter <base>/time.
 // Das Display abonniert nur seine Kacheln. Kein Wiederholen noetig, nichts geht verloren (TCP). UDP bleibt Rueckfall.
 #include "ui_remote.h"
+#include "../app_config.h"   // SOC_VICTRON_EDITION
+#if !SOC_VICTRON_EDITION   // Victron-Edition: keine Zusatzdisplays – leere Fassungen am Ende
 #include "ui_internal.h"
 #include "../i18n/i18n.h"
 #include "../layout.h"
@@ -598,3 +600,15 @@ void ui_remote_forget(const std::string &id) {
       return;
     }
 }
+
+#else   // ---------------------------------------------------------------- Victron-Edition
+#include "ui_internal.h"
+bool ui_remote_sig_ok(const std::string &, const std::string &) { return false; }
+void ui_remote_tick() {}
+void ui_remote_mqtt_in(const std::string &, const std::string &, const char *, size_t) {}
+std::string ui_remote_json() { return "{\"displays\":[]}"; }
+std::string ui_remote_avail_json(const std::string &) { return "{\"avail\":[],\"tiles\":[]}"; }
+std::vector<RdListItem> ui_remote_list() { return {}; }
+bool ui_remote_set(const std::string &, const std::vector<std::string> &, const std::string &) { return false; }
+void ui_remote_forget(const std::string &) {}
+#endif

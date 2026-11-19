@@ -1,5 +1,7 @@
 // Truma-Heizung (CP Plus per LIN, iNet X per Bluetooth): Kachel-Texte und Bedienung
+#include "../app_config.h"
 #include "ui_internal.h"
+#if !SOC_VICTRON_EDITION   // Victron-Edition: keine Heizung – leere Fassungen am Ende
 #include "../i18n/i18n.h"
 #include "theme.h"
 #include "../layout.h"
@@ -343,3 +345,23 @@ void ui_heat_open(const std::string &key) {
   lv_obj_set_width(d->status, lv_pct(100));
   ui_heat_update();
 }
+
+#else   // ---------------------------------------------------------------- Victron-Edition
+bool ui_heat_get(const std::string &, TrumaHeatInfo &) { return false; }
+std::vector<TrumaHeatInfo> ui_heat_list() { return {}; }
+uint32_t ui_heat_version() { return 0; }
+std::string ui_temp_text(float c) {
+  char b[24];
+  snprintf(b, sizeof(b), "%.1f °C", c);
+  for (char *p = b; *p; p++)
+    if (*p == '.') *p = ',';
+  return b;
+}
+const char *ui_water_text(TrumaWater) { return ""; }
+std::string ui_heat_label(const Layout &, const TrumaHeatInfo &) { return ""; }
+std::string ui_heat_sub(const TrumaHeatInfo &, bool) { return ""; }
+bool ui_heat_is_open() { return false; }
+void ui_heat_close() {}
+void ui_heat_update() {}
+void ui_heat_open(const std::string &) {}
+#endif

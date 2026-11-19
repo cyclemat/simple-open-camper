@@ -32,6 +32,7 @@ static std::string lower_mac(std::string s);
 #include "ui_remote.h"
 #include "../zb_direct.h"
 #include "../rules.h"
+#include "../mqtt_broker.h"
 #include "../app.h"
 #include <Arduino.h>
 #include <functional>
@@ -199,10 +200,17 @@ static void restart_soon() {
 }
 
 static const char *MODE_TITLES[4] = {"Netzwerk", "Router", "Kombi", "WLAN aus"};
+#if SOC_VICTRON_EDITION
+static const char *MODE_TEXT[4] = {"Das Panel hängt im WLAN – z. B. dort, wo auch der Cerbo GX ist.",
+                                   "Das Panel öffnet ein eigenes WLAN – Editor per Handy, kein Heimnetz nötig.",
+                                   "Eigenes WLAN plus Camp-WLAN mit Internet-Weiterleitung.",
+                                   "Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein Cerbo, kein Editor."};
+#else
 static const char *MODE_TEXT[4] = {"Panel und Hub hängen beide im Camp-WLAN.",
                                    "Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.",
                                    "Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.",
                                    "Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor."};
+#endif
 
 static void mode_cb(lv_event_t *e) {
   int m = (int)(intptr_t)lv_event_get_user_data(e);
@@ -224,17 +232,29 @@ static void ap_edit_cb(lv_event_t *e) {
   InputOptions o;
   if (f == 0) {
     o.title = "Name des Panel-WLANs";
+#if SOC_VICTRON_EDITION
+    o.hint = "Unter diesem Namen findest du das Panel im WLAN. Änderung gilt nach einem Neustart.";
+#else
     o.hint = "Unter diesem Namen findet der Hub das Panel. Änderung gilt nach einem Neustart.";
+#endif
     o.initial = g_settings.ap_ssid.c_str();
     o.max_len = 32;
   } else if (f == 1) {
     o.title = "Passwort des Panel-WLANs";
+#if SOC_VICTRON_EDITION
+    o.hint = "8 bis 63 Zeichen. Änderung gilt nach einem Neustart.";
+#else
     o.hint = "8 bis 63 Zeichen. Änderung gilt nach einem Neustart – der Hub muss dann neu verbunden werden.";
+#endif
     o.initial = g_settings.ap_pass.c_str();
     o.max_len = 63;
   } else {
     o.title = "Funkkanal (1–13)";
+#if SOC_VICTRON_EDITION
+    o.hint = "Funkkanal des Panel-WLANs (1–13).";
+#else
     o.hint = "Möglichst weit weg vom Zigbee-Kanal: bei Zigbee 11 eignet sich WLAN 13, bei Zigbee 25 WLAN 1.";
+#endif
     o.initial = std::to_string(g_settings.ap_channel);
     o.numeric = true;
     o.max_len = 2;
@@ -366,10 +386,15 @@ static void build_wifi() {
     ui_row(g, "Name", g_settings.ap_ssid.c_str(), ap_edit_cb, (void *)(intptr_t)0);
     ui_row(g, "Passwort", g_settings.ap_pass.c_str(), ap_edit_cb, (void *)(intptr_t)1);
     ui_row(g, "Kanal", ch, ap_edit_cb, (void *)(intptr_t)2);
+#if SOC_VICTRON_EDITION
+    lv_obj_t *h = ui_label(s_content, "Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.",
+                           F_SMALL, C_TEXT2);
+#else
     lv_obj_t *h = ui_label(s_content,
                            "Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann "
                            "unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.",
                            F_SMALL, C_TEXT2);
+#endif
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
   }
@@ -433,7 +458,9 @@ static void mqtt_row_cb(lv_event_t *e) {
       o.password = true;
       break;
     default:
+#if !SOC_VICTRON_EDITION
       o.hint = "Wie in Zigbee2MQTT unter mqtt.base_topic – meistens zigbee2mqtt.";
+#endif
       o.initial = s_draft.mqtt_base.c_str();
       break;
   }
@@ -466,6 +493,19 @@ static void mqtt_save_cb(lv_event_t *) {
 }
 
 static void mqtt_rebuild(void *) { show_section(s_sec); }
+#if WITH_BROKER
+// Eingebauter Broker: Panel ist selbst der MQTT-Server (Port 1883) und verbindet sich mit sich selbst
+static void broker_on_cb(lv_event_t *e) {
+  Settings st = settings_copy();
+  st.broker_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  if (st.broker_on) st.mqtt_on = true;
+  settings_apply(st);
+  broker_apply();
+  z2m_restart();
+  ui_toast(st.broker_on ? "Eingebauter Broker an (Port 1883)." : "Eingebauter Broker aus.");
+  lv_async_call(mqtt_rebuild, nullptr);
+}
+#endif
 static void mqtt_on_cb(lv_event_t *e) {
   Settings st = settings_copy();
   st.mqtt_on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
@@ -481,8 +521,13 @@ static void auto_cb(lv_event_t *e) {
 }
 
 static void build_mqtt() {
+#if SOC_VICTRON_EDITION
+  heading("Shelly (MQTT)", "Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche "
+                           "MQTT einschalten und denselben Broker eintragen – die Shellys erscheinen dann als Geräte.");
+#else
   heading("MQTT-Broker", "Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. "
                          "Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.");
+#endif
   s_draft = settings_copy();
   {
     lv_obj_t *r = lv_obj_create(s_content);
@@ -497,16 +542,52 @@ static void build_mqtt() {
     lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
     lv_obj_add_event_cb(sw, mqtt_on_cb, LV_EVENT_VALUE_CHANGED, nullptr);
   }
+#if WITH_BROKER
+  {
+    lv_obj_t *r = lv_obj_create(s_content);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 64);
+    lv_obj_t *t = ui_label(r, "Eingebauter Broker (dieses Panel)", F_BODY, C_TEXT);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_t *sw = lv_switch_create(r);
+    lv_obj_set_size(sw, 64, 34);
+    lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if (s_draft.broker_on) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_add_event_cb(sw, broker_on_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    if (s_draft.broker_on) {
+      String ip = net_ip();
+      char b[200];
+#if SOC_VICTRON_EDITION
+      snprintf(b, sizeof(b), tr("Shellys mit diesem Panel verbinden: Server %s, Port 1883%s."), ip.length() ? ip.c_str() : "…",
+               s_draft.broker_user.isEmpty() ? "" : tr(", Benutzer und Passwort wie im Editor"));
+#else
+      snprintf(b, sizeof(b), tr("Geräte mit diesem Panel verbinden: Server %s, Port 1883%s."), ip.length() ? ip.c_str() : "…",
+               s_draft.broker_user.isEmpty() ? "" : tr(", Benutzer und Passwort wie im Editor"));
+#endif
+      lv_obj_t *h = ui_label(s_content, b, F_SMALL, C_TEXT2);
+      lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+      lv_obj_set_width(h, lv_pct(100));
+      s_mqtt_status = ui_label(s_content, z2m_status_text(), F_BODY, C_TEXT2);
+      return;   // eigene Broker-Felder gelten solange nicht
+    }
+  }
+#endif
   if (!s_draft.mqtt_on) {
+#if SOC_VICTRON_EDITION
+    lv_obj_t *h = ui_label(s_content, "MQTT ist aus: keine Shellys. Victron, Cerbo GX, Gas und Akkus laufen weiter.",
+                           F_SMALL, C_TEXT2);
+#else
     lv_obj_t *h = ui_label(s_content,
                            "MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und "
                            "Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.",
                            F_SMALL, C_TEXT2);
+#endif
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
     return;
   }
-  if (s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) {
+  if (!SOC_VICTRON_EDITION && (s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA)) {
     lv_obj_t *r = lv_obj_create(s_content);
     ui_plain(r);
     lv_obj_set_size(r, lv_pct(100), 64);
@@ -520,8 +601,10 @@ static void build_mqtt() {
     lv_obj_add_event_cb(sw, auto_cb, LV_EVENT_VALUE_CHANGED, nullptr);
   }
   lv_obj_t *g = group();
-  for (int i = 0; i < 5; i++) s_mqtt_vals[i] = ui_row(g, MQTT_TITLES[i], mqtt_value(i).c_str(), mqtt_row_cb, (void *)(intptr_t)i);
-  if ((s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) && s_draft.mqtt_auto) lv_label_set_text(s_mqtt_vals[0], "automatisch");
+  for (int i = 0; i < (SOC_VICTRON_EDITION ? 4 : 5); i++)   // Edition: kein Basis-Topic (gehoert zu Zigbee2MQTT)
+    s_mqtt_vals[i] = ui_row(g, MQTT_TITLES[i], mqtt_value(i).c_str(), mqtt_row_cb, (void *)(intptr_t)i);
+  if (!SOC_VICTRON_EDITION && (s_draft.net_mode == NET_AP || s_draft.net_mode == NET_APSTA) && s_draft.mqtt_auto)
+    lv_label_set_text(s_mqtt_vals[0], "automatisch");
   s_mqtt_status = ui_label(s_content, z2m_status_text(), F_BODY, C_TEXT2);
   lv_obj_t *row = button_row();
   ui_button(row, ICON_CHECK, "Speichern und verbinden", true, mqtt_save_cb, nullptr);
@@ -848,11 +931,13 @@ void ui_rename_device(const std::string &key) {
   Layout lay = layout_get();
   InputOptions o;
   o.title = "Gerät umbenennen";
+#if !SOC_VICTRON_EDITION
   o.hint = tr("Name in Zigbee2MQTT: ") + v.name +
            (v.ep.empty() ? "" : tr(" (Kanal ") + v.ep + tr("). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät."));
+  o.check_label = "Auch in Zigbee2MQTT umbenennen";
+#endif
   o.initial = layout_label(lay, v);
   o.max_len = 48;
-  o.check_label = "Auch in Zigbee2MQTT umbenennen";
   if (shelly_is_key(key)) {   // Shelly: nur der Name auf dem Panel
     o.hint = tr("Shelly ") + v.model + " (" + v.ieee + tr("). Der Name gilt nur für dieses Panel.");
     o.check_label.clear();
@@ -874,7 +959,9 @@ void ui_rename_device(const std::string &key) {
       }
       // Bei Geraeten ohne Kanaele genuegt danach der Zigbee2MQTT-Name
       layout_set_name(key, ep.empty() ? "" : t);
+#if !SOC_VICTRON_EDITION
       ui_toast("Umbenennung an Zigbee2MQTT gesendet.");
+#endif
     } else {
       layout_set_name(key, (t.empty() || t == def) ? "" : t);
       ui_toast("Name gespeichert.");
@@ -894,7 +981,11 @@ static void dev_row_cb(lv_event_t *e) {
 static void arrange_missing_cb(lv_event_t *) {
   auto all = ui_arrange_items();
   if (all.empty()) {
+#if SOC_VICTRON_EDITION
+    ui_toast("Noch keine Geräte mit Werten.");
+#else
     ui_toast("Noch keine Geräte von Zigbee2MQTT empfangen.");
+#endif
     return;
   }
   layout_auto_arrange(all, true);
@@ -919,13 +1010,22 @@ static void build_devices() {
   ui_button(row, ICON_WAND, "Fehlende ergänzen", true, arrange_missing_cb, nullptr);
   ui_button(row, ICON_GRID, "Alles neu anordnen", false, arrange_all_cb, nullptr);
   build_sats();
+#if SOC_VICTRON_EDITION
+  subheading("Shelly");
+#else
   if (panelsat_enabled()) subheading("Zigbee2MQTT");
+#endif
   auto all = z2m_all();
   Layout lay = layout_get();
   s_dev_keys.clear();
   lv_obj_t *g = group();
   if (all.empty()) {
+#if SOC_VICTRON_EDITION
+    lv_obj_t *l = ui_label(g, g_settings.mqtt_on ? (z2m_connected() ? "Noch keine Shellys gefunden." : "Keine Verbindung zum MQTT-Broker.")
+                                                 : "Shellys: unter „Shelly (MQTT)“ einschalten.", F_BODY, C_TEXT2);
+#else
     lv_obj_t *l = ui_label(g, z2m_connected() ? z2m_diag_text() : "Keine Verbindung zum MQTT-Broker.", F_BODY, C_TEXT2);
+#endif
     lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(l, lv_pct(100));
     return;
@@ -1103,6 +1203,7 @@ static uint32_t s_heat_sig = 0;
 
 static uint32_t heat_structure_sig() { return inetx_paired() * 2 + inetx_pairing() + 7; }
 
+#if WITH_HYMER
 // ---- Hymer Connect (SCU per Bluetooth)
 static lv_obj_t *s_hymer_val = nullptr;
 static void hymer_pair_cb(lv_event_t *) {
@@ -1114,6 +1215,7 @@ static void hymer_forget_cb(lv_event_t *) {
              [] { hymer_forget(); });
 }
 
+#endif
 static void heat_row_cb(lv_event_t *e) {
   const char *key = (const char *)lv_event_get_user_data(e);
   ui_heat_open(key);
@@ -1229,6 +1331,7 @@ static void proto_switch(const char *title, const char *hint, uint8_t p) {
   lv_obj_add_event_cb(sw, proto_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)p);
 }
 
+#if WITH_SATELLITES
 // ---------------------------------------------------------------- Satelliten
 static uint32_t sat_struct_sig() {
   uint32_t h = 17;
@@ -1441,11 +1544,20 @@ void ui_settings_tick_sat() {
     lv_label_set_text(s_pair_status, (satpair_state() != 0 ? satpair_status() : sat_search_text()).c_str());
 }
 
+#else
+static void build_sats() {}
+void ui_settings_tick_sat() {}
+#endif
 static void build_truma_lc(const Layout &lay) {
   subheading("Truma LevelControl");
   lv_obj_t *th = ui_label(s_content,
+#if SOC_VICTRON_EDITION
+                          "Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App oder der Victron "
+                          "GX verbunden, misst das Panel beim nächsten Durchgang.",
+#else
                           "Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant "
                           "oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.",
+#endif
                           F_SMALL, C_TEXT2);
   lv_label_set_long_mode(th, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(th, lv_pct(100));
@@ -1487,6 +1599,7 @@ static void build_truma_lc(const Layout &lay) {
   }
 }
 
+#if WITH_HYMER
 static void hymer_switch_cb(lv_event_t *e) {
   uint8_t idx = (uint8_t)(intptr_t)lv_event_get_user_data(e);
   if (!hymer_switch(idx, 2)) ui_toast("Hymer ist gerade nicht verbunden.");
@@ -1573,6 +1686,10 @@ void ui_settings_tick_hymer() {
       if (p.idx == r.first) lv_label_set_text(r.second, hymer_value_text(p).c_str());
 }
 
+#else
+static void build_hymer() {}
+void ui_settings_tick_hymer() {}
+#endif
 #if WITH_ZB_DIRECT
 // ---------------------------------------------------------------- Zigbee-Modul (ESP32-H2 im Steckplatz)
 static uint32_t s_zb_sig = 0;
@@ -1969,8 +2086,13 @@ void ui_settings_tick_zigbee() {
 #endif
 
 static void build_gas() {
+#if SOC_VICTRON_EDITION
+  heading("Gas", "Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
+                 "wird nicht gesucht und belastet Funk und WLAN nicht.");
+#else
   heading("Gas und Heizung", "Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
                              "wird nicht gesucht und belastet Funk und WLAN nicht.");
+#endif
   proto_switch("Truma LevelControl", "Gasflaschen, bis zu vier", BLE_P_TRUMA);
   proto_switch("Mopeka", "Gas- und Tanksensoren, bis zu vier", BLE_P_MOPEKA);
   if (inetx_enabled()) proto_switch("Truma iNet X", "Heizung, Boiler und Klima über das Bedienteil", BLE_P_INETX);
@@ -2411,7 +2533,7 @@ void ui_settings_tick_victron() {
 }
 
 // ---------------------------------------------------------------- Info
-static const char *INFO_TITLES[] = {"Firmware", "IP-Adresse", "WLAN-Signal", "Zigbee2MQTT", "Geräteliste",
+static const char *INFO_TITLES[] = {"Firmware", "IP-Adresse", "WLAN-Signal", SOC_VICTRON_EDITION ? "" : "Zigbee2MQTT", "Geräteliste",
                                     "Touch", "Akku", "Freier Speicher", "Laufzeit", "Panel-WLAN"};
 static const int INFO_N = 10;
 
@@ -2473,9 +2595,12 @@ static void build_info() {
   s_info_url = ui_label(card, "", F_TITLE, C_AMBER);
   s_info_url2 = ui_label(card, "", F_SMALL, C_TEXT2);
   lv_obj_t *g = group();
-  for (int i = 0; i < INFO_N; i++) s_info[i] = ui_row(g, INFO_TITLES[i], "", nullptr, nullptr, false);
+  for (int i = 0; i < INFO_N; i++) {
+    s_info[i] = ui_row(g, INFO_TITLES[i], "", nullptr, nullptr, false);
+    if (SOC_VICTRON_EDITION && (i == 3 || i == 4)) lv_obj_add_flag(lv_obj_get_parent(s_info[i]), LV_OBJ_FLAG_HIDDEN);
+  }
   lv_obj_t *row = button_row();
-  ui_button(row, ICON_REFRESH, "Zustände neu abfragen", false, refresh_cb, nullptr);
+  if (!SOC_VICTRON_EDITION) ui_button(row, ICON_REFRESH, "Zustände neu abfragen", false, refresh_cb, nullptr);
   ui_button(row, ICON_POWER, "Neu starten", false, reboot_cb, nullptr);
   info_fill();
 }
@@ -2664,7 +2789,11 @@ static void ui_settings_tick_rules() {
 
 // ---------------------------------------------------------------- Rahmen
 static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
+#if SOC_VICTRON_EDITION
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "", "", "", "Sicherung", "Info"};
+#else
 static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Regeln", "Sicherung", "Info"};
+#endif
 
 static void show_section(int sec) {
 #if WITH_ZB_DIRECT

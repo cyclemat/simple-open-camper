@@ -458,6 +458,13 @@ bool victron_from_bms(const BmsInfo &b, VictronInfo &v) {
       v.ac_w = b.ac_w;
       v.power_w = b.ac_w;
       return true;
+    case BMS_DEV_TANK:   // SuperSense-Tankmodul
+      v.kind = VIC_TANK;
+      for (int k = 0; k < 4; k++) {
+        v.tank_pct[k] = b.tank_pct[k];
+        v.tank_temp[k] = b.tank_temp[k];
+      }
+      return true;
     default:
       break;
   }

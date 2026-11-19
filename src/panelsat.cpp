@@ -1,3 +1,4 @@
+#include "app_config.h"
 #include "panelsat.h"
 #include "sat_proto.h"
 #include "hymer.h"
@@ -441,7 +442,7 @@ static TrumaInfo truma_of(const Dev &x) {
   t.key = TRUMA_KEY_PREFIX + x.mac;
   t.mac = x.mac;
   t.age_s = age_now(x);
-  if (node_offline(x)) t.status = tr("Satellit offline");
+  if (node_offline(x)) t.status = tr(TXT_SAT_OFFLINE);
   return t;
 }
 static MopekaInfo mopeka_of(const Dev &x) {
@@ -449,7 +450,7 @@ static MopekaInfo mopeka_of(const Dev &x) {
   m.key = MOPEKA_KEY_PREFIX + x.mac;
   m.mac = x.mac;
   m.age_s = age_now(x);
-  if (node_offline(x)) m.status = tr("Satellit offline");
+  if (node_offline(x)) m.status = tr(TXT_SAT_OFFLINE);
   return m;
 }
 static VictronInfo victron_of(const Dev &x) {
@@ -459,7 +460,7 @@ static VictronInfo victron_of(const Dev &x) {
   // Alter = seit dem letzten Paket des Satelliten (Victron sendet laufend, die Kachel wird danach "kein Empfang")
   v.age_s = age_now(x);
   if (node_offline(x)) {
-    v.status = tr("Satellit offline");
+    v.status = tr(TXT_SAT_OFFLINE);
     v.age_s = 9999;
   }
   return v;
@@ -556,7 +557,7 @@ static SatPoint point_of(const Dev &x) {
   p.key = SATIO_KEY_PREFIX + x.sat + "/" + x.mac;
   p.age_s = age_now(x);
   if (node_offline(x)) {
-    p.status = tr("Satellit offline");
+    p.status = tr(TXT_SAT_OFFLINE);
     p.ok = false;
   }
   return p;
@@ -817,7 +818,11 @@ bool panelsat_switch(const std::string &key, bool on, std::string *err) {
   if (!hy_key(key)) return sat_switch_raw(key, on, err);
   if (hy_on() && sat_point_parse(key.substr(hy_prefix().size()), k, idx) && k == SP_SWITCH && hymer_switch(idx, on ? 1 : 0))
     return true;
+#if WITH_HYMER
   if (err) *err = tr("Hymer ist gerade nicht verbunden.");
+#else
+  if (err) *err = tr("Nicht verbunden.");
+#endif
   return false;
 }
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Victron-Display Flasher</title>
-<meta name="description" content="Victron-Display (CYD) direkt aus dem Browser aufspielen – Deutsch oder Englisch.">
+<meta name="description" content="Victron-Display (CYD 2,8" oder Waveshare 7") direkt aus dem Browser aufspielen.">
 <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
 <style>
 :root{--bg:#0b1118;--card:rgba(255,255,255,.93);--fg:#1c2530;--muted:#5b6876;--line:rgba(0,0,0,.08);--acc:#0b6bcb;--warn-bg:#fff4e0;--warn-fg:#7a4b00;--warn-line:#f0c46c;--code:#eef2f6;--seg:#e8edf2}
@@ -38,32 +38,39 @@ footer{color:#c9d5e0;font-size:.9rem;text-align:center;margin-top:28px;text-shad
 footer a{color:#9fd0ff}
 /* Sprache: Texte mit data-l="de" bzw. data-l="en" */
 html[lang="de"] [data-l="en"],html[lang="en"] [data-l="de"]{display:none}
+/* Geraet: Texte mit data-d="cyd" bzw. data-d="ws" */
+html[data-dev="cyd"] [data-d="ws"],html[data-dev="ws"] [data-d="cyd"]{display:none}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
 </style>
 </head>
 <body>
 <main>
 <h1><span data-l="de">Victron-Display aufspielen</span><span data-l="en">Install the Victron display</span></h1>
-<p class="sub"><span data-l="de">Firmware für das ESP32-2432S028R („Cheap Yellow Display“) direkt aus dem Browser – ohne Programme.</span><span data-l="en">Firmware for the ESP32-2432S028R (“Cheap Yellow Display”) straight from the browser – no software needed.</span></p>
+<p class="sub"><span data-l="de">Firmware direkt aus dem Browser – ohne Programme. Für das 2,8"-Display ESP32-2432S028R („Cheap Yellow Display“) oder das Waveshare ESP32-S3 Touch-LCD 7".</span><span data-l="en">Firmware straight from the browser – no software needed. For the 2.8" ESP32-2432S028R (“Cheap Yellow Display”) or the Waveshare ESP32-S3 Touch LCD 7".</span></p>
 
 <div class="card">
+<div class="lang"><span class="lbl"><span data-l="de">Gerät</span><span data-l="en">Device</span></span>
+<div class="seg" role="group" aria-label="Gerät / Device"><button type="button" data-dev="cyd" aria-pressed="true">CYD 2,8"</button><button type="button" data-dev="ws" aria-pressed="false">Waveshare 7"</button></div></div>
 <div class="lang"><span class="lbl"><span data-l="de">Sprache der Firmware</span><span data-l="en">Firmware language</span></span>
 <div class="seg" role="group" aria-label="Sprache / Language"><button type="button" data-set="de" aria-pressed="true">Deutsch</button><button type="button" data-set="en" aria-pressed="false">English</button></div></div>
 <h2><span data-l="de">So geht's</span><span data-l="en">How it works</span></h2>
 <ol data-l="de">
-<li>Display per USB-Kabel an den PC anschließen (Datenkabel, kein reines Ladekabel).</li>
-<li>Oben die Sprache wählen, auf <b>Installieren</b> klicken und im Fenster den Anschluss wählen (meist „USB-SERIAL CH340“ oder „CP210x“).</li>
+<li>Display per USB-Kabel an den PC anschließen (Datenkabel, kein reines Ladekabel)<span data-d="ws"> – beim Waveshare an die Buchse „USB“</span>.</li>
+<li>Oben Gerät und Sprache wählen, auf <b>Installieren</b> klicken und im Fenster den Anschluss wählen<span data-d="cyd"> (meist „USB-SERIAL CH340“ oder „CP210x“)</span><span data-d="ws"> (meist „USB JTAG/serial debug unit“)</span>.</li>
 <li>Warten, bis „Installation complete“ erscheint, dann das Display neu starten.</li>
-<li>Am Handy mit dem WLAN <code>SOC-Victron-…</code> verbinden (Passwort <code>panelsat</code>) – die Einrichtung öffnet sich von selbst.</li>
+<li data-d="cyd">Am Handy mit dem WLAN <code>SOC-Victron-…</code> verbinden (Passwort <code>panelsat</code>) – die Einrichtung öffnet sich von selbst.</li>
+<li data-d="ws">Die Einrichtung läuft direkt am Bildschirm: WLAN wählen, dann Victron-Geräte, Cerbo GX, Gasflaschen oder Akkus einrichten.</li>
 </ol>
 <ol data-l="en">
 <li>Connect the display to the computer with a USB cable (a data cable, not a charge-only cable).</li>
-<li>Choose the language above, click <b>Install</b> and pick the serial port in the dialog (usually “USB-SERIAL CH340” or “CP210x”).</li>
+<li>Choose device and language above, click <b>Install</b> and pick the serial port in the dialog (usually “USB-SERIAL CH340” or “CP210x”).</li>
 <li>Wait until “Installation complete” appears, then restart the display.</li>
 <li>On your phone, join the WiFi <code>SOC-Victron-…</code> (password <code>panelsat</code>) – the setup page opens by itself.</li>
 </ol>
 <div class="warn"><span data-l="de"><b>Achtung:</b> Das Aufspielen hier löscht alle Einstellungen (WLAN, Geräte, Kacheln). Ein schon eingerichtetes
-Display bitte über seine eigene Weboberfläche aktualisieren (<b>Firmware → Update-Modus</b>, Datei
-<a href="release/ota/victron-display-cyd.bin">ota/victron-display-cyd.bin</a>).</span><span data-l="en"><b>Note:</b> Installing here erases all settings (WiFi, devices, tiles). To update a display that is already set up, use
+Display bitte über seine eigene Weboberfläche aktualisieren (<span data-d="cyd"><b>Firmware → Update-Modus</b>, Datei
+<a href="release/ota/victron-display-cyd.bin">ota/victron-display-cyd.bin</a></span><span data-d="ws">Editor → <b>System → Firmware aktualisieren</b>, Datei
+<a href="release/ota/victron-display-ws7.bin">ota/victron-display-ws7.bin</a></span>).</span><span data-l="en"><b>Note:</b> Installing here erases all settings (WiFi, devices, tiles). To update a display that is already set up, use
 its own web interface (<b>Firmware → Start update mode</b>, file
 <a href="release/ota/victron-display-cyd-en.bin">ota/victron-display-cyd-en.bin</a>).</span></div>
 <div class="btn">
@@ -94,17 +101,28 @@ its own web interface (<b>Firmware → Start update mode</b>, file
 <a href="https://paypal.me/cyclemat">☕ Support</a></footer>
 </main>
 <script>
-const MAN = {de: 'manifest.json', en: 'manifest-en.json'};
-function setLang(l) {
-  document.documentElement.lang = l;
-  document.getElementById('inst').setAttribute('manifest', MAN[l]);
-  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.set === l)));
-  try { localStorage.setItem('soc_flash_lang', l); } catch (e) {}
-  fetch(MAN[l]).then(r => r.json()).then(m => {
-    document.getElementById('ver').textContent = 'Version ' + m.version + ' · ' + (l === 'de' ? 'Deutsch' : 'English');
+// Manifest je Geraet und Sprache (Waveshare 7": vorerst nur Deutsch)
+const MAN = {cyd: {de: 'manifest.json', en: 'manifest-en.json'}, ws: {de: 'manifest-ws7.json'}};
+let dev = 'cyd', lang = 'de';
+function apply() {
+  const ok = MAN[dev][lang] || MAN[dev].de;
+  document.documentElement.lang = lang;
+  document.documentElement.dataset.dev = dev;
+  document.getElementById('inst').setAttribute('manifest', ok);
+  document.querySelectorAll('[data-set]').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.set === lang));
+    b.disabled = !MAN[dev][b.dataset.set];
+  });
+  document.querySelectorAll('[data-dev]').forEach(b => { if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.dataset.dev === dev)); });
+  try { localStorage.setItem('soc_flash_lang', lang); localStorage.setItem('soc_flash_dev', dev); } catch (e) {}
+  fetch(ok).then(r => r.json()).then(m => {
+    document.getElementById('ver').textContent = m.name + ' · Version ' + m.version + (MAN[dev][lang] ? '' : ' · nur Deutsch');
   }).catch(() => {});
 }
-document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.set)));
+function setLang(l) { lang = l; apply(); }
+document.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.set)));
+document.querySelectorAll('button[data-dev]').forEach(b => b.addEventListener('click', () => { dev = b.dataset.dev; apply(); }));
+try { const d = localStorage.getItem('soc_flash_dev'); if (d === 'ws' || d === 'cyd') dev = d; } catch (e) {}
 let start = 'de';
 try { start = localStorage.getItem('soc_flash_lang') || ''; } catch (e) { start = ''; }
 if (start !== 'de' && start !== 'en') start = (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en';
