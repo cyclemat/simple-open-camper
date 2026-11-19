@@ -207,6 +207,10 @@ Kachel mit Temperatur und Luftfeuchte, im Detail der Batteriestand. Ein SwitchBo
 Das Display liest nur – es schaltet am Akku nichts und ändert keine Einstellungen. Klappt die Verbindung nicht,
 steht unter „Protokoll“ in der Akku-Karte, woran es hängt.
 
+**PIN oder Passwort:** Verlangt ein Akku beim Koppeln eine PIN (z. B. Super B) oder ist in seiner App ein Passwort
+gesetzt, beim Hinzufügen „Ja“ wählen bzw. später im Feld **PIN / Passwort** eintragen. **CS-BATTERIES** *(Beta,
+ungetestet)*: Die Anmeldung der CS-App übernimmt das Display selbst – nur ein eigenes Passwort muss eingetragen werden.
+
 **Power Stations** (Bluetti, Allpowers, Anker SOLIX, EcoFlow – ungetestet) richtest du genauso ein. In der Karte
 erscheinen dann Knöpfe für den **AC- und DC-Ausgang**. **EcoFlow** braucht einmalig die Benutzer-ID deines Kontos:
 in der Karte E-Mail und Passwort eintragen, das Display holt sie über das Internet (Passwort wird nicht gespeichert),

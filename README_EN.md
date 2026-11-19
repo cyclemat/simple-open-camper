@@ -28,7 +28,8 @@
 
 The panel runs day to day with Zigbee2MQTT (tested with **131 devices / 73 tiles**). Some modules are built from
 open protocol descriptions but have **not been tested on real hardware yet**:
-Mopeka with a real sensor, Truma CP Plus, Truma iNet X, Alde, WLED and Cerbo GX.
+Mopeka with a real sensor, Truma CP Plus, Truma iNet X, Alde, WLED and Cerbo GX, most battery types and power
+stations as well as the new **SuperSense**, **Ruuvi**, **SwitchBot** sensors and **CS-BATTERIES** batteries.
 
 If you own one of them and want to help: feedback, logs and ideas are very welcome!
 
@@ -84,6 +85,17 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 🔋 **Victron Cerbo GX** (Venus OS) over MQTT – solar, grid/shore power, charger, battery (SOC) and DC system
 - 🔥 **Truma heating** (Combi/VarioHeat) – via **CP Plus** (LIN bus) or **iNet X** (Bluetooth)
 - ♨️ **Alde hydronic heating** (Compact 3020, 3030, 3030 Plus) via LIN bus
+- 🔋 **Batteries with Bluetooth BMS** – Super B, Power Quarry/Shentec, Daly/Bulltron, JBD/Xiaoxiang, CS-BATTERIES *(beta)*,
+  JK-BMS, LiTime/Redodo/PowerQueen, Renogy, Eco-Worthy, ANT, Vatrer: state of charge, voltage, current, temperature,
+  cells – read-only; pairing PIN or password from the manufacturer's app supported
+- ⚡ **Power stations** over Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: charge level, power, switch AC/DC output
+- 💧 **SuperSense tank module** *(beta)* – up to four tank sensors over Bluetooth
+- 🌡️ **Climate sensors** *(beta)* – **Ruuvi** Tag/Air and **SwitchBot** Meter/Meter Plus/Outdoor Meter: temperature,
+  humidity, pressure, CO₂ and particulate matter on the Ruuvi Air; the panel only listens, no pairing
+- 🐝 **Zigbee direct** *(beta, P4 only)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
+  sockets (with power and energy), switches and sensors as tiles
+- 🧩 **Rules** *(beta, P4 only)* – automations with graphical blocks (Blockly) in the editor, e.g. motion light,
+  light by button, dimming by button
 
 **Three network modes**
 
@@ -286,6 +298,23 @@ Pull requests with new or improved translations are very welcome!
 - While scanning, briefly press the **sync button** on the sensor – it is then marked "Taste gedrückt".
 - Choose the bottle type in the detail view: 6/11/14 kg (Europe), 20/30/40 lb (US) or custom values (mm, kg/l).
 
+### 🔋 Batteries and power stations
+
+- On the panel **Settings → Batteries (BMS)** or **Power Stations** → "Search", in the editor the **Batteries** tab.
+- **Close the manufacturer's app first** – most batteries only talk to one device at a time.
+- If the battery asks for a **pairing PIN** (e.g. Super B) or has a **password** in its app (e.g. CS-BATTERIES), enter
+  it in the "PIN / password" field. The panel shows when the battery asks for it.
+- **CS-BATTERIES** *(beta, untested)*: JBD BMS with login – the panel handles the app login itself, only a password
+  you set yourself has to be entered.
+- Read-only – nothing is switched or changed on the battery. Power stations: AC/DC output can be switched.
+
+### 🌡️ Ruuvi and SwitchBot *(beta, untested)*
+
+- **Ruuvi Tag / Ruuvi Air** and **SwitchBot Meter, Meter Plus, Outdoor Meter** broadcast their values openly over
+  Bluetooth. No pairing, no password, the manufacturer's app may stay open, no SwitchBot hub needed.
+- Set up like a battery: **Batteries (BMS) → Search** – the sensor shows up as "Ruuvi" or "SwitchBot Meter".
+- Tile: temperature large, humidity below (Ruuvi Air: CO₂). Details show pressure, particulate matter and battery.
+
 ### ☀️ Victron
 
 - Enable **Instant Readout** in VictronConnect (**Settings → Product info → Instant Readout**).
@@ -470,8 +499,9 @@ To make sure no value runs in circles (panel → HA → panel → HA …), fixed
 ## 📟 Victron display (small stand-alone firmware)
 
 For everyone who only wants to see **Victron and the gas level**, there is a lean firmware for the 2.8" display
-ESP32-2432S028R (“Cheap Yellow Display”, about €15): Cerbo GX via WiFi, Victron devices, Truma LevelControl,
-batteries with Bluetooth BMS and power stations – as tiles, without a big panel. **English or German.**
+ESP32-2432S028R (“Cheap Yellow Display”, about €15): Cerbo GX via WiFi, Victron devices, Truma LevelControl, Mopeka,
+batteries with Bluetooth BMS and power stations, plus SuperSense, Ruuvi and SwitchBot as beta – as tiles, without a big
+panel. **English or German.** The same firmware also exists for the Waveshare 7" with settings on the screen.
 
 - **⚡ [Web flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – install from the browser
   (Chrome/Edge), choose the language there
@@ -546,6 +576,9 @@ authors!
 | Victron Smart Lithium, Smart BatteryProtect (`src/victron.cpp`) | [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble) | Unlicense | Layout of records 0x05 and 0x09 |
 | Batteries with BMS (`src/bms.cpp`) | [patman15/aiobmsble](https://github.com/patman15/aiobmsble) | Apache-2.0 | Detection, frames and values for Daly/Bulltron, JBD, JK, LiTime/Redodo, Eco-Worthy, ANT, Vatrer, Super B Epsilon V2 |
 | | [mr-manuel/venus-os_dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery) | AGPL-3.0 | Protocols JBD, JK-BMS (JK02), LiTime |
+| CS-BATTERIES, SuperSense (`src/bms.cpp`) | own analysis of the apps | – | CS-BATTERIES login (app key, password), SuperSense tank module |
+| Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | see project | Data formats 3, 5 and 6 (advertisements) |
+| SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | see project | Advertisements of the thermo-hygrometers |
 | | Manufacturer documents or own analysis of the apps | – | Super B (older batteries), Power Quarry/Shentec |
 | Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus registers of charge controllers, DC-DC chargers, batteries, inverters |
 | | [IAmTheMitchell/renogy-ble](https://github.com/IAmTheMitchell/renogy-ble) | Apache-2.0 | Device detection, Smart Shunt 300, Pro battery |
@@ -582,7 +615,8 @@ protocol analysis has no licence. This is not legal advice.
 
 - Please report bugs and ideas as issues – ideally with a log from the "UART" port
 - Pull requests are welcome
-- Tested Mopeka, CP Plus, iNet X, Alde, WLED or Cerbo GX? Let me know – even if it doesn't work!
+- Tested Mopeka, CP Plus, iNet X, Alde, WLED, Cerbo GX, batteries, power stations, SuperSense, Ruuvi or SwitchBot?
+  Let me know – even if it doesn't work!
 
 ---
 
@@ -617,8 +651,10 @@ No pressure, no ads, no paywalls – just open source and passion ❤
 
 **Private, community-driven hobby project.**
 
-- Not affiliated with Truma, Alde, Mopeka, Victron Energy, WLED, Shelly, Waveshare or Zigbee2MQTT.
-- "Truma", "LevelControl", "iNet", "Alde", "Mopeka", "Victron", "WLED" and "Shelly" are trademarks or names of their
+- Not affiliated with Truma, Alde, Mopeka, Victron Energy, WLED, Shelly, Waveshare, Zigbee2MQTT, Ruuvi, SwitchBot,
+  CS-BATTERIES, SuperSense (comworks) or the battery and power station makers mentioned.
+- "Truma", "LevelControl", "iNet", "Alde", "Mopeka", "Victron", "WLED", "Shelly", "Ruuvi", "SwitchBot", "CS-BATTERIES"
+  and "SuperSense" are trademarks or names of their
   respective owners and are only mentioned to describe compatibility.
 - The project only connects to your own devices.
 - Use at your own risk – especially when working on heating and gas systems.
