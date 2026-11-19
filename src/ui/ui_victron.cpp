@@ -60,6 +60,7 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_LITHIUM: return ICON_BATTERY;
     case VIC_PROTECT: return ICON_POWER;
     case VIC_TANK: return ICON_BATH;
+    case VIC_CLIMATE: return ICON_THERMO;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -171,6 +172,13 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (!small && !isnan(lo)) t.sub += tr("  ·  Zellen ") + ui_num_bare(lo, 2) + "–" + ui_num(hi, 2, "V");
       break;
     }
+    case VIC_CLIMATE:   // Ruuvi: Temperatur gross, Feuchte (und CO2) darunter
+      t.value = ui_num(v.aux, 1, "°C");
+      t.accent = C_BLUE;
+      t.sub = isnan(v.hum) ? std::string() : ui_num(v.hum, 0, "%");
+      if (v.co2 >= 0) t.sub += (t.sub.empty() ? "" : "  ·  ") + std::to_string(v.co2) + " ppm";
+      else if (!small && !isnan(v.press)) t.sub += (t.sub.empty() ? "" : "  ·  ") + ui_num(v.press, 0, "hPa");
+      break;
     case VIC_TANK: {   // erster Tank gross, weitere darunter
       int first = -1;
       std::string rest;
@@ -225,6 +233,7 @@ std::string ui_vic_summary(const VictronInfo &v) {
       if (victron_is_sense(v)) return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 1, "°C");
       return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
     case VIC_LITHIUM: return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 0, "°C");
+    case VIC_CLIMATE: return ui_num(v.aux, 1, "°C") + (isnan(v.hum) ? std::string() : ", " + ui_num(v.hum, 0, "%"));
     case VIC_TANK: {
       std::string s;
       for (int k = 0; k < 4; k++)
@@ -587,6 +596,11 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 6;
     }
+    case VIC_CLIMATE: {
+      static const char *a[] = {"Temperatur", "Luftfeuchte", "Luftdruck", "CO2", "Feinstaub PM2,5", "Batterie", "Empfang"};
+      memcpy(t, a, sizeof(a));
+      return 7;
+    }
     case VIC_TANK: {
       static const char *a[] = {"Tank 1", "Tank 2", "Tank 3", "Tank 4", "Empfang"};
       memcpy(t, a, sizeof(a));
@@ -725,6 +739,15 @@ static void row_values(const VictronInfo &v, std::string *val, int n) {
       val[5] = reception(v);
       break;
     }
+    case VIC_CLIMATE:
+      val[0] = ui_num(v.aux, 1, "°C");
+      val[1] = ui_num(v.hum, 0, "%");
+      val[2] = ui_num(v.press, 0, "hPa");
+      val[3] = v.co2 < 0 ? std::string("–") : std::to_string(v.co2) + " ppm";
+      val[4] = ui_num(v.pm25, 1, "µg/m³");
+      val[5] = isnan(v.bat_v) ? ui_num(v.soc, 0, "%") : ui_num(v.bat_v, 2, "V");
+      val[6] = reception(v);
+      break;
     case VIC_TANK:
       for (int k = 0; k < 4; k++)
         val[k] = v.tank_pct[k] < 0 ? std::string("–")

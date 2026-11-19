@@ -187,7 +187,8 @@ static esp_err_t h_info(httpd_req_t *req) {
 static const char *vic_type(VicKind k) {
   return k == VIC_SOLAR ? "solar" : k == VIC_SHUNT ? "shunt" : k == VIC_DCDC ? "dcdc" : k == VIC_GRID ? "grid"
        : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter"
-       : k == VIC_PSTATION ? "pstation" : k == VIC_PROTECT ? "protect" : k == VIC_LITHIUM ? "lithium" : "other";
+       : k == VIC_PSTATION ? "pstation" : k == VIC_PROTECT ? "protect" : k == VIC_LITHIUM ? "lithium"
+       : k == VIC_TANK ? "tank" : k == VIC_CLIMATE ? "climate" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -331,6 +332,13 @@ static void vic_state(JsonObject st, const VictronInfo &v) {
   } else if (v.kind == VIC_DCSYS) {
     put(st, "w", v.power_w, 1);
     if (!v.gx && *victron_meter_text(v.meter)) st["meter_text"] = victron_meter_text(v.meter);
+  } else if (v.kind == VIC_CLIMATE) {   // Ruuvi
+    put(st, "temp", v.aux, 10);
+    put(st, "hum", v.hum, 1);
+    put(st, "press", v.press, 1);
+    put(st, "pm25", v.pm25, 10);
+    if (v.co2 >= 0) st["co2"] = v.co2;
+    put(st, "v", v.bat_v);
   }
   if (v.gx) {
     st["gx"] = true;
