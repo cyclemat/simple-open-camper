@@ -12,6 +12,8 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   (Schaltplan, Pinout Super Mini).
 - 🔌 **VE.Direct-Ausgabe** am SmartShunt-Satelliten (Text-Protokoll, 19200 Baud, TX/RX-Pins des Super Mini) mit
   einstellbarer Produkt-ID – ab Werk eigene Kennung 0xA38F.
+- 🔋 **SmartShunt als Batteriewächter-Kachel** auf allen Panels (Schlüssel `satshunt:<Satellit>`): Spannung, Strom,
+  Leistung, Ladezustand, Verbraucht, Restzeit – wie ein Victron SmartShunt (Kachel, Detailfenster, Editor-Liste).
 
 **Behoben**
 - GitHub-Build: NimBLE-Arduino fest auf 2.5.2 (neuere Version baut mit diesem Framework nicht).

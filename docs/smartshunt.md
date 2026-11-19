@@ -46,8 +46,9 @@ eingebauten Shunt entfernen. Keine Rückleitung darf den Shunt umgehen.
 ## Offen
 
 FRAM, Temperaturfühler für Batterie/Shunt, Starter-/Mittelpunktspannung, Trend-Ringpuffer, Shunt-TCR,
-INA228-Ladungsakkumulator als zweite Referenz, VE.Direct-HEX-Protokoll (Antworten auf GX-Anfragen), Darstellung als
-Batteriewächter-Kachel am Panel (statt einzelner Punkte).
+INA228-Ladungsakkumulator als zweite Referenz, VE.Direct-HEX-Protokoll (Antworten auf GX-Anfragen).
+
+Panel: Batteriewächter-Kachel `satshunt:<Satellit>` (panelsat.cpp shunt_of, aus den Punkten 51–56) – 2026-11-19.
 
 ## VE.Direct (umgesetzt, ungetestet am GX)
 

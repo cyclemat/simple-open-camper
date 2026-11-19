@@ -482,7 +482,49 @@ bool panelsat_truma_get(const std::string &key, TrumaInfo &out) {
 bool panelsat_mopeka_get(const std::string &key, MopekaInfo &out) {
   return find(MOPEKA_KEY_PREFIX, SAT_T_MOPEKA, key, [&](const Dev &x) { out = mopeka_of(x); });
 }
+// ---- SmartShunt-Satellit: Punkte analog51 … analog60 (sat_shunt.h SHUNT_IDX_BASE) als Batteriewaechter-Kachel
+// 51 V, 52 A, 53 W, 54 SOC %, 55 verbraucht Ah, 56 Restzeit h. Schluessel "satshunt:<satellit>". (unter Lock)
+static const Dev *shunt_point(const std::string &sat, int idx) {
+  auto it = s_devs.find("point/" + sat + "/analog" + std::to_string(idx));
+  return it == s_devs.end() ? nullptr : &it->second;
+}
+static bool shunt_of(const std::string &sat, VictronInfo &v) {
+  const Dev *pv = shunt_point(sat, 51), *pi = shunt_point(sat, 52), *ps = shunt_point(sat, 54);
+  if (!pv || !pi || !ps || pv->p.unit != "V" || pi->p.unit != "A") return false;   // kein SmartShunt
+  auto val = [&](int idx) -> float {
+    const Dev *x = shunt_point(sat, idx);
+    return x && x->p.ok ? x->p.value : NAN;
+  };
+  v = VictronInfo();
+  v.key = SATSHUNT_KEY_PREFIX + sat;
+  v.mac = sat;
+  v.name = node_name(sat);
+  v.kind = VIC_SHUNT;
+  v.record = 0x02;
+  v.has = pv->p.ok;
+  v.bat_v = val(51);
+  v.bat_i = val(52);
+  v.power_w = val(53);
+  v.soc = val(54);
+  v.consumed_ah = val(55);
+  float ttg = val(56);
+  v.remaining_min = isnan(ttg) ? -1 : (int)lroundf(ttg * 60);
+  v.aux_mode = 3;
+  v.age_s = age_now(*pv);
+  v.status = ps->p.status.empty() ? std::string("OK") : ps->p.status;   // Alarm bzw. "SOC unbekannt"
+  v.alarm = ps->p.ok && !ps->p.status.empty() ? 1 : 0;
+  if (node_offline(*pv)) {
+    v.status = tr(TXT_SAT_OFFLINE);
+    v.age_s = 9999;
+  }
+  return true;
+}
+
 bool panelsat_victron_get(const std::string &key, VictronInfo &out) {
+  if (key.rfind(SATSHUNT_KEY_PREFIX, 0) == 0) {
+    Lock l;
+    return shunt_of(key.substr(strlen(SATSHUNT_KEY_PREFIX)), out);
+  }
   return find(VICTRON_KEY_PREFIX, SAT_T_VICTRON, key, [&](const Dev &x) { out = victron_of(x); });
 }
 
@@ -505,6 +547,12 @@ std::vector<VictronInfo> panelsat_victron_list() {
   Lock l;
   for (auto &e : s_devs)
     if (e.second.type == SAT_T_VICTRON) r.push_back(victron_of(e.second));
+  // SmartShunt-Satelliten (einer je Satellit, erkannt an Punkt analog51 = Spannung)
+  for (auto &e : s_devs) {
+    if (e.second.type != SAT_T_SENSOR || e.second.mac != "analog51") continue;
+    VictronInfo v;
+    if (shunt_of(e.second.sat, v)) r.push_back(v);
+  }
   return r;
 }
 
@@ -514,6 +562,7 @@ static const Dev *dev_of_key(const std::string &key) {
   else if (truma_is_key(key)) k = "truma/" + key.substr(strlen(TRUMA_KEY_PREFIX));
   else if (mopeka_is_key(key)) k = "mopeka/" + key.substr(strlen(MOPEKA_KEY_PREFIX));
   else if (key.rfind(VICTRON_KEY_PREFIX, 0) == 0) k = "victron/" + key.substr(strlen(VICTRON_KEY_PREFIX));
+  else if (key.rfind(SATSHUNT_KEY_PREFIX, 0) == 0) k = "point/" + key.substr(strlen(SATSHUNT_KEY_PREFIX)) + "/analog51";
   else return nullptr;
   auto it = s_devs.find(k);
   return it == s_devs.end() ? nullptr : &it->second;
