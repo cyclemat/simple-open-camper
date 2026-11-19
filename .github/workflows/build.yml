@@ -296,15 +296,17 @@ jobs:
       # Victron-Display: die fertigen Dateien zusaetzlich ins abgespeckte Repo (simply-open-camper-victron-beta), dort in
       # release/ (komplett inkl. Updater, ota/ fuer die Weboberflaeche, vorher/ = vorige Fassung). Braucht das Secret
       # VICTRON_SYNC_TOKEN (wie der Quellcode-Abgleich, sync-victron.yml).
+      # ABGESCHALTET (2026-11-19): Die hier gebauten Dateien enthalten Alpha-Teile (Reifendruck). Die Beta-Dateien werden
+      # nur noch aus dem bereinigten Export (tools/export_victron.py) gebaut und von Hand ins Victron-Repo gelegt.
       - name: Victron-Repo holen
-        if: ${{ env.VTOKEN != '' }}
+        if: ${{ false && env.VTOKEN != '' }}
         uses: actions/checkout@v5
         with:
           repository: cyclemat/simply-open-camper-victron-beta
           token: ${{ secrets.VICTRON_SYNC_TOKEN }}
           path: victron
       - name: Victron-Display-Dateien ins Victron-Repo
-        if: ${{ env.VTOKEN != '' }}
+        if: ${{ false && env.VTOKEN != '' }}
         run: |
           set -e
           [ -d victron ] || { echo "Victron-Repo nicht geholt"; exit 0; }
