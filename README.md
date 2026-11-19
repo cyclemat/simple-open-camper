@@ -29,7 +29,8 @@
 Das Panel läuft im Alltag mit Zigbee2MQTT (getestet mit **131 Geräten / 73 Kacheln**). Einige Module sind nach
 offenen Protokollbeschreibungen gebaut, aber **noch nicht an echter Hardware getestet**:
 Mopeka mit echtem Sensor, Truma CP Plus, Truma iNet X, Alde, WLED und Cerbo GX, die meisten Akku-Typen und
-Power Stations sowie die neuen Sensoren **SuperSense**, **Ruuvi**, **SwitchBot** und Akkus von **CS-BATTERIES**.
+Power Stations sowie die neuen Sensoren **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** und Akkus von
+**CS-BATTERIES**.
 
 Wer eines davon hat und testen mag: Rückmeldungen, Logs und Ideen sind sehr willkommen!
 
@@ -89,6 +90,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
   nur lesen; Kopplungs-PIN bzw. Passwort aus der Hersteller-App möglich
 - ⚡ **Power Stations** per Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: Ladestand, Leistung, AC-/DC-Ausgang schalten
 - 💧 **SuperSense-Tankmodul** *(Beta)* – bis zu vier Tanksensoren per Bluetooth
+- 💧 **Simarine STRx** *(Beta)* – Tanksensoren STR1/STR2/STR3 per Bluetooth-Broadcast, offen oder verschlüsselt
 - 🌡️ **Klima-Sensoren** *(Beta)* – **Ruuvi** Tag/Air und **SwitchBot** Meter/Meter Plus/Outdoor Meter: Temperatur,
   Luftfeuchte, Luftdruck, beim Ruuvi Air auch CO₂ und Feinstaub; das Panel hört nur mit, keine Kopplung
 - 🐝 **Zigbee direkt** *(Beta, nur P4)* – mit dem ESP32-H2-Funkmodul ganz ohne Zigbee2MQTT: Geräte anlernen,
@@ -324,6 +326,26 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
 - **CS-BATTERIES** *(Beta, ungetestet)*: JBD-BMS mit Anmeldung – die Anmeldung der App erledigt das Panel selbst,
   nur ein eigenes Passwort muss eingetragen werden.
 - Nur lesen – am Akku wird nichts geschaltet oder eingestellt. Power Stations: AC-/DC-Ausgang schaltbar.
+
+### 💧 Simarine STRx-Tanksensoren *(Beta, ungetestet)*
+
+Die Simarine-Tanksensoren **STR1** (analog), **STR2** (NMEA 2000) und **STR3** (RV-C) können ihren Füllstand per
+Bluetooth senden („Broadcast“). Das Panel hört nur mit – keine Kopplung, **kein App-Key nötig**.
+
+1. In der App **Simarine Connect** den Tank einrichten (Höhe, Inhalt, Tankart, Kalibrierung).
+2. Je Sensor **Device Management → Broadcast Settings → Broadcast Mode** einschalten – **ab Werk ist er aus**.
+3. Modus wählen:
+   - **Open** – Füllstand, Inhalt und Tankart für jeden lesbar. Nichts weiter einzutragen; am einfachsten zum Ausprobieren.
+   - **Low / Medium / High Security** – Füllstand verschlüsselt. Jeder Sensor hat **seinen eigenen Schlüssel**: in der
+     App **Show Encryption Key** antippen und die **32 Zeichen** beim Hinzufügen bzw. später im Feld **PIN / Passwort**
+     eintragen. Der Schlüssel ist nicht die 4-stellige Geräte-PIN der App. Bei Medium/High sendet der Sensor Inhalt und
+     Tankart nicht mit – dann zeigt das Panel nur Prozent.
+4. **Simarine-App schließen bzw. vom Sensor trennen** – solange ein Handy verbunden ist, sendet der Sensor nicht.
+5. Am Panel **Akkus (BMS) → Suchen** (Editor: Reiter Akkus). Der Sensor erscheint als „Simarine STRx“. Hinzufügen –
+   Kachel mit Füllstand, im Detail Inhalt in Litern, Tankart und ob der Funk offen oder verschlüsselt ist.
+
+Fehlt der Wert, steht der Grund im Status: Broadcast aus, Schlüssel fehlt, Schlüssel passt nicht. Wird der Schlüssel in
+der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung für sicherheitskritische Füllstände nutzen.
 
 ### 🌡️ Ruuvi und SwitchBot *(Beta, ungetestet)*
 
@@ -569,7 +591,7 @@ Damit kein Wert im Kreis läuft (Panel → HA → Panel → HA …), gelten fest
 
 Für alle, die nur **Victron und den Gasvorrat** sehen wollen, gibt es eine schlanke Firmware für das 2,8"-Display
 ESP32-2432S028R („Cheap Yellow Display“, rund 15 €): Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl, Mopeka,
-Akkus mit Bluetooth-BMS und Power Stations, dazu als Beta SuperSense, Ruuvi und SwitchBot – als Kacheln, ohne großes
+Akkus mit Bluetooth-BMS und Power Stations, dazu als Beta SuperSense, Simarine STRx, Ruuvi und SwitchBot – als Kacheln, ohne großes
 Panel. **Deutsch oder Englisch.** Dieselbe Firmware gibt es auch für das Waveshare 7" mit Einstellungen am Bildschirm.
 
 - **⚡ [Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – im Browser (Chrome/Edge) aufspielen,
@@ -647,6 +669,7 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | | [mr-manuel/venus-os_dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery) | AGPL-3.0 | Protokolle JBD, JK-BMS (JK02), LiTime |
 | | Unterlagen vom Hersteller bzw. eigene Analyse der Apps | – | Super B (ältere Akkus), Power Quarry/Shentec, CS-BATTERIES (Anmeldung), SuperSense |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | siehe Projekt | Datenformate 3, 5 und 6 (Werbepakete) |
+| Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | siehe Projekt | Werbepakete, Metadaten, AES-CCM-Verschlüsselung |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | siehe Projekt | Werbepakete der Thermo-Hygrometer |
 | Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus-Register Laderegler, DC-DC-Lader, Akku, Wechselrichter |
 | | [IAmTheMitchell/renogy-ble](https://github.com/IAmTheMitchell/renogy-ble) | Apache-2.0 | Geräteerkennung, Smart Shunt 300, Akku Pro |
@@ -683,7 +706,7 @@ der ursprünglichen Protokoll-Analyse ohne Lizenz. Das ist keine Rechtsberatung.
 
 - Fehler und Ideen bitte als Issue melden – gern mit Log von der Buchse „UART“
 - Pull Requests sind willkommen
-- Mopeka, CP Plus, iNet X, Alde, WLED, Cerbo GX, Akkus, Power Stations, SuperSense, Ruuvi oder SwitchBot getestet?
+- Mopeka, CP Plus, iNet X, Alde, WLED, Cerbo GX, Akkus, Power Stations, SuperSense, Simarine, Ruuvi oder SwitchBot getestet?
   Bitte Bescheid geben – auch wenn es nicht klappt!
 
 ---
@@ -720,9 +743,9 @@ Kein Druck, keine Werbung, keine Bezahlschranke – einfach Open Source mit Leid
 **Privates, von der Community getragenes Hobbyprojekt.**
 
 - Nicht verbunden mit Truma, Alde, Mopeka, Victron Energy, WLED, Shelly, Waveshare, Zigbee2MQTT, Ruuvi, SwitchBot,
-  CS-BATTERIES, SuperSense (comworks) oder den genannten Akku- und Power-Station-Herstellern.
-- „Truma“, „LevelControl“, „iNet“, „Alde“, „Mopeka“, „Victron“, „WLED“, „Shelly“, „Ruuvi“, „SwitchBot“, „CS-BATTERIES“
-  und „SuperSense“ sind Marken bzw. Namen ihrer
+  CS-BATTERIES, SuperSense (comworks), Simarine oder den genannten Akku- und Power-Station-Herstellern.
+- „Truma“, „LevelControl“, „iNet“, „Alde“, „Mopeka“, „Victron“, „WLED“, „Shelly“, „Ruuvi“, „SwitchBot“, „CS-BATTERIES“,
+  „SuperSense“ und „Simarine“ sind Marken bzw. Namen ihrer
   Inhaber und werden nur zur Beschreibung der Kompatibilität genannt.
 - Das Projekt stellt ausschließlich die Verbindung zu deinen eigenen Geräten her.
 - Nutzung auf eigene Gefahr – insbesondere beim Eingriff in Heizungs- und Gasanlagen.

@@ -29,7 +29,8 @@
 The panel runs day to day with Zigbee2MQTT (tested with **131 devices / 73 tiles**). Some modules are built from
 open protocol descriptions but have **not been tested on real hardware yet**:
 Mopeka with a real sensor, Truma CP Plus, Truma iNet X, Alde, WLED and Cerbo GX, most battery types and power
-stations as well as the new **SuperSense**, **Ruuvi**, **SwitchBot** sensors and **CS-BATTERIES** batteries.
+stations as well as the new **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** sensors and **CS-BATTERIES**
+batteries.
 
 If you own one of them and want to help: feedback, logs and ideas are very welcome!
 
@@ -90,6 +91,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
   cells – read-only; pairing PIN or password from the manufacturer's app supported
 - ⚡ **Power stations** over Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: charge level, power, switch AC/DC output
 - 💧 **SuperSense tank module** *(beta)* – up to four tank sensors over Bluetooth
+- 💧 **Simarine STRx** *(beta)* – tank sensors STR1/STR2/STR3 via Bluetooth broadcast, open or encrypted
 - 🌡️ **Climate sensors** *(beta)* – **Ruuvi** Tag/Air and **SwitchBot** Meter/Meter Plus/Outdoor Meter: temperature,
   humidity, pressure, CO₂ and particulate matter on the Ruuvi Air; the panel only listens, no pairing
 - 🐝 **Zigbee direct** *(beta, P4 only)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
@@ -308,6 +310,26 @@ Pull requests with new or improved translations are very welcome!
   you set yourself has to be entered.
 - Read-only – nothing is switched or changed on the battery. Power stations: AC/DC output can be switched.
 
+### 💧 Simarine STRx tank sensors *(beta, untested)*
+
+Simarine tank sensors **STR1** (analog), **STR2** (NMEA 2000) and **STR3** (RV-C) can broadcast their level over
+Bluetooth. The panel only listens – no pairing, **no app key needed**.
+
+1. Set up the tank in the **Simarine Connect** app (height, capacity, fluid type, calibration).
+2. For each sensor enable **Device Management → Broadcast Settings → Broadcast Mode** – **it is off by default**.
+3. Choose the mode:
+   - **Open** – level, capacity and fluid type readable by anyone. Nothing to enter; easiest for a first test.
+   - **Low / Medium / High Security** – level encrypted. Every sensor has **its own key**: tap **Show Encryption Key**
+     in the app and enter the **32 characters** when adding the sensor or later in the **PIN / password** field. The key is
+     not the 4-digit device PIN of the app. In Medium/High the sensor does not send capacity and fluid type – the panel
+     then shows the percentage only.
+4. **Close the Simarine app / disconnect it from the sensor** – while a phone is connected the sensor does not broadcast.
+5. On the panel **Batteries (BMS) → Search** (editor: Batteries tab). The sensor shows up as "Simarine STRx". Add it –
+   tile with the level, details show the content in litres, fluid type and whether the broadcast is open or encrypted.
+
+If there is no value, the status says why: broadcast off, key missing, key does not match. If you regenerate the key
+in the Simarine app, enter the new one. Do not use it as the only measurement for safety-critical levels.
+
 ### 🌡️ Ruuvi and SwitchBot *(beta, untested)*
 
 - **Ruuvi Tag / Ruuvi Air** and **SwitchBot Meter, Meter Plus, Outdoor Meter** broadcast their values openly over
@@ -500,7 +522,7 @@ To make sure no value runs in circles (panel → HA → panel → HA …), fixed
 
 For everyone who only wants to see **Victron and the gas level**, there is a lean firmware for the 2.8" display
 ESP32-2432S028R (“Cheap Yellow Display”, about €15): Cerbo GX via WiFi, Victron devices, Truma LevelControl, Mopeka,
-batteries with Bluetooth BMS and power stations, plus SuperSense, Ruuvi and SwitchBot as beta – as tiles, without a big
+batteries with Bluetooth BMS and power stations, plus SuperSense, Simarine STRx, Ruuvi and SwitchBot as beta – as tiles, without a big
 panel. **English or German.** The same firmware also exists for the Waveshare 7" with settings on the screen.
 
 - **⚡ [Web flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – install from the browser
@@ -578,6 +600,7 @@ authors!
 | | [mr-manuel/venus-os_dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery) | AGPL-3.0 | Protocols JBD, JK-BMS (JK02), LiTime |
 | CS-BATTERIES, SuperSense (`src/bms.cpp`) | own analysis of the apps | – | CS-BATTERIES login (app key, password), SuperSense tank module |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | see project | Data formats 3, 5 and 6 (advertisements) |
+| Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | see project | Advertisements, metadata, AES-CCM encryption |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | see project | Advertisements of the thermo-hygrometers |
 | | Manufacturer documents or own analysis of the apps | – | Super B (older batteries), Power Quarry/Shentec |
 | Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus registers of charge controllers, DC-DC chargers, batteries, inverters |
@@ -615,7 +638,7 @@ protocol analysis has no licence. This is not legal advice.
 
 - Please report bugs and ideas as issues – ideally with a log from the "UART" port
 - Pull requests are welcome
-- Tested Mopeka, CP Plus, iNet X, Alde, WLED, Cerbo GX, batteries, power stations, SuperSense, Ruuvi or SwitchBot?
+- Tested Mopeka, CP Plus, iNet X, Alde, WLED, Cerbo GX, batteries, power stations, SuperSense, Simarine, Ruuvi or SwitchBot?
   Let me know – even if it doesn't work!
 
 ---
@@ -652,9 +675,9 @@ No pressure, no ads, no paywalls – just open source and passion ❤
 **Private, community-driven hobby project.**
 
 - Not affiliated with Truma, Alde, Mopeka, Victron Energy, WLED, Shelly, Waveshare, Zigbee2MQTT, Ruuvi, SwitchBot,
-  CS-BATTERIES, SuperSense (comworks) or the battery and power station makers mentioned.
-- "Truma", "LevelControl", "iNet", "Alde", "Mopeka", "Victron", "WLED", "Shelly", "Ruuvi", "SwitchBot", "CS-BATTERIES"
-  and "SuperSense" are trademarks or names of their
+  CS-BATTERIES, SuperSense (comworks), Simarine or the battery and power station makers mentioned.
+- "Truma", "LevelControl", "iNet", "Alde", "Mopeka", "Victron", "WLED", "Shelly", "Ruuvi", "SwitchBot", "CS-BATTERIES",
+  "SuperSense" and "Simarine" are trademarks or names of their
   respective owners and are only mentioned to describe compatibility.
 - The project only connects to your own devices.
 - Use at your own risk – especially when working on heating and gas systems.

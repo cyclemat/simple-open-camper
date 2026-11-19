@@ -2265,7 +2265,7 @@ async function openSettings(tab = 'net') {
   const bmsPinAsk = model => model === 27 || model === 28 ? Promise.resolve('') : promptDlg('Kopplungs-PIN', model === 1
       ? 'Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.'
       : 'Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen.', '')
-    .then(p => p == null ? null : String(p).replace(/[^0-9A-Za-z]/g, '').slice(0, 6));
+    .then(p => p == null ? null : String(p).replace(/[^0-9A-Za-z]/g, '').slice(0, 32));
   const vicTimer = setInterval(() => { if (!body.isConnected) clearInterval(vicTimer); else if (tab === 'vic') { loadVic(); loadGx(); } else if (tab === 'bms' || tab === 'ps') loadBms(); }, 2500);
   const gxPost = async data => {
     if (S.demo) { Object.assign(S.demoCerbo, data, {has_pass: data.clear_pass ? false : (S.demoCerbo.has_pass || !!data.pass)}); delete S.demoCerbo.pass; return; }
@@ -2328,7 +2328,7 @@ async function openSettings(tab = 'net') {
       <label class="switch"><input type="checkbox" id="bmsOn" ${b.on ? 'checked' : ''}>Akkus auswerten</label>
       ${b.on ? `${b.devices.length ? b.devices.map(x => `<div class="gasrow">
           <label class="field" style="margin:0"><span data-notr>${esc(x.model || 'Akku')}</span><input data-bmsname="${esc(x.mac)}" value="${esc(x.name)}" maxlength="32"></label>
-          <label class="field" style="margin:0;width:110px"><span>Kopplungs-PIN</span><input data-bmspin="${esc(x.mac)}" maxlength="6" autocomplete="off" placeholder="${x.pin ? '••••••' : T('keine')}"></label>
+          <label class="field" style="margin:0;width:110px"><span>Kopplungs-PIN</span><input data-bmspin="${esc(x.mac)}" maxlength="32" autocomplete="off" placeholder="${x.pin ? '••••••' : T('keine')}"></label>
           <button class="btn small danger" data-bmsremove="${esc(x.mac)}">Entfernen</button>
           <div class="st" data-notr>${esc(x.mac)} – ${esc(sumOf(x))}</div>
           ${x.pin_need && !x.pin ? '<div class="st" style="color:#e5534b">Der Akku verlangt beim Koppeln eine PIN (steht auf dem Akku bzw. in der Anleitung) – oben eintragen.</div>' : ''}</div>`).join('') : '<p class="hint">Noch kein Akku eingerichtet.</p>'}
@@ -2879,7 +2879,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
   body.addEventListener('change', e => {
     if (e.target.id === 'logoFile' && e.target.files[0]) uploadLogo(e.target.files[0]).then(render).catch(er => toast(er.message, 'error'));
     if (e.target.id === 'bmsOn') bmsPost({on: e.target.checked}).then(loadBms).catch(er => toast(er.message, 'error'));
-    if (e.target.dataset.bmspin != null) { const p = e.target.value.replace(/[^0-9A-Za-z]/g, '').slice(0, 6); bmsPost({pin: {mac: e.target.dataset.bmspin, pin: p}}).then(() => { toast(p ? 'PIN gespeichert – das Panel koppelt neu.' : 'PIN gelöscht.'); e.target.value = ''; loadBms(); }).catch(er => toast(er.message, 'error')); }
+    if (e.target.dataset.bmspin != null) { const p = e.target.value.replace(/[^0-9A-Za-z]/g, '').slice(0, 32); bmsPost({pin: {mac: e.target.dataset.bmspin, pin: p}}).then(() => { toast(p ? 'PIN gespeichert – das Panel koppelt neu.' : 'PIN gelöscht.'); e.target.value = ''; loadBms(); }).catch(er => toast(er.message, 'error')); }
     if (e.target.dataset.bmsname) bmsPost({rename: {mac: e.target.dataset.bmsname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.vname) vicPost({rename: {mac: e.target.dataset.vname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));
     if (e.target.dataset.gname) gasPost({rename: {mac: e.target.dataset.gname, name: e.target.value.trim()}}).then(() => toast('Name gespeichert.')).catch(er => toast(er.message, 'error'));

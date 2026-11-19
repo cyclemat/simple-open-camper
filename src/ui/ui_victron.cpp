@@ -519,7 +519,7 @@ static void v_pin_cb(lv_event_t *) {
                  "Leer = keine PIN.";
   if (have && b.pin_set) o.hint += tr(" Eine PIN ist gespeichert.");
   o.numeric = true;
-  o.max_len = 6;
+  o.max_len = 32;   // Simarine-Schluessel; sonst kuerzt bms.cpp auf 6
   o.on_ok = [mac](const std::string &t, bool) {
     bms_set_pin(mac, t);
     ui_toast(t.empty() ? "PIN gelöscht." : "PIN gespeichert – das Panel koppelt neu.");

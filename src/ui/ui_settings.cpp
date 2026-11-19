@@ -2259,7 +2259,7 @@ static void bms_pin_ask_cb(lv_timer_t *tm) {
                : "Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). "
                  "Meist leer lassen. Später änderbar: Akku antippen > PIN.";
   o.numeric = true;
-  o.max_len = 6;
+  o.max_len = 32;   // Simarine-Schluessel; sonst kuerzt bms.cpp auf 6
   o.on_ok = [f, name](const std::string &pin, bool) {
     std::string err = bms_add(f.mac, f.addr_type, name, f.model, f.capacity_ah, f.cells);
     if (err.empty() && !pin.empty()) bms_set_pin(f.mac, pin);
