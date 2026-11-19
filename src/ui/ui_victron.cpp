@@ -61,6 +61,8 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_PROTECT: return ICON_POWER;
     case VIC_TANK: return ICON_BATH;
     case VIC_CLIMATE: return ICON_THERMO;
+    case VIC_HEATER: return ICON_FLAME;
+    case VIC_FRIDGE: return ICON_KITCHEN;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -172,6 +174,29 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (!small && !isnan(lo)) t.sub += tr("  ·  Zellen ") + ui_num_bare(lo, 2) + "–" + ui_num(hi, 2, "V");
       break;
     }
+    case VIC_HEATER:   // Dieselheizung: an/aus bzw. Fehler gross, Stufe/Soll und Innenraum darunter
+      if (v.ht_err) {
+        t.value = "E" + std::to_string(v.ht_err);
+        t.accent = C_RED;
+        t.sub = tr("Fehler – Heizung prüfen");
+        break;
+      }
+      t.value = v.ht_on == 1 ? tr("an") : v.ht_on == 0 ? tr("aus") : "–";
+      t.accent = v.ht_on == 1 ? C_AMBER : C_TEXT3;
+      if (v.ht_on == 1 && v.ht_mode == 1 && v.ht_level > 0) t.sub = tr("Stufe ") + std::to_string(v.ht_level);
+      if (v.ht_on == 1 && v.ht_mode == 2 && v.ht_set > 0) t.sub = tr("Soll ") + std::to_string(v.ht_set) + "\xE2\x80\xAF°C";
+      if (!isnan(v.aux)) t.sub += (t.sub.empty() ? "" : "  ·  ") + std::string(tr("innen ")) + ui_num(v.aux, 0, "°C");
+      break;
+    case VIC_FRIDGE:   // Kuehlbox: Ist Zone 1 gross, Soll (und Zone 2) darunter
+      if (!v.fr_zones) {
+        t.value = "–";
+        break;
+      }
+      t.value = std::to_string(v.fr_cur[0]) + "\xE2\x80\xAF°C";
+      t.accent = v.fr_on == 0 ? C_TEXT3 : C_BLUE;
+      t.sub = v.fr_on == 0 ? std::string(tr("aus")) : tr("Soll ") + std::to_string(v.fr_set[0]) + "\xE2\x80\xAF°C";
+      if (v.fr_zones > 1) t.sub += "  ·  " + std::to_string(v.fr_cur[1]) + "\xE2\x80\xAF°C";
+      break;
     case VIC_CLIMATE:   // Ruuvi/SwitchBot/BTHome: Temperatur gross (ohne: Zustand), Feuchte (und CO2) darunter
       if (isnan(v.aux) && !v.note.empty()) {
         t.value = v.note;
@@ -240,6 +265,10 @@ std::string ui_vic_summary(const VictronInfo &v) {
       return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
     case VIC_LITHIUM: return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 0, "°C");
     case VIC_CLIMATE: return ui_num(v.aux, 1, "°C") + (isnan(v.hum) ? std::string() : ", " + ui_num(v.hum, 0, "%"));
+    case VIC_HEATER:
+      return v.ht_err ? "E" + std::to_string(v.ht_err) : std::string(v.ht_on == 1 ? tr("an") : tr("aus")) + ", " + ui_num(v.aux, 0, "°C");
+    case VIC_FRIDGE:
+      return v.fr_zones ? std::to_string(v.fr_cur[0]) + " °C, " + tr("Soll ") + std::to_string(v.fr_set[0]) + " °C" : std::string("–");
     case VIC_TANK: {
       std::string s;
       for (int k = 0; k < 4; k++)
@@ -279,6 +308,9 @@ struct VicDlg {
   int nmode = 0;
   // Power Station: AC-/DC-Ausgang schalten (bms_set_output)
   lv_obj_t *ps_btn[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
+  // Dieselheizung/Kuehlbox: Ein/Aus-Knoepfe, Anzeige Stufe/Soll je Zeile (Heizung: 0 Stufe, 1 Temperatur; Box: Zonen)
+  lv_obj_t *hf_pwr[2] = {nullptr, nullptr};
+  lv_obj_t *hf_val[2] = {nullptr, nullptr};
   // Akku mit BMS: Zeilen aus bms_rows() (nur vorhandene Werte), Zellen als Kaestchen; sig = Aufbau (Zeilen, Zellzahl)
   bool bat = false;
   std::string sig;
@@ -445,6 +477,77 @@ static void ps_build(lv_obj_t *card, const VictronInfo &v) {
   }
   ps_show(0, v.ac_on);
   ps_show(1, v.dc_on);
+}
+
+// ---------------------------------------------------------------- Dieselheizung / Kuehlbox bedienen
+static void hf_show(const VictronInfo &v) {
+  if (!s_v) return;
+  int on = v.kind == VIC_HEATER ? v.ht_on : v.fr_on;
+  for (int k = 0; k < 2; k++) {
+    lv_obj_t *b = s_v->hf_pwr[k];
+    if (!b) continue;
+    bool sel = on >= 0 && (k == 0) == (on == 1);
+    lv_obj_set_style_bg_color(b, sel ? (v.kind == VIC_HEATER ? C_AMBER : C_BLUE) : C_FIELD, 0);
+    lv_obj_t *l = lv_obj_get_child(b, 0);
+    if (l) lv_obj_set_style_text_color(l, sel ? C_INK : C_TEXT, 0);
+  }
+  for (int r = 0; r < 2; r++) {
+    if (!s_v->hf_val[r]) continue;
+    std::string t = "–";
+    if (v.kind == VIC_HEATER && r == 0 && v.ht_level > 0) t = std::to_string(v.ht_level);
+    if (v.kind == VIC_HEATER && r == 1 && v.ht_set > 0) t = std::to_string(v.ht_set) + "\xE2\x80\xAF°C";
+    if (v.kind == VIC_FRIDGE && v.fr_set[r] > -128) t = std::to_string(v.fr_set[r]) + "\xE2\x80\xAF°C";
+    lv_label_set_text(s_v->hf_val[r], t.c_str());
+  }
+}
+static void hf_cb(lv_event_t *e) {
+  if (!s_v) return;
+  int x = (int)(intptr_t)lv_event_get_user_data(e);   // 0 ein, 1 aus, 10+r*2 minus, 11+r*2 plus (r = Zeile)
+  VictronInfo v;
+  if (!ui_vic_get(s_v->key, v)) return;
+  bool heat = v.kind == VIC_HEATER, ok = false;
+  if (x < 2) {
+    ok = heat ? bms_heater_cmd(s_v->mac, 0, x == 0) : bms_fridge_cmd(s_v->mac, 0, x == 0);
+  } else {
+    int r = (x - 10) / 2, d = (x - 10) % 2 ? 1 : -1;
+    if (heat && r == 0) ok = bms_heater_cmd(s_v->mac, 1, std::max(1, std::min(10, (v.ht_level > 0 ? v.ht_level : 5) + d)));
+    if (heat && r == 1) ok = bms_heater_cmd(s_v->mac, 2, std::max(8, std::min(36, (v.ht_set > 0 ? v.ht_set : 20) + d)));
+    if (!heat && v.fr_set[r] > -128)
+      ok = bms_fridge_cmd(s_v->mac, r + 1, std::max(v.fr_min, std::min(v.fr_max, v.fr_set[r] + d)));
+  }
+  if (!ok) {
+    ui_toast(heat && v.ht_err ? "Die Heizung meldet einen Fehler – nur Ausschalten ist möglich." : "Das ging nicht.");
+    return;
+  }
+  if (ui_vic_get(s_v->key, v)) hf_show(v);
+}
+static void hf_build(lv_obj_t *card, const VictronInfo &v) {
+  bool heat = v.kind == VIC_HEATER;
+  auto row = [&](const char *title) {
+    lv_obj_t *r = lv_obj_create(card);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 60);
+    lv_obj_t *t = ui_label(r, tr(title), F_BODY, C_TEXT2);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 0, 0);
+    return r;
+  };
+  lv_obj_t *r = row(heat ? "Heizung" : "Kühlbox");
+  s_v->hf_pwr[1] = ctl_btn(r, tr("Aus"), 120, hf_cb, 1);
+  lv_obj_align(s_v->hf_pwr[1], LV_ALIGN_RIGHT_MID, 0, 0);
+  s_v->hf_pwr[0] = ctl_btn(r, tr("Ein"), 120, hf_cb, 0);
+  lv_obj_align(s_v->hf_pwr[0], LV_ALIGN_RIGHT_MID, -128, 0);
+  int rows = heat ? 2 : v.fr_zones;
+  for (int k = 0; k < rows && k < 2; k++) {
+    const char *title = heat ? (k ? "Solltemperatur" : "Stufe") : (v.fr_zones > 1 ? (k ? "Soll rechts" : "Soll links") : "Solltemperatur");
+    lv_obj_t *rr = row(title);
+    lv_obj_t *plus = ctl_btn(rr, "+", 72, hf_cb, 11 + k * 2);
+    lv_obj_align(plus, LV_ALIGN_RIGHT_MID, 0, 0);
+    s_v->hf_val[k] = ui_label(rr, "–", F_BODY, C_TEXT);
+    lv_obj_align(s_v->hf_val[k], LV_ALIGN_RIGHT_MID, -96, 0);
+    lv_obj_t *minus = ctl_btn(rr, "−", 72, hf_cb, 10 + k * 2);
+    lv_obj_align(minus, LV_ALIGN_RIGHT_MID, -200, 0);
+  }
+  hf_show(v);
 }
 
 // einmal pro Aktualisierung: Werte vom GX uebernehmen, ausser direkt nach einer eigenen Eingabe
@@ -858,6 +961,9 @@ void ui_vic_update() {
     ps_show(0, v.ac_on);
     ps_show(1, v.dc_on);
   }
+  if (v.kind == VIC_HEATER || v.kind == VIC_FRIDGE) {
+    hf_show(v);
+  }
 }
 
 void ui_vic_open(const std::string &key) {
@@ -938,7 +1044,7 @@ void ui_vic_open(const std::string &key) {
   std::vector<std::string> bat_titles;
 #if WITH_BMS
   BmsInfo bi;
-  d->bat = v.bms && v.kind == VIC_SHUNT && bms_get(key, bi);
+  d->bat = v.bms && (v.kind == VIC_SHUNT || v.kind == VIC_HEATER || v.kind == VIC_FRIDGE) && bms_get(key, bi);
   if (d->bat) {   // Akku: nur die Zeilen, die dieser Akku liefert
     for (auto &r : bms_rows(bi))
       if ((int)bat_titles.size() < MAX_ROWS - 1) bat_titles.push_back(r.first);
@@ -989,6 +1095,7 @@ void ui_vic_open(const std::string &key) {
   lv_obj_set_width(d->status, lv_pct(100));
   if (v.gx && (v.can_limit || v.can_mode)) ctl_build(card, v);   // MultiPlus/Ladegeraet ueber den GX bedienen
   if (v.bms && v.kind == VIC_PSTATION && (v.can_ac || v.can_dc)) ps_build(card, v);   // Power Station: Ausgaenge
+  if (v.bms && (v.kind == VIC_HEATER || v.kind == VIC_FRIDGE)) hf_build(card, v);   // Heizung/Kuehlbox bedienen
 
   lv_obj_t *row = lv_obj_create(card);
   ui_plain(row);

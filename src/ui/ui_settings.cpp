@@ -2280,12 +2280,14 @@ static void bms_found_cb(lv_event_t *e) {
     return;
   }
   InputOptions o;
-  o.title = is_ps(f.model) ? "Name der Power Station" : f.model == BMS_RUUVI || f.model == BMS_SWITCHBOT || f.model == BMS_BTHOME ? "Name des Sensors" : "Name des Akkus";
+  o.title = is_ps(f.model) ? "Name der Power Station" : f.model == BMS_RUUVI || f.model == BMS_SWITCHBOT || f.model == BMS_BTHOME ? "Name des Sensors"
+          : f.model == BMS_HEATER || f.model == BMS_FRIDGE ? "Name des Geräts" : "Name des Akkus";
   o.hint = "Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.";
   o.initial = f.name.empty() ? std::string(bms_model_text(f.model)) : f.name;
   o.max_len = 32;
   o.on_ok = [f](const std::string &t, bool) {
-    if (is_ps(f.model) || f.model == BMS_RUUVI || f.model == BMS_SWITCHBOT || f.model == BMS_BTHOME) {   // keine PIN
+    if (is_ps(f.model) || f.model == BMS_RUUVI || f.model == BMS_SWITCHBOT || f.model == BMS_BTHOME ||
+        f.model == BMS_HEATER || f.model == BMS_FRIDGE) {   // keine PIN-Frage (Heizung: Passkey 1234, bei Bedarf in den Einstellungen)
       std::string err = bms_add(f.mac, f.addr_type, t, f.model, f.capacity_ah, f.cells);
       ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich." : err.c_str());
       if (err.empty()) offer_tile(BMS_KEY_PREFIX + lower_mac(f.mac), t.empty() ? std::string(bms_model_text(f.model)) : t);

@@ -461,6 +461,18 @@ static void collect_raw(ItemList &s_items) {
       }
       continue;
     }
+    if (b.dev == BMS_DEV_HEATER || b.dev == BMS_DEV_FRIDGE) {   // Dieselheizung / Kuehlbox
+      Item it;
+      it.key = "b:" + b.mac;
+      bool heat = b.dev == BMS_DEV_HEATER;
+      it.name = b.name.empty() ? std::string(heat ? tr("Heizung") : tr("Kühlbox")) : b.name;
+      it.icon = heat ? ICON_FLAME : ICON_KITCHEN;
+      it.value = bms_value_text(b);
+      int on = heat ? b.ht_on : b.fr_on;
+      it.accent = !b.connected && b.age_s > 120 ? C_TEXT3 : heat && b.ht_err ? C_RED : on == 1 ? (heat ? C_AMBER : C_BLUE) : C_TEXT3;
+      s_items.push_back(it);
+      continue;
+    }
     if (b.dev == BMS_DEV_CLIMATE) {   // Ruuvi: Temperatur  ·  Feuchte (CO2)
       Item it;
       it.key = "b:" + b.mac;

@@ -188,7 +188,8 @@ static const char *vic_type(VicKind k) {
   return k == VIC_SOLAR ? "solar" : k == VIC_SHUNT ? "shunt" : k == VIC_DCDC ? "dcdc" : k == VIC_GRID ? "grid"
        : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter"
        : k == VIC_PSTATION ? "pstation" : k == VIC_PROTECT ? "protect" : k == VIC_LITHIUM ? "lithium"
-       : k == VIC_TANK ? "tank" : k == VIC_CLIMATE ? "climate" : "other";
+       : k == VIC_TANK ? "tank" : k == VIC_CLIMATE ? "climate" : k == VIC_HEATER ? "heater"
+       : k == VIC_FRIDGE ? "fridge" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -1267,6 +1268,18 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
       o["ok"] = b.ok;
     }
     o["status"] = b.status;
+    // Dieselheizung / Kuehlbox: Zustand und Sollwerte fuer die Knoepfe
+    if (b.dev == BMS_DEV_HEATER) {
+      o["hon"] = b.ht_on;
+      o["hmode"] = b.ht_mode;
+      if (b.ht_level > 0) o["hlv"] = b.ht_level;
+      if (b.ht_set > 0) o["hset"] = b.ht_set;
+    }
+    if (b.dev == BMS_DEV_FRIDGE && b.fr_zones) {
+      o["fon"] = b.fr_on;
+      o["fset"] = b.fr_set[0];
+      if (b.fr_zones > 1) o["fset2"] = b.fr_set[1];
+    }
     o["dev"] = b.dev;
     o["sum"] = bms_value_text(b);
     o["pin"] = b.pin_set;        // Kopplungs-PIN gespeichert
@@ -1332,6 +1345,10 @@ static esp_err_t h_bms_post(httpd_req_t *req) {
     std::string err = bms_ef_login_start(d["ef_login"]["email"] | "", d["ef_login"]["password"] | "");
     if (!err.empty()) return send_err(req, "400 Bad Request", err);
   }
+  if (!d["heat"].isNull() && !bms_heater_cmd(d["heat"]["mac"] | "", d["heat"]["what"] | -1, d["heat"]["value"] | 0))
+    return send_err(req, "400 Bad Request", "Das ging nicht");
+  if (!d["fridge"].isNull() && !bms_fridge_cmd(d["fridge"]["mac"] | "", d["fridge"]["what"] | -1, d["fridge"]["value"] | 0))
+    return send_err(req, "400 Bad Request", "Das ging nicht");
   if (!d["output"].isNull() &&
       !bms_set_output(d["output"]["mac"] | "", d["output"]["ac"] | true, d["output"]["on"] | false))
     return send_err(req, "400 Bad Request", "Dieses Gerät lässt sich nicht schalten");

@@ -2,6 +2,7 @@
 
 Quellen (Protokollwissen, eigene Umsetzung): **klightspeed/BrassMonkeyFridgeMonitor** (MIT) und
 **deeteeppg/bodega-bluetooth-le-hass** (MIT). Gleiches Protokoll wie die App „Alpicool“ / „Car Fridge Freezer“.
+Gleiches Protokoll wie **IceCube / Plug-in Festivals** (App 1.0.7, Unterlage vom Nutzer: statische Analyse der APK).
 Stand 2026-11-19, nicht am Gerät getestet. Andere Kühlbox-Apps (Cfridge, Outdoor Joy/ICECO, A-Premium …) können
 andere Protokolle haben – erst mit Unterlagen/Mitschnitt.
 
@@ -48,3 +49,15 @@ Manche Boxen schicken die doppelte Summe – beides gilt.
 | 27 | Laufzustand |
 
 Ein/Aus: Set-Befehl mit dem zuletzt gelesenen Block und geändertem Byte 1 (nie einzelne Felder raten).
+
+## Ergänzungen aus IceCube / Plug-in Festivals
+
+- **Bind** nur bei der ersten Verbindung (App wartet bis 15 s, Settings-Taste an der Box drücken), Antwort-Byte > 0 =
+  gebunden. Danach nicht mehr senden.
+- Weitere Befehle: `04` Reset (**nie senden**), `07` Soll Heizen (int8), `08`/`09` Bind prüfen/setzen (nicht senden).
+- Status 18–29: rechts Soll, Max, Min, Hysterese, 4 Korrekturen, Ist (26), Laufzustand (27), **Modellcode (28)**,
+  Soll Heizen (29); rechts −128 = keine zweite Zone. Ab Datenlänge > 36: 30 Warnung, 31 Schlafmodus, 32 Trennwand,
+  33 Desinfektion. Akku-% nur bis 100 gültig, Zehntel-Volt nur 0–9.
+- **Set (02)** nach Modellcode: 14 Byte Basis; Modell ≠ 1 → + rechts Soll, Max, Min, Hysterese, 4 Korrekturen,
+  Soll Heizen, Modell; Modell ≥ 9 → + Laufzustand, Schlafmodus, Desinfektion, 6 × 0; sonst Modell ≠ 1 → + 1 × 0.
+  Immer aus dem zuletzt gelesenen Status (read-modify-write).

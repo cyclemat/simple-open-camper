@@ -94,6 +94,8 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 💧 **Simarine STRx** *(Beta)* – Tanksensoren STR1/STR2/STR3 per Bluetooth-Broadcast, offen oder verschlüsselt
 - 🌡️ **Klima-Sensoren** *(Beta)* – **Ruuvi** Tag/Air und **SwitchBot** Meter/Meter Plus/Outdoor Meter: Temperatur,
   Luftfeuchte, Luftdruck, beim Ruuvi Air auch CO₂ und Feinstaub; das Panel hört nur mit, keine Kopplung
+- 🔥 **Dieselheizung** *(Beta)* – Vevor/Hcalory, HeaterCC/AirHeater: anzeigen und bedienen (ein/aus, Stufe, Temperatur)
+- 🧊 **Kühlbox** *(Beta)* – Alpicool, IceCube/Plug-in Festivals, Bodega u. a.: anzeigen und bedienen (ein/aus, Soll je Zone)
 - 📡 **BTHome** *(Beta)* – Shelly BLU (Tür, Bewegung, Taster, H&T), Xiaomi mit pvvx-Firmware u. v. a., auch verschlüsselt
 - 🐝 **Zigbee direkt** *(Beta, nur P4)* – mit dem ESP32-H2-Funkmodul ganz ohne Zigbee2MQTT: Geräte anlernen,
   Lampen, Steckdosen (mit Leistung und Verbrauch), Schalter und Sensoren als Kacheln
@@ -363,6 +365,29 @@ Bluetooth senden („Broadcast“). Das Panel hört nur mit – keine Kopplung, 
 
 Fehlt der Wert, steht der Grund im Status: Broadcast aus, Schlüssel fehlt, Schlüssel passt nicht. Wird der Schlüssel in
 der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung für sicherheitskritische Füllstände nutzen.
+
+### 🔥 Dieselheizung *(Beta, ungetestet)*
+
+- China-Dieselheizungen mit Bluetooth: **Vevor/Hcalory** mit der App „AirHeaterBLE“ (auch verschlüsselte Variante) und
+  **HeaterCC/AirHeater**. Namen wie BYD-…, Heater…, „Air Heater“, HC-…, BAC-…, CRONUS…, Hcalory…, boygu… werden erkannt.
+- Einrichten wie ein Akku: **Akkus (BMS) → Suchen**, erscheint als „Dieselheizung“. App vorher schließen.
+- Kachel: an/aus, Stufe bzw. Solltemperatur, Innenraumtemperatur; Fehler (E1…E10) rot.
+- **Bedienen:** Kachel lange drücken → **Ein/Aus**, **Stufe ±**, **Solltemperatur ±**. Auf dem Victron-Display in
+  der Weboberfläche (Akku-Karte).
+- Sicherheit: nur Ein/Aus, Stufe und Temperatur – keine Pumpen- oder Einstellwerte. Meldet die Heizung einen Fehler,
+  ist nur noch Ausschalten möglich. Abstand zwischen Befehlen mind. 0,7 s.
+- Passkey der App ist ab Werk 1234; wer ihn geändert hat, trägt ihn im Feld **PIN / Passwort** ein.
+- Noch nicht: Hcalory MVP1/MVP2 und Sunster (andere Protokolle).
+
+### 🧊 Kühlbox *(Beta, ungetestet)*
+
+- Kompressor-Kühlboxen mit den Apps **Alpicool / Car Fridge Freezer** und **IceCube / Plug-in Festivals**, auch
+  Bodega, Brass Monkey u. a. (Namen WT-…, A1-…, AK1/2/3-…), ein- und zweizonig.
+- Einrichten wie ein Akku: **Akkus (BMS) → Suchen**, erscheint als „Kühlbox“. Beim ersten Verbinden ggf. die
+  **Settings-Taste an der Box** drücken. App vorher schließen – solange sie verbunden ist, ist die Box für andere stumm.
+- Kachel: Innentemperatur groß, Soll darunter (zweite Zone daneben).
+- **Bedienen:** Kachel lange drücken → **Ein/Aus**, **Soll ±** je Zone. Einstellungen werden immer aus dem zuletzt
+  gelesenen Stand geschrieben, nichts geraten; Reset wird nie gesendet.
 
 ### 📡 BTHome *(Beta, ungetestet)*
 
@@ -697,6 +722,9 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | | Unterlagen vom Hersteller bzw. eigene Analyse der Apps | – | Super B (ältere Akkus), Power Quarry/Shentec, CS-BATTERIES (Anmeldung), SuperSense |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | siehe Projekt | Datenformate 3, 5 und 6 (Werbepakete) |
 | Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | siehe Projekt | Werbepakete, Metadaten, AES-CCM-Verschlüsselung |
+| Dieselheizung (`src/bms.cpp`) | [Spettacolo83/diesel-heater-ble](https://github.com/Spettacolo83/diesel-heater-ble), [homeassistant-diesel-heater](https://github.com/Spettacolo83/homeassistant-diesel-heater), [mSoftMS/AirHeater-BLE](https://github.com/mSoftMS/AirHeater-BLE) | MIT | Rahmen AA55/AA66/ABBA, XOR-Schlüssel, Befehle, Erkennung |
+| Kühlbox (`src/bms.cpp`) | [klightspeed/BrassMonkeyFridgeMonitor](https://github.com/klightspeed/BrassMonkeyFridgeMonitor), [deeteeppg/bodega-bluetooth-le-hass](https://github.com/deeteeppg/bodega-bluetooth-le-hass) | MIT | Rahmen, Status, Befehle |
+| | Analyse der App IceCube / Plug-in Festivals (Unterlage des Nutzers) | – | Set-Aufbau nach Modell, Bind |
 | BTHome (`src/bms.cpp`) | [bthome.io](https://bthome.io), [Bluetooth-Devices/bthome-ble](https://github.com/Bluetooth-Devices/bthome-ble) | MIT | Objekttabelle, Verschlüsselung |
 | Senso4s (`src/mopeka.cpp`) | [ksanislo/senso4s_ble](https://github.com/ksanislo/senso4s_ble) | Apache-2.0 | Werbepakete, Fehler- und Warncodes |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | siehe Projekt | Werbepakete der Thermo-Hygrometer |

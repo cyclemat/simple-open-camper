@@ -462,6 +462,18 @@ void h_state() {
     // Power Station: Ausgaenge (-1 = unbekannt)
     if (b.can_ac) o["ac"] = b.ac_on;
     if (b.can_dc) o["dc"] = b.dc_on;
+    // Dieselheizung / Kuehlbox: Zustand und Sollwerte fuer die Knoepfe
+    if (b.dev == BMS_DEV_HEATER) {
+      o["hon"] = b.ht_on;
+      o["hmode"] = b.ht_mode;
+      if (b.ht_level > 0) o["hlv"] = b.ht_level;
+      if (b.ht_set > 0) o["hset"] = b.ht_set;
+    }
+    if (b.dev == BMS_DEV_FRIDGE && b.fr_zones) {
+      o["fon"] = b.fr_on;
+      o["fset"] = b.fr_set[0];
+      if (b.fr_zones > 1) o["fset2"] = b.fr_set[1];
+    }
   }
   JsonArray bf = bm["found"].to<JsonArray>();
   for (auto &f : bms_found()) {
@@ -595,6 +607,11 @@ void h_bms() {
   if (d["remove"].is<const char *>()) bms_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) bms_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
   if (!d["pin"].isNull()) bms_set_pin(d["pin"]["mac"] | "", d["pin"]["pin"] | "");
+  // Dieselheizung {"heat":{mac,what,value}} bzw. Kuehlbox {"fridge":{mac,what,value}} (siehe bms.h)
+  if (!d["heat"].isNull() && !bms_heater_cmd(d["heat"]["mac"] | "", d["heat"]["what"] | -1, d["heat"]["value"] | 0))
+    return send_err("Das ging nicht");
+  if (!d["fridge"].isNull() && !bms_fridge_cmd(d["fridge"]["mac"] | "", d["fridge"]["what"] | -1, d["fridge"]["value"] | 0))
+    return send_err("Das ging nicht");
   // Power Station: {"output":{mac,ac:true|false,on:true|false}}
   if (!d["output"].isNull() && !bms_set_output(d["output"]["mac"] | "", d["output"]["ac"] | true, d["output"]["on"] | false))
     return send_err("Dieses Gerät lässt sich nicht schalten");

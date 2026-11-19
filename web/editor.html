@@ -1004,8 +1004,8 @@ function mopHTML(m) {
 }
 
 // ------------------------------------------------------------------ Victron (Instant Readout)
-const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', protect: 'power', lithium: 'battery', tank: 'bath', climate: 'thermo', other: 'bluetooth'};
-const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', protect: 'BatteryProtect', lithium: 'Lithium-Akku', tank: 'Tankmodul', climate: 'Klima-Sensor', other: 'Victron-Gerät'};
+const VIC_ICON = {solar: 'sun', shunt: 'battery', dcdc: 'lightning', grid: 'plug', charger: 'lightning', dcsys: 'bulb', inverter: 'power', pstation: 'battery', protect: 'power', lithium: 'battery', tank: 'bath', climate: 'thermo', heater: 'flame', fridge: 'kitchen', other: 'bluetooth'};
+const VIC_KIND = {solar: 'Solarregler', shunt: 'Batteriemonitor', dcdc: 'Ladebooster', grid: 'Netz', charger: 'Ladegerät', dcsys: 'DC-System', inverter: 'Wechselrichter', pstation: 'Power Station', protect: 'BatteryProtect', lithium: 'Lithium-Akku', tank: 'Tankmodul', climate: 'Klima-Sensor', heater: 'Dieselheizung', fridge: 'Kühlbox', other: 'Victron-Gerät'};
 const isVicKey = k => k.startsWith('victron:') || k.startsWith('cerbo:');
 /*@@FULL{*/// Satelliten: eigene Anschluesse (Tanksonden, DS18B20, Analog, Neigung, Eingaenge, Schalter)
 const isSioKey = k => k.startsWith('satio:');
@@ -2262,7 +2262,7 @@ async function openSettings(tab = 'net') {
   loadBms();
   const bmsPost = data => (S.demo ? Promise.resolve() : post('/api/bms', data));
   // Kopplungs-PIN beim Hinzufuegen (leer = keine; Super B = Modell 1 verlangt immer eine). null = abgebrochen
-  const bmsPinAsk = model => model === 27 || model === 28 || model === 30 ? Promise.resolve('') : promptDlg('Kopplungs-PIN', model === 1
+  const bmsPinAsk = model => model === 27 || model === 28 || model >= 30 ? Promise.resolve('') : promptDlg('Kopplungs-PIN', model === 1
       ? 'Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.'
       : 'Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen.', '')
     .then(p => p == null ? null : String(p).replace(/[^0-9A-Za-z]/g, '').slice(0, 32));
