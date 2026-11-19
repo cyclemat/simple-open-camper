@@ -1375,7 +1375,7 @@ static esp_err_t h_rules_post(httpd_req_t *req) {
   std::string err;
   {
     JsonDocument d(&s_ps);
-    if (deserializeJson(d, body, len)) err = "Ungültiges JSON";
+    if (deserializeJson(d, body, len, DeserializationOption::NestingLimit(RULES_NESTING))) err = "Ungültiges JSON";
     else if (d["enable"].is<JsonObject>()) rules_set_enabled(d["enable"]["i"] | -1, d["enable"]["on"] | false);
     else if (d["run"].is<int>()) rules_run(d["run"].as<int>());
     else err = rules_save(body, len);

@@ -23,6 +23,8 @@
 #endif
 #include "../cerbo.h"
 #include "../bms.h"   // Victron-Edition: automatische Kacheln auch fuer Akkus
+#include "../zb_direct.h"
+#include <Preferences.h>
 
 #include <Arduino.h>
 #include <time.h>
@@ -66,6 +68,7 @@ static uint32_t state_sig(bool found, const ControlView &v) {
   mix(v.on); mix(v.online); mix(v.pending); mix(v.known);
   mix(v.bri_pct()); mix(v.ct / 8); mix((int)(v.hue / 4)); mix((int)(v.sat / 4));
   mix((int)(v.cx * 200)); mix((int)(v.cy * 200)); mix(v.cmode.size() ? v.cmode[0] : 0);
+  for (char c : v.info) mix(c);   // Messwerte (Steckdose): Leistung/Energie
   return h;
 }
 
@@ -114,10 +117,13 @@ static void tile_paint(TileUi &t, bool force) {
   lv_obj_set_style_outline_width(o, (found && v.pending) ? 2 : 0, 0);
 
   char sub[48];
-  if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? TXT_DEV_MISSING : "…");
+  if (!found && zbd_is_key(t.key))   // Geraet am eigenen Zigbee-Modul (H2), nicht Zigbee2MQTT
+    snprintf(sub, sizeof(sub), "%s", zbd_info().present ? tr("nicht verfügbar") : tr("Zigbee-Modul nicht verbunden"));
+  else if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? TXT_DEV_MISSING : "…");
   else if (!v.online) snprintf(sub, sizeof(sub), "nicht erreichbar");
   else if (!v.known) snprintf(sub, sizeof(sub), "…");
-  else if (!v.on) snprintf(sub, sizeof(sub), "Aus");
+  else if (!v.on) snprintf(sub, sizeof(sub), v.info.empty() ? "%s" : "%s  ·  %s", tr("Aus"), v.info.c_str());
+  else if (!v.info.empty()) snprintf(sub, sizeof(sub), "%s  ·  %s", tr("An"), v.info.c_str());   // Steckdose mit Messung
   else if (v.has_bri && v.bri >= 0) {
     if (t.big && v.has_ct && v.ct > 0 && v.cmode == "color_temp")
       snprintf(sub, sizeof(sub), "%d\xE2\x80\xAF%%  ·  %d\xE2\x80\xAFK", v.bri_pct(), (int)(1000000 / v.ct / 50 * 50));
@@ -487,7 +493,7 @@ static void tile_event(lv_event_t *e) {
       ui_toast(TXT_DEV_GONE);
       return;
     }
-    if (!z2m_connected()) {
+    if (!zbd_is_key(key) && !z2m_connected()) {
       ui_toast("Keine Verbindung zum MQTT-Broker.");
       return;
     }
@@ -1324,7 +1330,8 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
   if (!found) {
     m.value = "–";
-    m.sub = z2m_count() ? TXT_DEV_MISSING : "…";
+    m.sub = zbd_is_key(key) ? (zbd_info().present ? tr("nicht verfügbar") : tr("Zigbee-Modul nicht verbunden"))
+                            : (z2m_count() ? TXT_DEV_MISSING : "…");
     m.dim = true;
     return true;
   }
@@ -1360,7 +1367,7 @@ bool ui_tile_set(const std::string &key, char what, int value) {
   }
 #endif
   ControlView v;
-  if (!z2m_get(key, v) || !z2m_connected()) return false;
+  if (!z2m_get(key, v) || (!zbd_is_key(key) && !z2m_connected())) return false;
   switch (what) {
     case 'b':
       if (!v.has_bri) return false;
@@ -1399,11 +1406,39 @@ bool ui_tile_action(const std::string &key, std::string *err) {
     if (err) *err = tr("Gerät nicht gefunden.");
     return false;
   }
-  if (!z2m_connected()) {
+  if (!zbd_is_key(key) && !z2m_connected()) {   // Zigbee direkt (H2-Modul) braucht kein MQTT
     if (err) *err = tr("Keine Verbindung zum MQTT-Broker.");
     return false;
   }
   z2m_toggle(key);
+  return true;
+}
+
+bool ui_tile_switch(const std::string &key, bool on, std::string *err) {
+  if (panelsat_is_point_key(key)) {
+    SatPoint p;
+    if (!panelsat_point_get(key, p) || p.kind != SP_SWITCH) {
+      if (err) *err = tr("Kein Schalter.");
+      return false;
+    }
+    bool ok = panelsat_switch(key, on, err);
+    tiles_update_one(key);
+    return ok;
+  }
+  if (ui_gas_is_key(key) || victron_is_key(key) || truma_heat_is_key(key)) {
+    if (err) *err = tr("Nur Anzeige.");
+    return false;
+  }
+  ControlView v;
+  if (!z2m_get(key, v)) {
+    if (err) *err = tr("Gerät nicht gefunden.");
+    return false;
+  }
+  if (!zbd_is_key(key) && !z2m_connected()) {   // Zigbee direkt (H2-Modul) braucht kein MQTT
+    if (err) *err = tr("Keine Verbindung zum MQTT-Broker.");
+    return false;
+  }
+  z2m_set_on(key, on);   // Zigbee2MQTT, Shelly, WLED: fester Befehl ON/OFF
   return true;
 }
 
@@ -1553,7 +1588,44 @@ static void edition_auto_tiles() {
 }
 #endif
 
+#if WITH_ZB_DIRECT
+// Zigbee direkt: neu angelernte Lampen/Steckdosen/Schalter bekommen sofort eine Kachel. Jeder Kanal nur einmal
+// (NVS "zbtiles") – entfernt der Nutzer die Kachel, bleibt sie weg.
+static void zb_auto_tiles() {
+  static uint32_t last = 0, ver = 0;
+  if (millis() - last < 3000) return;
+  last = millis();
+  uint32_t v = zbd_devices_version();
+  if (v == ver) return;
+  ver = v;
+  std::vector<ControlView> all, add;
+  zbd_all(all);
+  if (all.empty()) return;
+  Preferences p;
+  if (!p.begin("zbtiles", false)) return;
+  for (auto &c : all) {
+    uint32_t h = 2166136261u;
+    for (char ch : c.key) h = (h ^ (uint8_t)ch) * 16777619u;
+    char nk[12];
+    snprintf(nk, sizeof(nk), "%08x", (unsigned)h);
+    if (p.isKey(nk)) continue;
+    p.putBool(nk, true);
+    bool placed = false;
+    for (auto &pg : s_lay.pages)
+      for (auto &t : pg.tiles) placed |= t.key == c.key;
+    if (!placed) add.push_back(c);
+  }
+  p.end();
+  if (add.empty()) return;
+  layout_auto_arrange(add, true);
+  ui_toast(add.size() == 1 ? "Neues Zigbee-Gerät – Kachel angelegt." : "Neue Zigbee-Geräte – Kacheln angelegt.");
+}
+#endif
+
 void ui_loop() {
+#if WITH_ZB_DIRECT
+  zb_auto_tiles();
+#endif
 #if SOC_VICTRON_EDITION
   edition_auto_tiles();
 #endif

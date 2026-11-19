@@ -4,6 +4,7 @@
 #include "app.h"
 #include "net.h"
 #include "shelly.h"
+#include "zb_direct.h"
 #include "wled.h"
 #include "panelsat.h"
 #include "layout.h"
@@ -109,12 +110,47 @@ static volatile bool s_devices_wanted = false;   // bridge/devices gerade abonni
 static std::set<std::string> s_placed;     // IEEE-Adressen der Geraete auf dem Panel
 static uint32_t s_placed_ver = 0;          // Layout-Version, fuer die s_placed gilt
 
-// Befehle direkt senden: esp_mqtt_client_enqueue legt sie in die Warteschlange, die der MQTT-Task nur eine Nachricht
-// je Durchlauf (bis zu 1 s Wartezeit) abarbeitet – mit weiteren Nachrichten davor kam ein Schaltbefehl Sekunden spaeter an.
+// Befehle senden ueber einen kleinen eigenen Task:
+// - esp_mqtt_client_enqueue allein ist zu langsam (der MQTT-Task schickt je Durchlauf nur eine Nachricht, dazwischen bis
+//   1 s Wartezeit – Schaltbefehle kamen Sekunden spaeter an),
+// - esp_mqtt_client_publish direkt aus der Oberflaeche/den Regeln blockiert bei wackligem WLAN bis zur Zeitgrenze (das
+//   Panel stand, Zigbee-Meldungen stauten sich).
+// Also: Oberflaeche legt den Befehl in eine Warteschlange (wartet nie), der Sende-Task schickt ihn sofort.
+namespace {
+struct PubMsg {
+  char *topic, *payload;
+};
+}  // namespace
+static QueueHandle_t s_pubq = nullptr;
+static char *ps_strdup(const char *x) {
+  size_t n = strlen(x) + 1;
+  char *p = (char *)heap_caps_malloc(n, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!p) p = (char *)malloc(n);
+  if (p) memcpy(p, x, n);
+  return p;
+}
+static void pub_task(void *) {
+  PubMsg m;
+  for (;;) {
+    if (xQueueReceive(s_pubq, &m, portMAX_DELAY) != pdTRUE) continue;
+    if (s_client && s_connected && esp_mqtt_client_publish(s_client, m.topic, m.payload, 0, 0, 0) < 0)
+      esp_mqtt_client_enqueue(s_client, m.topic, m.payload, 0, 0, 0, true);   // Ersatz, z. B. waehrend Neuverbindung
+    heap_caps_free(m.topic);
+    heap_caps_free(m.payload);
+  }
+}
 static void publish(const std::string &topic, const char *payload) {
   if (!s_client || !s_connected) return;
-  if (esp_mqtt_client_publish(s_client, topic.c_str(), payload, 0, 0, 0) < 0)
-    esp_mqtt_client_enqueue(s_client, topic.c_str(), payload, 0, 0, 0, true);   // Ersatz, z. B. waehrend Neuverbindung
+  if (!s_pubq) {
+    s_pubq = xQueueCreate(16, sizeof(PubMsg));
+    xTaskCreate(pub_task, "mqttpub", 3584, nullptr, 4, nullptr);
+  }
+  PubMsg m = {ps_strdup(topic.c_str()), ps_strdup(payload)};
+  if (!m.topic || !m.payload || xQueueSend(s_pubq, &m, 0) != pdTRUE) {
+    heap_caps_free(m.topic);
+    heap_caps_free(m.payload);
+    esp_mqtt_client_enqueue(s_client, topic.c_str(), payload, 0, 0, 0, true);   // Warteschlange voll: alter Weg
+  }
 }
 
 static void handle_state(int di, const char *payload, size_t len) {
@@ -932,8 +968,8 @@ std::string z2m_broker_host() {
 const char *z2m_diag_text() { return s_diag; }
 bool z2m_bridge_online() { return s_bridge_online; }
 const char *z2m_status_text() { return s_status; }
-uint32_t z2m_devices_version() { return s_dev_ver + shelly_devices_version() + wled_devices_version(); }
-uint32_t z2m_state_version() { return s_state_ver + shelly_state_version() + wled_state_version(); }
+uint32_t z2m_devices_version() { return s_dev_ver + shelly_devices_version() + wled_devices_version() + zbd_devices_version(); }
+uint32_t z2m_state_version() { return s_state_ver + shelly_state_version() + wled_state_version() + zbd_state_version(); }
 
 void z2m_publish(const std::string &topic, const std::string &payload) { publish(topic, payload.c_str()); }
 void z2m_publish_retained(const std::string &topic, const std::string &payload) {
@@ -958,6 +994,7 @@ static void fill_view(const Device &d, const Control &c, ControlView &v) {
 bool z2m_get(const std::string &key, ControlView &out) {
   if (shelly_is_key(key)) return shelly_get(key, out);
   if (wled_is_key(key)) return wled_get(key, out);
+  if (zbd_is_key(key)) return zbd_get(key, out);   // Zigbee direkt (Funkmodul ESP32-H2)
   Lock l;
   auto it = s_key_idx.find(key);
   if (it == s_key_idx.end()) return false;
@@ -978,6 +1015,7 @@ std::vector<ControlView> z2m_all() {
       }
   }
   shelly_all(out);
+  zbd_all(out);
   wled_all(out);
   std::sort(out.begin(), out.end(), [](const ControlView &a, const ControlView &b) {
     return strcasecmp(a.name.c_str(), b.name.c_str()) < 0 || (a.name == b.name && a.ep < b.ep);
@@ -989,7 +1027,7 @@ size_t z2m_count() {
   Lock l;
   size_t n = 0;
   for (auto &d : s_devs) n += d.controls.size();
-  return n + shelly_count() + wled_count();
+  return n + shelly_count() + wled_count() + zbd_count();
 }
 
 // Baut ein Set-Kommando fuer ein Control und markiert es als ausstehend
@@ -1015,15 +1053,21 @@ static void send_cmd(const std::string &key, F fill) {
 
 void z2m_toggle(const std::string &key) {
   if (shelly_is_key(key)) return shelly_toggle(key);
+  if (zbd_is_key(key)) return zbd_toggle(key);
   if (wled_is_key(key)) return wled_toggle(key);
+  // Fester Befehl nach dem angezeigten Zustand (zeigt "aus" -> ON, "an" -> OFF): Antippen tut immer, was die Kachel
+  // zeigt, und bringt einen falsch gemeldeten Zustand mit einem Tippen wieder in Ordnung. TOGGLE nur, solange der
+  // Zustand unbekannt ist (bei TOGGLE weiss Zigbee2MQTT selbst nicht sicher, was herauskommt).
   send_cmd(key, [](Control &c, JsonDocument &doc) {
     if (c.bool_vals) doc[c.p_state] = !c.on;
+    else if (c.known && !c.v_on.empty() && !c.v_off.empty()) doc[c.p_state] = c.on ? c.v_off : c.v_on;
     else doc[c.p_state] = c.v_toggle;
   });
 }
 
 void z2m_set_on(const std::string &key, bool on) {
   if (shelly_is_key(key)) return shelly_set_on(key, on);
+  if (zbd_is_key(key)) return zbd_set_on(key, on);
   if (wled_is_key(key)) return wled_set_on(key, on);
   send_cmd(key, [on](Control &c, JsonDocument &doc) {
     if (c.bool_vals) doc[c.p_state] = on;
@@ -1034,6 +1078,7 @@ void z2m_set_on(const std::string &key, bool on) {
 void z2m_set_brightness_pct(const std::string &key, int pct) {
   pct = constrain(pct, 1, 100);
   if (shelly_is_key(key)) return shelly_set_brightness_pct(key, pct);
+  if (zbd_is_key(key)) return zbd_set_brightness_pct(key, pct);
   if (wled_is_key(key)) return wled_set_brightness_pct(key, pct);
   send_cmd(key, [pct](Control &c, JsonDocument &doc) {
     if (c.p_bri.empty()) return;
@@ -1047,6 +1092,7 @@ void z2m_set_brightness_pct(const std::string &key, int pct) {
 
 void z2m_set_ct(const std::string &key, int mired) {
   if (shelly_is_key(key)) return shelly_set_ct(key, mired);
+  if (zbd_is_key(key)) return zbd_set_ct(key, mired);
   if (wled_is_key(key)) return;   // WLED: keine Farbtemperatur ueber MQTT
   send_cmd(key, [mired](Control &c, JsonDocument &doc) {
     if (c.p_ct.empty()) return;
@@ -1071,6 +1117,7 @@ static void hsv_to_hex(float h, float s, char *out) {
 
 void z2m_set_color_hs(const std::string &key, float hue, float sat) {
   if (shelly_is_key(key)) return shelly_set_color_hs(key, hue, sat);
+  if (zbd_is_key(key)) return zbd_set_color_hs(key, hue, sat);
   if (wled_is_key(key)) return wled_set_color_hs(key, hue, sat);
   send_cmd(key, [hue, sat](Control &c, JsonDocument &doc) {
     if (!c.color) return;

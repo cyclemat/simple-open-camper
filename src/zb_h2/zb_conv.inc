@@ -48,13 +48,16 @@ void drv_each_expose(uint32_t rec, F f) {
 // hat der Treiber einen Wert dieses Namens? (ohne Treiber: alles erlaubt)
 bool drv_has(uint32_t rec, const char *prop) {
   if (!rec) return true;
-  bool found = false;
+  bool found = false, any = false;
   drv_each_expose(rec, [&](const ZbdExpose &e, uint32_t) {
+    any = true;
     const char *n = drv_str(e.property);
     found = n && !strcmp(n, prop);
     return found;
   });
-  return found;
+  // Treiber ohne einzige Eigenschaft (z. B. Zigbee2MQTT-"extend"-Definitionen, die der Generator nicht aufloest):
+  // Standardwerte trotzdem melden – sonst fehlt z. B. der Ein/Aus-Zustand einer Steckdose
+  return found || !any;
 }
 // Tuya-Datenpunkt suchen (nach Nummer oder Name)
 bool drv_dp(uint32_t rec, int dp, const char *name, ZbdDp &out, uint32_t &map_off) {
@@ -213,6 +216,7 @@ bool conv_attr(Dev *d, uint8_t ep, uint16_t cl, const esp_zb_zcl_attribute_t &a,
       else if (at == 0x0003) put("color_x", v / 65535.0, 4);
       else if (at == 0x0004) put("color_y", v / 65535.0, 4);
       else if (at == 0x0000) put("hue", v * 360.0 / 254.0, 0);
+      else if (at == 0x0001) put("saturation", v * 100.0 / 254.0, 0);
       else if (at == 0x0001) put("saturation", v * 100.0 / 254.0, 0);
       else return false;
       return true;
@@ -488,6 +492,19 @@ std::string set_one(Dev *d, const std::string &prop, JsonVariantConst val) {
     c.color_temperature = (uint16_t)constrain((int)(val | 0), 50, 1000);
     c.transition_time = 5;
     esp_zb_zcl_color_move_to_color_temperature_cmd_req(&c);
+    return "";
+  }
+  if (base == "color") {   // wie Zigbee2MQTT: {"hue":0..360,"saturation":0..100} (bzw. "h"/"s")
+    esp_zb_color_move_to_hue_saturation_cmd_t c = {};
+    c.zcl_basic_cmd.dst_addr_u.addr_short = d->nwk;
+    c.zcl_basic_cmd.dst_endpoint = ep_for(d, 0x0300, prop);
+    c.zcl_basic_cmd.src_endpoint = COORD_EP;
+    c.address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+    float h = val["hue"] | (val["h"] | 0.0f), s = val["saturation"] | (val["s"] | 100.0f);
+    c.hue = (uint8_t)constrain((int)lroundf(h * 254.0f / 360.0f), 0, 254);
+    c.saturation = (uint8_t)constrain((int)lroundf(s * 254.0f / 100.0f), 0, 254);
+    c.transition_time = 5;
+    esp_zb_zcl_color_move_to_hue_and_saturation_cmd_req(&c);
     return "";
   }
   if (base == "position") {

@@ -64,6 +64,9 @@ struct ZbEv {
   std::string ieee, json;
 };
 std::deque<ZbEv> s_zb_q;
+// Eigene kleine Sperre nur fuer die Warteschlange: der Zigbee-Empfang darf nie auf die Regel-Engine warten (die
+// beim Schalten ueber MQTT haengen kann) – sonst kommen Zigbee-Meldungen verspaetet an
+SemaphoreHandle_t s_qmx = nullptr;
 
 // Letzte Ereignisse fuer den seriellen Befehl "rules" (Fehlersuche)
 std::deque<std::string> s_trace;
@@ -94,7 +97,8 @@ void load() {
   s_doc.clear();
   File f = LittleFS.open(PATH, "r");
   if (f) {
-    if (deserializeJson(s_doc, f)) {
+    // Blockly-Arbeitsbereich: jede Aktion einer Kette ist eine Ebene tiefer ("next":{"block":…}) – Vorgabe 10 reicht nicht
+    if (deserializeJson(s_doc, f, DeserializationOption::NestingLimit(RULES_NESTING))) {
       log_w("Regeln: %s ist beschaedigt", PATH);
       s_doc.clear();
     }
@@ -291,11 +295,11 @@ void run_steps(int i) {
         s.err = "Gerät fehlt: " + key;
         continue;
       }
-      bool want = what == "on";
-      if (what == "toggle" || m.lit != want) {
-        std::string err;
-        if (!ui_tile_action(key, &err)) s.err = err.empty() ? "Gerät lässt sich nicht schalten" : err;
-      }
+      std::string err;
+      // Ein/Aus als fester Befehl: Melder schicken oft mehrere Meldungen kurz hintereinander, der Zustand der Lampe
+      // kommt erst danach zurueck – mit Umschalten ging das Licht sonst an und gleich wieder aus.
+      bool ok = what == "toggle" ? ui_tile_action(key, &err) : ui_tile_switch(key, what == "on", &err);
+      if (!ok) s.err = err.empty() ? "Gerät lässt sich nicht schalten" : err;
     } else if (k == "bri") {
       ui_tile_set(a["key"] | "", 'b', a["v"] | 100);
     } else if (k == "dimstep") {   // je Ausloesung um "step" % dunkler, unter "min" % wieder 100 %
@@ -391,15 +395,17 @@ std::string tile_sig(const std::string &key) {
 
 void rules_begin() {
   if (!s_mx) s_mx = xSemaphoreCreateRecursiveMutex();
+  if (!s_qmx) s_qmx = xSemaphoreCreateMutex();
   s_boot_ms = millis();
   load();
   log_i("Regeln: %u geladen", (unsigned)rules_c().size());
 }
 
 void rules_zb_event(const std::string &ieee, const std::string &json_values) {
-  if (!s_mx) return;
-  Lock l;
+  if (!s_qmx) return;
+  if (xSemaphoreTake(s_qmx, pdMS_TO_TICKS(20)) != pdTRUE) return;   // lieber eine Meldung verlieren als warten
   if (s_zb_q.size() < 32) s_zb_q.push_back({ieee, json_values});
+  xSemaphoreGive(s_qmx);
 }
 
 void rules_loop() {
@@ -407,9 +413,16 @@ void rules_loop() {
   Lock l;
   JsonArrayConst rs = rules_c();
   if (s_st.size() != rs.size()) s_st.assign(rs.size(), State());
-  while (!s_zb_q.empty()) {
-    ZbEv ev = s_zb_q.front();
-    s_zb_q.pop_front();
+  for (;;) {   // Meldungen einzeln aus der Warteschlange holen (deren Sperre nur kurz halten)
+    ZbEv ev;
+    xSemaphoreTake(s_qmx, portMAX_DELAY);
+    bool any = !s_zb_q.empty();
+    if (any) {
+      ev = std::move(s_zb_q.front());
+      s_zb_q.pop_front();
+    }
+    xSemaphoreGive(s_qmx);
+    if (!any) break;
     on_zb(ev);
   }
   uint32_t now = millis();
@@ -500,7 +513,7 @@ void rules_json(JsonObject out) {
 std::string rules_save(const char *body, size_t len) {
   if (len > MAX_SIZE) return "Regeln zu gross (max. 64 KB)";
   JsonDocument d(&s_ps);
-  if (deserializeJson(d, body, len)) return "Ungültiges JSON";
+  if (deserializeJson(d, body, len, DeserializationOption::NestingLimit(RULES_NESTING))) return "Ungültiges JSON";
   if (!d["rules"].is<JsonArray>()) return "Regeln fehlen";
   Lock l;
   s_doc.clear();

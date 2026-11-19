@@ -9,6 +9,7 @@
 
 #include <time.h>
 
+#include <algorithm>
 #include <deque>
 #include <map>
 #include <vector>
@@ -42,6 +43,7 @@ struct ZDev {
 };
 
 SemaphoreHandle_t s_mx = nullptr;
+uint32_t s_state_ver = 1, s_ctl_ver = 1;   // Kacheln: neue Werte bzw. neue schaltbare Kanaele
 bool s_on = true, s_started = false;
 std::vector<ZDev> s_devs;
 std::deque<std::string> s_log;   // letzte Meldungen des Moduls
@@ -56,11 +58,15 @@ uint32_t s_open_ms = 0;
 std::string s_cfg_ieee;
 std::vector<ZbdCfgItem> s_cfg;
 bool s_cfg_done = false;
+bool s_trace = false;   // serieller Befehl "zb trace": Schaltbefehle/-meldungen mitschreiben (ab Start aus)
+bool s_diag = false;    // serieller Befehl "zb diag": Modul meldet jede eingehende Funknachricht
 
 struct Lock {
   Lock() { xSemaphoreTake(s_mx, portMAX_DELAY); }
   ~Lock() { xSemaphoreGive(s_mx); }
 };
+
+void controls_of(const ZDev &d, std::vector<ControlView> &out);
 
 void add_log(const std::string &m) {
   s_log.push_back(m);
@@ -143,6 +149,8 @@ void on_line(const char *line) {
       d.nwk = j["nwk"] | 0xFFFF;
       d.seen_ms = millis();
       add_log("Geraet angemeldet: " + d.ieee + (d.done ? " (bekannt)" : " – wird abgefragt"));
+      // bekanntes Geraet nach Stromausfall/Neustart wieder da: Zustand und Werte neu lesen lassen
+      if (d.done) write_line("{\"c\":\"refresh\",\"ieee\":\"" + d.ieee + "\"}");
     } else if (t == "left") {
       std::string ieee = j["ieee"] | "";
       for (size_t i = 0; i < s_devs.size(); i++)
@@ -165,7 +173,11 @@ void on_line(const char *line) {
               x.second = v;
               hit = true;
             }
-          if (!hit && d.props.size() < 48) d.props.push_back({kv.key().c_str(), v});
+          if (!hit && d.props.size() < 48) {
+            d.props.push_back({kv.key().c_str(), v});
+            if (!strncmp(kv.key().c_str(), "state", 5)) s_ctl_ver++;   // neuer Schaltkanal -> Kachel moeglich
+          }
+          s_state_ver++;
         }
       }
     } else if (t == "cfg") {
@@ -223,6 +235,13 @@ void on_line(const char *line) {
     }
   }
   if (t == "log" || t == "err") log_i("Zigbee: %s", (const char *)(j["m"] | ""));
+  // Fehlersuche (nur nach "zb trace"): Schaltmeldungen mit Zeit ins Log
+  if (s_trace && t == "state" && j["p"].is<JsonObject>()) {
+    for (JsonPair kv : j["p"].as<JsonObject>())
+      if (!strncmp(kv.key().c_str(), "state", 5))
+        log_w("ZB <- %s %s=%s%s", (const char *)(j["ieee"] | ""), kv.key().c_str(), kv.value().as<String>().c_str(),
+              (j["old"] | false) ? " (alt)" : "");
+  }
   // Regeln: nur neue Meldungen (nicht die Wiederholung nach einem Neustart), ausserhalb der Sperre
   if (t == "state" && !(j["old"] | false) && j["p"].is<JsonObject>()) {
     std::string p;
@@ -232,6 +251,7 @@ void on_line(const char *line) {
   if (ask_devices) {
     send_simple("devices");
     send_simple("values");   // letzte Werte, damit nach einem Neustart sofort alles dasteht
+    send_simple("refresh");  // und den echten Zustand der Lampen/Steckdosen nachfragen
   }
   if (t == "hello" || ask_devices) send_time();
 }
@@ -258,7 +278,40 @@ void rx_task(void *) {
     // Lebenszeichen holen (Modul antwortet mit "info"); ohne Modul alle 30 s erneut fragen
     if (millis() - last_info > 30000) {
       last_info = millis();
+      // 90 s nichts vom Modul (es meldet sich alle 30 s): Empfang zuruecksetzen – nach einem Neustart/Flashen des
+      // Moduls kann Datenmuell den UART-Empfang blockiert haben
+      uint32_t seen;
+      {
+        Lock l;
+        seen = s_seen_ms;
+      }
+      if (!seen || millis() - seen > 90000) {
+        uart_flush_input(ZBD_UART);
+        n = 0;
+      }
       send_simple("info");
+      // Schaltbare Geraete ohne bekannten Zustand (z. B. nach einem Neustart des Moduls, wenn die Funkwege noch nicht
+      // standen) erneut abfragen – eins je Durchgang, damit das Funknetz nicht geflutet wird
+      {
+        std::string ask;
+        {
+          Lock l;
+          static size_t rr = 0;
+          for (size_t k = 0; k < s_devs.size() && ask.empty(); k++) {
+            ZDev &d = s_devs[(rr + k) % s_devs.size()];
+            bool has_state = false;
+            for (auto &p : d.props) has_state |= p.first.rfind("state", 0) == 0;
+            if (has_state) continue;
+            std::vector<ControlView> cv;
+            controls_of(d, cv);   // nur Lampen/Steckdosen/Schalter, keine Fernbedienungen
+            if (!cv.empty()) {
+              ask = d.ieee;
+              rr = (rr + k + 1) % s_devs.size();
+            }
+          }
+        }
+        if (!ask.empty()) write_line("{\"c\":\"refresh\",\"ieee\":\"" + ask + "\"}");
+      }
       static uint32_t last_time = 0;
       if (!last_time || millis() - last_time > 3600000UL) {
         last_time = millis();
@@ -394,7 +447,8 @@ static std::string summary_of(const ZDev &d) {
                {"humidity", " % rF", 0}, {"brightness", "", -2},     {"power", " W", 0},
                {"energy", " kWh", 2},    {"contact", "", -3},        {"occupancy", "", -4},
                {"presence", "", -4},     {"water_leak", "", -5},     {"illuminance", " lx", 0},
-               {"position", " %", 0},    {"battery", " %", -6}};
+               {"position", " %", 0},    {"battery", " %", -6},     {"voltage", " V", 0},
+               {"current", " A", 2}};
   // Tastendruck: "4_single" -> "Taste 4 kurz", "on_2" -> "on 2"
   for (auto &p : d.props)
     if (p.first == "action") {
@@ -571,6 +625,7 @@ void zbd_config_close() {
 
 bool zbd_set(const std::string &ieee, const std::string &json_values) {
   if (!s_started || json_values.size() + ieee.size() + 40 >= ZB_LINK_MAX_LINE) return false;
+  if (s_trace) log_w("ZB -> %s %s", ieee.c_str(), json_values.c_str());   // nur nach "zb trace"
   write_line("{\"c\":\"set\",\"ieee\":\"" + ieee + "\",\"p\":" + json_values + "}");
   return true;
 }
@@ -582,6 +637,239 @@ std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &i
   return d ? d->props : std::vector<std::pair<std::string, std::string>>();
 }
 
+// ---------------------------------------------------------------- Schaltbare Kanaele (Kacheln)
+namespace {
+// Zigbee-Geraetetypen (HA/ZLL): schaltbar bzw. Lampe/Farbe/Farbtemperatur
+bool dev_output(int t) {
+  static const int T[] = {0x0002, 0x0009, 0x0010, 0x0051, 0x0100, 0x0101, 0x0102, 0x010A, 0x010B, 0x010C, 0x010D,
+                          0x0110, 0x0200, 0x0210, 0x0220};
+  for (int x : T)
+    if (x == t) return true;
+  return false;
+}
+bool dev_light(int t) { return t == 0x0100 || t == 0x0101 || t == 0x0102 || t == 0x010C || t == 0x010D || t == 0x0110 || t >= 0x0200 && t <= 0x0220; }
+bool dev_color(int t) { return t == 0x0102 || t == 0x010D || t == 0x0200 || t == 0x0210; }
+bool dev_ct(int t) { return t == 0x010C || t == 0x010D || t == 0x0210 || t == 0x0220; }
+
+struct Ep {
+  int ep = 0, dev = -1;
+  std::vector<int> in;
+  bool has(int cl) const { return std::find(in.begin(), in.end(), cl) != in.end(); }
+};
+std::vector<Ep> parse_eps(const std::string &js) {
+  std::vector<Ep> r;
+  JsonDocument d;
+  if (deserializeJson(d, js)) return r;
+  for (JsonObject o : d.as<JsonArray>()) {
+    Ep e;
+    e.ep = o["ep"] | 0;
+    e.dev = o["dev"] | -1;
+    for (int c : o["in"].as<JsonArray>()) e.in.push_back(c);
+    r.push_back(e);
+  }
+  std::sort(r.begin(), r.end(), [](const Ep &a, const Ep &b) { return a.ep < b.ep; });
+  return r;
+}
+const std::string *prop(const ZDev &d, const std::string &k) {
+  for (auto &p : d.props)
+    if (p.first == k) return &p.second;
+  return nullptr;
+}
+std::string unq(const std::string &js) {   // ""ON"" -> ON
+  return js.size() >= 2 && js.front() == '"' ? js.substr(1, js.size() - 2) : js;
+}
+
+// Kanaele eines Geraets (unter Lock)
+void controls_of(const ZDev &d, std::vector<ControlView> &out) {
+  if (!d.done) return;
+  std::vector<Ep> eps = parse_eps(d.eps), sw;
+  for (auto &e : eps)
+    if (e.has(0x0006)) sw.push_back(e);
+  if (sw.empty()) return;
+  std::vector<std::string> sfx;   // "" (ein Kanal) bzw. l1, l2 …
+  for (auto &p : d.props) {
+    if (p.first == "state") sfx.push_back("");
+    else if (p.first.rfind("state_", 0) == 0) sfx.push_back(p.first.substr(6));
+  }
+  if (sfx.empty() && !prop(d, "action")) {   // noch kein Zustand gemeldet: nach Geraetetyp (Fernbedienungen nicht)
+    std::vector<int> outs;
+    for (size_t i = 0; i < sw.size(); i++)
+      if (dev_output(sw[i].dev) || sw[i].has(0x0008)) outs.push_back((int)i);
+    for (int i : outs) sfx.push_back(sw.size() == 1 ? std::string() : "l" + std::to_string(i + 1));
+  }
+  for (auto &s : sfx) {
+    const Ep *e = &sw[0];
+    if (s.size() > 1 && s[0] == 'l' && isdigit((unsigned char)s[1])) {
+      int n = atoi(s.c_str() + 1) - 1;
+      if (n >= 0 && n < (int)sw.size()) e = &sw[n];
+    }
+    std::string tail = s.empty() ? "" : "_" + s;
+    ControlView v;
+    v.key = std::string(ZBD_KEY_PREFIX) + d.ieee + (s.empty() ? "" : "#" + s);
+    v.ieee = d.ieee;
+    v.ep = s;
+    v.name = !d.name.empty() ? d.name : !d.zm.empty() ? d.zm : !d.model.empty() ? d.model : d.ieee;
+    v.model = !d.zm.empty() ? d.zm : d.model;
+    v.vendor = !d.zv.empty() ? d.zv : d.mf;
+    v.description = d.desc;
+    v.has_bri = e->has(0x0008);
+    v.kind = (dev_light(e->dev) || v.has_bri) ? CTL_LIGHT : CTL_SWITCH;
+    v.bri_max = 254;
+    v.has_ct = e->has(0x0300) && (dev_ct(e->dev) || prop(d, "color_temp" + tail));
+    v.ct_min = 153;
+    v.ct_max = 500;
+    v.color = e->has(0x0300) && (dev_color(e->dev) || prop(d, "hue" + tail)) ? COLOR_HS : COLOR_NONE;
+    v.online = true;
+    if (const std::string *st = prop(d, "state" + tail)) {
+      v.known = true;
+      v.on = unq(*st) == "ON" || *st == "true";
+    }
+    if (const std::string *b = prop(d, "brightness" + tail)) v.bri = atoi(b->c_str());
+    if (const std::string *c = prop(d, "color_temp" + tail)) {
+      v.ct = atoi(c->c_str());
+      v.cmode = "color_temp";
+    }
+    {   // Messwerte (Steckdosen mit Strommessung) fuer die Kachel: Leistung, Energie
+      auto fmt = [](double x, int dec, const char *unit) {
+        char b[24];
+        snprintf(b, sizeof(b), "%.*f %s", dec, x, unit);
+#if UI_DECIMAL_COMMA
+        for (char *q = b; *q; q++)
+          if (*q == '.') *q = ',';
+#endif
+        return std::string(b);
+      };
+      std::string info;
+      if (const std::string *w = prop(d, "power" + tail)) info = fmt(atof(w->c_str()), 0, "W");
+      if (const std::string *e = prop(d, "energy" + tail))
+        info += (info.empty() ? "" : "  ·  ") + fmt(atof(e->c_str()), 2, "kWh");
+      v.info = info;
+    }
+    if (const std::string *h = prop(d, "hue" + tail)) {
+      v.hue = atof(h->c_str());
+      if (const std::string *sa = prop(d, "saturation" + tail)) v.sat = atof(sa->c_str());
+      if (v.cmode.empty()) v.cmode = "hs";
+    }
+    out.push_back(v);
+  }
+}
+
+bool split_key(const std::string &key, std::string &ieee, std::string &tail) {
+  if (!zbd_is_key(key)) return false;
+  std::string rest = key.substr(3);
+  size_t h = rest.find('#');
+  ieee = rest.substr(0, h);
+  tail = h == std::string::npos ? "" : "_" + rest.substr(h + 1);
+  return !ieee.empty();
+}
+// Befehl senden und den Wert gleich vormerken (die Bestaetigung des Geraets kommt Sekundenbruchteile spaeter)
+void send_vals(const std::string &ieee, JsonDocument &p) {
+  std::string js;
+  serializeJson(p, js);
+  if (!zbd_set(ieee, js)) return;
+  Lock l;
+  ZDev *d = find(ieee);
+  if (!d) return;
+  for (JsonPair kv : p.as<JsonObject>()) {
+    if (kv.value().is<JsonObject>()) continue;
+    std::string v;
+    serializeJson(kv.value(), v);
+    bool hit = false;
+    for (auto &x : d->props)
+      if (x.first == kv.key().c_str()) {
+        x.second = v;
+        hit = true;
+      }
+    if (!hit && d->props.size() < 48) d->props.push_back({kv.key().c_str(), v});
+  }
+  s_state_ver++;
+}
+}  // namespace
+
+bool zbd_get(const std::string &key, ControlView &out) {
+  if (!s_started || !zbd_is_key(key)) return false;
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return false;
+  Lock l;
+  ZDev *d = find(ieee);
+  if (!d) return false;
+  std::vector<ControlView> cv;
+  controls_of(*d, cv);
+  for (auto &v : cv)
+    if (v.key == key) {
+      out = v;
+      return true;
+    }
+  return false;
+}
+void zbd_all(std::vector<ControlView> &out) {
+  if (!s_started) return;
+  Lock l;
+  for (auto &d : s_devs) controls_of(d, out);
+}
+size_t zbd_count() {
+  std::vector<ControlView> v;
+  zbd_all(v);
+  return v.size();
+}
+uint32_t zbd_devices_version() { return zbd_structure_sig() + s_ctl_ver; }
+uint32_t zbd_state_version() { return s_state_ver; }
+void zbd_set_on(const std::string &key, bool on) {
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return;
+  JsonDocument p;
+  p["state" + tail] = on ? "ON" : "OFF";
+  send_vals(ieee, p);
+}
+void zbd_toggle(const std::string &key) {
+  ControlView v;
+  if (zbd_get(key, v) && v.known) return zbd_set_on(key, !v.on);
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return;
+  JsonDocument p;
+  p["state" + tail] = "TOGGLE";
+  std::string js;
+  serializeJson(p, js);
+  zbd_set(ieee, js);
+}
+void zbd_set_brightness_pct(const std::string &key, int pct) {
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return;
+  JsonDocument p;
+  p["brightness" + tail] = constrain((pct * 254 + 50) / 100, 1, 254);
+  p["state" + tail] = "ON";   // nur vorgemerkt: Helligkeit setzen schaltet die Lampe ein
+  std::string js;
+  JsonDocument cmd;
+  cmd["brightness" + tail] = p["brightness" + tail];
+  serializeJson(cmd, js);
+  if (zbd_set(ieee, js)) {
+    Lock l;
+    ZDev *d = find(ieee);
+    if (d)
+      for (auto &x : d->props) {
+        if (x.first == "brightness" + tail) x.second = std::to_string((int)(p["brightness" + tail] | 0));
+        if (x.first == "state" + tail) x.second = "\"ON\"";
+      }
+    s_state_ver++;
+  }
+}
+void zbd_set_ct(const std::string &key, int mired) {
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return;
+  JsonDocument p;
+  p["color_temp" + tail] = mired;
+  send_vals(ieee, p);
+}
+void zbd_set_color_hs(const std::string &key, float hue, float sat) {
+  std::string ieee, tail;
+  if (!split_key(key, ieee, tail)) return;
+  JsonDocument p;
+  JsonObject c = p["color" + tail].to<JsonObject>();
+  c["hue"] = hue;
+  c["saturation"] = sat;
+  send_vals(ieee, p);
+}
+
 void zbd_debug(const char *args) {
   while (*args == ' ') args++;
   if (!strncmp(args, "permit", 6)) {
@@ -590,6 +878,26 @@ void zbd_debug(const char *args) {
     int s = *a ? atoi(a) : 180;   // ohne Zahl 180 s, "0" schliesst
     zbd_permit(s);
     log_printf(s ? "Zigbee: Anlernen %d s angefordert\n" : "Zigbee: Anlernen schliessen\n", s);
+    return;
+  }
+  if (!strcmp(args, "refresh")) {   // Zustand aller Geraete neu lesen lassen
+    send_simple("refresh");
+    log_printf("Zigbee: Zustaende angefordert\n");
+    return;
+  }
+  if (!strncmp(args, "trace", 5)) {   // "zb trace" (umschalten), "zb trace on|off"
+    const char *a = args + 5;
+    while (*a == ' ') a++;
+    s_trace = !strcmp(a, "on") ? true : !strcmp(a, "off") ? false : !s_trace;
+    log_printf("Zigbee: Mitschrift Schalten %s\n", s_trace ? "an" : "aus");
+    return;
+  }
+  if (!strncmp(args, "diag", 4)) {   // "zb diag" (umschalten), "zb diag on|off" – Rohnachrichten im Modul-Protokoll
+    const char *a = args + 4;
+    while (*a == ' ') a++;
+    s_diag = !strcmp(a, "on") ? true : !strcmp(a, "off") ? false : !s_diag;
+    write_line(std::string("{\"c\":\"diag\",\"on\":") + (s_diag ? "true" : "false") + "}");
+    log_printf("Zigbee: Diagnose im Modul %s (Ausgabe mit \"zb\" unter log)\n", s_diag ? "an" : "aus");
     return;
   }
   if (!strncmp(args, "raw ", 4)) {
@@ -626,6 +934,16 @@ void zbd_config_open(const std::string &) {}
 bool zbd_config_get(std::vector<ZbdCfgItem> &) { return false; }
 void zbd_config_close() {}
 bool zbd_set(const std::string &, const std::string &) { return false; }
+bool zbd_get(const std::string &, ControlView &) { return false; }
+void zbd_all(std::vector<ControlView> &) {}
+size_t zbd_count() { return 0; }
+uint32_t zbd_devices_version() { return 0; }
+uint32_t zbd_state_version() { return 0; }
+void zbd_toggle(const std::string &) {}
+void zbd_set_on(const std::string &, bool) {}
+void zbd_set_brightness_pct(const std::string &, int) {}
+void zbd_set_ct(const std::string &, int) {}
+void zbd_set_color_hs(const std::string &, float, float) {}
 std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &) { return {}; }
 
 #endif

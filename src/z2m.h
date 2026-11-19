@@ -24,6 +24,7 @@ struct ControlView {
   float hue = -1, sat = -1; // 0..360 / 0..100
   float cx = -1, cy = -1;   // CIE xy
   std::string cmode;        // "xy", "hs", "color_temp"
+  std::string info;         // Messwerte fuer die Kachel, z. B. "45 W · 6,70 kWh" (Zigbee direkt: Steckdosen)
   int bri_pct() const { return bri < 0 ? -1 : (bri * 100 + bri_max / 2) / (bri_max ? bri_max : 254); }
 };
 

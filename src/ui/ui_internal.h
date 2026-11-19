@@ -118,6 +118,8 @@ struct TileModel {
 };
 bool ui_tile_model(const std::string &key, TileModel &m);   // false = unbekannte Kachel
 bool ui_tile_action(const std::string &key, std::string *err);   // wie Antippen am Panel
+// Fest ein- bzw. ausschalten (Regeln): sendet ON/OFF statt umzuschalten – mehrfaches Ausloesen bleibt ohne Wirkung
+bool ui_tile_switch(const std::string &key, bool on, std::string *err);
 // Licht: 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired; MultiPlus/Ladegeraet: 'm' Schalter, 'l' Begrenzung in 0,1 A
 bool ui_tile_set(const std::string &key, char what, int value);
 std::vector<std::string> ui_tile_keys();   // alle Kacheln aller Seiten (Reihenfolge der Seiten)

@@ -1658,7 +1658,7 @@ function renderInspector() {
     </div>
     ${d && String(d.key).startsWith('shelly:') ? `<div class="sec"><h3>Shelly</h3><p class="hint">${esc(d.model || '')} – ${esc(d.ieee)}. Shellys lassen sich hier nur für das Panel umbenennen.</p></div>` : ''}
     ${/*@@FULL{*/d && String(d.key).startsWith('wled:') ? `<div class="sec"><h3>WLED</h3><p class="hint">Topic wled/${esc(d.ieee)}. Den Namen auf dem Gerät änderst du in WLED (Einstellungen → Benutzeroberfläche → Servername); hier gilt er nur für das Panel.</p></div>` : ''/*@@FULL}*//*@@ED{''@@ED}*/}
-    ${/*@@FULL{*/d && !String(d.key).startsWith('shelly:') && !String(d.key).startsWith('wled:') ? `<div class="sec">
+    ${/*@@FULL{*/d && !String(d.key).startsWith('shelly:') && !String(d.key).startsWith('wled:') && !String(d.key).startsWith('zb:') ? `<div class="sec">
       <h3>In Zigbee2MQTT umbenennen</h3>
       <div class="row"><label class="field" style="margin:0"><input id="fZ2m" value="${esc(d.name)}" maxlength="64"></label>
       <button class="btn small" id="bZ2m" style="flex:none">Umbenennen</button></div>

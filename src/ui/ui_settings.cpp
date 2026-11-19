@@ -945,6 +945,12 @@ void ui_rename_device(const std::string &key) {
     o.hint = tr("WLED „") + v.name + "“ (" + v.description + tr("). Der Name gilt nur für dieses Panel.");
     o.check_label.clear();
   }
+#if WITH_ZB_DIRECT
+  else if (zbd_is_key(key)) {   // Zigbee direkt (H2-Modul): Name nur auf dem Panel
+    o.hint = tr("Zigbee-Gerät ") + v.vendor + " " + v.model + tr(". Der Name gilt nur für dieses Panel.");
+    o.check_label.clear();
+  }
+#endif
   std::string ieee = v.ieee, ep = v.ep, z2m_name = v.name;
   o.on_ok = [key, ieee, ep, z2m_name](const std::string &txt, bool also_z2m) {
     std::string t = txt;

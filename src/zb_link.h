@@ -23,6 +23,7 @@
 //   set      {"ieee","p":{name:wert,…}}   Werte setzen wie bei Zigbee2MQTT -> {"t":"set","ok":{…},"err":{…}}
 //   config   {"ieee"}                     einstellbare Werte -> je {"t":"cfg",…}, dann {"t":"cfg_end"}
 //   values                                letzte Werte aller Geraete -> je {"t":"state","old":true}
+//   refresh  {"ieee"?}                    Ein/Aus, Helligkeit, Farbe neu abfragen (alle bzw. ein Geraet)
 //   rename   {"ieee","name"}              eigener Name (im Modul gespeichert, "" = loeschen) -> {"t":"dev"}
 //   diag     {"on"}                       jede eingehende Zigbee-Nachricht als {"t":"log"} melden
 //   time     {"utc","tz"}                 Uhrzeit (fuer den Tuya-Zeitabgleich)

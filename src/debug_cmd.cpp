@@ -311,7 +311,7 @@ static void run(const char *cmd) {
 #endif
 #if WITH_ZB_DIRECT
   } else if (!strncmp(cmd, "zb", 2) && (cmd[2] == 0 || cmd[2] == ' ')) {
-    zbd_debug(cmd + 2);   // zb | zb list | zb permit [s] | zb raw {"c":…}
+    zbd_debug(cmd + 2);   // zb | zb list | zb permit [s] | zb refresh | zb trace | zb diag | zb raw {"c":…}
 #endif
   } else if (!strcmp(cmd, "rules") || !strcmp(cmd, "regeln")) {
     rules_debug();
@@ -327,7 +327,7 @@ static void run(const char *cmd) {
                WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
                HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
 #if WITH_ZB_DIRECT
-    log_printf("Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb raw {\"c\":\"info\"}\n");
+    log_printf("Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb refresh, zb trace, zb diag, zb raw {\"c\":\"info\"}\n");
 #endif
   } else {
     log_printf("Unbekannter Befehl \"%s\" - help zeigt die Befehle\n", cmd);

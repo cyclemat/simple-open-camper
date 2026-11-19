@@ -60,3 +60,20 @@ void zbd_config_close();
 bool zbd_set(const std::string &ieee, const std::string &json_values);   // {"name":wert,…}
 std::vector<std::pair<std::string, std::string>> zbd_values(const std::string &ieee);   // Name -> Wert (Text)
 void zbd_reset_network();                          // neues Netz (alle Geraete neu anlernen!)
+
+// Schaltbare Kanaele (Lampen, Steckdosen, Relais) wie Zigbee2MQTT-Geraete: Schluessel "zb:<ieee>" bzw. "zb:<ieee>#l2".
+// z2m.cpp reicht z2m_get/z2m_all/z2m_toggle … fuer diese Schluessel hierher weiter (wie bei Shelly/WLED) – damit gibt
+// es Kacheln, Editor-Geraeteliste, Regeln und Zusatzdisplays ohne Extra-Code.
+#include "z2m.h"
+#define ZBD_KEY_PREFIX "zb:"
+inline bool zbd_is_key(const std::string &k) { return k.compare(0, 3, ZBD_KEY_PREFIX) == 0; }
+bool zbd_get(const std::string &key, ControlView &out);
+void zbd_all(std::vector<ControlView> &out);
+size_t zbd_count();
+uint32_t zbd_devices_version();   // aendert sich, wenn Kanaele dazukommen/wegfallen
+uint32_t zbd_state_version();     // aendert sich bei jedem neuen Wert
+void zbd_toggle(const std::string &key);   // fester Befehl nach dem bekannten Zustand (unbekannt: TOGGLE)
+void zbd_set_on(const std::string &key, bool on);
+void zbd_set_brightness_pct(const std::string &key, int pct);
+void zbd_set_ct(const std::string &key, int mired);
+void zbd_set_color_hs(const std::string &key, float hue, float sat);

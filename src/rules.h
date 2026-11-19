@@ -29,6 +29,9 @@
 #define WITH_RULES 0
 #endif
 
+// Verschachtelungstiefe beim Einlesen (Blockly: jede Aktion einer Kette eine Ebene tiefer, ArduinoJson-Vorgabe 10)
+#define RULES_NESTING 64   // reicht fuer Ketten mit ~25 Aktionen; jede Ebene kostet Stack
+
 void rules_begin();
 void rules_loop();   // aus loop() des Panels (gleicher Task wie die Oberflaeche)
 // Zigbee-Meldung (aus zb_direct, beliebiger Task): Werte als JSON-Objekt {"name":wert,…}

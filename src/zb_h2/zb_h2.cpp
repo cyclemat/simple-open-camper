@@ -477,6 +477,31 @@ void bind_and_report(const Dev &d) {
   }
 }
 
+// Schaltzustand, Helligkeit und Farbe abfragen (nach dem Anlernen und auf Befehl "refresh" – Meldungen kommen sonst
+// erst bei der naechsten Aenderung bzw. nach bis zu 10 min)
+void read_states(const Dev &d) {
+  static uint16_t A_ONOFF[] = {0x0000}, A_LEVEL[] = {0x0000}, A_COLOR[] = {0x0007, 0x0000, 0x0001, 0x0008};
+  struct Q {
+    uint16_t cl;
+    uint16_t *at;
+    uint8_t n;
+  };
+  static const Q QS[] = {{0x0006, A_ONOFF, 1}, {0x0008, A_LEVEL, 1}, {0x0300, A_COLOR, 4}};
+  for (auto &e : d.eps)
+    for (auto &q : QS) {
+      if (std::find(e.in.begin(), e.in.end(), q.cl) == e.in.end()) continue;
+      esp_zb_zcl_read_attr_cmd_t r = {};
+      r.zcl_basic_cmd.dst_addr_u.addr_short = d.nwk;
+      r.zcl_basic_cmd.dst_endpoint = e.ep;
+      r.zcl_basic_cmd.src_endpoint = COORD_EP;
+      r.address_mode = ESP_ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+      r.clusterID = q.cl;
+      r.attr_number = q.n;
+      r.attr_field = q.at;
+      esp_zb_zcl_read_attr_cmd_req(&r);
+    }
+}
+
 void finish_alarm(uint8_t gen) { finish_job(gen); }
 
 void finish_job(uint8_t gen) {
@@ -494,6 +519,7 @@ void finish_job(uint8_t gen) {
     }
     if (d->done) {
       bind_and_report(*d);
+      read_states(*d);   // gleich den Zustand holen, damit Kachel und Geraet uebereinstimmen
       esp_zb_ieee_addr_t me;
       esp_zb_get_long_address(me);
       for (auto &e : d->eps)   // Alarmmelder: Koordinator als Zentrale eintragen (IAS_CIE_Address)
@@ -898,6 +924,10 @@ void handle(const char *line) {
       j["ieee"] = ieee_str(ieee);
       send(j);
     }
+  } else if (!strcmp(cmd, "refresh")) {   // Zustand aller (bzw. eines) Geraete neu abfragen
+    std::string one = c["ieee"] | "";
+    for (auto &d : s_devs)
+      if (d.done && (one.empty() || one == ieee_str(d.ieee))) read_states(d);
   } else if (!strcmp(cmd, "read")) {
     uint16_t nwk;
     uint8_t ep;
