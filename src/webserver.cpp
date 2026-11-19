@@ -204,12 +204,12 @@ static void mop_state(JsonObject st, const MopekaInfo &m) {
       st["unit"] = m.unit;
       if (!strcmp(m.unit, "kg")) st["kg"] = m.amount;
     }
-    st["mm"] = m.level_mm;
-    st["quality"] = m.quality;
+    if (m.level_mm != MOPEKA_NO_VALUE) st["mm"] = m.level_mm;
+    if (m.quality != MOPEKA_NO_VALUE) st["quality"] = m.quality;
   }
   if (m.age_s >= 0) {
     st["battery"] = m.battery;
-    st["temp"] = m.temperature;
+    if (m.temperature != MOPEKA_NO_VALUE) st["temp"] = m.temperature;
   }
   st["age"] = m.age_s;
   st["busy"] = false;
@@ -400,8 +400,8 @@ static esp_err_t h_devices(httpd_req_t *req) {
       st["level"] = g.percent;
       st["kg"] = g.kg;
       st["battery"] = g.battery;
-      st["temp"] = g.temperature;
-      st["quality"] = g.quality;
+      if (g.temperature != MOPEKA_NO_VALUE) st["temp"] = g.temperature;
+      if (g.quality != MOPEKA_NO_VALUE) st["quality"] = g.quality;
       st["age"] = g.age_s;
     }
     st["busy"] = g.busy;
@@ -495,8 +495,8 @@ static esp_err_t h_devices(httpd_req_t *req) {
         st["level"] = g.percent;
         st["kg"] = g.kg;
         st["battery"] = g.battery;
-        st["temp"] = g.temperature;
-        st["quality"] = g.quality;
+        if (g.temperature != MOPEKA_NO_VALUE) st["temp"] = g.temperature;
+        if (g.quality != MOPEKA_NO_VALUE) st["quality"] = g.quality;
         st["age"] = g.age_s;
       }
       st["busy"] = g.busy;
@@ -949,8 +949,8 @@ static esp_err_t h_truma_get(httpd_req_t *req) {
     o["level"] = g.percent;
     o["kg"] = g.kg;
     o["battery"] = g.battery;
-    o["temp"] = g.temperature;
-    o["quality"] = g.quality;
+    if (g.temperature != MOPEKA_NO_VALUE) o["temp"] = g.temperature;
+    if (g.quality != MOPEKA_NO_VALUE) o["quality"] = g.quality;
     o["age"] = g.age_s;
     o["busy"] = g.busy;
     o["status"] = g.status;

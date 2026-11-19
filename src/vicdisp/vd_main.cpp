@@ -361,11 +361,11 @@ void h_state() {
     o["unit"] = m.unit;
     o["has"] = m.has;
     o["percent"] = m.percent;
-    o["mm"] = m.level_mm;
+    if (m.level_mm != MOPEKA_NO_VALUE) o["mm"] = m.level_mm;
     o["amount"] = m.amount;
     o["battery"] = m.battery;
-    o["temp"] = m.temperature;
-    o["quality"] = m.quality;
+    if (m.temperature != MOPEKA_NO_VALUE) o["temp"] = m.temperature;
+    if (m.quality != MOPEKA_NO_VALUE) o["quality"] = m.quality;
     o["age"] = m.age_s;
     o["status"] = tr_parts(m.status);
   }

@@ -45,6 +45,7 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 | 💧 **Simarine STRx** *(Beta)* | Tanksensoren STR1/STR2/STR3 per Bluetooth-Broadcast – offen oder mit dem Schlüssel aus der Simarine-App, **kein App-Key nötig** – **ungetestet** |
 | 🌡️ **Ruuvi** *(Beta)* | Ruuvi Tag / Ruuvi Air per Bluetooth: Temperatur, Luftfeuchte, Luftdruck (Air: CO₂, Feinstaub) – **ungetestet** |
 | 🌡️ **SwitchBot** *(Beta)* | Thermo-Hygrometer Meter, Meter Plus, Outdoor Meter per Bluetooth: Temperatur, Luftfeuchte, Batterie – **ungetestet** |
+| ⚖️ **Senso4s** *(Beta)* | Gasflaschen-Waage Basic/Plus per Bluetooth – Füllstand in % und kg – **ungetestet** |
 | 🛢️ **Mopeka** | Gasflaschen und Tanks per Bluetooth (Pro Check, Pro Plus, Pro Check Universal/H2O, Pro-200, TD40/TD200, Lippert BottleCheck, Check Standard/XL), bis zu 4 Sensoren |
 | 📶 **Victron Bluetooth** | SmartSolar, SmartShunt/BMV, Orion/DC-DC, Blue Smart/Phoenix Smart Ladegeräte – „Instant Readout“, auch ganz ohne Cerbo |
 | 🔋 **Akkus per Bluetooth** | Super B, Power Quarry/Shentec, Daly/Bulltron, JBD/Xiaoxiang, CS-BATTERIES (Beta), JK-BMS, LiTime/Redodo/PowerQueen, Renogy, Eco-Worthy, ANT, Vatrer: Ladezustand, Spannung, Strom, Temperatur, Zellen – nur lesen |
@@ -179,6 +180,11 @@ Bluetooth startet erst, wenn ein Gerät eingerichtet ist oder gesucht wird.
    Füllhöhe leer/voll in mm und Inhalt).
 3. Die Sensoren senden ihre Werte von selbst – keine Kopplung, die Mopeka-App bleibt nutzbar.
    Die Kachel erscheint mit dem ersten Messwert.
+
+**Senso4s** *(Beta, ungetestet)*: Die Gasflaschen-Waage Basic/Plus wird genauso bei **Mopeka** gesucht und erscheint
+als „Senso4s Basic“ bzw. „Senso4s Plus“. Flasche und Nullabgleich vorher in der Senso4s-App einrichten, hier die
+Flaschengröße wählen (für kg). Sie meldet sich alle 15 Minuten; Hinweise wie „Nullabgleich nötig“ oder „Batterien
+leer“ stehen im Status.
 
 ### SuperSense (Beta, ungetestet)
 

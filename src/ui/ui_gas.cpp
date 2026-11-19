@@ -352,12 +352,12 @@ void ui_gas_update() {
     snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.battery);
     lv_label_set_text(s_g->rows[1], b);
     snprintf(b, sizeof(b), "%d\xE2\x80\xAF°C", g.temperature);
-    lv_label_set_text(s_g->rows[2], b);
+    lv_label_set_text(s_g->rows[2], g.temperature == MOPEKA_NO_VALUE ? "–" : b);
     snprintf(b, sizeof(b), "%d von 3", g.quality);
-    lv_label_set_text(s_g->rows[3], b);
+    lv_label_set_text(s_g->rows[3], g.quality == MOPEKA_NO_VALUE ? "–" : b);
     lv_label_set_text(s_g->rows[4], ui_age_text(g.age_s).c_str());
     snprintf(b, sizeof(b), "%d\xE2\x80\xAFmm", g.level_mm);
-    lv_label_set_text(s_g->rows[5], b);
+    lv_label_set_text(s_g->rows[5], g.level_mm == MOPEKA_NO_VALUE ? "–" : b);
   } else {
     lv_label_set_text(s_g->pct, "–");
     lv_bar_set_value(s_g->bar, 0, LV_ANIM_OFF);

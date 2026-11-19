@@ -8,6 +8,7 @@ Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware get
 - 🔋 **Zellspannungen** jetzt auch bei JK-BMS, ANT, Eco-Worthy, Renogy-Akku und Vatrer.
 - 🔋 Akku-Übersicht (Kachel 2 s drücken): zusätzlich Kapazität, Gesundheit, Zellen min–max mit Δ und jede Zelle
   einzeln; wischen zum Blättern.
+- ⚖️ **Senso4s** *(Beta)* – Gasflaschen-Waage Basic/Plus per Bluetooth, eingerichtet wie Mopeka: Füllstand in % und kg.
 
 ## 0.2.3 – 2026-11-19
 

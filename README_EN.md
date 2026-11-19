@@ -82,6 +82,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 🌈 **WLED** on the same broker – on/off, brightness, colour
 - ⛽ **Truma LevelControl** over Bluetooth – up to two gas bottles
 - 🛢️ **Mopeka** over Bluetooth – up to four gas and tank sensors
+- ⚖️ **Senso4s** *(beta)* – Basic/Plus gas cylinder scale over Bluetooth, level in % and kg
 - ☀️ **Victron** over Bluetooth ("Instant Readout") – solar chargers, battery monitors, DC-DC chargers
 - 🔋 **Victron Cerbo GX** (Venus OS) over MQTT – solar, grid/shore power, charger, battery (SOC) and DC system
 - 🔥 **Truma heating** (Combi/VarioHeat) – via **CP Plus** (LIN bus) or **iNet X** (Bluetooth)
@@ -299,6 +300,16 @@ Pull requests with new or improved translations are very welcome!
   the older Standard sensors. The panel only listens – the Mopeka app keeps working.
 - While scanning, briefly press the **sync button** on the sensor – it is then marked "Taste gedrückt".
 - Choose the bottle type in the detail view: 6/11/14 kg (Europe), 20/30/40 lb (US) or custom values (mm, kg/l).
+
+### ⚖️ Senso4s *(beta, untested)*
+
+- The **Senso4s Basic / Plus** gas cylinder scale sits under the cylinder and broadcasts the level in % openly over
+  Bluetooth (updated every 15 minutes). No pairing, no password, the Senso4s app keeps working.
+- Set up the cylinder (tare weight, capacity) and the zeroing once in the **Senso4s app**.
+- Set up like a Mopeka sensor: enable the **Mopeka** Bluetooth protocol, **Mopeka → Search** – the scale shows up as
+  "Senso4s Basic" or "Senso4s Plus". Choose the cylinder size and the panel calculates the kg.
+- Notices from the scale appear in the status: zeroing needed, setup error, batteries empty, on the Plus warnings
+  about temperature, incline or motion.
 
 ### 🔋 Batteries and power stations
 
@@ -606,6 +617,7 @@ authors!
 | CS-BATTERIES, SuperSense (`src/bms.cpp`) | own analysis of the apps | – | CS-BATTERIES login (app key, password), SuperSense tank module |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | see project | Data formats 3, 5 and 6 (advertisements) |
 | Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | see project | Advertisements, metadata, AES-CCM encryption |
+| Senso4s (`src/mopeka.cpp`) | [ksanislo/senso4s_ble](https://github.com/ksanislo/senso4s_ble) | Apache-2.0 | Advertisements, error and warning codes |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | see project | Advertisements of the thermo-hygrometers |
 | | Manufacturer documents or own analysis of the apps | – | Super B (older batteries), Power Quarry/Shentec |
 | Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus registers of charge controllers, DC-DC chargers, batteries, inverters |

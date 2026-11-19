@@ -81,6 +81,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 🌈 **WLED** über denselben Broker – Ein/Aus, Helligkeit, Farbe
 - ⛽ **Truma LevelControl** per Bluetooth – bis zu vier Gasflaschen
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
+- ⚖️ **Senso4s** *(Beta)* – Gasflaschen-Waage Basic/Plus per Bluetooth, Füllstand in % und kg
 - ☀️ **Victron** per Bluetooth („Instant Readout“) – Solarregler, Batteriemonitor, Ladebooster
 - 🔋 **Victron Cerbo GX** (Venus OS) per MQTT – Solar, Netz/Landstrom, Ladegerät, Batterie (SOC) und DC-System
 - 🔥 **Truma-Heizung** (Combi/VarioHeat) – über **CP Plus** (LIN-Bus) oder **iNet X** (Bluetooth)
@@ -316,6 +317,16 @@ Pull Requests mit neuen oder verbesserten Übersetzungen sind sehr willkommen!
   und die älteren Standard-Sensoren. Das Panel hört nur mit – die Mopeka-App bleibt nutzbar.
 - Beim Suchen kurz die **Sync-Taste** am Sensor drücken – er wird dann als „Taste gedrückt“ markiert.
 - Flaschentyp in der Detailansicht wählen: 6/11/14 kg (Europa), 20/30/40 lb (USA) oder eigene Werte (mm, kg/l).
+
+### ⚖️ Senso4s *(Beta, ungetestet)*
+
+- Die Gasflaschen-Waage **Senso4s Basic / Plus** steht unter der Flasche und sendet den Füllstand in % offen per
+  Bluetooth (alle 15 Minuten neu). Keine Kopplung, kein Passwort, die Senso4s-App bleibt nutzbar.
+- Flasche (Leergewicht, Inhalt) und Nullabgleich einmal in der **Senso4s-App** einrichten.
+- Einrichten wie ein Mopeka-Sensor: Bluetooth-Protokoll **Mopeka** einschalten, **Mopeka → Suchen** – die Waage
+  erscheint als „Senso4s Basic“ bzw. „Senso4s Plus“. Flaschengröße wählen, dann rechnet das Panel die kg aus.
+- Hinweise der Waage stehen im Status: Nullabgleich nötig, Einstellfehler, Batterien leer, beim Plus Warnungen zu
+  Temperatur, Neigung oder Bewegung.
 
 ### 🔋 Akkus und Power Stations
 
@@ -675,6 +686,7 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | | Unterlagen vom Hersteller bzw. eigene Analyse der Apps | – | Super B (ältere Akkus), Power Quarry/Shentec, CS-BATTERIES (Anmeldung), SuperSense |
 | Ruuvi (`src/bms.cpp`) | [ruuvi/ruuvi-sensor-protocols](https://github.com/ruuvi/ruuvi-sensor-protocols) | siehe Projekt | Datenformate 3, 5 und 6 (Werbepakete) |
 | Simarine STRx (`src/bms.cpp`) | [Simarine/strx-ble-broadcast-protocol](https://github.com/Simarine/strx-ble-broadcast-protocol) | siehe Projekt | Werbepakete, Metadaten, AES-CCM-Verschlüsselung |
+| Senso4s (`src/mopeka.cpp`) | [ksanislo/senso4s_ble](https://github.com/ksanislo/senso4s_ble) | Apache-2.0 | Werbepakete, Fehler- und Warncodes |
 | SwitchBot (`src/bms.cpp`) | [OpenWonderLabs/SwitchBotAPI-BLE](https://github.com/OpenWonderLabs/SwitchBotAPI-BLE) | siehe Projekt | Werbepakete der Thermo-Hygrometer |
 | Renogy (`src/bms.cpp`) | [cyrils/renogy-bt](https://github.com/cyrils/renogy-bt) | GPL-3.0 | Modbus-Register Laderegler, DC-DC-Lader, Akku, Wechselrichter |
 | | [IAmTheMitchell/renogy-ble](https://github.com/IAmTheMitchell/renogy-ble) | Apache-2.0 | Geräteerkennung, Smart Shunt 300, Akku Pro |
