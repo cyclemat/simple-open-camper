@@ -8,7 +8,10 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
 **Neu**
 - 🔋 **SmartShunt-Satellit** *(Beta)* – ESP32-C3 Super Mini + INA228 + externer Shunt (50–2000 A): Spannung, Strom,
   Leistung, Ladezustand (Peukert, Ladewirkungsgrad, automatische Vollerkennung), Restzeit, Historie, Alarme;
-  eigenes Projekt `shunt/`, ohne Bluetooth-Sensoren. Siehe `docs/smartshunt.md`.
+  eigenes Projekt `shunt/`, ohne Bluetooth-Sensoren. Siehe `docs/smartshunt.md` und `shunt/README.md`
+  (Schaltplan, Pinout Super Mini).
+- 🔌 **VE.Direct-Ausgabe** am SmartShunt-Satelliten (Text-Protokoll, 19200 Baud, TX/RX-Pins des Super Mini) mit
+  einstellbarer Produkt-ID – ab Werk eigene Kennung 0xA38F.
 
 **Behoben**
 - GitHub-Build: NimBLE-Arduino fest auf 2.5.2 (neuere Version baut mit diesem Framework nicht).

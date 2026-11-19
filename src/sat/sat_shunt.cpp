@@ -11,8 +11,11 @@
 namespace {   // dateilokal (ODR)
 
 // ---------------------------------------------------------------- Einstellungen
+// VE.Direct-Text (wie Victron-Batteriewaechter): eigene Kennung 0xA38F (nicht von Victron vergeben; Victron:
+// BMV-712 0xA381, SmartShunt 500 A 0xA389, 1000 A 0xA38A, 2000 A 0xA38B – Quelle go-victron, MIT)
+#define VD_OWN_PID 0xA38F
 struct Cfg {
-  uint8_t ver = 1;
+  uint8_t ver = 2;
   bool on = true;
   int8_t sda = 5, scl = 6;            // I2C (C3 Super Mini: nicht GPIO 9 = BOOT-Taste)
   uint8_t addr = 0x40;
@@ -31,6 +34,10 @@ struct Cfg {
   float al_soc = 20, al_soc_clr = 30; // Alarm SOC (0 = aus)
   float al_vlo = 0, al_vhi = 0;       // Alarm Unter-/Ueberspannung (0 = aus), Hysterese 0,2 V
   uint16_t save_s = 60;
+  // VE.Direct-Ausgabe (19200 8N1, Text-Protokoll, nur senden) an einem UART-Pin
+  bool vd_on = false;
+  int8_t vd_tx = 21, vd_rx = 20;   // C3 Super Mini: die mit TX/RX beschrifteten Pins (UART0, Konsole laeuft ueber USB)
+  uint16_t vd_pid = VD_OWN_PID;
 };
 
 // Zustand, der Neustarts uebersteht
@@ -67,6 +74,10 @@ uint32_t s_full_since = 0;     // Vollbedingungen erfuellt seit (0 = nicht)
 bool s_sync_armed = true;      // nach einer Synchronisierung erst wieder, wenn die Bedingungen verlassen wurden
 uint8_t s_alarms = 0;          // Bit 0 SOC, 1 Unterspannung, 2 Ueberspannung, 3 Messfehler
 float s_shown[4] = {NAN, NAN, NAN, NAN};
+uint32_t s_sync_ms = 0;        // letzte Synchronisierung (seit Start; fuer H9)
+uint32_t s_vd_ms = 0;
+uint8_t s_vd_block = 0;
+bool s_vd_up = false;
 
 // ---------------------------------------------------------------- INA228
 bool rd(uint8_t reg, uint8_t n, uint32_t &v) {
@@ -129,7 +140,7 @@ void cfg_load() {
   Cfg c;
   if (p.getBytesLength("cfg") == sizeof(Cfg)) {
     p.getBytes("cfg", &c, sizeof(Cfg));
-    if (c.ver == 1) s_c = c;
+    if (c.ver == 2) s_c = c;
   }
   State st;
   if (p.getBytesLength("st") == sizeof(State)) {
@@ -167,6 +178,7 @@ void sync_full(bool manual) {
   s_s.rem_ah = s_c.cap_ah;
   s_s.soc_valid = true;
   (manual ? s_s.syncs_man : s_s.syncs_auto)++;
+  s_sync_ms = millis() | 1;
   st_save();
   s_ver++;
 }
@@ -267,6 +279,71 @@ float ttg_h() {
   double rate = eff_discharge(-s_i_avg);
   return rate > 0 ? (float)(avail / rate) : NAN;
 }
+// ---------------------------------------------------------------- VE.Direct (Text-Protokoll)
+// Je Sekunde ein Block, abwechselnd Messwerte und Historie: "\r\nFeld\tWert" …, zuletzt "\r\nChecksum\t<Byte>" –
+// das Byte macht die Summe aller Bytes des Blocks zu 0 (mod 256). Einheiten wie VE.Direct Protocol 3.32 (BMV/SmartShunt).
+void vd_start() {
+  Serial1.end();
+  s_vd_up = false;
+  if (!s_c.vd_on || s_c.vd_tx < 0) return;
+  Serial1.begin(19200, SERIAL_8N1, s_c.vd_rx, s_c.vd_tx);
+  s_vd_up = true;
+}
+void vd_send(const String &body) {
+  String b = body + "\r\nChecksum\t";
+  uint8_t sum = 0;
+  for (size_t k = 0; k < b.length(); k++) sum += (uint8_t)b[k];
+  Serial1.print(b);
+  Serial1.write((uint8_t)(256 - sum));
+}
+String vd_num(double v) { return String((long)lround(v)); }
+void vd_loop() {
+  if (!s_vd_up || !s_ok) return;
+  uint32_t now = millis();
+  if (now - s_vd_ms < 1000) return;
+  s_vd_ms = now;
+  char pid[8];
+  snprintf(pid, sizeof(pid), "0x%04X", s_c.vd_pid);
+  String b;
+  if (s_vd_block++ % 2 == 0) {   // Messwerte
+    b += String("\r\nPID\t") + pid;
+    b += "\r\nV\t" + vd_num(s_v * 1000);
+    b += "\r\nI\t" + vd_num(s_i * 1000);
+    b += "\r\nP\t" + vd_num(s_p);
+    if (s_s.soc_valid) {
+      b += "\r\nCE\t" + vd_num(-(s_c.cap_ah - s_s.rem_ah) * 1000);
+      b += "\r\nSOC\t" + vd_num(1000.0 * s_s.rem_ah / s_c.cap_ah);
+      float t = ttg_h();
+      b += "\r\nTTG\t" + (isnan(t) ? String("-1") : vd_num(t * 60));
+    } else {
+      b += "\r\nCE\t---\r\nSOC\t---\r\nTTG\t---";
+    }
+    b += String("\r\nAlarm\t") + ((s_alarms & 7) ? "ON" : "OFF");
+    b += "\r\nRelay\tOFF";
+    // Alarmgrund: 1 Unterspannung, 2 Ueberspannung, 16 Ladezustand niedrig
+    int ar = (s_alarms & 2 ? 1 : 0) | (s_alarms & 4 ? 2 : 0) | (s_alarms & 1 ? 16 : 0);
+    b += "\r\nAR\t" + String(ar);
+    b += "\r\nFW\t0100";
+    b += "\r\nMON\t0";
+  } else {   // Historie
+    double avg = (s_s.cycles ? s_s.dis_ah / std::max<uint32_t>(1, s_s.cycles) : s_s.last_ah);
+    b += "\r\nH1\t" + vd_num(-s_s.deepest_ah * 1000);
+    b += "\r\nH2\t" + vd_num(-s_s.last_ah * 1000);
+    b += "\r\nH3\t" + vd_num(-avg * 1000);
+    b += "\r\nH4\t" + String(s_s.cycles);
+    b += "\r\nH5\t" + String(s_s.full_dis);
+    b += "\r\nH6\t" + vd_num(-s_s.dis_ah * 1000);
+    b += "\r\nH7\t" + (isnan(s_s.v_min) ? String("0") : vd_num(s_s.v_min * 1000));
+    b += "\r\nH8\t" + (isnan(s_s.v_max) ? String("0") : vd_num(s_s.v_max * 1000));
+    b += "\r\nH9\t" + String(s_sync_ms ? (now - s_sync_ms) / 1000 : 0);
+    b += "\r\nH10\t" + String(s_s.syncs_auto);
+    b += "\r\nH11\t0\r\nH12\t0";
+    b += "\r\nH17\t" + vd_num(s_s.dis_wh / 10);   // 0,01 kWh
+    b += "\r\nH18\t" + vd_num(s_s.chg_wh / 10);
+  }
+  vd_send(b);
+}
+
 String alarm_text() {
   String t;
   if (s_alarms & 1) t += "Ladezustand niedrig";
@@ -283,7 +360,8 @@ void sat_shunt_begin() {
   Lock l;
   cfg_load();
   s_init = s_c.on && ina_init();
-  log_i("SmartShunt: %s", s_init ? "INA228 bereit" : s_err.c_str());
+  vd_start();
+  log_i("SmartShunt: %s%s", s_init ? "INA228 bereit" : s_err.c_str(), s_vd_up ? ", VE.Direct an" : "");
 }
 
 void sat_shunt_loop() {
@@ -325,6 +403,7 @@ void sat_shunt_loop() {
       break;
     }
   if (now - s_save_ms >= (uint32_t)std::max<uint16_t>(10, s_c.save_s) * 1000) st_save();
+  vd_loop();
 }
 
 uint32_t sat_shunt_version() { return s_ver; }
@@ -403,6 +482,13 @@ void sat_shunt_json(JsonObject o) {
   c["al_vlo"] = s_c.al_vlo;
   c["al_vhi"] = s_c.al_vhi;
   c["save_s"] = s_c.save_s;
+  c["vd_on"] = s_c.vd_on;
+  c["vd_tx"] = s_c.vd_tx;
+  c["vd_rx"] = s_c.vd_rx;
+  char pid[8];
+  snprintf(pid, sizeof(pid), "0x%04X", s_c.vd_pid);
+  c["vd_pid"] = pid;
+  c["vd_own"] = "0xA38F";
   JsonObject m = o["live"].to<JsonObject>();
   m["ok"] = s_ok;
   if (s_err.length()) m["err"] = s_err;
@@ -472,6 +558,18 @@ String sat_shunt_set(JsonObjectConst o) {
   f("al_vlo", c.al_vlo, 0, 80);
   f("al_vhi", c.al_vhi, 0, 80);
   if (o["save_s"].is<int>()) c.save_s = std::max(10, std::min(3600, o["save_s"].as<int>()));
+  if (o["vd_on"].is<bool>()) c.vd_on = o["vd_on"];
+  if (o["vd_tx"].is<int>()) c.vd_tx = o["vd_tx"];
+  if (o["vd_rx"].is<int>()) c.vd_rx = o["vd_rx"];
+  if (o["vd_pid"].is<const char *>()) {   // "0xA389" bzw. leer = eigene Kennung
+    String t = o["vd_pid"].as<const char *>();
+    t.trim();
+    long v = t.length() ? strtol(t.c_str(), nullptr, 16) : VD_OWN_PID;
+    if (v <= 0 || v > 0xFFFF) return "Produkt-ID als Hexzahl, z. B. 0xA38F";
+    c.vd_pid = (uint16_t)v;
+  }
+  if (c.vd_on && c.vd_tx < 0) return "Für VE.Direct einen TX-Pin wählen";
+  if (c.vd_on && (c.vd_tx == c.sda || c.vd_tx == c.scl)) return "VE.Direct-TX darf kein I²C-Pin sein";
   if (c.sda == c.scl || c.sda < 0 || c.scl < 0) return "SDA und SCL brauchen zwei verschiedene Pins";
   if (c.shunt_mv / 1000 > 0.16f) return "Shunt-Spannung zu groß für den INA228 (max. ±163 mV)";
   bool bus = c.sda != s_c.sda || c.scl != s_c.scl || c.addr != s_c.addr || c.on != s_c.on;
@@ -479,6 +577,7 @@ String sat_shunt_set(JsonObjectConst o) {
   s_c = c;
   cfg_save();
   if (bus) s_init = s_c.on && ina_init();
+  vd_start();
   s_ver++;
   return "";
 }
@@ -523,5 +622,7 @@ void sat_shunt_for_pins(const std::function<void(int, const String &, bool, bool
   if (!s_c.on) return;
   f(s_c.sda, "SmartShunt I²C SDA", true, false);
   f(s_c.scl, "SmartShunt I²C SCL", true, false);
+  if (s_c.vd_on && s_c.vd_tx >= 0) f(s_c.vd_tx, "SmartShunt VE.Direct TX", true, false);
+  if (s_c.vd_on && s_c.vd_rx >= 0) f(s_c.vd_rx, "SmartShunt VE.Direct RX", false, false);
 }
 #endif

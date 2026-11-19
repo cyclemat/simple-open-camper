@@ -46,5 +46,12 @@ eingebauten Shunt entfernen. Keine Rückleitung darf den Shunt umgehen.
 ## Offen
 
 FRAM, Temperaturfühler für Batterie/Shunt, Starter-/Mittelpunktspannung, Trend-Ringpuffer, Shunt-TCR,
-INA228-Ladungsakkumulator als zweite Referenz, VE.Direct-Ausgabe (siehe Notizen), Darstellung als
+INA228-Ladungsakkumulator als zweite Referenz, VE.Direct-HEX-Protokoll (Antworten auf GX-Anfragen), Darstellung als
 Batteriewächter-Kachel am Panel (statt einzelner Punkte).
+
+## VE.Direct (umgesetzt, ungetestet am GX)
+
+Text-Protokoll an UART1 (ab Werk TX GP21 / RX GP20 = Pins „TX/RX“ des Super Mini), 19200 8N1, je Sekunde ein Block
+(abwechselnd Messwerte und Historie), Prüfsumme je Block. Produkt-ID einstellbar, ab Werk eigene Kennung 0xA38F
+(Victron: BMV-712 0xA381, SmartShunt 500/1000/2000 A 0xA389/0xA38A/0xA38B – Quelle koestler/go-victron, MIT).
+Schaltplan und Isolator: `shunt/README.md`.
