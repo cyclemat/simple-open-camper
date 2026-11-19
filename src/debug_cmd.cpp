@@ -1,4 +1,5 @@
 // Befehle ueber die serielle Schnittstelle – siehe debug_cmd.h
+#include "rules.h"
 #include "debug_cmd.h"
 #include <Arduino.h>
 #include <ctype.h>
@@ -308,6 +309,8 @@ static void run(const char *cmd) {
   } else if (!strncmp(cmd, "zb", 2) && (cmd[2] == 0 || cmd[2] == ' ')) {
     zbd_debug(cmd + 2);   // zb | zb list | zb permit [s] | zb raw {"c":…}
 #endif
+  } else if (!strcmp(cmd, "rules") || !strcmp(cmd, "regeln")) {
+    rules_debug();
   } else if (!strcmp(cmd, "webpw")) {
     web_password_reset();
     log_printf("Zugangspasswort der Weboberflaeche ist wieder \"panelsat\" - beim naechsten Oeffnen ein neues festlegen.\n");

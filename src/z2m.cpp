@@ -109,9 +109,12 @@ static volatile bool s_devices_wanted = false;   // bridge/devices gerade abonni
 static std::set<std::string> s_placed;     // IEEE-Adressen der Geraete auf dem Panel
 static uint32_t s_placed_ver = 0;          // Layout-Version, fuer die s_placed gilt
 
+// Befehle direkt senden: esp_mqtt_client_enqueue legt sie in die Warteschlange, die der MQTT-Task nur eine Nachricht
+// je Durchlauf (bis zu 1 s Wartezeit) abarbeitet – mit weiteren Nachrichten davor kam ein Schaltbefehl Sekunden spaeter an.
 static void publish(const std::string &topic, const char *payload) {
   if (!s_client || !s_connected) return;
-  esp_mqtt_client_enqueue(s_client, topic.c_str(), payload, 0, 0, 0, true);
+  if (esp_mqtt_client_publish(s_client, topic.c_str(), payload, 0, 0, 0) < 0)
+    esp_mqtt_client_enqueue(s_client, topic.c_str(), payload, 0, 0, 0, true);   // Ersatz, z. B. waehrend Neuverbindung
 }
 
 static void handle_state(int di, const char *payload, size_t len) {

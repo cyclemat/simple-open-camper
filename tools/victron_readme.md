@@ -4,13 +4,14 @@
 
 <h1 align="center"><img src="assets/van-right.svg" height="32" alt=""> Simple Open Camper – Victron-Display <img src="assets/van-left.svg" height="32" alt=""></h1>
 
-<h3 align="center">Victron und Gas im Camper auf einem 2,8"-Touch-Display – Cerbo GX per WLAN, Victron-Geräte und Truma LevelControl direkt per Bluetooth. Lokal, ohne Cloud.</h3>
+<h3 align="center">Victron und Gas im Camper auf einem 2,8"-Touch-Display – Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl und Mopeka direkt per Bluetooth. Lokal, ohne Cloud.</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Hardware-ESP32--2432S028R%20(CYD)-0089D0" alt="Hardware">
   <img src="https://img.shields.io/badge/Display-320%C3%97240%20Touch-blue" alt="Display">
   <img src="https://img.shields.io/badge/Victron-Cerbo%20GX%20%7C%20Instant%20Readout-005CA9" alt="Victron">
   <img src="https://img.shields.io/badge/Gas-Truma%20LevelControl-E30613" alt="Truma LevelControl">
+  <img src="https://img.shields.io/badge/Gas-Mopeka-2E7D32" alt="Mopeka">
   <img src="https://img.shields.io/badge/Cloud-keine-brightgreen" alt="Ohne Cloud">
   <img src="https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial-blue" alt="Lizenz PolyForm Noncommercial">
   <img src="https://img.shields.io/badge/Status-Beta-yellow" alt="Status">
@@ -40,6 +41,8 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 |---|---|
 | 🔋 **Cerbo GX** (optional) | Batterie, Solar (Summe und jeder Laderegler einzeln), Netz/Landstrom, Ladegerät, Wechselrichter, DC-DC-Lader (Orion XS/Smart), Lichtmaschinenregler, DC-System – per MQTT im WLAN, der GX wird automatisch gefunden |
 | 🔥 **Truma LevelControl** | Füllstand der Gasflaschen (%, kg, Akku des Sensors) per Bluetooth, bis zu 4 Sensoren |
+| 💧 **SuperSense** *(Beta)* | Tankmodul „SSBT…“ (bis 4 Tanksensoren, auch SuperSense PRO mit Bluetooth) per Bluetooth – **ungetestet**, Rückmeldungen willkommen |
+| 🛢️ **Mopeka** | Gasflaschen und Tanks per Bluetooth (Pro Check, Pro Plus, Pro Check Universal/H2O, Pro-200, TD40/TD200, Lippert BottleCheck, Check Standard/XL), bis zu 4 Sensoren |
 | 📶 **Victron Bluetooth** | SmartSolar, SmartShunt/BMV, Orion/DC-DC, Blue Smart/Phoenix Smart Ladegeräte – „Instant Readout“, auch ganz ohne Cerbo |
 | 🔋 **Akkus per Bluetooth** | Super B, Power Quarry/Shentec, Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime/Redodo/PowerQueen, Renogy, Eco-Worthy, ANT, Vatrer: Ladezustand, Spannung, Strom, Temperatur, Zellen – nur lesen |
 | ☀️ **Renogy per Bluetooth** | Laderegler (Rover/Wanderer/Adventurer mit BT-1/BT-2), DC-DC-Lader, Wechselrichter, Smart Shunt 300 – Solarleistung, Ladephase, Ertrag, Batterie – nur lesen |
@@ -50,6 +53,36 @@ MultiPlus-Steuerung (Strombegrenzung/Schalter) und Bluetooth-Ladegeräte. Rückm
 | 👆 **Bedienung** | 4 oder 2 Kacheln pro Seite, Wischen zum Blättern, Antippen zum Bedienen, Dimmen nach Wunsch |
 | 🌐 **Weboberfläche** | WLAN, Cerbo, Bluetooth-Geräte, Reihenfolge und Namen der Kacheln, Helligkeit, Firmware-Update |
 | 🔒 **Sicher eingerichtet** | Einrichtungsseite öffnet sich von selbst (wie bei WLED), eigenes Zugangspasswort ist Pflicht |
+
+## 🔭 Vorgeschmack: das große Panel
+
+Dieses Display ist der kleine Bruder. Die **große Version von Simple Open Camper** ist ein 7"-Touch-Bedienteil
+für den ganzen Camper – **sie erscheint in ein paar Tagen**. Ein kleiner Ausblick:
+
+| | |
+|---|---|
+| 🖥️ **7"-Panels** | Waveshare ESP32-S3 7" und Elecrow CrowPanel ESP32-P4 7", dazu ein rundes 1,46"-Display mit Drehknopf |
+| 🎨 **Eigene Oberfläche** | Kacheln, Seiten und Hintergründe im Browser per Drag & Drop gestalten |
+| 💡 **Zigbee** | Lampen, Steckdosen, Taster, Bewegungsmelder – über Zigbee2MQTT oder direkt mit eingebautem Funkmodul |
+| 🧩 **Regeln** | „Wenn … und falls … dann …“ mit grafischen Bausteinen, z. B. Bewegungslicht oder Dimmen per Taster |
+| 🔥 **Heizung und Gas** | Truma (LevelControl, iNet X, CP Plus), Alde, Mopeka |
+| 🔋 **Energie** | alles aus diesem Display – Victron, Cerbo GX, Akkus, Power Stations – und mehr |
+| 🛰️ **Satelliten** | kleine ESP32 im Fahrzeug für Tanksonden, Temperaturen, Relais, Wasserwaage; dazu Zusatzdisplays wie dieses |
+| 📡 **Lokal** | alles im eigenen WLAN, ohne Cloud – auf Wunsch mit eingebautem MQTT-Broker |
+
+Wer hier mitliest, erfährt es zuerst. ⭐ Stern setzen oder das Repository beobachten.
+
+## 🏠 Home Assistant *(in Arbeit)*
+
+Das Display braucht kein Home Assistant. Geplant ist, dass es auch mit HA zusammenarbeitet:
+
+- **Display → HA:** Das Display meldet seine **lokalen** Bluetooth-Geräte per MQTT-Discovery an Home Assistant –
+  Gasflaschen (Truma LevelControl, Mopeka), Victron-Geräte per Bluetooth, Akkus und Power Stations, SuperSense.
+- **HA → Display:** Werte und Schalter aus Home Assistant als Kacheln (über die HA-API mit Zugangstoken).
+
+**Kein Daten-Kreislauf:** Gemeldet wird nur, was direkt am Display hängt. Was das Display schon per MQTT bekommt –
+vor allem die Werte vom **Cerbo GX** (dafür hat HA eine eigene Victron-Integration) – wird **nicht** weitergemeldet.
+Werte aus Home Assistant gehen nie zurück an HA, und Topics unter `homeassistant/` liest das Display nie als Eingang.
 
 ## 🛒 Hardware
 
@@ -121,6 +154,22 @@ Bluetooth startet erst, wenn ein Gerät eingerichtet ist oder gesucht wird.
 4. Gemessen wird automatisch alle 10 Minuten (einstellbar 2–240) oder per „Jetzt messen“.
    Die Kachel erscheint mit der ersten Messung.
 
+### Mopeka (Gasflaschen und Tanks)
+
+1. In der Weboberfläche bei **Mopeka**: „Sensoren suchen“, dann am Sensor die Sync-Taste drücken.
+2. Gefundenen Sensor „Hinzufügen“ und benennen, dann **Flasche/Tank** wählen (Vorgabe oder „Eigene Maße“:
+   Füllhöhe leer/voll in mm und Inhalt).
+3. Die Sensoren senden ihre Werte von selbst – keine Kopplung, die Mopeka-App bleibt nutzbar.
+   Die Kachel erscheint mit dem ersten Messwert.
+
+### SuperSense (Beta, ungetestet)
+
+- **Tankmodul** („SSBT…“): erscheint bei **Akkus suchen** als „SuperSense Tankmodul (Beta)“. Hinzufügen – je
+  angeschlossenem Tanksensor eine Kachel mit Füllstand (ohne Kalibrierung: Rohwert 2475 = voll) und Temperatur.
+  Die SuperSense-App dabei schließen.
+
+Das Protokoll ist nachgebaut, nicht vom Hersteller dokumentiert. Bitte meldet, ob die Werte stimmen (Issue).
+
 ### Akkus und Power Stations per Bluetooth
 
 1. **App des Herstellers schließen** (z. B. „Be in Charge“, „Power Quarry“, „BullTron“, „Xiaoxiang“, „JK BMS“, „LiTime“) – der Akku spricht nur mit einem Gerät.
@@ -150,7 +199,7 @@ Die farbige LED auf der Rückseite des Boards zeigt einen Füllstand auf einen B
 
 In der Weboberfläche unter **Ampel-LED** wählst du, was sie zeigt: **Automatisch** (Ladezustand der Batterie,
 ohne Batteriemonitor das Gas), **Batterie** (SmartShunt/BMV per Bluetooth, Cerbo GX oder Akku per Bluetooth), **Gas** (Truma
-LevelControl, die leerste Flasche) oder **Aus**.
+LevelControl oder Mopeka, die leerste Flasche) oder **Aus**.
 
 ### MultiPlus / Ladegerät bedienen
 
@@ -243,12 +292,19 @@ nicht direkt übernommen, sondern von Hand eingearbeitet (siehe [CONTRIBUTING.md
 
 Lean firmware for the ESP32-2432S028R "Cheap Yellow Display" ([buy on Amazon](https://link.amazon/B00jjmvuF)): shows all Victron values and gas levels as tiles –
 from a Cerbo GX via WiFi (MQTT on LAN, auto-discovery, optional), from Victron devices via Bluetooth (Instant
-Readout) and from Truma LevelControl gas sensors via Bluetooth. Tap a
+Readout) and from Truma LevelControl and Mopeka gas/tank sensors via Bluetooth; SuperSense tank modules as untested beta. Tap a
 tile to set the MultiPlus input current limit and mode. Setup: join WiFi `SOC-Victron-XXXXXX` (default password
 `panelsat`), the setup page opens automatically (captive portal, http://4.3.2.1/), set your own access password
 (web UI), then your WiFi. The setup WiFi password is separate (default `panelsat`, can be changed or switched off).
 Emergency: power-cycle 3× quickly = setup WiFi on, 5× = reset WiFi and both passwords. Build with
 PlatformIO: `pio run -t upload` (German) or `pio run -e cyd-victron-en -t upload` (English). Beta.
+
+**Home Assistant (in progress):** the display will report its **local** Bluetooth devices to HA via MQTT discovery
+and show HA values as tiles. No data loop: values it already receives via MQTT (Cerbo GX) are not reported, values
+from HA never go back to HA, topics below `homeassistant/` are never read as input.
+
+**Coming soon:** the big brother – a 7" touch panel for the whole camper (Zigbee lights and switches, rules with
+graphical blocks, Truma/Alde heating, everything from this display and more) will be released in a few days.
 
 **Install from the browser:** [web flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/) – choose **English**,
 click “Install”. Ready-made files: `release/victron-display-cyd-en.bin` (first install via USB, address 0x0, erases
@@ -270,5 +326,5 @@ Kein Druck, keine Werbung, keine Bezahlschranke ❤
 [PolyForm Noncommercial 1.0.0](LICENSE) – nur nicht-kommerzielle Nutzung; kommerzielle Lizenzen (Verkauf der Firmware
 oder von Geräten damit, gewerblicher Einbau) vergibt nur der Urheber. Teile in `src/third_party/` stehen unter eigenen
 Lizenzen (siehe [dort](src/third_party/README.md)). Victron Energy, Cerbo GX, MultiPlus, SmartSolar usw. sind Marken der
-Victron Energy B.V., Truma und LevelControl Marken der Truma Gerätetechnik GmbH & Co. KG; dieses Projekt ist kein
+Victron Energy B.V., Truma und LevelControl Marken der Truma Gerätetechnik GmbH & Co. KG, Mopeka Marke der Mopeka Products LLC, SuperSense Marke der comworks core GmbH; dieses Projekt ist kein
 offizielles Produkt dieser Firmen und steht in keiner Verbindung zu ihnen.

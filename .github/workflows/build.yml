@@ -7,11 +7,9 @@
 # Pakete und Framework liegen im Cache; der erste Lauf dauert laenger (Framework-Neubau wegen custom_sdkconfig).
 name: Firmware bauen
 
+# Nur von Hand starten (Actions -> "Firmware bauen" -> Run workflow) – Wunsch des Nutzers 2026-11-19:
+# Freiminuten des privaten Repos sind knapp, gebaut wird nur auf Ansage.
 on:
-  push:
-    branches: [main]
-    paths-ignore: ['**.md', 'docs/**', 'assets/banner.png', 'release/**']
-  pull_request:
   workflow_dispatch:
 
 concurrency:

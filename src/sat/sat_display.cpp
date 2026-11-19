@@ -16,13 +16,14 @@
 #include <lvgl.h>
 #include "esp_heap_caps.h"
 #include <Preferences.h>
-#if SAT_VICTRON_ONLY   // eigene Firmware "Victron-Display" (src/vicdisp/): Cerbo GX, Victron-Bluetooth, Truma LevelControl
+#if SAT_VICTRON_ONLY   // eigene Firmware "Victron-Display" (src/vicdisp/): Cerbo GX, Victron-Bluetooth, Truma LevelControl, Mopeka
 #include "../vicdisp/vd_main.h"
 #else
 #include "sat_config.h"
 #include "sat_io.h"
-#include "../mopeka.h"
 #endif
+#include "../mopeka.h"
+#include "../tpms.h"
 #include "../truma.h"
 #include "../victron.h"
 #include "../bms.h"
@@ -442,6 +443,24 @@ static void collect_raw(ItemList &s_items) {
   // Akkus mit eigenem BMS (Super B …): erst mit Werten eine Kachel
   for (auto &b : bms_list()) {
     if (!b.has) continue;
+    if (b.dev == BMS_DEV_TANK) {   // SuperSense Tankmodul: eine Kachel je angeschlossenem Tanksensor
+      int used = 0;
+      for (int k = 0; k < BMS_TANKS; k++) used += b.tank_pct[k] >= 0;
+      for (int k = 0; k < BMS_TANKS; k++) {
+        if (b.tank_pct[k] < 0) continue;
+        Item it;
+        it.key = "b:" + b.mac + "#" + std::to_string(k + 1);
+        std::string base = b.name.empty() ? tr("Tank") : b.name;
+        it.name = used > 1 ? base + " " + std::to_string(k + 1) : base;
+        it.icon = ICON_BATH;
+        it.value = std::to_string(b.tank_pct[k]) + " %";
+        if (isfinite(b.tank_temp[k])) it.value += "  ·  " + num(b.tank_temp[k], 1, "°C");
+        bool stale = b.age_s < 0 || b.age_s > 180;
+        it.accent = stale ? C_TEXT3 : C_BLUE;
+        s_items.push_back(it);
+      }
+      continue;
+    }
     if (b.dev == BMS_DEV_SOLAR || b.dev == BMS_DEV_DCDC || b.dev == BMS_DEV_INVERTER || b.dev == BMS_DEV_PSTATION) {
       VictronInfo v;
       victron_from_bms(b, v);
@@ -477,14 +496,30 @@ static void collect_raw(ItemList &s_items) {
     }
     s_items.push_back(it);
   }
-#if !SAT_VICTRON_ONLY
+#if WITH_TPMS
+  for (auto &t : tpms_list()) {   // Reifendruck (Beta)
+    if (!t.has) continue;
+    Item it;
+    it.key = "p:" + t.id;
+    it.name = !t.name.empty() ? t.name : t.pos ? std::string(tr(tpms_pos_text(t.pos))) : std::string(tr("Reifen"));
+    it.icon = ICON_INFO;
+    it.value = num(t.bar, 2, "bar");
+    if (isfinite(t.temp)) it.value += "  ·  " + num(t.temp, 0, "°C");
+    it.accent = C_BLUE;
+    s_items.push_back(it);
+  }
+#endif
   for (auto &m : mopeka_list()) {
+#if SAT_VICTRON_ONLY
+    if (!m.has) continue;   // keine leeren Kacheln
+#endif
     Item it;
     it.key = "m:" + m.mac;
     it.name = m.name.empty() ? "Mopeka" : m.name;
     it.icon = m.medium == MOP_PROPANE ? ICON_GAS : ICON_BATH;
     if (m.has) {
       it.value = std::to_string(m.percent) + " %";
+      if (m.amount > 0) it.value += "  ·  " + num(m.amount, m.medium == MOP_PROPANE ? 1 : 0, m.unit);
       it.accent = m.percent < 15 ? C_RED : C_GREEN;
     } else {
       it.value = m.status.empty() ? "–" : m.status;
@@ -492,7 +527,6 @@ static void collect_raw(ItemList &s_items) {
     }
     s_items.push_back(it);
   }
-#endif
   for (auto &v : victron_list()) {
 #if SAT_VICTRON_ONLY
     if (!vic_has_value(v)) continue;   // eingerichtet, aber (noch) nichts empfangen: keine Kachel

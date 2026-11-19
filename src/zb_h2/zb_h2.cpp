@@ -1005,6 +1005,7 @@ void handle(const char *line) {
       JsonDocument j;
       j["t"] = "state";
       j["ieee"] = ieee_str(d.ieee);
+      j["old"] = true;   // Wiederholung: loest beim Panel keine Regeln aus
       JsonObject p = j["p"].to<JsonObject>();
       for (auto &x : d.last) {
         JsonDocument v;

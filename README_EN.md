@@ -442,6 +442,31 @@ mounted the other way round.
 
 ---
 
+## 🏠 Home Assistant
+
+The panel does not need Home Assistant – but works well together with it. If you use HA, the panel can also serve
+as a **control panel for Home Assistant**.
+
+| Direction | What | Status |
+|---|---|---|
+| **Satellites → HA** | All satellites register themselves via MQTT discovery: tank probes, temperatures, relays (switchable), inputs, level, extra sensors and their Bluetooth sensors | ✅ working |
+| **Zigbee2MQTT → HA** | as usual through Zigbee2MQTT itself | ✅ working |
+| **Panel → HA** | The panel reports its **local** devices via MQTT discovery: gas bottles (Truma LevelControl, Mopeka), Victron via Bluetooth, batteries and power stations, Zigbee devices on the H2 radio module, heating (iNet X, CP Plus, Alde), Hymer, rules (on/off) | 🚧 in progress |
+| **HA → Panel** | The panel as HA control panel: lights, switches, scenes, scripts and sensors from Home Assistant as tiles – via the HA API with an access token, usable in rules too | 🚧 in progress |
+
+### 🔁 No data loop
+
+To make sure no value runs in circles (panel → HA → panel → HA …), fixed rules apply:
+
+- The panel reports to HA **only what is attached directly to the panel** (Bluetooth, H2 radio module, heating bus,
+  rules).
+- What the panel **already receives via MQTT** is **not** passed on: Zigbee2MQTT devices, Cerbo GX, satellites and
+  extra displays (they register themselves or have their own HA integrations).
+- Values the panel fetches **from Home Assistant** never go back to HA.
+- The panel never reads topics below `homeassistant/` as input.
+- The HA selection in the editor hides devices that come from the panel itself or its satellites – the panel already
+  has them directly.
+
 ## 📟 Victron display (small stand-alone firmware)
 
 For everyone who only wants to see **Victron and the gas level**, there is a lean firmware for the 2.8" display

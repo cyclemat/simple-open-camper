@@ -16,6 +16,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "i18n/i18n.h"   // tr(), UI_DECIMAL_COMMA
+#include "rules.h"
 #include "zb_link.h"
 
 #ifndef ZBD_UART
@@ -222,6 +223,12 @@ void on_line(const char *line) {
     }
   }
   if (t == "log" || t == "err") log_i("Zigbee: %s", (const char *)(j["m"] | ""));
+  // Regeln: nur neue Meldungen (nicht die Wiederholung nach einem Neustart), ausserhalb der Sperre
+  if (t == "state" && !(j["old"] | false) && j["p"].is<JsonObject>()) {
+    std::string p;
+    serializeJson(j["p"], p);
+    rules_zb_event(j["ieee"] | "", p);
+  }
   if (ask_devices) {
     send_simple("devices");
     send_simple("values");   // letzte Werte, damit nach einem Neustart sofort alles dasteht

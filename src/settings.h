@@ -26,6 +26,7 @@ enum BleProto : uint8_t {
   BLE_P_SAT = 0x10,      // Satelliten, die ihre Werte per Bluetooth senden
   BLE_P_HYMER = 0x20,    // Hymer Connect (SCU im Fahrzeug, gekoppelt)
   BLE_P_BMS = 0x40,      // Akkus mit BMS per Bluetooth (Super B …), nur mit WITH_BMS
+  BLE_P_TPMS = 0x80,     // Reifendruck (SuperSense TPMS), nur mit WITH_TPMS
 };
 #define BLE_P_DEFAULT (BLE_P_TRUMA | BLE_P_MOPEKA | BLE_P_VICTRON)
 

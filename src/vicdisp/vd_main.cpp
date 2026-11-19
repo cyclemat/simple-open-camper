@@ -23,6 +23,7 @@
 #include "../victron.h"
 #include "../truma.h"
 #include "../mopeka.h"
+#include "../tpms.h"
 #include "../sat/sat_display.h"
 #include "../devsetup.h"
 #include "../gx_find.h"
@@ -76,7 +77,7 @@ void save_cfg() {
 }
 
 // ---------------------------------------------------------------- RGB-LED (Rueckseite des CYD)
-// Ampel fuer Batterie (Ladezustand) oder Gas (Truma LevelControl, niedrigste Flasche):
+// Ampel fuer Batterie (Ladezustand) oder Gas (Truma LevelControl/Mopeka, niedrigste Flasche):
 // bis 10 % rot, bis 50 % orange, darueber gruen; ohne Wert aus. Gemeinsame Anode -> Low = an.
 // Nur LEDC-PWM (3 Kanaele), keine eigene Task: Auswertung alle 2 s aus loop().
 #ifndef VD_LED_R
@@ -123,11 +124,13 @@ int led_battery() {
   return best < 0 ? -1 : (int)lroundf(best);
 }
 
-// niedrigster Fuellstand aller Truma-LevelControl-Sensoren mit Messwert, -1 = keiner
+// niedrigster Fuellstand aller Gasflaschen mit Messwert (Truma LevelControl, Mopeka mit Propan), -1 = keiner
 int led_gas() {
   int best = -1;
   for (auto &t : truma_list())
     if (t.has_reading && t.percent >= 0 && (best < 0 || t.percent < best)) best = t.percent;
+  for (auto &m : mopeka_list())   // Mopeka: nur Gas und nur frische Werte (sendet etwa jede Sekunde)
+    if (m.medium == MOP_PROPANE && m.has && m.age_s >= 0 && m.age_s <= 600 && (best < 0 || m.percent < best)) best = m.percent;
   return best;
 }
 
@@ -338,10 +341,82 @@ void h_state() {
     o["configured"] = f.configured;
   }
 
+  // Mopeka (Pro Check, Pro Plus, Pro Check Universal/H2O, Standard …): Werbepakete, keine Verbindung
+  JsonObject mp = d["mopeka"].to<JsonObject>();
+  mp["scanning"] = mopeka_discovery_running();
+  mp["max"] = MOPEKA_MAX_SENSORS;
+  JsonArray mtk = mp["tanks"].to<JsonArray>();
+  for (size_t i = 0; i < mopeka_tank_count(); i++) mtk.add(tr(mopeka_tank(i).name));
+  JsonArray ms = mp["sensors"].to<JsonArray>();
+  for (auto &m : mopeka_list()) {
+    JsonObject o = ms.add<JsonObject>();
+    o["mac"] = m.mac;
+    o["name"] = m.name;
+    o["model"] = m.model_text;
+    o["medium"] = (int)m.medium;
+    o["tank"] = m.tank;
+    o["empty"] = m.empty_mm;
+    o["full"] = m.full_mm;
+    o["cap"] = m.capacity;
+    o["unit"] = m.unit;
+    o["has"] = m.has;
+    o["percent"] = m.percent;
+    o["mm"] = m.level_mm;
+    o["amount"] = m.amount;
+    o["battery"] = m.battery;
+    o["temp"] = m.temperature;
+    o["quality"] = m.quality;
+    o["age"] = m.age_s;
+    o["status"] = tr_parts(m.status);
+  }
+  JsonArray mf = mp["found"].to<JsonArray>();
+  for (auto &f : mopeka_found()) {
+    JsonObject o = mf.add<JsonObject>();
+    o["mac"] = f.mac;
+    o["model"] = f.model_text;
+    o["rssi"] = f.rssi;
+    o["button"] = f.button;
+    o["configured"] = f.configured;
+  }
+
+#if WITH_TPMS
+  // Reifendruck (SuperSense TPMS, Beta): nur Werbepakete
+  JsonObject tp = d["tpms"].to<JsonObject>();
+  tp["scanning"] = tpms_discovery_running();
+  tp["max"] = TPMS_MAX;
+  JsonArray tps = tp["sensors"].to<JsonArray>();
+  for (auto &t : tpms_list()) {
+    JsonObject o = tps.add<JsonObject>();
+    o["id"] = t.id;
+    o["name"] = t.name;
+    o["pos"] = t.pos;
+    o["type"] = t.type;
+    o["has"] = t.has;
+    if (isfinite(t.bar)) o["bar"] = t.bar;
+    if (isfinite(t.temp)) o["temp"] = t.temp;
+    if (t.batt_mv >= 0) o["mv"] = t.batt_mv;
+    o["age"] = t.age_s;
+    o["status"] = tr_parts(t.status);
+  }
+  JsonArray tpf = tp["found"].to<JsonArray>();
+  for (auto &f : tpms_found()) {
+    JsonObject o = tpf.add<JsonObject>();
+    o["id"] = f.id;
+    o["name"] = f.name;
+    o["pos"] = f.pos;
+    o["type"] = f.type;
+    if (isfinite(f.bar)) o["bar"] = f.bar;
+    if (isfinite(f.temp)) o["temp"] = f.temp;
+    o["rssi"] = f.rssi;
+    o["configured"] = f.configured;
+  }
+#endif
+
 #if WITH_BMS
   JsonObject bm = d["bms"].to<JsonObject>();
   bm["scanning"] = bms_discovery_running();
   bm["max"] = BMS_MAX;
+  bm["supersense"] = (bool)BMS_SUPERSENSE_ON;   // SuperSense-Tankmodule (Beta) eingebaut
   // EcoFlow: Benutzer-ID des Kontos (Anmeldung ueber das Internet, Passwort wird nicht gespeichert)
   bm["ecoflow"] = (bool)BMS_ECOFLOW_ON;
   bm["ef_uid_set"] = bms_ef_uid_set();
@@ -463,6 +538,43 @@ void h_truma() {
   if (!d["rename"].isNull()) truma_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
   if (d["measure"].is<const char *>()) truma_measure(d["measure"].as<const char *>());
   if (d["interval"].is<int>()) truma_set_interval(constrain((int)d["interval"], 1, 1440));
+  send_ok();
+}
+
+// Mopeka: {"scan":true} | {"add":{mac,name,tank}} | {"remove":mac} | {"rename":{mac,name}} |
+// {"tank":{mac,tank,empty,full,cap}} (tank 255 = eigene Masse)
+#if WITH_TPMS
+// Reifendruck: {"scan":true} | {"add":{id,name,pos}} | {"remove":id} | {"rename":{id,name}} | {"pos":{id,pos}}
+void h_tpms() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (d["scan"] | false) tpms_discovery_start();
+  if (!d["add"].isNull()) {
+    std::string err = tpms_add(d["add"]["id"] | "", d["add"]["name"] | "", d["add"]["pos"] | 0);
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (d["remove"].is<const char *>()) tpms_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) tpms_rename(d["rename"]["id"] | "", d["rename"]["name"] | "");
+  if (!d["pos"].isNull()) tpms_set_pos(d["pos"]["id"] | "", d["pos"]["pos"] | 0);
+  send_ok();
+}
+#endif
+
+void h_mopeka() {
+  JsonDocument d;
+  if (!body(d)) return;
+  if (d["scan"] | false) mopeka_discovery_start();
+  if (!d["add"].isNull()) {
+    std::string err = mopeka_add(d["add"]["mac"] | "", d["add"]["name"] | "", d["add"]["tank"] | 0);
+    if (!err.empty()) return send_err(err.c_str());
+  }
+  if (d["remove"].is<const char *>()) mopeka_remove(d["remove"].as<const char *>());
+  if (!d["rename"].isNull()) mopeka_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (!d["tank"].isNull()) {
+    std::string err = mopeka_set_tank(d["tank"]["mac"] | "", d["tank"]["tank"] | 0, d["tank"]["empty"] | 38,
+                                      d["tank"]["full"] | 366, d["tank"]["cap"] | 11.0f);
+    if (!err.empty()) return send_err(err.c_str());
+  }
   send_ok();
 }
 
@@ -647,6 +759,10 @@ void web_begin() {
   s_srv.on("/api/wifiscan", HTTP_GET, devsetup::guard(h_wifiscan));
   s_srv.on("/api/victron", HTTP_POST, devsetup::guard(h_victron));
   s_srv.on("/api/truma", HTTP_POST, devsetup::guard(h_truma));
+  s_srv.on("/api/mopeka", HTTP_POST, devsetup::guard(h_mopeka));
+#if WITH_TPMS
+  s_srv.on("/api/tpms", HTTP_POST, devsetup::guard(h_tpms));
+#endif
 #if WITH_BMS
   s_srv.on("/api/bms", HTTP_POST, devsetup::guard(h_bms));
 #endif
@@ -693,7 +809,8 @@ void setup() {
     s_found_new = true;
   });
   victron_begin();   // gespeicherte Bluetooth-Geraete
-  mopeka_begin();    // nur damit truma.cpp ein angelegtes Modul vorfindet (Mopeka ist abgeschaltet)
+  mopeka_begin();    // Mopeka-Tanksensoren (Werbepakete, laeuft ueber den Bluetooth-Verteiler truma.cpp)
+  tpms_begin();      // Reifendruck (nur mit WITH_TPMS, sonst leer)
   bms_begin();       // Akkus mit BMS (Super B …): gespeicherte Geraete, Verbindung macht der Bluetooth-Task
   truma_begin();     // Bluetooth-Task: Truma LevelControl + Victron + Akkus, startet den Funk erst bei Bedarf
   sat_display_begin();

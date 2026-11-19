@@ -5,6 +5,7 @@
 #include <lvgl.h>
 
 #include "app.h"
+#include "rules.h"
 #include "app_config.h"
 #include "esp_heap_caps.h"
 #include "board.h"
@@ -143,6 +144,7 @@ void setup() {
   board_set_backlight(g_settings.brightness);
   web_begin();
   debug_mark("webserver");
+  rules_begin();       // Regel-Engine (nur mit WITH_RULES): Regeln aus /rules.json
 }
 
 void loop() {
@@ -155,6 +157,7 @@ void loop() {
   net_loop();
   web_loop();         // Webinterface "bei Bedarf": nach 15 min ohne Zugriff beenden
   ui_loop();
+  rules_loop();
   static uint32_t gx_ms = 0;
   if (millis() - gx_ms >= 1000) {   // GX laenger weg (neue IP?) -> automatisch neu suchen
     gx_ms = millis();

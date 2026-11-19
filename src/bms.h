@@ -78,6 +78,14 @@
 #define BMS_ECOFLOW_ON 1       // EcoFlow Delta 2/River 2/River 3/Delta 3 (braucht die EcoFlow-Benutzer-ID, ~80 KB Flash)
 #endif
 
+// SuperSense (comworks) Tankmodul "SSBT…" (bis 4 Tanksensoren, auch Sensoren mit eingebautem Bluetooth) – BETA,
+// UNGETESTET: Protokoll aus der Android-App rekonstruiert (docs/protokolle/supersense_ble.md). Ab Werk aus, nur die
+// Victron-Beta schaltet es ein (satellite/platformio.ini [bms] supersense).
+#ifndef BMS_SUPERSENSE_ON
+#define BMS_SUPERSENSE_ON 0
+#endif
+#define BMS_TANKS 4   // Kanaele je SuperSense-Tankmodul
+
 #define BMS_MAX 6
 #define BMS_KEY_PREFIX "bms:"
 
@@ -91,12 +99,14 @@ enum BmsModel : uint8_t {
   BMS_RENOGY_PRO = 17,  // Renogy-Akku "Pro" (RNGRBP…/RNGC…, Hersteller-ID 0xE14C): Adresse 0xFF, Strom in 0,1 A
   BMS_BLUETTI = 18, BMS_ALLPOWERS = 19,  // Power Stations (bms_ps.inc)
   BMS_ANKER = 20 /*C1000, C800, F2600*/, BMS_ANKER_C300 = 21, BMS_ANKER_G2 = 22 /*C1000 Gen 2*/, BMS_ANKER_F3800 = 23,
-  BMS_ECOFLOW = 24 /*Delta 2, River 2*/, BMS_ECOFLOW_PB = 25 /*River 3, Delta 3*/
+  BMS_ECOFLOW = 24 /*Delta 2, River 2*/, BMS_ECOFLOW_PB = 25 /*River 3, Delta 3*/,
+  BMS_SS_TANK = 26   // SuperSense Tankmodul (SSBT)
 };
 
 // Geraeteart (bestimmt die Kachel: Akku/Shunt = Batteriewaechter, sonst Solar, Ladebooster, Wechselrichter)
 enum BmsDev : uint8_t {
-  BMS_DEV_BATTERY = 0, BMS_DEV_SOLAR = 1, BMS_DEV_DCDC = 2, BMS_DEV_INVERTER = 3, BMS_DEV_SHUNT = 4, BMS_DEV_PSTATION = 5
+  BMS_DEV_BATTERY = 0, BMS_DEV_SOLAR = 1, BMS_DEV_DCDC = 2, BMS_DEV_INVERTER = 3, BMS_DEV_SHUNT = 4, BMS_DEV_PSTATION = 5,
+  BMS_DEV_TANK = 6   // Tankmodul: tank_pct/tank_temp je Kanal
 };
 BmsDev bms_dev_of(BmsModel m);
 // Abgleich/Erweiterung nach patman15/aiobmsble (Apache-2.0): Daly-Varianten und -Erkennung, JK-Aufbau nach
@@ -137,6 +147,10 @@ struct BmsInfo {
   int8_t ac_on = -1, dc_on = -1;
   bool can_ac = false, can_dc = false;   // Ausgang schaltbar (bms_set_output)
   int remain_min = -1;                // Restzeit laut Geraet
+  // Tankmodul (BMS_DEV_TANK): Fuellstand % und Temperatur je Kanal, -1/NAN = kein Sensor am Kanal
+  int tank_pct[BMS_TANKS] = {-1, -1, -1, -1};
+  int tank_raw[BMS_TANKS] = {-1, -1, -1, -1};
+  float tank_temp[BMS_TANKS] = {NAN, NAN, NAN, NAN};
 };
 
 struct BmsFound {

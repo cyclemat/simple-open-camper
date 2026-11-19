@@ -65,3 +65,31 @@ sold = open(sdst, encoding="utf-8", errors="replace").read() if os.path.exists(s
 if sold != sout:
     with open(sdst, "w", encoding="utf-8") as f:
         f.write(sout)
+
+# ------------------------------------------------------------------ Blockly (Regel-Editor)
+# web/blockly/ (Apache-2.0) -> src/generated/blockly_gz.h. Eingebunden nur mit WITH_RULES (webserver.cpp),
+# sonst kostet es keinen Flash.
+bdir = os.path.join(root, "web", "blockly")
+bdst = os.path.join(root, "src", "generated", "blockly_gz.h")
+if os.path.exists(os.path.join(bdir, "blockly_compressed.js")):
+    def _gz_arr(name, data):
+        z = gzip.compress(data, compresslevel=9, mtime=0)
+        rows = [", ".join("0x%02x" % b for b in z[i:i + 24]) for i in range(0, len(z), 24)]
+        return ("static const uint8_t %s[] = {\n    " % name + ",\n    ".join(rows) + "\n};\n"
+                "static const size_t %s_LEN = sizeof(%s);\n" % (name, name)), len(z)
+    def _rd(n):
+        with open(os.path.join(bdir, n), "rb") as f:
+            return f.read()
+    parts, total = [], 0
+    for name, data in (("BLOCKLY_JS_GZ", _rd("blockly_compressed.js") + b"\n" + _rd("blocks_compressed.js")),
+                       ("BLOCKLY_DE_GZ", _rd("de.js")), ("BLOCKLY_EN_GZ", _rd("en.js"))):
+        a, n = _gz_arr(name, data)
+        parts.append(a)
+        total += n
+    bout = ("// Automatisch erzeugt von tools/embed_web.py aus web/blockly/ (Blockly, Apache-2.0) - nicht bearbeiten.\n"
+            "#pragma once\n#include <stdint.h>\n#include <stddef.h>\n\n" + "\n".join(parts))
+    bold = open(bdst, encoding="utf-8", errors="replace").read() if os.path.exists(bdst) else ""
+    if bold != bout:
+        with open(bdst, "w", encoding="utf-8") as f:
+            f.write(bout)
+    print("Blockly eingebettet: %d Bytes gzip" % total)

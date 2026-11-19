@@ -12,6 +12,10 @@
 #include "gx_find.h"
 #include "bms.h"
 #include "zb_direct.h"
+#include "rules.h"
+#if WITH_RULES
+#include "generated/blockly_gz.h"
+#endif
 #include "panelsat.h"
 #include "panelsat_pair.h"
 #include "mopeka.h"
@@ -1349,6 +1353,46 @@ static esp_err_t h_zbd_post(httpd_req_t *req) {
 }
 #endif
 
+#if WITH_RULES
+// Regel-Engine: Regeln + Blockly-Arbeitsbereich, Zustand, Auswahl (Zigbee-Geraete, Kacheln)
+static esp_err_t h_rules_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  rules_json(d.to<JsonObject>());
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+// {"rules":[…],"ws":{…}} speichern | {"enable":{"i":n,"on":bool}} | {"run":n} (sofort ausfuehren)
+static esp_err_t h_rules_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 64 * 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage oder zu gross");
+  std::string err;
+  {
+    JsonDocument d(&s_ps);
+    if (deserializeJson(d, body, len)) err = "Ungültiges JSON";
+    else if (d["enable"].is<JsonObject>()) rules_set_enabled(d["enable"]["i"] | -1, d["enable"]["on"] | false);
+    else if (d["run"].is<int>()) rules_run(d["run"].as<int>());
+    else err = rules_save(body, len);
+  }
+  heap_caps_free(body);
+  if (!err.empty()) return send_err(req, "400 Bad Request", err);
+  return send_ok(req);
+}
+// Blockly (Apache-2.0) aus dem Flash, gzip – der Browser haelt es im Zwischenspeicher
+static esp_err_t send_gz_js(httpd_req_t *req, const uint8_t *p, size_t n) {
+  httpd_resp_set_type(req, "application/javascript; charset=utf-8");
+  httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+  httpd_resp_set_hdr(req, "Cache-Control", "max-age=604800");
+  return httpd_resp_send(req, (const char *)p, n);
+}
+static esp_err_t h_blockly(httpd_req_t *req) { return send_gz_js(req, BLOCKLY_JS_GZ, BLOCKLY_JS_GZ_LEN); }
+static esp_err_t h_blockly_msg(httpd_req_t *req) {
+  if (query(req, "l") == "en") return send_gz_js(req, BLOCKLY_EN_GZ, BLOCKLY_EN_GZ_LEN);
+  return send_gz_js(req, BLOCKLY_DE_GZ, BLOCKLY_DE_GZ_LEN);
+}
+#endif
+
 static esp_err_t h_victron_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 2048, len);
@@ -1837,7 +1881,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 48;
+  cfg.max_uri_handlers = 52;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -1885,6 +1929,12 @@ void web_start() {
 #if WITH_ZB_DIRECT
   reg("/api/zbd", HTTP_GET, h_zbd_get);
   reg("/api/zbd", HTTP_POST, h_zbd_post);
+#endif
+#if WITH_RULES
+  reg("/api/rules", HTTP_GET, h_rules_get);
+  reg("/api/rules", HTTP_POST, h_rules_post);
+  reg("/blockly.js", HTTP_GET, h_blockly);
+  reg("/blockly_msg.js", HTTP_GET, h_blockly_msg);
 #endif
   reg("/api/cerbo", HTTP_GET, h_cerbo_get);
   reg("/api/cerbo", HTTP_POST, h_cerbo_post);

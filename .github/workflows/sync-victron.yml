@@ -1,53 +1,12 @@
 # Haelt das abgespeckte Repository "simply-open-camper-victron-beta" (Mini-Display nur Victron) automatisch
-# auf dem Stand dieses Projekts: bei jedem Push auf main, der dessen Dateien beruehrt, und per Knopf.
+# auf dem Stand dieses Projekts – nur per Knopf (Actions -> Run workflow).
 # Einmalig noetig: Secret VICTRON_SYNC_TOKEN (Fine-grained Token mit "Contents: Read and write" fuer
 # cyclemat/simply-open-camper-victron-beta) unter Settings -> Secrets and variables -> Actions.
 name: Victron-Display abgleichen
 
+# Nur von Hand starten (Actions -> Victron-Beta abgleichen -> Run workflow) – Wunsch des Nutzers 2026-11-19.
+# Fruehere Ausloeser (push auf main bei Aenderungen an den Victron-Dateien) siehe Git-Verlauf.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/vicdisp/**'
-      - 'src/sat/sat_display.*'
-      - 'src/cerbo.*'
-      - 'src/victron.*'
-      - 'src/devsetup.*'
-      - 'src/gx_find.*'
-      - 'src/bms.*'
-      - 'src/truma.*'
-      - 'src/truma_inetx.*'
-      - 'src/truma_heat.h'
-      - 'src/mopeka.*'
-      - 'src/hymer.*'
-      - 'src/hymer_tls.*'
-      - 'src/hymer_cloud.h'
-      - 'src/settings.h'
-      - 'src/sat_proto.h'
-      - 'src/app.h'
-      - 'src/web_server.h'
-      - 'src/net.h'
-      - 'src/i18n/i18n.*'
-      - 'src/fonts/**'
-      - 'src/ui/theme.h'
-      - 'src/lv_psram_alloc.c'
-      - 'include/lv_conf.h'
-      - 'include/lv_psram_alloc.h'
-      - 'assets/splash_cyd.jpg'
-      - 'assets/banner_small.jpg'
-      - 'tools/export_victron.py'
-      - 'tools/victron_readme.md'
-      - 'tools/victron_flasher.html'
-      - 'tools/i18n_page.py'
-      - 'tools/i18n/**'
-      - 'src/i18n/en.h'
-      - 'assets/splash.jpg'
-      - 'assets/victron_preview.png'
-      - 'src/soc_version.h'
-      - 'tools/embed_splash_cyd.py'
-      - 'tools/upload_wait.py'
-      - 'LICENSE'
-      - '.github/workflows/sync-victron.yml'
   workflow_dispatch:
 
 jobs:

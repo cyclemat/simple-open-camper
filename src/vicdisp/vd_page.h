@@ -81,8 +81,21 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 <div class="row"><button id="bTrScan" style="flex:none">Sensoren suchen</button><button id="bTrMeasure" style="flex:none">Jetzt messen</button></div>
 <div id="trFound"></div></div>
 
+<div class="card"><h2>Mopeka</h2>
+<p class="hint">Füllstand von Gasflaschen und Tanks per Bluetooth: Pro Check, Pro Plus, Pro Check Universal, Pro Check H2O, Pro-200, TD40/TD200, Lippert BottleCheck und Mopeka Check Standard/XL. „Sensoren suchen“, dann am Sensor die Sync-Taste drücken und hinzufügen. Die Sensoren senden von selbst – keine Kopplung, die Mopeka-App darf offen bleiben.</p>
+<div id="mpList"></div>
+<div class="row" style="margin-top:8px"><button id="bMpScan" style="flex:none">Sensoren suchen</button></div>
+<div id="mpFound"></div></div>
+
+<div class="card" id="tpCard" style="display:none"><h2>Reifendruck (Beta)</h2>
+<p class="hint">SuperSense-Reifendrucksensoren (TPMS) per Bluetooth – das Display hört nur mit, keine Kopplung. „Sensoren suchen“, dann Rad drehen bzw. Fahrzeug kurz bewegen (stehende Sensoren schlafen). Ungetestet: ob der Druck absolut oder relativ gemeldet wird, ist noch offen – bitte mit einem Manometer vergleichen und Rückmeldung geben.</p>
+<div id="tpList"></div>
+<div class="row" style="margin-top:8px"><button id="bTpScan" style="flex:none">Sensoren suchen</button></div>
+<div id="tpFound"></div></div>
+
 <div class="card" id="bmCard" style="display:none"><h2>Akkus und Power Stations per Bluetooth</h2>
 <p class="hint">Akkus mit eigenem Bluetooth-BMS: Super B (Epsilon), Power Quarry (VB…/CBT), Daly/Bulltron, JBD/Xiaoxiang, JK-BMS, LiTime (Redodo, PowerQueen), Renogy, Eco-Worthy, ANT und Vatrer – dazu Renogy-Laderegler, DC-DC-Lader, Wechselrichter und Smart Shunt. Power Stations (ungetestet): Bluetti, Allpowers, Anker SOLIX und EcoFlow – mit Schalter für den AC- und DC-Ausgang. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem. Bei Akkus liest das Display nur Werte und schaltet nichts.</p>
+<p class="hint" id="bmSS" style="display:none"><b>Beta:</b> SuperSense-Tankmodule (Name „SSBT…“, bis 4 Tanksensoren, auch SuperSense PRO mit Bluetooth) werden hier ebenfalls gefunden – je Tanksensor eine Kachel mit Füllstand und Temperatur. Ungetestet: bitte Rückmeldung, ob die Werte stimmen. Die SuperSense-App dabei schließen.</p>
 <div id="bmList"></div>
 <div class="row" style="margin-top:8px"><button id="bBmScan" style="flex:none">Akkus suchen</button></div>
 <div id="efBox" style="display:none;margin-top:10px"><h2 style="font-size:14px">EcoFlow-Konto</h2><p class="hint" id="efState"></p><div class="row"><label class="f"><span>E-Mail</span><input id="efMail" type="email" autocomplete="username"></label><label class="f"><span>Passwort (wird nicht gespeichert)</span><input id="efPw" type="password" autocomplete="current-password"></label></div><div class="row"><button id="bEfLogin" style="flex:none">Anmelden und Benutzer-ID holen</button></div><p class="hint">EcoFlow-Power-Stations verlangen die Benutzer-ID des Kontos. Das Display holt sie einmal über das Internet (WLAN mit Internet nötig).</p></div>
@@ -97,7 +110,7 @@ button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.d{color:v
 
 <div class="card"><h2>Ampel-LED (Rückseite)</h2>
 <p class="hint">Die farbige LED auf der Rückseite zeigt einen Füllstand: bis 10 % rot, bis 50 % orange, darüber grün. Ohne Messwert bleibt sie aus.</p>
-<label class="f"><span>LED zeigt</span><select id="ledMode"><option value="1">Automatisch (Batterie, sonst Gas)</option><option value="2">Batterie (Ladezustand)</option><option value="3">Gas (Truma LevelControl, leerste Flasche)</option><option value="0">Aus</option></select></label>
+<label class="f"><span>LED zeigt</span><select id="ledMode"><option value="1">Automatisch (Batterie, sonst Gas)</option><option value="2">Batterie (Ladezustand)</option><option value="3">Gas (leerste Flasche)</option><option value="0">Aus</option></select></label>
 <p class="hint" id="ledNow"></p>
 <div class="row" style="margin-top:8px"><button id="bLedSave" style="flex:none">Speichern</button></div></div>
 
@@ -148,22 +161,40 @@ function render(){
  if(S.cerbo.on)c.push([S.cerbo.connected?'ok':'err','Cerbo: '+(S.cerbo.connected?'verbunden'+(S.cerbo.portal?' ('+S.cerbo.portal+')':''):(S.cerbo.status||'nicht verbunden'))]);
  if(S.victron.devices.length)c.push(['ok','Victron: '+S.victron.devices.length+' Gerät(e)']);
  if(S.truma.sensors.length)c.push(['ok','Gas: '+S.truma.sensors.length+' Sensor(en)']);
+ if(S.mopeka&&S.mopeka.sensors.length)c.push(['ok','Mopeka: '+S.mopeka.sensors.length+' Sensor(en)']);
  $('#chips').innerHTML=c.map(x=>`<span class="chip ${x[0]}">${esc(x[1])}</span>`).join('');
  $('#cbStatus').textContent=(S.cerbo.connected?'Verbunden mit '+S.cerbo.host:S.cerbo.host?'Adresse '+S.cerbo.host+' – '+(S.cerbo.status||'nicht verbunden'):'Noch keine Adresse.')+(S.cerbo.find?' · '+S.cerbo.find:'');
  $('#fwInfo').textContent='Version '+S.fw+', freier Speicher '+Math.round(S.heap/1024)+' KB, läuft seit '+Math.round(S.uptime/60)+' Min.'+(S.upd_slot?(S.upd_ok?' · Updater vorhanden':' · Updater fehlt (einmal per USB aufspielen)'):' · alte Speicheraufteilung (einmal per USB neu aufspielen)');$('#bUpd').disabled=!S.upd_ok;
- if(document.activeElement&&document.activeElement.closest('#viList,#trList,#bmList'))return;
+ if(document.activeElement&&document.activeElement.closest('#viList,#trList,#bmList,#mpList,#tpList'))return;
  const T=S.truma;
  $('#trList').innerHTML=T.sensors.length?T.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-trn="${x.mac}" maxlength="32">
   <div class="v">${x.has?x.percent+' % · '+num(x.kg,1,'kg')+' · Akku '+x.battery+' % · '+age(x.age):esc(x.status)}${x.busy?' · misst …':''} · <span class="mono">${x.mac}</span></div></div>
   <button data-trm="${x.mac}">Messen</button><button class="d" data-trr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Sensor eingerichtet.</p>';
  $('#bTrScan').disabled=T.scanning||T.sensors.length>=T.max;$('#bTrScan').textContent=T.scanning?'Suche läuft … (Taste am Sensor drücken)':'Sensoren suchen';
  $('#trFound').innerHTML=T.scanning||T.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(T.found.length?T.found.map((f,i)=>`<div class="dev"><div class="t mono">${f.mac}<div class="v">Signal ${sig(f.rssi)}${f.configured?', eingerichtet':''}</div></div><button data-tra="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):'';
- const B=S.bms;if(B){$('#bmCard').style.display='';
+ const M=S.mopeka;if(M){
+  const tk=(x)=>`<select data-mpt="${x.mac}">${M.tanks.map((n,i)=>`<option value="${i}" ${x.tank==i?'selected':''}>${esc(n)}</option>`).join('')}<option value="255" ${x.tank==255?'selected':''}>Eigene Maße</option></select>`;
+  $('#mpList').innerHTML=M.sensors.length?M.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-mpn="${x.mac}" maxlength="32">
+   <div class="v">${esc(x.model)} · ${x.has?[x.percent+' %',x.amount>0?num(x.amount,x.medium==0?1:0,x.unit):'',x.mm+' mm','Akku '+x.battery+' %',x.temp+' °C','Signal '+['schlecht','mäßig','gut','sehr gut'][x.quality||0],age(x.age)].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div>
+   <div class="v">Flasche/Tank: ${tk(x)}${x.tank==255?` leer <input data-mpe="${x.mac}" type="number" min="0" max="3000" value="${x.empty}" style="width:5em;padding:4px 6px"> mm · voll <input data-mpf="${x.mac}" type="number" min="1" max="3000" value="${x.full}" style="width:5em;padding:4px 6px"> mm · Inhalt <input data-mpc="${x.mac}" type="number" min="0" step="0.1" value="${x.cap}" style="width:5em;padding:4px 6px"> ${esc(x.unit)}`:''}</div></div>
+   <button class="d" data-mpr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Sensor eingerichtet.</p>';
+  $('#bMpScan').disabled=M.scanning||M.sensors.length>=M.max;$('#bMpScan').textContent=M.scanning?'Suche läuft … (Sync-Taste am Sensor drücken)':'Sensoren suchen';
+  $('#mpFound').innerHTML=M.scanning||M.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(M.found.length?M.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.model||'Mopeka')} <span class="mono">${f.mac}</span><div class="v">Signal ${sig(f.rssi)}${f.button?', Sync-Taste gedrückt':''}${f.configured?', eingerichtet':''}</div></div><button data-mpa="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):''}
+ const P=S.tpms;if(P){$('#tpCard').style.display='';
+  const POS=['–','vorne links','vorne rechts','hinten links','hinten rechts'];
+  const tv=x=>[x.bar!=null?num(x.bar,2,'bar'):'',x.temp!=null?num(x.temp,0,'°C'):'',x.mv!=null?'Batterie '+num(x.mv/1000,2,'V'):''].filter(Boolean).join(' · ');
+  const ps=x=>`<select data-tpp="${x.id}">${POS.map((n,i)=>`<option value="${i}" ${x.pos==i?'selected':''}>${n}</option>`).join('')}</select>`;
+  $('#tpList').innerHTML=P.sensors.length?P.sensors.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-tpn="${x.id}" maxlength="32">
+   <div class="v">${x.has?tv(x)+' · '+age(x.age):esc(x.status)} · <span class="mono">${x.id}</span></div><div class="v">Rad: ${ps(x)}</div></div>
+   <button class="d" data-tpr="${x.id}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Sensor eingerichtet.</p>';
+  $('#bTpScan').disabled=P.scanning||P.sensors.length>=P.max;$('#bTpScan').textContent=P.scanning?'Suche läuft … (Rad drehen)':'Sensoren suchen';
+  $('#tpFound').innerHTML=P.scanning||P.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(P.found.length?P.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'TPMS')} <span class="mono">${f.id}</span><div class="v">${tv(f)}${f.pos?' · '+POS[f.pos]:''} · Signal ${sig(f.rssi)}${f.configured?', eingerichtet':''}</div></div><button data-tpa="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):''}
+ const B=S.bms;if(B){$('#bmCard').style.display='';$('#bmSS').style.display=B.supersense?'':'none';
   $('#bmList').innerHTML=B.devices.length?B.devices.map(x=>`<div class="dev"><div class="t"><input value="${esc(x.name)}" data-bmn="${x.mac}" maxlength="32">
    <div class="v">${esc(x.model)} · ${x.has&&x.dev?esc(x.sum)+' · '+(x.connected?age(x.age):'getrennt'):x.has?[x.soc+' %',x.v!=null?num(x.v,2,'V'):'',x.a!=null?num(x.a,1,'A'):'',x.soh!=null?'SoH '+x.soh+' %':'',x.chg?'lädt':x.dis?'entlädt':'',x.low?'Ladung niedrig':'',x.ok?'':'BMS meldet Alarm',x.t!=null?num(x.t,0,'°C'):'',x.cyc!=null?x.cyc+' Zyklen':'',x.cells?'Zellen '+x.cells.map(c=>(c/1000).toFixed(3)).join(' / ')+' V':'',x.ttg>0?'leer in '+Math.floor(x.ttg/3600)+' h '+Math.floor(x.ttg%3600/60)+' min':'',x.connected?age(x.age):'getrennt'].filter(Boolean).join(' · '):esc(x.status)} · <span class="mono">${x.mac}</span></div>${x.pin!=null?`<div class="v">Kopplungs-PIN: <input data-bmp="${x.mac}" inputmode="numeric" maxlength="6" style="width:7em;padding:4px 8px" placeholder="${x.pin?'gespeichert':'keine'}">${x.pin_need&&!x.pin?' <b style="color:var(--err)">– Akku verlangt eine PIN</b>':''}</div>`:''}</div>
    ${x.ac!=null?`<button data-bmo="${x.mac}" data-ac="1" data-on="${x.ac==1?0:1}">AC ${x.ac==1?'aus':'ein'}</button>`:''}${x.dc!=null?`<button data-bmo="${x.mac}" data-ac="0" data-on="${x.dc==1?0:1}">DC ${x.dc==1?'aus':'ein'}</button>`:''}<button class="d" data-bmr="${x.mac}">Entfernen</button></div>`).join(''):'<p class="hint">Noch kein Akku eingerichtet.</p>';
   $('#bBmScan').disabled=B.scanning||B.devices.length>=B.max;$('#bBmScan').textContent=B.scanning?'Suche läuft …':'Akkus suchen';
-  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',2:'Power Quarry / Shentec',3:'Power Quarry / Shentec',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro',18:'Bluetti',19:'Allpowers',20:'Anker SOLIX',21:'Anker SOLIX C300',22:'Anker SOLIX Gen 2',23:'Anker SOLIX F3800',24:'EcoFlow',25:'EcoFlow'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
+  $('#bmFound').innerHTML=B.scanning||B.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(B.found.length?B.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Akku')} <span class="mono">${f.mac}</span><div class="v">${({1:'Super B',2:'Power Quarry / Shentec',3:'Power Quarry / Shentec',4:'Daly/Bulltron',5:'JBD',6:'JK-BMS',7:'LiTime',8:'Renogy',9:'Eco-Worthy',10:'ANT',11:'Vatrer',12:'Renogy BT-1/BT-2',13:'Renogy Laderegler',14:'Renogy DC-DC-Lader',15:'Renogy Wechselrichter',16:'Renogy Smart Shunt',17:'Renogy Pro',18:'Bluetti',19:'Allpowers',20:'Anker SOLIX',21:'Anker SOLIX C300',22:'Anker SOLIX Gen 2',23:'Anker SOLIX F3800',24:'EcoFlow',25:'EcoFlow',26:'SuperSense Tankmodul (Beta)'})[f.model]||'Power Quarry'+(f.product?' '+esc(f.product):'')} · Signal ${sig(f.rssi)}${f.service?', Super-B-Dienst':''}${f.configured?', eingerichtet':''}</div></div><button data-bma="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden … Akku eingeschaltet und in der Nähe?</p>'):'';
   $('#efBox').style.display=B.ecoflow?'':'none';if(B.ecoflow)$('#efState').textContent=(B.ef_uid_set?'Benutzer-ID gespeichert ('+(B.ef_uid_hint||'')+').':'Noch keine Benutzer-ID.')+(B.ef_login_text?' '+B.ef_login_text:'');
   $('#bmLog').textContent=(B.log||[]).join('\n')||'–'}
  const V=S.victron;
@@ -227,11 +258,19 @@ $('#trInt').onchange=e=>act('/api/truma',{interval:+e.target.value},'Gespeichert
 $('#bTrScan').onclick=()=>act('/api/truma',{scan:true},'Suche gestartet – jetzt am Sensor die Taste drücken.');
 $('#bTrMeasure').onclick=()=>act('/api/truma',{measure:''},'Messung gestartet.');
 $('#bViScan').onclick=()=>act('/api/victron',{scan:true},'Suche gestartet (3 Minuten).');
+$('#bTpScan').onclick=()=>act('/api/tpms',{scan:true},'Suche gestartet (3 Minuten) – jetzt Rad drehen.');
+$('#bMpScan').onclick=()=>act('/api/mopeka',{scan:true},'Suche gestartet – jetzt am Sensor die Sync-Taste drücken.');
+const mpTank=mac=>{const x=S.mopeka.sensors.find(s=>s.mac==mac);if(!x)return;const v=a=>{const e=document.querySelector(`[data-${a}="${mac}"]`);return e?+e.value:null};
+ const t=+document.querySelector(`[data-mpt="${mac}"]`).value;act('/api/mopeka',{tank:{mac,tank:t,empty:v('mpe')??x.empty,full:v('mpf')??x.full,cap:v('mpc')??x.cap}},'Gespeichert.')};
 $('#bBmScan').onclick=()=>act('/api/bms',{scan:true},'Suche gestartet (1 Minute).');
 $('#bEfLogin').onclick=()=>{const m=$('#efMail').value.trim(),w=$('#efPw').value;if(!m||!w)return toast('E-Mail und Passwort eingeben.',true);act('/api/bms',{ef_login:{email:m,password:w}},'Anmeldung läuft …');$('#efPw').value=''};
 document.addEventListener('change',e=>{const t=e.target,d=t.dataset;
  if(d.vin)act('/api/victron',{rename:{mac:d.vin,name:t.value}},'Name gespeichert.');
  if(d.trn)act('/api/truma',{rename:{mac:d.trn,name:t.value}},'Name gespeichert.');
+ if(d.mpn)act('/api/mopeka',{rename:{mac:d.mpn,name:t.value}},'Name gespeichert.');
+ if(d.tpn)act('/api/tpms',{rename:{id:d.tpn,name:t.value}},'Name gespeichert.');
+ if(d.tpp)act('/api/tpms',{pos:{id:d.tpp,pos:+t.value}},'Gespeichert.');
+ if(d.mpt||d.mpe||d.mpf||d.mpc)mpTank(d.mpt||d.mpe||d.mpf||d.mpc);
  if(d.bmn)act('/api/bms',{rename:{mac:d.bmn,name:t.value}},'Name gespeichert.');
  if(d.bmp)act('/api/bms',{pin:{mac:d.bmp,pin:t.value}},'PIN gespeichert – verbinde neu.');
 });
@@ -239,6 +278,10 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.vir&&confirm('Gerät entfernen?'))act('/api/victron',{remove:d.vir});
  if(d.trm)act('/api/truma',{measure:d.trm},'Messung gestartet.');
  if(d.trr&&confirm('Sensor entfernen?'))act('/api/truma',{remove:d.trr});
+ if(d.mpr&&confirm('Sensor entfernen?'))act('/api/mopeka',{remove:d.mpr});
+ if(d.tpr&&confirm('Sensor entfernen?'))act('/api/tpms',{remove:d.tpr});
+ if(d.tpa){const f=S.tpms.found[+d.tpa];const n=prompt('Name, z. B. „vorne links“',f.name||'Reifen '+(S.tpms.sensors.length+1));if(n!=null)act('/api/tpms',{add:{id:f.id,name:n,pos:f.pos||0}},'Eingerichtet.')}
+ if(d.mpa){const f=S.mopeka.found[+d.mpa];const n=prompt('Name, z. B. „Flasche links“','Gasflasche '+(S.mopeka.sensors.length+1));if(n!=null)act('/api/mopeka',{add:{mac:f.mac,name:n,tank:0}},'Eingerichtet – Flasche/Tank unten auswählen.')}
  if(d.bmr&&confirm('Akku entfernen?'))act('/api/bms',{remove:d.bmr});
  if(d.bmo)act('/api/bms',{output:{mac:d.bmo,ac:d.ac=='1',on:d.on=='1'}},'Gesendet.');
  if(d.bma)bmAddDlg(S.bms.found[+d.bma]);

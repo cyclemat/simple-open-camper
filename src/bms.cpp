@@ -46,6 +46,7 @@ const char *bms_model_text(BmsModel m) {
     case BMS_JBD: return "JBD";
     case BMS_JK: return "JK-BMS";
     case BMS_LITIME: return "LiTime";
+    case BMS_SS_TANK: return "SuperSense Tankmodul";
     default: return "Akku";
   }
 }
@@ -65,6 +66,7 @@ BmsDev bms_dev_of(BmsModel m) {
     case BMS_ANKER_F3800:
     case BMS_ECOFLOW:
     case BMS_ECOFLOW_PB: return BMS_DEV_PSTATION;
+    case BMS_SS_TANK: return BMS_DEV_TANK;
     default: return BMS_DEV_BATTERY;
   }
 }
@@ -120,6 +122,18 @@ const PqProduct PQ_PRODUCTS[] = {
     {"A0", "VB032", 100, 8}, {"A1", "VB017", 135, 8}, {"A2", "VB033", 200, 8}, {"C0", "VB039", 50, 16},
     {"20", "VB046", 175, 4}, {"17", "VB024", 200, 4}, {"14", "VB037", 135, 4}, {"15", "VB035", 270, 4},
 };
+
+// ---------------------------------------------------------------- SuperSense (comworks), App 2.13.121 – BETA, ungetestet
+// Tankmodul "SSBT…": Dienst a0eeb190…, Befehl 8d81b2f7… (Write), Fuellstaende 8215dd0f… (Read/Notify),
+// Temperaturen 0bd4c5d4… (Read/Notify). Nach dem Verbinden 1 s warten, Init 0E 01 02 03 04 05 06 schreiben (mit
+// Bestaetigung), dann 8 Byte = 4 Werte BCD (12 34 -> 1234, 9999 = kein Sensor). Fuellstand % = roh / 2475 * 100,
+// Temperatur °C = roh * 5 / 1023 * 100 - 50. Kein Pairing. Hier: kurz verbinden, beide Werte lesen, trennen.
+const char *SS_SERVICE = "a0eeb190-6b2a-45fb-966e-d8e49323691f";
+const char *SS_CMD = "8d81b2f7-e56f-44bf-94ee-94083f5ea6d7";
+const char *SS_DATA = "8215dd0f-cc20-4d2a-8b64-73907ec4bd16";
+const char *SS_TEMP = "0bd4c5d4-62e3-4946-82ea-d7643834d368";
+const uint8_t SS_INIT[7] = {0x0E, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+const int SS_FULL_RAW = 2475;
 
 const uint32_t DISCOVERY_MS = 60000;
 const uint32_t RETRY_MS = 20000;        // nach fehlgeschlagener Verbindung
@@ -208,6 +222,8 @@ struct Bat {
   std::string ef_rx;            // EcoFlow: Empfangspuffer
   Extra ef_ex;                  // EcoFlow: gesammelte Werte (Meldungen bringen nur Teile)
   float ef_soc = NAN, ef_temp = NAN, ef_volt = NAN;
+  int ss_raw[BMS_TANKS] = {-1, -1, -1, -1};    // SuperSense: Rohwerte Fuellstand (-1 = kein Sensor)
+  int ss_traw[BMS_TANKS] = {-1, -1, -1, -1};   // SuperSense: Rohwerte Temperatur
 };
 
 class ClientCB : public NimBLEClientCallbacks {
@@ -980,6 +996,37 @@ static bool vatrer_connect(Bat &b, NimBLEClient *c) {
   return true;
 }
 
+// SuperSense Tankmodul: Dienst und Kanaele pruefen, Befehlskanal merken (Abfrage in bms_poll_now)
+static bool ss_connect(Bat &b, NimBLEClient *c) {
+  NimBLERemoteService *s = c->getService(SS_SERVICE);
+  NimBLERemoteCharacteristic *cmd = s ? s->getCharacteristic(SS_CMD) : nullptr;
+  NimBLERemoteCharacteristic *dat = s ? s->getCharacteristic(SS_DATA) : nullptr;
+  if (!cmd || !dat) {
+    logf("%s: SuperSense-Dienst bzw. Kanaele fehlen – kein Tankmodul?", b.name.c_str());
+    return false;
+  }
+  b.wr = cmd;
+  b.wr_resp = true;
+  b.next_poll = millis();
+  if (b.model_text.empty()) b.model_text = bms_model_text(b.model);
+  return true;
+}
+
+// 8 Byte BCD -> 4 Werte (9999 = kein Sensor -> -1); false = Laenge falsch oder keine BCD-Ziffern
+static bool ss_bcd4(const std::string &d, int out[BMS_TANKS]) {
+  if (d.size() != 8) return false;
+  for (int i = 0; i < BMS_TANKS; i++) {
+    int v = 0;
+    for (int k = 0; k < 2; k++) {
+      uint8_t x = (uint8_t)d[2 * i + k];
+      if ((x >> 4) > 9 || (x & 0x0F) > 9) return false;
+      v = v * 100 + (x >> 4) * 10 + (x & 0x0F);
+    }
+    out[i] = v == 9999 ? -1 : v;
+  }
+  return true;
+}
+
 static bool litime_connect(Bat &b, NimBLEClient *c) {
   if (generic_connect(b, c, 0xFFE0, 0xFFE1, 0xFFE2, "LiTime")) return true;
   logf("%s: LiTime-Dienst FFE0 mit FFE1/FFE2 fehlt", b.name.c_str());
@@ -1122,7 +1169,9 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
   const PqProduct *prod = nullptr;
   std::string ef_sn;   // EcoFlow: Seriennummer und Verschluesselungsart aus den Werbedaten
   uint8_t ef_enc = 7;
-  if (!svc && !hint) {
+  bool ss = dev->isAdvertisingService(NimBLEUUID(SS_SERVICE)) || lower(name).rfind("ssbt", 0) == 0;
+  if (ss) model = BMS_SS_TANK;   // SuperSense Tankmodul (Name "SSBT…" bzw. Dienst)
+  if (!svc && !hint && !ss) {
     model = pq_detect(name, dev->haveManufacturerData() ? dev->getManufacturerData() : std::string(), &prod);
     std::string un = name;
     for (auto &ch : un) ch = toupper((unsigned char)ch);
@@ -1232,6 +1281,7 @@ bool bms_on_adv(const NimBLEAdvertisedDevice *dev) {
       case BMS_ECOWORTHY: on = BMS_ECOWORTHY_ON; break;
       case BMS_ANT: on = BMS_ANT_ON; break;
       case BMS_VATRER: on = BMS_VATRER_ON; break;
+      case BMS_SS_TANK: on = BMS_SUPERSENSE_ON; break;
       default: break;
     }
     if (!on) return false;
@@ -1471,6 +1521,9 @@ void bms_connect_now() {
 #if BMS_VATRER_ON
     case BMS_VATRER: good = vatrer_connect(copy, c); break;
 #endif
+#if BMS_SUPERSENSE_ON
+    case BMS_SS_TANK: good = ss_connect(copy, c); break;
+#endif
     default: logf("%s: Akku-Typ %s ist in dieser Firmware nicht eingebaut", copy.name.c_str(), bms_model_text(copy.model));
   }
   NimBLEClient *dead = nullptr;
@@ -1656,7 +1709,45 @@ void bms_poll_now() {
 #if BMS_RENOGY_ON || BMS_RENOGY_DEV_ON
   if (model == BMS_RENOGY_BT) model = renogy_resolve(mac, wr, d);
 #endif
+  int ss_raw[BMS_TANKS] = {-1, -1, -1, -1}, ss_traw[BMS_TANKS] = {-1, -1, -1, -1};
   if (false) {
+#if BMS_SUPERSENSE_ON
+  } else if (model == BMS_SS_TANK) {
+    // wie die App: 1 s nach dem Verbinden Init schreiben, 0,5 s warten, Fuellstaende und Temperaturen lesen
+    NimBLERemoteService *s = cl && cl->isConnected() ? cl->getService(SS_SERVICE) : nullptr;
+    if (s) {
+      uint32_t since = 0;
+      {
+        Lock l;
+        Bat *b = find_mac(mac);
+        if (b) since = millis() - b->conn_ms;
+      }
+      if (since < 1000) delay(1000 - since);
+      if (!wr->writeValue(SS_INIT, sizeof(SS_INIT), true)) logf("SuperSense: Init nicht bestaetigt");
+      delay(500);
+      NimBLERemoteCharacteristic *dc = s->getCharacteristic(SS_DATA), *tc = s->getCharacteristic(SS_TEMP);
+      auto rd = [](NimBLERemoteCharacteristic *ch) {   // NimBLEAttValue -> std::string
+        std::string r;
+        if (ch) {
+          NimBLEAttValue v = ch->readValue();
+          r.assign((const char *)v.data(), v.size());
+        }
+        return r;
+      };
+      std::string dv = rd(dc);
+      ok = ss_bcd4(dv, ss_raw);
+      if (!ok) {
+        char hx[40] = "";
+        for (size_t k = 0; k < dv.size() && k < 12; k++) snprintf(hx + 3 * k, 4, "%02X ", (uint8_t)dv[k]);
+        s_pq_diag = "Fuellstand: " + std::to_string(dv.size()) + " Byte " + hx;
+        s_pq_rxlen = dv.size();
+      }
+      if (ok && tc) ss_bcd4(rd(tc), ss_traw);   // Temperatur ist freiwillig
+    } else {
+      s_pq_diag = "keine Verbindung";
+      s_pq_rxlen = 0;
+    }
+#endif
 #if BMS_JBD_ON
   } else if (model == BMS_JBD) {
     // Grunddaten: DD A5 03 00 FF FD 77 -> V u16/100, I s16/100 (+ laden), Rest u16/100 Ah, Nenn u16/100 Ah, Zyklen,
@@ -2430,6 +2521,22 @@ void bms_poll_now() {
     return;
   }
   b->silent = 0;
+  if (model == BMS_SS_TANK) {   // Tankmodul: nur Fuellstaende und Temperaturen
+    bool first = !b->has;
+    for (int k = 0; k < BMS_TANKS; k++) {
+      b->ss_raw[k] = ss_raw[k];
+      b->ss_traw[k] = ss_traw[k];
+    }
+    if (first)
+      logf("%s: Rohwerte %d / %d / %d / %d, Temperatur %d / %d / %d / %d", b->name.c_str(), ss_raw[0], ss_raw[1], ss_raw[2],
+           ss_raw[3], ss_traw[0], ss_traw[1], ss_traw[2], ss_traw[3]);
+    b->has = true;
+    b->last_ms = millis();
+    b->flags = 0x01;
+    b->status = "Verbunden";
+    s_ver++;
+    return;
+  }
   if (!b->has || (mos >= 0 && mos != b->mos_raw))
     logf(mos >= 0 ? "%s: %.0f %% %.2f V %.2f A, MOS-Status 0x%02X" : "%s: %.0f %% %.2f V %.2f A", b->name.c_str(), soc,
          v, a, mos);
@@ -2531,6 +2638,11 @@ static BmsInfo info_of(const Bat &b) {
   i.alarms = b.alarms;
   i.status = b.status;
   i.dev = bms_dev_of(b.model);
+  for (int k = 0; k < BMS_TANKS; k++) {   // SuperSense: % = roh / 2475 (ohne Kalibrierung), °C aus 10-Bit-Wert
+    i.tank_raw[k] = b.ss_raw[k];
+    if (b.ss_raw[k] >= 0) i.tank_pct[k] = std::min(100, std::max(0, (int)lroundf(b.ss_raw[k] * 100.0f / SS_FULL_RAW)));
+    if (b.ss_traw[k] >= 0) i.tank_temp[k] = b.ss_traw[k] * 5.0f / 1023.0f * 100.0f - 50.0f;
+  }
   i.pv_v = b.ex.pv_v;
   i.pv_w = b.ex.pv_w;
   i.in_v = b.ex.in_v;
@@ -2795,6 +2907,12 @@ std::string bms_value_text(const BmsInfo &b) {
     case BMS_DEV_PSTATION:
       return (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + tr("rein ") + fnum(b.ps_in_w, 0, "W") + dot +
              tr("raus ") + fnum(b.ps_out_w, 0, "W");
+    case BMS_DEV_TANK: {   // "T1 63 %  ·  T2 12 %"
+      std::string s;
+      for (int k = 0; k < BMS_TANKS; k++)
+        if (b.tank_pct[k] >= 0) s += (s.empty() ? "" : dot) + std::string("T") + std::to_string(k + 1) + " " + std::to_string(b.tank_pct[k]) + " %";
+      return s.empty() ? std::string(tr("kein Tanksensor angeschlossen")) : s;
+    }
     default: {
       std::string s = (b.soc >= 0 ? std::to_string(b.soc) + " %" : std::string("–")) + dot + fnum(b.volt, 2, "V");
       if (isfinite(b.volt) && isfinite(b.amp)) s += dot + fnum(b.volt * b.amp, 0, "W");
@@ -2812,6 +2930,14 @@ std::vector<std::pair<std::string, std::string>> bms_rows(const BmsInfo &b) {
   std::string temp = fnum(b.temp, 0, "°C");
   std::string today = b.yield_wh >= 0 ? fnum((float)b.yield_wh, 0, "Wh") : "–";
   bool bat = b.dev == BMS_DEV_BATTERY || b.dev == BMS_DEV_SHUNT;
+  if (b.dev == BMS_DEV_TANK) {   // je Kanal Fuellstand (Rohwert) und Temperatur
+    static const char *T[BMS_TANKS] = {"Tank 1", "Tank 2", "Tank 3", "Tank 4"};
+    for (int k = 0; k < BMS_TANKS; k++)
+      if (b.tank_pct[k] >= 0)
+        r.emplace_back(T[k], std::to_string(b.tank_pct[k]) + " %" + (isfinite(b.tank_temp[k]) ? "  ·  " + fnum(b.tank_temp[k], 1, "°C") : std::string()));
+    if (r.empty()) r.emplace_back("Tanks", h ? std::string(tr("kein Tanksensor angeschlossen")) : std::string("–"));
+    return r;
+  }
   switch (b.dev) {
     case BMS_DEV_SOLAR:
       add("Solar", both(fnum(b.pv_w, 0, "W"), fnum(b.pv_v, 1, "V")));

@@ -31,6 +31,8 @@ static std::string lower_mac(std::string s);
 #include "../panelsat_pair.h"
 #include "ui_remote.h"
 #include "../zb_direct.h"
+#include "../rules.h"
+#include "../app.h"
 #include <Arduino.h>
 #include <functional>
 #include <vector>
@@ -1916,7 +1918,7 @@ static void build_zigbee() {
       s_zb_ieee.push_back(d.ieee);
       s_zb_rows.push_back({d.ieee, v});
     }
-    lv_obj_t *h2 = ui_label(s_content, "Gerät antippen zum Entfernen. Kacheln für Zigbee-Geräte folgen.", F_SMALL, C_TEXT2);
+    lv_obj_t *h2 = ui_label(s_content, "Gerät antippen: Werte, Einstellungen, Name, Entfernen.", F_SMALL, C_TEXT2);
     lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h2, lv_pct(100));
   }
@@ -2589,9 +2591,80 @@ static void build_backup() {
   }
 }
 
+// ---------------------------------------------------------------- Regeln
+#if WITH_RULES
+// Nur Liste mit Ein/Aus und "Jetzt ausfuehren" – bearbeitet wird im Web-Editor (Blockly, Reiter "Regeln")
+static std::vector<lv_obj_t *> s_rule_st, s_rule_sw;
+static int s_rule_n = -1;
+static void rule_sw_cb(lv_event_t *e) {
+  lv_obj_t *sw = lv_event_get_target(e);
+  rules_set_enabled((int)(intptr_t)lv_event_get_user_data(e), lv_obj_has_state(sw, LV_STATE_CHECKED));
+}
+static void rule_run_cb(lv_event_t *e) {
+  int i = (int)(intptr_t)lv_event_get_user_data(e);
+  rules_run(i);
+  app_toast(tr("Regel „%s“ ausgeführt"), rules_name(i).c_str());
+}
+static void build_rules() {
+  s_rule_st.clear();
+  s_rule_sw.clear();
+  s_rule_n = rules_count();
+  heading("Regeln", "Automatisch schalten: wenn etwas passiert (Taster, Bewegungsmelder, Gerät, Uhrzeit), und falls eine "
+                    "Bedingung stimmt, dann Aktionen ausführen. Angelegt und bearbeitet werden Regeln im Web-Editor "
+                    "(Einstellungen > Regeln) mit Bausteinen.");
+  if (s_rule_n == 0) {
+    ui_label(s_content, "Noch keine Regel angelegt.", F_SMALL, C_TEXT2);
+    return;
+  }
+  for (int i = 0; i < s_rule_n; i++) {
+    lv_obj_t *r = lv_obj_create(s_content);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 64);
+    lv_obj_set_style_border_side(r, LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_border_width(r, 1, 0);
+    lv_obj_set_style_border_color(r, C_LINE, 0);
+    lv_obj_t *n = ui_label(r, rules_name(i).c_str(), F_BODY, C_TEXT);
+    lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(n, LV_HOR_RES - 260 - 64 - 160);
+    lv_obj_align(n, LV_ALIGN_TOP_LEFT, 8, 8);
+    lv_obj_t *st = ui_label(r, rules_status(i).c_str(), F_SMALL, C_TEXT2);
+    lv_obj_align(st, LV_ALIGN_TOP_LEFT, 8, 36);
+    s_rule_st.push_back(st);
+    lv_obj_t *run = ui_icon_button(r, ICON_RIGHT, rule_run_cb, (void *)(intptr_t)i, 48);
+    lv_obj_align(run, LV_ALIGN_RIGHT_MID, -84, 0);
+    lv_obj_t *sw = lv_switch_create(r);
+    lv_obj_set_size(sw, 64, 34);
+    lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if (rules_enabled(i)) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_add_event_cb(sw, rule_sw_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)i);
+    s_rule_sw.push_back(sw);
+  }
+  lv_obj_t *h = ui_label(s_content, "Pfeil: Regel sofort ausführen (ohne Auslöser und Bedingung). Schalter: Regel an/aus.",
+                         F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+}
+static void ui_settings_tick_rules() {
+  if (!s_scr || s_sec != SEC_RULES) return;
+  if (rules_count() != s_rule_n) {   // im Web-Editor gespeichert
+    show_section(SEC_RULES);
+    return;
+  }
+  for (size_t i = 0; i < s_rule_st.size(); i++) lv_label_set_text(s_rule_st[i], rules_status((int)i).c_str());
+  for (size_t i = 0; i < s_rule_sw.size(); i++) {   // eine Regel kann eine andere umschalten
+    bool on = rules_enabled((int)i);
+    if (on != lv_obj_has_state(s_rule_sw[i], LV_STATE_CHECKED)) {
+      if (on) lv_obj_add_state(s_rule_sw[i], LV_STATE_CHECKED);
+      else lv_obj_clear_state(s_rule_sw[i], LV_STATE_CHECKED);
+    }
+  }
+}
+#endif
+
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_BULB, ICON_LOCK, ICON_INFO};
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Sicherung", "Info"};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Regeln", "Sicherung", "Info"};
 
 static void show_section(int sec) {
 #if WITH_ZB_DIRECT
@@ -2624,6 +2697,9 @@ static void show_section(int sec) {
     case SEC_HYMER: build_hymer(); break;
 #if WITH_ZB_DIRECT
     case SEC_ZIGBEE: build_zigbee(); break;
+#endif
+#if WITH_RULES
+    case SEC_RULES: build_rules(); break;
 #endif
     case SEC_BACKUP: build_backup(); break;
     default: build_info(); break;
@@ -2678,6 +2754,7 @@ void ui_settings_open(int section) {
     if (i == SEC_HYMER && !hymer_enabled()) return false;
     if ((i == SEC_BMS || i == SEC_PSTATION) && !WITH_BMS) return false;
     if (i == SEC_ZIGBEE && !WITH_ZB_DIRECT) return false;
+    if (i == SEC_RULES && !WITH_RULES) return false;
     return true;
   };
   int nav_n = 0;
@@ -2753,5 +2830,8 @@ void ui_settings_tick() {
   ui_settings_tick_sat();      // Satelliten im Einrichtungsmodus kommen und gehen, Stand der Einrichtung
 #if WITH_ZB_DIRECT
   ui_settings_tick_zigbee();   // Zigbee-Modul: Stand, Anlernen, Geraete und Werte
+#endif
+#if WITH_RULES
+  ui_settings_tick_rules();    // Regeln: zuletzt ausgeloest, wartet, Fehler
 #endif
 }

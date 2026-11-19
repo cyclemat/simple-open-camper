@@ -3,6 +3,7 @@
 #include "app.h"
 #include "victron.h"
 #include "mopeka.h"
+#include "tpms.h"
 #include "truma_inetx.h"
 #include "hymer.h"
 #include "web_server.h"
@@ -399,6 +400,9 @@ class ScanCB : public NimBLEScanCallbacks {
 #if WITH_BMS
     if (ble_proto_on(BLE_P_BMS) && bms_on_adv(dev)) return;
 #endif
+#if WITH_TPMS
+    if (ble_proto_on(BLE_P_TPMS) && tpms_on_adv(dev)) return;   // Reifendruck: nur Werbepakete
+#endif
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
     if (hymer_enabled() && ble_proto_on(BLE_P_HYMER) && hymer_on_adv(dev)) return;
     bool truma = false;
@@ -504,6 +508,7 @@ static bool ble_needed_soon() {
   }
   return truma || (ble_proto_on(BLE_P_VICTRON) && victron_has_devices()) ||
          (ble_proto_on(BLE_P_MOPEKA) && mopeka_has_devices()) || (ble_proto_on(BLE_P_BMS) && bms_has_devices()) ||
+         (ble_proto_on(BLE_P_TPMS) && tpms_has_devices()) ||
          (inetx_enabled() && ble_proto_on(BLE_P_INETX)) || (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) ||
          ble_proto_on(BLE_P_SAT);
 }
@@ -572,8 +577,10 @@ static void worker(void *) {
     bool scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
     bool p_truma = ble_proto_on(BLE_P_TRUMA), p_vic = ble_proto_on(BLE_P_VICTRON), p_mop = ble_proto_on(BLE_P_MOPEKA);
     bool want_active = (p_truma && s_setup_scan) || (p_vic && victron_discovery_running()) ||
-                       (p_mop && mopeka_discovery_running()) || s_cen_until != 0;
+                       (p_mop && mopeka_discovery_running()) || s_cen_until != 0 ||
+                       (ble_proto_on(BLE_P_TPMS) && tpms_discovery_running());
     bool want_passive = (p_truma && any_due) || (p_vic && victron_has_devices()) || (p_mop && mopeka_has_devices()) ||
+                        (ble_proto_on(BLE_P_TPMS) && tpms_has_devices()) ||
                         ble_proto_on(BLE_P_SAT) || satpair_searching();   // Panel: "Neuen Satelliten hinzufuegen"
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) {
       inetx_scan_wanted(want_passive, want_active);
