@@ -3,6 +3,13 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- 🐝 **Zigbee direkt am runden Panel** *(Beta, ungetestet)* – ESP32-H2-Funkmodul an der UART-Buchse hinten (GPIO 43/44,
+  UART2; 3,3-V-Regler und Pegelwandler nötig, siehe README), ab Werk aus. Einschalten, anlernen, umbenennen,
+  einstellen und entfernen im Browser-Editor (Einstellungen → Zigbee) – das geht jetzt auf allen Panels auch dort.
+
 ## 0.2.5 – 2026-11-20
 
 **Neu**

@@ -20,9 +20,6 @@
 #include "rules.h"
 #include "zb_link.h"
 
-#ifndef ZBD_UART
-#define ZBD_UART UART_NUM_3   // UART0 = Konsole; 2 ist fuer LIN (Truma/Alde) vorgesehen
-#endif
 
 namespace {
 
@@ -44,7 +41,7 @@ struct ZDev {
 
 SemaphoreHandle_t s_mx = nullptr;
 uint32_t s_state_ver = 1, s_ctl_ver = 1;   // Kacheln: neue Werte bzw. neue schaltbare Kanaele
-bool s_on = true, s_started = false;
+bool s_on = ZBD_DEFAULT_ON, s_started = false;
 std::vector<ZDev> s_devs;
 std::deque<std::string> s_log;   // letzte Meldungen des Moduls
 uint32_t s_seen_ms = 0;          // letzte Nachricht vom Modul
@@ -339,7 +336,7 @@ void zbd_begin() {
   if (s_started) return;
   Preferences p;
   if (p.begin("zbd", true)) {
-    s_on = p.getBool("on", true);
+    s_on = p.getBool("on", ZBD_DEFAULT_ON);
     p.end();
   }
   if (!s_on) return;

@@ -97,7 +97,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 🔥 **Dieselheizung** *(Beta)* – Vevor/Hcalory, HeaterCC/AirHeater: anzeigen und bedienen (ein/aus, Stufe, Temperatur)
 - 🧊 **Kühlbox** *(Beta)* – Alpicool, IceCube/Plug-in Festivals, Bodega u. a.: anzeigen und bedienen (ein/aus, Soll je Zone)
 - 📡 **BTHome** *(Beta)* – Shelly BLU (Tür, Bewegung, Taster, H&T), Xiaomi mit pvvx-Firmware u. v. a., auch verschlüsselt
-- 🐝 **Zigbee direkt** *(Beta, nur P4)* – mit dem ESP32-H2-Funkmodul ganz ohne Zigbee2MQTT: Geräte anlernen,
+- 🐝 **Zigbee direkt** *(Beta, P4 und rundes Panel)* – mit dem ESP32-H2-Funkmodul ganz ohne Zigbee2MQTT: Geräte anlernen,
   Lampen, Steckdosen (mit Leistung und Verbrauch), Schalter und Sensoren als Kacheln
 - 🧩 **Regeln** *(Beta, nur P4)* – Automationen mit grafischen Bausteinen (Blockly) im Editor, z. B. Bewegungslicht,
   Licht per Taster, Dimmen per Taster
@@ -537,6 +537,21 @@ Kommt nichts an, RX und TX auf der RS232-Seite tauschen (Nullmodem). Schnittstel
 |---|---|---|
 | Waveshare 7B | UART-Stiftleiste, **GPIO 15/16** (Umschalter auf „UART“, nicht RS485) | Freie Pins sind knapp – die Stiftleiste reicht für **ein** Gerät (CP Plus, Alde **oder** Hobby). Doku und Wiki widersprechen sich bei der Richtung: kommt nichts an, RX/TX tauschen. |
 | CrowPanel P4 | freie GPIOs der Steckleisten | Pins in `p4/platformio.ini` bzw. (Hobby) am Panel eintragen. **UART3 / GPIO 27/28** belegt das Zigbee-Funkmodul (H2) – nicht verwenden, wenn es gesteckt ist. |
+| Rundes Panel 1,46" | UART-Buchse hinten (1,25 mm, 4-polig): **1 = RX (GPIO 44), 2 = TX (GPIO 43), 3 = 5 V, 4 = GND** | Dort hängt das **Zigbee-Funkmodul (H2)**, siehe unten. Die Buchse hat **5-V-Pegel** (Pegelwandler auf der Platine). |
+
+**Zigbee-Funkmodul (ESP32-H2) am runden Panel** *(Beta, ungetestet)*: Das Modul ist für den 3,3-V-Steckplatz des P4
+gebaut, die Buchse hinten am runden Panel liefert aber 5 V und 5-V-Pegel. Dazwischen gehören:
+
+| Von der Buchse | Über | Zum H2-Modul |
+|---|---|---|
+| Pin 3 (5 V) | 3,3-V-Regler (z. B. AMS1117-3.3, HT7333) | 3V3 |
+| Pin 4 (GND) | – | GND |
+| Pin 2 (TX des Panels) | Pegelwandler 5 V → 3,3 V (z. B. BSS138-Modul) | RX des Moduls |
+| Pin 1 (RX des Panels) | Pegelwandler 3,3 V → 5 V | TX des Moduls |
+
+Danach im Browser-Editor **Einstellungen → Zigbee → „Zigbee-Modul verwenden“** einschalten (ab Werk aus) und Geräte
+anlernen; dort lassen sie sich auch umbenennen, einstellen und entfernen. Neue Geräte bekommen von selbst eine Kachel.
+Die Belegung stammt aus Elecrows Schaltplan – vor dem Löten nachmessen. **Nie 5 V oder 5-V-Pegel direkt an das H2!**
 
 ### 🖼️ Startbild
 

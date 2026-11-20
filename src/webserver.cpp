@@ -1370,6 +1370,24 @@ static esp_err_t h_bms_post(httpd_req_t *req) {
 static esp_err_t h_zbd_get(httpd_req_t *req) {
   JsonDocument d(&s_ps);
   zbd_status_json(d.to<JsonObject>());
+  if (query(req, "cfg") == "1") {   // Geraete-Einstellungen (nach {"cfg_open":ieee}), wie die Einstellungsseite am Panel
+    std::vector<ZbdCfgItem> it;
+    JsonObject c = d["cfg"].to<JsonObject>();
+    c["done"] = zbd_config_get(it);
+    JsonArray a = c["items"].to<JsonArray>();
+    for (auto &x : it) {
+      JsonObject o = a.add<JsonObject>();
+      o["name"] = x.name;
+      o["unit"] = x.unit;
+      if (!x.cur.empty()) o["cur"] = serialized(x.cur);
+      o["type"] = x.type;
+      o["min"] = x.min;
+      o["max"] = x.max;
+      o["step"] = x.step;
+      JsonArray v = o["values"].to<JsonArray>();
+      for (auto &s : x.values) v.add(s);
+    }
+  }
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -1386,6 +1404,16 @@ static esp_err_t h_zbd_post(httpd_req_t *req) {
   if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
   if (d["on"].is<bool>()) zbd_set_enabled(d["on"].as<bool>());
   if (d["permit"].is<int>()) zbd_permit(d["permit"].as<int>());
+  // Geraete pflegen ohne Panel-Menue (rundes Panel): umbenennen, entfernen, Einstellungen lesen/schreiben
+  if (d["rename"].is<JsonObject>()) zbd_rename(d["rename"]["ieee"] | "", d["rename"]["name"] | "");
+  if (d["remove"].is<const char *>()) zbd_remove(d["remove"].as<const char *>());
+  if (d["cfg_open"].is<const char *>()) zbd_config_open(d["cfg_open"].as<const char *>());
+  if (d["cfg_close"] | false) zbd_config_close();
+  if (d["set"].is<JsonObject>()) {
+    std::string vals;
+    serializeJson(d["set"]["p"], vals);
+    if (!zbd_set(d["set"]["ieee"] | "", vals)) return send_err(req, "400 Bad Request", "Zigbee-Modul nicht verbunden oder zu viele Werte");
+  }
   if (d["send"].is<JsonObject>() && !zbd_send_cmd(d["send"].as<JsonObjectConst>()))
     return send_err(req, "400 Bad Request", "Zigbee-Modul nicht verbunden oder Befehl ungültig");
   return send_ok(req);
@@ -1404,7 +1432,11 @@ static esp_err_t h_hobby_get(httpd_req_t *req) {
   d["rx"] = c.rx;
   d["tx"] = c.tx;
   d["uart_n"] = hobby_uart_count();
-  d["zb_uart"] = WITH_ZB_DIRECT ? 3 : 0;   // UART des Zigbee-Moduls (P4), nicht doppelt belegen
+#if WITH_ZB_DIRECT
+  d["zb_uart"] = zbd_enabled() ? (int)ZBD_UART : 0;   // UART des Zigbee-Moduls, nicht doppelt belegen
+#else
+  d["zb_uart"] = 0;
+#endif
   d["status"] = hobby_status();
   d["uart_status"] = hobby_uart_status();
   if (c.ble_on && c.mac.empty()) hobby_search(30000);   // solange die Seite offen ist, weiter suchen

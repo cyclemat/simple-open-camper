@@ -13,6 +13,16 @@
 #ifndef ZBD_RX
 #define ZBD_RX 28   // P4 RXD2 <- Steckplatz J11 Pin 1
 #endif
+#if WITH_ZB_DIRECT
+#include <driver/uart.h>
+#ifndef ZBD_UART
+#define ZBD_UART UART_NUM_3   // P4; rundes Panel: UART_NUM_2 auf der UART-Buchse hinten (platformio.ini)
+#endif
+#endif
+// Ab Werk an? P4: Modul steckt im Steckplatz = an. Rundes Panel: Modul ist Zubehoer = aus (Editor schaltet ein)
+#ifndef ZBD_DEFAULT_ON
+#define ZBD_DEFAULT_ON 1
+#endif
 
 void zbd_begin();                                  // startet nur, wenn eingeschaltet (NVS "zbd" on, ab Werk an)
 bool zbd_enabled();

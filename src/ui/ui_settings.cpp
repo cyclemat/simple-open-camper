@@ -1900,8 +1900,13 @@ static void build_hobby() {
                            F_SMALL, C_TEXT2);
     lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(h, lv_pct(100));
-#if BOARD_P4 && WITH_ZB_DIRECT
-    if (c.uart == 3) ui_label(s_content, "Achtung: UART3 benutzt das Zigbee-Modul – bitte eine andere wählen.", F_SMALL, C_RED);
+#if WITH_ZB_DIRECT
+    if (c.uart == (int)ZBD_UART && zbd_enabled()) {
+      char w[96];
+      snprintf(w, sizeof(w), tr("Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen."), (int)ZBD_UART);
+      lv_obj_t *wl = ui_label(s_content, "", F_SMALL, C_RED);
+      (lv_label_set_text)(wl, w);
+    }
 #endif
   }
   auto pts = hobby_points();

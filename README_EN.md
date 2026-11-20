@@ -98,7 +98,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 🔥 **Diesel heater** *(beta)* – Vevor/Hcalory, HeaterCC/AirHeater: show and control (on/off, level, temperature)
 - 🧊 **Fridge** *(beta)* – Alpicool, IceCube/Plug-in Festivals, Bodega and more: show and control (on/off, target per zone)
 - 📡 **BTHome** *(beta)* – Shelly BLU (door, motion, button, H&T), Xiaomi with pvvx firmware and more, also encrypted
-- 🐝 **Zigbee direct** *(beta, P4 only)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
+- 🐝 **Zigbee direct** *(beta, P4 and round panel)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
   sockets (with power and energy), switches and sensors as tiles
 - 🧩 **Rules** *(beta, P4 only)* – automations with graphical blocks (Blockly) in the editor, e.g. motion light,
   light by button, dimming by button
@@ -510,6 +510,21 @@ the status shows whether the LSG answers.
 |---|---|---|
 | Waveshare 7B | UART header, **GPIO 15/16** (switch set to "UART", not RS485) | Free pins are scarce – the header serves **one** device (CP Plus, Alde **or** Hobby). Docs and wiki disagree on the direction: nothing arrives → swap RX/TX. |
 | CrowPanel P4 | free GPIOs on the headers | Enter pins in `p4/platformio.ini` or (Hobby) on the panel. **UART3 / GPIO 27/28** is used by the Zigbee radio module (H2) – don't use it while the module is plugged in. |
+| Round panel 1.46" | UART socket on the back (1.25 mm, 4-pin): **1 = RX (GPIO 44), 2 = TX (GPIO 43), 3 = 5 V, 4 = GND** | This is where the **Zigbee radio module (H2)** goes, see below. The socket uses **5 V logic** (level shifters on the board). |
+
+**Zigbee radio module (ESP32-H2) on the round panel** *(beta, untested)*: the module is made for the P4's 3.3 V slot,
+but the socket on the back of the round panel supplies 5 V and 5 V logic. In between you need:
+
+| From the socket | Via | To the H2 module |
+|---|---|---|
+| Pin 3 (5 V) | 3.3 V regulator (e.g. AMS1117-3.3, HT7333) | 3V3 |
+| Pin 4 (GND) | – | GND |
+| Pin 2 (panel TX) | level shifter 5 V → 3.3 V (e.g. BSS138 module) | module RX |
+| Pin 1 (panel RX) | level shifter 3.3 V → 5 V | module TX |
+
+Then switch on **Settings → Zigbee → "Use Zigbee module"** in the browser editor (off by default) and pair devices;
+they can also be renamed, configured and removed there. New devices get a tile automatically. The pinout comes from
+Elecrow's schematic – measure before soldering. **Never connect 5 V or 5 V logic directly to the H2!**
 
 ### 🖼️ Splash screen
 

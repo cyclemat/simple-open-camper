@@ -274,6 +274,7 @@ def main():
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
         strip(rel, dst)
+    filter_dict("src/i18n/en.h")
     write("platformio.ini", PLATFORMIO_INI)
     write(".gitignore", GITIGNORE)
     write(".github/workflows/build.yml", WORKFLOW)
@@ -282,6 +283,34 @@ def main():
     shutil.copyfile(os.path.join(ROOT, "satellite", "partitions_upd.csv"), os.path.join(DST, "partitions_upd.csv"))
     write_flasher()
     print("Exportiert nach %s (%d Dateien)" % (DST, len(FILES) + 9))
+
+
+def filter_dict(rel):
+    """Woerterbuch nur mit Texten, die der exportierte Code wirklich benutzt (das volle en.h enthaelt alle Texte des
+    Hauptprojekts – Satelliten, Hymer, Zigbee …), ohne die Quellverweise "// src/datei.cpp:123"."""
+    import re
+    srcs = []
+    for r in FILES:
+        if r.endswith((".cpp", ".h", ".inc", ".c")) and r != rel:
+            t = open(os.path.join(DST, r), encoding="utf-8", errors="replace").read()
+            srcs.append(re.sub(r'"\s*\n\s*"', "", re.sub(r'"[ \t]+"', "", t)))   # "a " "b" -> "a b"
+    code = "\n".join(srcs)
+    p = os.path.join(DST, rel)
+    out, kept, dropped = [], 0, 0
+    entry = re.compile(r'^\{"((?:[^"\\]|\\.)*)",\s*"((?:[^"\\]|\\.)*)"\},?')
+    for line in open(p, encoding="utf-8").read().split("\n"):
+        m = entry.match(line)
+        if not m:
+            out.append(line)
+            continue
+        used = '"%s"' % m.group(1) in code or ('"%s' % m.group(1) in code and len(m.group(1)) > 12)
+        if used and m.group(2):   # leere Uebersetzung bewirkt nichts -> weglassen
+            out.append(m.group(0))
+            kept += 1
+        else:
+            dropped += 1
+    write(rel, "\n".join(out))
+    print("Woerterbuch %s: %d Eintraege behalten, %d entfernt" % (rel, kept, dropped))
 
 
 def write_flasher():
