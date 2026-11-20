@@ -2,7 +2,10 @@
 
 Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet – Rückmeldungen willkommen.
 
-## In Arbeit (nächste Version)
+## 0.2.5 – 2026-11-20 (Waveshare 7")
+
+Diese Version gibt es vorerst nur für das **Waveshare 7"**. Das CYD 2,8" bleibt bei 0.2.4; die Punkte zu den
+Sensor-/Heizungs-Karten und Namen in der Suchliste kommen dort mit dem nächsten CYD-Update.
 
 **Neu**
 - 🏕️ **Hobby** *(Beta, nur Waveshare 7")* – Wohnwagen/Reisemobile von Hobby: über die HobbyConnect-Box per Bluetooth
@@ -16,6 +19,9 @@ Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware get
 - Gefundene Ruuvi-, SwitchBot-, Simarine-, BTHome-Sensoren, Heizungen und Kühlboxen tragen in der Suchliste jetzt den
   richtigen Namen (vorher teils „Power Quarry“).
 - Waveshare 7": linke Leiste der Einstellungen scrollt (feste Zeilenhöhe).
+- Waveshare 7": Browser-Editor mit **Seitenleiste** wie am Display (Netzwerk, Shelly, Anzeige, Gas, Victron, Akkus,
+  Power Stations, Sensoren, Fahrzeug, Sicherung, Info); Hobby auch im Browser einstellbar.
+- Waveshare 7": Browser-Editor **am Handy** bedienbar – unten Geräte · Panel · Einstellungen, Kacheln als Liste.
 - README: Verdrahtung des RS232-TTL-Wandlers für den Hobby-CI-BUS ergänzt.
 
 ## 0.2.4 – 2026-11-19

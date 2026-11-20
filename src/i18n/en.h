@@ -1308,7 +1308,7 @@
 {"Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte holt das Panel selbst vom LSG.", "The LSG talks RS232 (±12 V): connect only via an RS232-TTL converter (e.g. MAX3232, 3.3 V), 115200 baud. Waveshare 7\": UART header (GPIO 15/16). The panel reads the value numbers from the LSG itself."},  // src/ui/ui_settings.cpp:1897
 {"Achtung: UART3 benutzt das Zigbee-Modul – bitte eine andere wählen.", "Caution: UART3 is used by the Zigbee module – please choose another one."},  // src/ui/ui_settings.cpp:1904
 {"Kacheln anlegen", "Create tiles"},  // src/ui/ui_settings.cpp:1917
-{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values appear like those of a satellite “Hobby”, the leisure battery as a battery monitor."},  // src/ui/ui_settings.cpp:1918
+{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values are in the device list under “Hobby”, the leisure battery as a battery monitor."},  // src/ui/ui_settings.cpp:1918
 {"nicht gestartet", ""},  // src/ui/ui_settings.cpp:1951
 {"nicht gefunden – Modul gesteckt und aufgespielt?", ""},  // src/ui/ui_settings.cpp:1952
 {" · Firmware ", ""},  // src/ui/ui_settings.cpp:1953
@@ -1724,6 +1724,7 @@
 {"Zigbee-Netz wird zurueckgesetzt – alle Geraete muessen neu angelernt werden", ""},  // src/zb_h2/zb_h2.cpp:1072
 {"unbekannter Befehl \"%s\"", ""},  // src/zb_h2/zb_h2.cpp:1080
 // --- nicht mehr im Quelltext gefunden ---
+{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values appear like those of a satellite “Hobby”, the leisure battery as a battery monitor."},
 {"Es sind höchstens sechs Geräte möglich", "At most six devices are possible"},
 {"Es sind schon sechs Geräte eingerichtet.", ""},
 {"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer, Power Stations – Akkus nur lesen", ""},

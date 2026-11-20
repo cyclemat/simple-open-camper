@@ -3,7 +3,7 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
-## In Arbeit (nächste Version)
+## 0.2.5 – 2026-11-20
 
 **Neu**
 - 🔋 **SmartShunt-Satellit** *(Beta)* – ESP32-C3 Super Mini + INA228 + externer Shunt (50–2000 A): Spannung, Strom,

@@ -1915,8 +1915,8 @@ static void build_hobby() {
   }
   lv_obj_t *row = button_row();
   ui_button(row, ICON_PLUS, "Kacheln anlegen", true, hb_tiles_cb, nullptr);
-  lv_obj_t *h2 = ui_label(s_content, "Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines "
-                                     "Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", F_SMALL, C_TEXT2);
+  lv_obj_t *h2 = ui_label(s_content, "Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der "
+                                     "Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", F_SMALL, C_TEXT2);
   lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(h2, lv_pct(100));
 }
