@@ -18,7 +18,9 @@ bool ui_vic_get(const std::string &key, VictronInfo &out) {
 }
 
 // Nicht am Panel eingerichtet (Cerbo GX, Satellit): kein Schluessel/Entfernen, Name nur fuer das Panel
-static bool remote(const std::string &key, const VictronInfo &v) { return v.gx || !panelsat_sat_of(key).empty(); }
+static bool remote(const std::string &key, const VictronInfo &v) {
+  return v.gx || key == "hobby:bat" || !panelsat_sat_of(key).empty();   // Hobby-Bordbatterie: aus hobby.cpp
+}
 
 std::string ui_num(float v, int decimals, const char *unit) {
   if (isnan(v)) return "–";

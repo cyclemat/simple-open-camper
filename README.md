@@ -360,7 +360,7 @@ Bluetooth senden („Broadcast“). Das Panel hört nur mit – keine Kopplung, 
      eintragen. Der Schlüssel ist nicht die 4-stellige Geräte-PIN der App. Bei Medium/High sendet der Sensor Inhalt und
      Tankart nicht mit – dann zeigt das Panel nur Prozent.
 4. **Simarine-App schließen bzw. vom Sensor trennen** – solange ein Handy verbunden ist, sendet der Sensor nicht.
-5. Am Panel **Akkus (BMS) → Suchen** (Editor: Reiter Akkus). Der Sensor erscheint als „Simarine STRx“. Hinzufügen –
+5. Am Panel **Sensoren → Sensoren suchen** (Editor: Reiter Sensoren). Der Sensor erscheint als „Simarine STRx“. Hinzufügen –
    Kachel mit Füllstand, im Detail Inhalt in Litern, Tankart und ob der Funk offen oder verschlüsselt ist.
 
 Fehlt der Wert, steht der Grund im Status: Broadcast aus, Schlüssel fehlt, Schlüssel passt nicht. Wird der Schlüssel in
@@ -370,7 +370,7 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - China-Dieselheizungen mit Bluetooth: **Vevor/Hcalory** mit der App „AirHeaterBLE“ (auch verschlüsselte Variante) und
   **HeaterCC/AirHeater**. Namen wie BYD-…, Heater…, „Air Heater“, HC-…, BAC-…, CRONUS…, Hcalory…, boygu… werden erkannt.
-- Einrichten wie ein Akku: **Akkus (BMS) → Suchen**, erscheint als „Dieselheizung“. App vorher schließen.
+- Einrichten unter **Gas/Heizung → Heizung/Kühlbox suchen** (Editor: Reiter Gas/Heizung), erscheint als „Dieselheizung“. App vorher schließen.
 - Kachel: an/aus, Stufe bzw. Solltemperatur, Innenraumtemperatur; Fehler (E1…E10) rot.
 - **Bedienen:** Kachel lange drücken → **Ein/Aus**, **Stufe ±**, **Solltemperatur ±**. Auf dem Victron-Display in
   der Weboberfläche (Akku-Karte).
@@ -383,7 +383,7 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - Kompressor-Kühlboxen mit den Apps **Alpicool / Car Fridge Freezer** und **IceCube / Plug-in Festivals**, auch
   Bodega, Brass Monkey u. a. (Namen WT-…, A1-…, AK1/2/3-…), ein- und zweizonig.
-- Einrichten wie ein Akku: **Akkus (BMS) → Suchen**, erscheint als „Kühlbox“. Beim ersten Verbinden ggf. die
+- Einrichten unter **Gas/Heizung → Heizung/Kühlbox suchen** (Editor: Reiter Gas/Heizung), erscheint als „Kühlbox“. Beim ersten Verbinden ggf. die
   **Settings-Taste an der Box** drücken. App vorher schließen – solange sie verbunden ist, ist die Box für andere stumm.
 - Kachel: Innentemperatur groß, Soll darunter (zweite Zone daneben).
 - **Bedienen:** Kachel lange drücken → **Ein/Aus**, **Soll ±** je Zone. Einstellungen werden immer aus dem zuletzt
@@ -393,7 +393,7 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - Offener Standard für viele günstige Funk-Sensoren: **Shelly BLU** (Tür/Fenster, Bewegung, Taster, H&T),
   **Xiaomi-Thermometer mit pvvx-Firmware** und viele andere. Das Panel hört nur mit, keine Kopplung.
-- Einrichten wie ein Akku: **Akkus (BMS) → Suchen**, das Gerät erscheint als „BTHome“.
+- Einrichten unter **Sensoren → Sensoren suchen** (Editor: Reiter Sensoren), das Gerät erscheint als „BTHome“.
 - Kachel: Temperatur und Feuchte, bzw. bei Tür-/Bewegungsmeldern der Zustand („Tür offen“, „Bewegung“,
   „Nässe!“ …). Taster-Ereignisse („Taster: kurz/doppelt/lang“) stehen im Zustand.
 - **Verschlüsselt** (z. B. Shelly BLU mit Schlüssel): den Schlüssel (32 Zeichen, aus der Shelly-App) ins Feld
@@ -403,7 +403,7 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - **Ruuvi Tag / Ruuvi Air** und **SwitchBot Meter, Meter Plus, Outdoor Meter** senden ihre Werte offen per Bluetooth.
   Keine Kopplung, kein Passwort, die Hersteller-App darf offen bleiben, ein SwitchBot-Hub ist nicht nötig.
-- Einrichten wie ein Akku: **Akkus (BMS) → Suchen** – der Sensor erscheint als „Ruuvi“ bzw. „SwitchBot Meter“.
+- Einrichten unter **Sensoren → Sensoren suchen** (Editor: Reiter Sensoren) – der Sensor erscheint als „Ruuvi“ bzw. „SwitchBot Meter“.
 - Kachel: Temperatur groß, Luftfeuchte darunter (Ruuvi Air: CO₂). Im Detail Luftdruck, Feinstaub und Batterie.
 
 ### ☀️ Victron
@@ -435,12 +435,14 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - **CP Plus:** LIN-Transceiver an die UART-Stiftleiste (Schalter auf „UART“), LIN an RJ12 Pin 3, Masse an Pin 5
   (am Combi oder per Verteiler). Danach am CP Plus einmal **PR SET → Init** ausführen.
+  Verdrahtung im Detail: [Kabelanschlüsse](#-kabelanschlüsse-lin-bus-und-ci-bus).
 - **iNet X:** In den Einstellungen das Protokoll einschalten, **„iNet X koppeln“** tippen und dann am Bedienteil
   **„Gerät hinzufügen“** öffnen (3 Minuten Zeit). Das iNet X merkt sich höchstens vier Geräte.
 
 ### ♨️ Alde
 
 - LIN-Leitung an die **gelbe RJ12-Buchse** (Pin 4, Masse Pin 2), Modell und Pins unter `[alde]` eintragen.
+  Das Panel ist hier LIN-Master (1-kΩ-Widerstand nötig) – siehe [Kabelanschlüsse](#-kabelanschlüsse-lin-bus-und-ci-bus).
 - Das Panel fragt den Kessel alle 500 ms ab und sendet nur bei Änderungen – Einstellungen am Alde-Bedienteil
   bleiben gültig.
 - Compact 3020 HE: nach bisherigem Stand lässt sich nur lesen, nicht steuern – nicht unterstützt.
@@ -450,11 +452,91 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 - Für Fahrzeuge der Erwin Hymer Group mit **HYMER Connect** (Hymer, Bürstner, Dethleffs, Eriba, LMC, Carado …):
   Licht, Hauptschalter, Wasserpumpe, Batterie, Lithium-BMS, Frisch-/Abwasser, Solar, Landstrom, Außentemperatur –
   direkt per Bluetooth von der SCU, **ohne Cloud**.
-- Am Panel unter **Einstellungen → Gas/Heizung** „Hymer Connect“ einschalten, **Hymer koppeln** tippen und dann am
+- Am Panel unter **Einstellungen → Fahrzeug** „Hymer Connect“ einschalten, **Hymer koppeln** tippen und dann am
   Bedienteil im Fahrzeug **CONNECTION** drücken (3 Minuten Zeit). Am Satelliten geht das genauso in der Weboberfläche.
 - Die Werte erscheinen im Editor wie die Anschlüsse eines Satelliten namens **„Hymer“** und lassen sich aufs Panel
   ziehen; Lichter und Schalter sind per Tippen schaltbar.
+- Nur Bluetooth – ein Kabelanschluss an die SCU ist nicht vorgesehen.
 - Noch **nicht an einer echten SCU getestet** – Rückmeldungen sehr willkommen.
+
+### 🏕️ Hobby (HobbyConnect-Box oder CI-BUS) *(Beta, ungetestet)*
+
+- Für Wohnwagen und Reisemobile von **Hobby**: Lichter (schaltbar), Bordbatterie (Spannung, Strom, Ladezustand,
+  Restzeit, Temperatur), Frischwasser, Innen-/Außentemperatur, Landstrom, Heizung, Warmwasser, Kühlschrank, Klimaanlage,
+  Hauptschalter – direkt am Panel, ohne App und ohne Cloud.
+- **Zwei Wege**, einzeln schaltbar und **ab Werk aus** – unter **Einstellungen → Fahrzeug**:
+  - **HobbyConnect-Box per Bluetooth:** einschalten, die gefundene Box antippen. Die Hobby-App auf dem Handy vorher
+    trennen (die Box spricht nur mit einem Gerät).
+  - **CI-BUS am LSG per Kabel** (ersetzt die Box): RS232-TTL-Wandler (z. B. MAX3232, **3,3 V**) an eine freie serielle
+    Schnittstelle, Schnittstelle (UART1, UART2 …) sowie RX-/TX-Pin am Panel wählen. 115200 Baud; die Nummern der Werte
+    holt das Panel selbst vom LSG. Kabelsatz „Bluetooth-Modul“ von Hobby plus Stecker für die serielle Seite.
+    Waveshare 7": UART-Stiftleiste (GPIO 15/16). **Niemals RS232 (±12 V) direkt an den ESP32!**
+    Verdrahtung: [Kabelanschlüsse](#-kabelanschlüsse-lin-bus-und-ci-bus).
+- Die Werte erscheinen im Editor wie die Anschlüsse eines Satelliten **„Hobby“**; die Bordbatterie zusätzlich als
+  **Batteriewächter-Kachel**. Am Panel legt **„Kacheln anlegen“** alles auf einmal an. Der **Hauptschalter** geht nur
+  über das Kabel – Vorsicht, wenn das Panel selbst hinter dem Hauptschalter hängt.
+- `LIGHT_DUSCHE`/`LIGHT_WASCH` sind je nach Fahrzeug vertauscht – Kachel einfach umbenennen. Serieller Befehl `hobby`
+  zeigt alle empfangenen Werte (auch unbekannte) – bitte bei anderen Modellen mitschicken.
+- Protokoll: [`docs/protokolle/hobby_ble_cibus.md`](docs/protokolle/hobby_ble_cibus.md).
+
+### 🔌 Kabelanschlüsse (LIN-Bus und CI-BUS)
+
+Truma CP Plus, Alde und der Hobby-CI-BUS hängen per Kabel am Panel. **Hymer Connect braucht kein Kabel** – das
+läuft nur per Bluetooth zur SCU (siehe oben).
+
+**Grundregeln**
+
+- Die Pins des ESP32 vertragen nur **3,3 V**. Den Bus nie direkt anschließen: LIN (12 V) nur über einen
+  **LIN-Transceiver**, CI-BUS (RS232, ±12 V) nur über einen **RS232-TTL-Wandler**.
+- **Masse (GND)** von Panel, Wandler und Fahrzeug verbinden.
+- **RX** des Panels an den **Ausgang** des Wandlers, **TX** des Panels an dessen **Eingang**. Kommt nichts an:
+  RX und TX tauschen.
+- Jedes Gerät braucht eine **eigene serielle Schnittstelle** (UART). UART0 ist für Log/USB reserviert.
+
+| Gerät | Bus und Stecker | Wandler | Baud | Master | Einstellen |
+|---|---|---|---|---|---|
+| Truma CP Plus | LIN, RJ12: **Pin 3 = LIN, Pin 5 = Masse** (am Combi oder per Verteiler) | LIN-Transceiver | 9600 | CP Plus | `platformio.ini` → `[truma]` |
+| Alde 3020/3030 | LIN, **gelbe** RJ12-Buchse: **Pin 4 = LIN, Pin 2 = Masse** | LIN-Transceiver + Master-Widerstand | 19200 | **Panel** | `platformio.ini` → `[alde]` |
+| Hobby (CI-BUS) | RS232 am LSG, Kabelsatz „Bluetooth-Modul“ von Hobby | RS232-TTL-Wandler (MAX3232) | 115200 | LSG | am Panel: **Einstellungen → Fahrzeug** |
+| Hymer Connect | – (Bluetooth) | – | – | – | Einstellungen → Fahrzeug |
+
+**LIN-Transceiver** (TJA1020/TJA1021, fertiges Modul; MCP2025 sinngemäß):
+
+| Transceiver | Anschluss |
+|---|---|
+| VBAT / VS | +12 V Bordnetz (über eine Sicherung) |
+| GND | Fahrzeugmasse **und** GND des Panels |
+| LIN | LIN-Leitung (Pin siehe Tabelle oben) |
+| RXD | RX-Pin des Panels – offener Ausgang: Pull-up 4,7 kΩ nach 3,3 V (auf fertigen Modulen meist schon drauf) |
+| TXD | TX-Pin des Panels |
+| SLP / NSLP (MCP2025: CS) | an 3,3 V – oder an einen GPIO und diesen als `lin_en` eintragen (das Panel setzt ihn auf High) |
+
+- **Alde:** Das Panel ist LIN-Master. Dafür gehört ein **1-kΩ-Widerstand mit Diode** (z. B. 1N4148, Anode an +12 V)
+  von +12 V an die LIN-Leitung – viele Module haben dafür eine Brücke „Master“.
+- **CP Plus:** Das CP Plus ist Master, das Panel antwortet nur – **kein** 1-kΩ-Widerstand, Brücke „Master“ offen.
+- Alde 3030 (optional): Der interne rote Bus (Glykol-/Warmwassertemperatur) lässt sich mit einem zweiten Transceiver
+  nur mithören (`red_uart`, `red_rx`).
+
+**RS232-TTL-Wandler für den Hobby-CI-BUS** (z. B. MAX3232-Modul):
+
+| Wandler (TTL-Seite) | Panel |
+|---|---|
+| VCC | **3,3 V** (nicht 5 V – sonst liegen 5 V am ESP32) |
+| GND | GND |
+| TXD (Ausgang) | RX-Pin |
+| RXD (Eingang) | TX-Pin |
+
+Die RS232-Seite (D-Sub 9) kommt an den Kabelsatz „Bluetooth-Modul“ von Hobby (TX, RX, Masse des LSG). Die Belegung
+des Kabelsatzes steht im Projekt [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity).
+Kommt nichts an, RX und TX auf der RS232-Seite tauschen (Nullmodem). Schnittstelle und Pins werden am Panel gewählt
+(kein Neubau nötig); der Status zeigt, ob das LSG antwortet.
+
+**Pins je Panel**
+
+| Panel | Anschluss | Hinweis |
+|---|---|---|
+| Waveshare 7B | UART-Stiftleiste, **GPIO 15/16** (Umschalter auf „UART“, nicht RS485) | Freie Pins sind knapp – die Stiftleiste reicht für **ein** Gerät (CP Plus, Alde **oder** Hobby). Doku und Wiki widersprechen sich bei der Richtung: kommt nichts an, RX/TX tauschen. |
+| CrowPanel P4 | freie GPIOs der Steckleisten | Pins in `p4/platformio.ini` bzw. (Hobby) am Panel eintragen. **UART3 / GPIO 27/28** belegt das Zigbee-Funkmodul (H2) – nicht verwenden, wenn es gesteckt ist. |
 
 ### 🖼️ Startbild
 
@@ -714,6 +796,8 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | | [holdestmade/esphome-alde-3020](https://github.com/holdestmade/esphome-alde-3020) | MIT | 3020-Besonderheiten, Prüfsummen-Erkennung, Zeitverhalten |
 | | [darenshaw/truma-inet-x-to-alde-3020](https://github.com/darenshaw/truma-inet-x-to-alde-3020), [inetbox.py Issue #28](https://github.com/danielfett/inetbox.py/issues/28) | GPL-3.0 / – | Hinweise zu Modellen und Grenzen (3020 HE) |
 | Hymer Connect (`src/hymer.cpp`, `src/hymer_tls.cpp`) | [Facetti/hymer-connect-ha-ble](https://github.com/Facetti/hymer-connect-ha-ble), [BetaHydri/hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) | MIT | GATT-Dienste, TLS-Profil, PIA-Rahmen, Sensor-Karten; die sieben Abo-Nachrichten sind wörtlich übernommen |
+| Hobby (`src/hobby.cpp`) | [AndreasKirsten79/hobby-caravan-pi](https://github.com/AndreasKirsten79/hobby-caravan-pi) (mit [paveltresnak/hobby-caravan-esphome-ble](https://github.com/paveltresnak/hobby-caravan-esphome-ble)) | keine Angabe | nur Protokollwissen: BLE-Dienst, Anmeldung, Teilstücke, Befehle |
+| | [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity) | MIT | CI-BUS seriell: Anmeldung, Befehle, Variablentabelle |
 | WLED (`src/wled.cpp`) | [WLED – MQTT-Schnittstelle](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics und Befehle |
 | Cerbo GX (`src/cerbo.cpp`) | [victronenergy/dbus-flashmq](https://github.com/victronenergy/dbus-flashmq), [dbus-API im Victron-Wiki](https://github.com/victronenergy/venus/wiki/dbus) | siehe Projekt | Topics, Keepalive, Pfade der Werte |
 | Victron Smart Lithium, Smart BatteryProtect (`src/victron.cpp`) | [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble) | Unlicense | Aufbau der Datensätze 0x05 und 0x09 |

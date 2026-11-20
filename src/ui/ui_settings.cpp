@@ -21,6 +21,7 @@ static std::string lower_mac(std::string s);
 #include "../truma_cpplus.h"
 #include "../truma_inetx.h"
 #include "../hymer.h"
+#include "../hobby.h"
 #include "../web_server.h"
 #include "../alde.h"
 #include "../power.h"
@@ -1696,6 +1697,249 @@ void ui_settings_tick_hymer() {
 static void build_hymer() {}
 void ui_settings_tick_hymer() {}
 #endif
+#if WITH_HOBBY
+// ---------------------------------------------------------------- Hobby (HobbyConnect-Box per Bluetooth, CI-BUS per Kabel)
+// Teil der Seite "Fahrzeug" (SEC_HYMER), unter Hymer Connect
+static lv_obj_t *s_hb_ble_val = nullptr, *s_hb_ser_val = nullptr;
+static std::vector<std::pair<uint8_t, lv_obj_t *>> s_hb_rows;
+static std::vector<HobbyCand> s_hb_cands;
+static uint32_t s_hb_sig = 0;
+
+static std::string hb_value_text(const SatPoint &p) {
+  if (p.kind == SP_SWITCH || (p.kind == SP_INPUT && p.cls == SC_ONOFF)) return tr(p.on ? "An" : "Aus");
+  if (p.kind == SP_INPUT) return tr(p.on ? "zu" : "offen");
+  if (isnan(p.value)) return "–";
+  char b[32];
+  float a = fabsf(p.value);
+  snprintf(b, sizeof(b), "%.*f %s", p.unit == "%" || p.unit.empty() || a >= 100 ? 0 : 1, p.value, p.unit.c_str());
+  std::string r = b;
+#if UI_DECIMAL_COMMA
+  for (auto &c : r)
+    if (c == '.') c = ',';
+#endif
+  return r;
+}
+
+static uint32_t hobby_structure_sig() {
+  HobbyCfg c = hobby_cfg();
+  uint32_t sig = 7 + c.ble_on * 2 + c.uart_on * 4 + c.uart * 8 + (c.rx + 2) * 64 + (c.tx + 2) * 8192;
+  for (char ch : c.mac) sig = sig * 31 + (uint8_t)ch;
+  for (auto &p : hobby_points()) sig = sig * 31 + p.idx;
+  if (c.ble_on && c.mac.empty())
+    for (auto &x : hobby_candidates())
+      for (char ch : x.mac) sig = sig * 31 + (uint8_t)ch;
+  return sig;
+}
+
+static void hb_rebuild(void *) {
+  if (!s_scr || s_sec != SEC_HYMER) return;
+  lv_coord_t y = lv_obj_get_scroll_y(s_content);
+  show_section(SEC_HYMER);
+  lv_obj_update_layout(s_content);
+  lv_obj_scroll_to_y(s_content, y, LV_ANIM_OFF);
+}
+
+static void hb_cfg_change(const std::function<void(HobbyCfg &)> &f) {
+  HobbyCfg c = hobby_cfg();
+  f(c);
+  hobby_set_cfg(c);
+  lv_async_call(hb_rebuild, nullptr);
+}
+
+static void hb_sw_cb(lv_event_t *e) {
+  int which = (int)(intptr_t)lv_event_get_user_data(e);
+  bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  hb_cfg_change([&](HobbyCfg &c) {
+    if (which == 0) c.ble_on = on;
+    else c.uart_on = on;
+  });
+}
+
+static void hb_switch_row(const char *title, const char *hint, bool on, int which) {
+  lv_obj_t *r = lv_obj_create(s_content);
+  ui_plain(r);
+  lv_obj_set_size(r, lv_pct(100), 64);
+  lv_obj_set_style_border_side(r, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_width(r, 1, 0);
+  lv_obj_set_style_border_color(r, C_LINE, 0);
+  lv_obj_t *t = ui_label(r, title, F_BODY, C_TEXT);
+  lv_obj_align(t, LV_ALIGN_TOP_LEFT, 8, 8);
+  lv_obj_t *h = ui_label(r, hint, F_SMALL, C_TEXT2);
+  lv_obj_align(h, LV_ALIGN_TOP_LEFT, 8, 36);
+  lv_obj_t *sw = lv_switch_create(r);
+  lv_obj_set_size(sw, 64, 34);
+  lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+  if (on) lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+  lv_obj_add_event_cb(sw, hb_sw_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)which);
+}
+
+static void hb_cand_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_hb_cands.size()) return;
+  HobbyCand x = s_hb_cands[i];
+  hb_cfg_change([&](HobbyCfg &c) {
+    c.mac = x.mac;
+    c.mac_type = x.type;
+  });
+  ui_toast("Box gewählt – verbinde …");
+}
+
+static void hb_forget_cb(lv_event_t *) {
+  ui_confirm("Andere Box wählen", "Die gemerkte HobbyConnect-Box vergessen und neu suchen?", "Vergessen", false,
+             [] { hb_cfg_change([](HobbyCfg &c) { c.mac.clear(); }); });
+}
+
+static void hb_uart_cb(lv_event_t *) {
+  hb_cfg_change([](HobbyCfg &c) {
+    int n = hobby_uart_count();
+    c.uart = c.uart + 1 >= n ? 1 : c.uart + 1;   // UART0 = Konsole/USB, nicht anbieten
+  });
+}
+
+static void hb_pin_cb(lv_event_t *e) {
+  bool rx = (intptr_t)lv_event_get_user_data(e) == 0;
+  HobbyCfg c = hobby_cfg();
+  InputOptions o;
+  o.title = rx ? "RX-Pin (GPIO)" : "TX-Pin (GPIO)";
+  o.hint = rx ? "GPIO, an dem die Sendeleitung des RS232-Wandlers (TXD) hängt; leer = keiner"
+              : "GPIO zur Empfangsleitung des RS232-Wandlers (RXD); leer = keiner";
+  int8_t cur = rx ? c.rx : c.tx;
+  o.initial = cur >= 0 ? std::to_string(cur) : "";
+  o.numeric = true;
+  o.max_len = 2;
+  o.on_ok = [rx](const std::string &t, bool) {
+    int v = t.empty() ? -1 : atoi(t.c_str());
+    if (v < -1 || v > 54) v = -1;
+    hb_cfg_change([&](HobbyCfg &c) {
+      if (rx) c.rx = (int8_t)v;
+      else c.tx = (int8_t)v;
+    });
+  };
+  ui_input_open(o);
+}
+
+static void hb_point_cb(lv_event_t *e) {
+  uint8_t idx = (uint8_t)(intptr_t)lv_event_get_user_data(e);
+  for (auto &p : hobby_points())
+    if (p.idx == idx && !hobby_switch(idx, !p.on)) ui_toast("Gerade nicht schaltbar (nicht verbunden; Hauptschalter nur über das Kabel).");
+}
+
+static void hb_tiles_cb(lv_event_t *) {
+  std::vector<ControlView> add;
+  VictronInfo v;
+  if (hobby_battery(v)) {
+    ControlView cv;
+    cv.key = v.key;
+    cv.name = v.name;
+    add.push_back(cv);
+  }
+  for (auto &p : panelsat_point_list())
+    if (p.sat == HOBBY_SAT_ID) {
+      ControlView cv;
+      cv.key = p.key;
+      cv.name = p.name;
+      add.push_back(cv);
+    }
+  if (add.empty()) {
+    ui_toast("Noch keine Werte – erst verbinden.");
+    return;
+  }
+  layout_auto_arrange(add, true);
+  ui_toast("Kacheln angelegt (vorhandene bleiben).");
+}
+
+static void build_hobby() {
+  s_hb_ble_val = s_hb_ser_val = nullptr;
+  s_hb_rows.clear();
+  s_hb_sig = hobby_structure_sig();
+  HobbyCfg c = hobby_cfg();
+  heading("Hobby", "Wohnwagen und Reisemobile von Hobby: Licht, Bordbatterie, Wasser, Heizung, Kühlschrank und Klima – "
+                   "per Bluetooth über die HobbyConnect-Box oder per Kabel direkt am Steuergerät (LSG, CI-BUS).");
+  hb_switch_row("HobbyConnect-Box", "Box im Fahrzeug per Bluetooth verbinden", c.ble_on, 0);
+  if (c.ble_on) {
+    lv_obj_t *g = group();
+    s_hb_ble_val = ui_row(g, "Box (Bluetooth)", hobby_status().c_str(), nullptr, nullptr, false);
+    if (!c.mac.empty()) {
+      ui_row(g, "Adresse", c.mac.c_str(), hb_forget_cb, nullptr);
+    } else {
+      hobby_search(60000);
+      s_hb_cands = hobby_candidates();
+      if (s_hb_cands.empty()) {
+        lv_obj_t *h = ui_label(s_content, "Suche läuft … Die Box muss eingeschaltet und in Reichweite sein; die Hobby-App "
+                                          "auf dem Handy vorher trennen.", F_SMALL, C_TEXT2);
+        lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(h, lv_pct(100));
+      } else {
+        lv_obj_t *cg = group();
+        for (size_t i = 0; i < s_hb_cands.size(); i++) {
+          auto &x = s_hb_cands[i];
+          char val[24];
+          snprintf(val, sizeof(val), "%d dBm", x.rssi);
+          std::string t = (x.name.empty() ? std::string("HobbyConnect") : x.name) + "  (" + x.mac + ")";
+          ui_row(cg, t.c_str(), val, hb_cand_cb, (void *)(intptr_t)i);
+        }
+      }
+    }
+  }
+  hb_switch_row("CI-BUS am LSG (Kabel)", "Ersetzt die Box: RS232-Wandler an einer seriellen Schnittstelle", c.uart_on, 1);
+  if (c.uart_on) {
+    lv_obj_t *g = group();
+    s_hb_ser_val = ui_row(g, "Status", hobby_uart_status().c_str(), nullptr, nullptr, false);
+    char b[16];
+    snprintf(b, sizeof(b), "UART%d", c.uart);
+    ui_row(g, "Schnittstelle", b, hb_uart_cb, nullptr);
+    std::string rx = c.rx >= 0 ? "GPIO " + std::to_string(c.rx) : std::string(tr("nicht gesetzt"));
+    std::string tx = c.tx >= 0 ? "GPIO " + std::to_string(c.tx) : std::string(tr("nicht gesetzt"));
+    ui_row(g, "RX-Pin", rx.c_str(), hb_pin_cb, (void *)0);
+    ui_row(g, "TX-Pin", tx.c_str(), hb_pin_cb, (void *)1);
+    lv_obj_t *h = ui_label(s_content,
+                           "Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) "
+                           "anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte "
+                           "holt das Panel selbst vom LSG.",
+                           F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, lv_pct(100));
+#if BOARD_P4 && WITH_ZB_DIRECT
+    if (c.uart == 3) ui_label(s_content, "Achtung: UART3 benutzt das Zigbee-Modul – bitte eine andere wählen.", F_SMALL, C_RED);
+#endif
+  }
+  auto pts = hobby_points();
+  if (pts.empty()) return;
+  subheading("Werte");
+  lv_obj_t *vg = group();
+  for (auto &p : pts) {
+    bool sw = p.kind == SP_SWITCH;
+    lv_obj_t *v = ui_row(vg, p.name.c_str(), hb_value_text(p).c_str(), sw ? hb_point_cb : nullptr, (void *)(intptr_t)p.idx, sw);
+    s_hb_rows.push_back({p.idx, v});
+  }
+  lv_obj_t *row = button_row();
+  ui_button(row, ICON_PLUS, "Kacheln anlegen", true, hb_tiles_cb, nullptr);
+  lv_obj_t *h2 = ui_label(s_content, "Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines "
+                                     "Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h2, lv_pct(100));
+}
+
+void ui_settings_tick_hobby() {
+  if (!s_scr || s_sec != SEC_HYMER || ui_input_is_open()) return;
+  if (hobby_structure_sig() != s_hb_sig) {
+    hb_rebuild(nullptr);
+    return;
+  }
+  HobbyCfg c = hobby_cfg();
+  if (c.ble_on && c.mac.empty()) hobby_search(60000);   // solange die Seite offen ist, weiter suchen
+  if (s_hb_ble_val) lv_label_set_text(s_hb_ble_val, hobby_status().c_str());
+  if (s_hb_ser_val) lv_label_set_text(s_hb_ser_val, hobby_uart_status().c_str());
+  auto pts = hobby_points();
+  for (auto &r : s_hb_rows)
+    for (auto &p : pts)
+      if (p.idx == r.first) lv_label_set_text(r.second, hb_value_text(p).c_str());
+}
+#else
+static void build_hobby() {}
+void ui_settings_tick_hobby() {}
+#endif
 #if WITH_ZB_DIRECT
 // ---------------------------------------------------------------- Zigbee-Modul (ESP32-H2 im Steckplatz)
 static uint32_t s_zb_sig = 0;
@@ -2091,6 +2335,9 @@ void ui_settings_tick_zigbee() {
 }
 #endif
 
+#if WITH_BMS
+static void build_bms(BmsCat cat);
+#endif
 static void build_gas() {
 #if SOC_VICTRON_EDITION
   heading("Gas", "Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, "
@@ -2106,6 +2353,9 @@ static void build_gas() {
   if (ble_proto_on(BLE_P_TRUMA)) build_truma_lc(lay);
   if (ble_proto_on(BLE_P_MOPEKA)) build_mopeka(lay);
   build_heat();
+#if WITH_BMS
+  build_bms(BMS_CAT_HEAT);   // Dieselheizung und Kuehlbox (Bluetooth, Modul bms.cpp)
+#endif
 }
 
 void ui_settings_tick_gas() {
@@ -2280,9 +2530,12 @@ static void bms_found_cb(lv_event_t *e) {
     return;
   }
   InputOptions o;
-  o.title = is_ps(f.model) ? "Name der Power Station" : f.model == BMS_RUUVI || f.model == BMS_SWITCHBOT || f.model == BMS_BTHOME ? "Name des Sensors"
-          : f.model == BMS_HEATER || f.model == BMS_FRIDGE ? "Name des Geräts" : "Name des Akkus";
-  o.hint = "Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.";
+  BmsCat cat = bms_cat_of(f.model);
+  o.title = cat == BMS_CAT_PS ? "Name der Power Station" : cat == BMS_CAT_SENSOR ? "Name des Sensors"
+          : cat == BMS_CAT_HEAT ? "Name des Geräts" : "Name des Akkus";
+  o.hint = cat == BMS_CAT_SENSOR ? "Zum Beispiel „Kühlschrank“ oder „Frischwasser“."
+         : cat == BMS_CAT_HEAT ? "Zum Beispiel „Standheizung“. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem Gerät."
+                               : "Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.";
   o.initial = f.name.empty() ? std::string(bms_model_text(f.model)) : f.name;
   o.max_len = 32;
   o.on_ok = [f](const std::string &t, bool) {
@@ -2301,7 +2554,7 @@ static void bms_found_cb(lv_event_t *e) {
 
 static void bms_scan_cb(lv_event_t *) {
   if (bms_list().size() >= BMS_MAX) {
-    ui_toast("Es sind schon sechs Geräte eingerichtet.");
+    ui_toast("Kein Platz mehr – es sind schon so viele Bluetooth-Geräte eingerichtet, wie möglich sind.");
     return;
   }
   bms_discovery_start();
@@ -2323,17 +2576,35 @@ static void ef_uid_cb(lv_event_t *) {
   ui_input_open(o);
 }
 
-// ps = false: Akkus, Shunts, Renogy-Laderegler usw.; ps = true: Power Stations (eigener Menuepunkt, gleiches Modul)
-static void build_bms(bool ps) {
+// Rubriken (gleiches Modul bms.cpp): Akkus inkl. Shunts und Renogy-Laderegler, Power Stations, Sensoren (eigene Seiten),
+// Dieselheizung/Kuehlbox (Teil der Seite Gas/Heizung)
+static void build_bms(BmsCat cat) {
+  bool ps = cat == BMS_CAT_PS;
   if (ps)
     heading("Power Stations", "Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers "
                               "vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. "
                               "Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.");
+  else if (cat == BMS_CAT_SENSOR)
+    heading("Sensoren", "Bluetooth-Sensoren – ungetestet: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, "
+                        "Xiaomi mit pvvx-Firmware …), Simarine STRx und SuperSense-Tankmodul. Sie senden nur, das Panel hört zu. "
+                        "Verschlüsselte BTHome- und Simarine-Sensoren brauchen den Schlüssel (32 Zeichen) als PIN.");
+  else if (cat == BMS_CAT_HEAT)
+    subheading("Dieselheizung und Kühlbox");
   else
     heading("Akkus (BMS)", "Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht "
                            "nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.");
-  proto_switch("Akkus auswerten", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), "
-                 "Eco-Worthy, ANT, Vatrer, Power Stations – Akkus nur lesen", BLE_P_BMS);
+  if (cat == BMS_CAT_HEAT) {
+    lv_obj_t *h = ui_label(s_content, "China-Dieselheizungen (Vevor, Hcalory, HeaterCC/AirHeater) und Kompressor-Kühlboxen "
+                                      "(Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – ungetestet. Bedienen im "
+                                      "Fenster der Kachel.", F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, lv_pct(100));
+  }
+  proto_switch(cat == BMS_CAT_BAT ? "Akkus auswerten" : "Bluetooth-Geräte auswerten",
+               cat == BMS_CAT_BAT ? "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, "
+                                    "Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer – nur lesen"
+                                  : "Ein Schalter für Akkus, Power Stations, Sensoren, Heizung und Kühlbox",
+               BLE_P_BMS);
   s_bms_vals.clear();
   s_bms_keys.clear();
   if (!ble_proto_on(BLE_P_BMS)) {
@@ -2343,14 +2614,16 @@ static void build_bms(bool ps) {
   Layout lay = layout_get();
   lv_obj_t *g = group();
   for (auto &b : bms_list()) {
-    if ((b.dev == BMS_DEV_PSTATION) != ps) continue;
+    if (bms_cat_of(b.model) != cat) continue;
     auto it = lay.names.find(b.key);
     std::string label = it != lay.names.end() && !it->second.empty() ? it->second : b.name;
     s_bms_vals.push_back(ui_row(g, label.c_str(), bms_summary(b).c_str(), bms_row_cb, (void *)(intptr_t)s_bms_keys.size()));
     s_bms_keys.push_back(b.key);
   }
   if (s_bms_keys.empty())
-    ui_label(g, ps ? "Noch keine Power Station eingerichtet." : "Noch kein Akku eingerichtet.", F_BODY, C_TEXT2);
+    ui_label(g, ps ? "Noch keine Power Station eingerichtet." : cat == BMS_CAT_SENSOR ? "Noch kein Sensor eingerichtet."
+                : cat == BMS_CAT_HEAT ? "Noch keine Heizung oder Kühlbox eingerichtet." : "Noch kein Akku eingerichtet.",
+             F_BODY, C_TEXT2);
   if (ps && BMS_ECOFLOW_ON) {   // EcoFlow braucht die Benutzer-ID des Kontos
     lv_obj_t *eg = group();
     std::string v = bms_ef_uid_set() ? std::string(tr("gespeichert ")) + bms_ef_uid_hint() : std::string(tr("nicht eingetragen"));
@@ -2358,17 +2631,21 @@ static void build_bms(bool ps) {
   }
   lv_obj_t *row = button_row();
   bool running = bms_discovery_running();
-  ui_button(row, ICON_SEARCH, running ? "Suche läuft …" : ps ? "Power Stations suchen" : "Akkus suchen", true, bms_scan_cb,
-            nullptr);
+  ui_button(row, ICON_SEARCH,
+            running ? "Suche läuft …" : ps ? "Power Stations suchen" : cat == BMS_CAT_SENSOR ? "Sensoren suchen"
+                    : cat == BMS_CAT_HEAT ? "Heizung/Kühlbox suchen" : "Akkus suchen",
+            true, bms_scan_cb, nullptr);
   s_bms_found.clear();
   for (auto &f : bms_found())
-    if (is_ps(f.model) == ps) s_bms_found.push_back(f);
+    if (bms_cat_of(f.model) == cat) s_bms_found.push_back(f);
   if (running || !s_bms_found.empty()) {
     subheading(running ? "Gefunden (Suche läuft …)" : "Gefunden");
     lv_obj_t *fg = group();
     if (s_bms_found.empty())
       ui_label(fg, ps ? "Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?"
-                      : "Noch nichts gefunden. Akku eingeschaltet und in der Nähe?",
+                   : cat == BMS_CAT_SENSOR ? "Noch nichts gefunden. Sensor in der Nähe? Manche senden nur alle paar Sekunden."
+                   : cat == BMS_CAT_HEAT ? "Noch nichts gefunden. Gerät eingeschaltet und in der Nähe? App des Herstellers geschlossen?"
+                                         : "Noch nichts gefunden. Akku eingeschaltet und in der Nähe?",
                F_BODY, C_TEXT2);
     for (size_t i = 0; i < s_bms_found.size(); i++) {
       const BmsFound &f = s_bms_found[i];
@@ -2504,7 +2781,8 @@ static void build_victron() {
 void ui_settings_tick_victron() {
   if (!s_scr || ui_input_is_open()) return;
 #if WITH_BMS
-  if (s_sec == SEC_BMS || s_sec == SEC_PSTATION) {   // eigene Abschnitte "Akkus (BMS)" und "Power Stations"
+  // eigene Abschnitte "Akkus (BMS)", "Power Stations", "Sensoren"; Heizung/Kuehlbox stehen unter Gas/Heizung
+  if (s_sec == SEC_BMS || s_sec == SEC_PSTATION || s_sec == SEC_SENSOR || s_sec == SEC_GAS) {
     if (!ble_proto_on(BLE_P_BMS)) return;
     if (bms_struct_sig() != s_bms_sig) {
       show_section(s_sec);
@@ -2796,11 +3074,11 @@ static void ui_settings_tick_rules() {
 #endif
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_HOUSE, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_THERMO, ICON_HOUSE, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
 #if SOC_VICTRON_EDITION
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "", "", "", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "", "", "Sicherung", "Info"};
 #else
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Hymer", "Zigbee", "Regeln", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Zigbee", "Regeln", "Sicherung", "Info"};
 #endif
 
 static void show_section(int sec) {
@@ -2817,6 +3095,7 @@ static void show_section(int sec) {
     lv_obj_set_style_text_color(ic, a ? C_AMBER : C_TEXT2, 0);
     lv_obj_set_style_text_color(tx, a ? C_TEXT : C_TEXT2, 0);
   }
+  lv_obj_scroll_to_view(s_nav_items[sec], LV_ANIM_OFF);   // Leiste scrollt: gewaehlten Punkt sichtbar machen
   lv_obj_clean(s_content);
   reset_dynamic();
   lv_obj_scroll_to_y(s_content, 0, LV_ANIM_OFF);
@@ -2828,10 +3107,14 @@ static void show_section(int sec) {
     case SEC_GAS: build_gas(); break;
     case SEC_VICTRON: build_victron(); break;
 #if WITH_BMS
-    case SEC_BMS: build_bms(false); break;
-    case SEC_PSTATION: build_bms(true); break;
+    case SEC_BMS: build_bms(BMS_CAT_BAT); break;
+    case SEC_PSTATION: build_bms(BMS_CAT_PS); break;
+    case SEC_SENSOR: build_bms(BMS_CAT_SENSOR); break;
 #endif
-    case SEC_HYMER: build_hymer(); break;
+    case SEC_HYMER:   // "Fahrzeug": Hymer Connect und Hobby
+      if (hymer_enabled()) build_hymer();
+      build_hobby();
+      break;
 #if WITH_ZB_DIRECT
     case SEC_ZIGBEE: build_zigbee(); break;
 #endif
@@ -2868,6 +3151,10 @@ void ui_settings_open(int section) {
   lv_obj_set_style_pad_all(nav, 12, 0);
   lv_obj_set_style_pad_row(nav, 4, 0);
   lv_obj_set_flex_flow(nav, LV_FLEX_FLOW_COLUMN);
+  // Leiste scrollt, wenn mehr Punkte da sind als auf den Bildschirm passen (Zeilen werden nicht mehr kleiner)
+  lv_obj_add_flag(nav, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scroll_dir(nav, LV_DIR_VER);
+  lv_obj_set_scrollbar_mode(nav, LV_SCROLLBAR_MODE_ACTIVE);
 
   lv_obj_t *back = lv_obj_create(nav);
   ui_plain(back);
@@ -2886,18 +3173,15 @@ void ui_settings_open(int section) {
   ui_plain(sp);
   lv_obj_set_size(sp, 10, 6);
 
-  // sichtbare Punkte zaehlen: Hoehe so, dass alle in die Bildschirmhoehe passen (hoechstens 42 px)
+  // Feste Zeilenhoehe; passen nicht alle auf den Bildschirm, scrollt die Leiste
   auto nav_visible = [](int i) {
-    if (i == SEC_HYMER && !hymer_enabled()) return false;
-    if ((i == SEC_BMS || i == SEC_PSTATION) && !WITH_BMS) return false;
+    if (i == SEC_HYMER && !hymer_enabled() && !WITH_HOBBY) return false;
+    if ((i == SEC_BMS || i == SEC_PSTATION || i == SEC_SENSOR) && !WITH_BMS) return false;
     if (i == SEC_ZIGBEE && !WITH_ZB_DIRECT) return false;
     if (i == SEC_RULES && !WITH_RULES) return false;
     return true;
   };
-  int nav_n = 0;
-  for (int i = 0; i < SEC_COUNT; i++) nav_n += nav_visible(i);
-  int nav_h = (LV_VER_RES - 24 - 52 - 6 - 4 * (nav_n + 1)) / (nav_n ? nav_n : 1);
-  if (nav_h > 42) nav_h = 42;
+  const int nav_h = 46;
   for (int i = 0; i < SEC_COUNT; i++) {
     lv_obj_t *it = lv_obj_create(nav);
     ui_plain(it);

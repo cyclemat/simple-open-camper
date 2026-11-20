@@ -24,6 +24,7 @@
 #include "truma_inetx.h"
 #include "hymer.h"
 #include "hymer_cloud.h"
+#include "hobby.h"
 #include "alde.h"
 #include "i18n/i18n.h"
 #include "backup.h"
@@ -178,6 +179,13 @@ static esp_err_t h_info(httpd_req_t *req) {
   d["screen"]["w"] = LCD_H_RES;
   d["screen"]["h"] = LCD_V_RES;
   d["screen"]["topbar"] = UI_TOPBAR_H;
+  // Was die Firmware kann – der Editor zeigt nur passende Einstellungsseiten
+  d["feat"]["rules"] = (bool)WITH_RULES;
+  d["feat"]["zbd"] = (bool)WITH_ZB_DIRECT;
+  d["feat"]["hymer"] = (bool)WITH_HYMER;
+  d["feat"]["hobby"] = (bool)WITH_HOBBY;
+  d["feat"]["bms"] = (bool)WITH_BMS;
+  d["feat"]["sats"] = (bool)WITH_SATELLITES;
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -1281,6 +1289,7 @@ static esp_err_t h_bms_get(httpd_req_t *req) {
       if (b.fr_zones > 1) o["fset2"] = b.fr_set[1];
     }
     o["dev"] = b.dev;
+    o["mtype"] = (int)b.model;   // Geraetetyp als Zahl (Editor: Schluessel-/Passkey-Feld)
     o["sum"] = bms_value_text(b);
     o["pin"] = b.pin_set;        // Kopplungs-PIN gespeichert
     o["pin_need"] = b.pin_need;  // Akku hat beim Koppeln eine PIN verlangt
@@ -1379,6 +1388,84 @@ static esp_err_t h_zbd_post(httpd_req_t *req) {
   if (d["permit"].is<int>()) zbd_permit(d["permit"].as<int>());
   if (d["send"].is<JsonObject>() && !zbd_send_cmd(d["send"].as<JsonObjectConst>()))
     return send_err(req, "400 Bad Request", "Zigbee-Modul nicht verbunden oder Befehl ungültig");
+  return send_ok(req);
+}
+#endif
+
+#if WITH_HOBBY
+// Hobby (HobbyConnect-Box per Bluetooth, CI-BUS per Kabel): Einstellungen, Stand, gefundene Boxen, Werte
+static esp_err_t h_hobby_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  HobbyCfg c = hobby_cfg();
+  d["ble_on"] = c.ble_on;
+  d["mac"] = c.mac;
+  d["uart_on"] = c.uart_on;
+  d["uart"] = c.uart;
+  d["rx"] = c.rx;
+  d["tx"] = c.tx;
+  d["uart_n"] = hobby_uart_count();
+  d["zb_uart"] = WITH_ZB_DIRECT ? 3 : 0;   // UART des Zigbee-Moduls (P4), nicht doppelt belegen
+  d["status"] = hobby_status();
+  d["uart_status"] = hobby_uart_status();
+  if (c.ble_on && c.mac.empty()) hobby_search(30000);   // solange die Seite offen ist, weiter suchen
+  JsonArray ca = d["cands"].to<JsonArray>();
+  for (auto &x : hobby_candidates()) {
+    JsonObject o = ca.add<JsonObject>();
+    o["mac"] = x.mac;
+    o["name"] = x.name;
+    o["type"] = x.type;
+    o["rssi"] = x.rssi;
+  }
+  JsonArray pa = d["points"].to<JsonArray>();
+  for (auto &p : hobby_points()) {
+    JsonObject o = pa.add<JsonObject>();
+    o["idx"] = p.idx;
+    o["name"] = p.name;
+    o["kind"] = p.kind == SP_SWITCH ? "switch" : p.kind == SP_INPUT ? "input" : "value";
+    o["onoff"] = p.cls == SC_ONOFF;
+    o["on"] = p.on;
+    o["unit"] = p.unit;
+    put(o, "v", p.value);
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"ble_on","uart_on","uart","rx","tx"} | {"box":{"mac","type"}} | {"forget":true} | {"switch":{"idx","on"}}
+static esp_err_t h_hobby_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["switch"].is<JsonObject>()) {
+    if (!hobby_switch(d["switch"]["idx"] | 0, d["switch"]["on"] | false))
+      return send_err(req, "409 Conflict", tr("Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel)."));
+    return send_ok(req);
+  }
+  HobbyCfg c = hobby_cfg();
+  if (d["ble_on"].is<bool>()) c.ble_on = d["ble_on"];
+  if (d["uart_on"].is<bool>()) c.uart_on = d["uart_on"];
+  if (d["uart"].is<int>()) {
+    int u = d["uart"];
+    if (u < 1 || u >= hobby_uart_count()) return send_err(req, "400 Bad Request", "Ungültige Schnittstelle");
+    c.uart = (int8_t)u;
+  }
+  if (d["rx"].is<int>()) c.rx = (int8_t)constrain((int)d["rx"], -1, 60);
+  if (d["tx"].is<int>()) c.tx = (int8_t)constrain((int)d["tx"], -1, 60);
+  if (c.rx >= 0 && c.rx == c.tx) return send_err(req, "400 Bad Request", "RX und TX dürfen nicht derselbe Pin sein");
+  if (d["box"].is<JsonObject>()) {
+    c.mac = d["box"]["mac"] | "";
+    c.mac_type = d["box"]["type"] | 0;
+  }
+  if (d["forget"] | false) {
+    c.mac.clear();
+    c.mac_type = 0;
+  }
+  hobby_set_cfg(c);
   return send_ok(req);
 }
 #endif
@@ -1917,7 +2004,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 52;
+  cfg.max_uri_handlers = 56;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -1955,6 +2042,10 @@ void web_start() {
 #if WITH_HYMER
   reg("/api/hymer", HTTP_GET, h_hymer_get);
   reg("/api/hymer", HTTP_POST, h_hymer_post);
+#endif
+#if WITH_HOBBY
+  reg("/api/hobby", HTTP_GET, h_hobby_get);
+  reg("/api/hobby", HTTP_POST, h_hobby_post);
 #endif
   reg("/api/mopeka", HTTP_GET, h_mopeka_get);
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);

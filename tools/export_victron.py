@@ -18,7 +18,7 @@ FILES = [
     "src/sat/sat_display.cpp", "src/sat/sat_display.h", "src/sat/rd_client.h",
     "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h", "src/bms.cpp", "src/bms.h",
     "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
-    "src/hymer.cpp", "src/hymer.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
+    "src/hymer.cpp", "src/hymer.h", "src/hobby.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
     "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h",
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
     "src/fonts/font_ui_26.c", "src/fonts/font_ui_40.c",

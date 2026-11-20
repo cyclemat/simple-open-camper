@@ -1,4 +1,5 @@
 #include "theme.h"
+#include "../app_config.h"
 
 void theme_init() {
   lv_disp_t *d = lv_disp_get_default();
@@ -128,8 +129,17 @@ void ui_toast(const char *text) {
   lv_obj_set_style_pad_hor(s_toast, 24, 0);
   lv_obj_set_style_pad_ver(s_toast, 14, 0);
   lv_obj_t *l = ui_label(s_toast, text, F_BODY, C_TEXT);
+#if UI_ROUND
+  // rundes Display: schmal und weiter oben, sonst schneidet der Kreis die Meldung ab
+  lv_obj_set_style_pad_hor(s_toast, 16, 0);
+  lv_obj_set_style_max_width(l, 236, 0);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+  lv_obj_align(s_toast, LV_ALIGN_BOTTOM_MID, 0, -56);
+#else
   lv_obj_set_style_max_width(l, 860, 0);
   lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
   lv_obj_align(s_toast, LV_ALIGN_BOTTOM_MID, 0, -28);
+#endif
   s_toast_timer = lv_timer_create(toast_hide, 2800, nullptr);
 }

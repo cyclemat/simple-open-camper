@@ -15,6 +15,33 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
 - 🔋 **SmartShunt als Batteriewächter-Kachel** auf allen Panels (Schlüssel `satshunt:<Satellit>`): Spannung, Strom,
   Leistung, Ladezustand, Verbraucht, Restzeit – wie ein Victron SmartShunt (Kachel, Detailfenster, Editor-Liste).
 
+- 🏕️ **Hobby** *(Beta, ungetestet)* – Wohnwagen/Reisemobile von Hobby direkt am Panel: über die **HobbyConnect-Box
+  per Bluetooth** oder per **Kabel am LSG (CI-BUS, RS232-Wandler, Hardware-UART und Pins wählbar)**; beide Wege ab Werk
+  aus. Lichter schaltbar, Bordbatterie als Batteriewächter-Kachel, Wasser, Temperaturen, Heizung, Kühlschrank, Klima,
+  Hauptschalter (nur Kabel); Knopf „Kacheln anlegen“; serieller Befehl `hobby`.
+
+**Verbessert**
+- **Editor wie das Panel:** Einstellungen mit **Seitenleiste** (Netzwerk, MQTT, Anzeige, Geräte, Gas/Heizung, Victron,
+  Akkus, Power Stations, Sensoren, Fahrzeug, Zigbee, Sicherung, Info) statt Reitern; Satelliten und Zusatzdisplays
+  zusammen unter **Geräte**, Hymer und **Hobby** unter **Fahrzeug** (Hobby jetzt auch im Browser einstellbar,
+  `/api/hobby`), neue Seite **Zigbee** (Stand, Anlernen, Geräteliste). **Regeln** haben einen eigenen Knopf oben
+  neben „Einstellungen“.
+- **Editor am Handy:** dieselbe Seite passt sich an schmale Bildschirme an – unten eine Leiste **Geräte · Panel ·
+  Einstellungen · Regeln**; Geräte antippen setzt sie aufs Panel bzw. zeigt die Kachel, unter „Panel“ Vorschau, Seiten
+  und Kacheln als Liste mit den Eigenschaften darunter, Dialoge als Vollbild. Frei verschieben bleibt dem PC vorbehalten.
+- **Rundes Panel (CrowPanel 1,46"):** eigene **Bedienseite** für Dieselheizung, Kühlbox und Power Station (Kachel
+  antippen; Drehknopf oder −/+ stellt Stufe/Solltemperatur, Ein/Aus bzw. AC/DC), lange Werte und Namen werden
+  kleiner statt abgeschnitten, die Zeile darunter darf zwei Zeilen haben, Meldungen passen in den Kreis.
+- README (DE/EN): neuer Abschnitt **Kabelanschlüsse** – LIN-Transceiver (CP Plus, Alde inkl. Master-Widerstand),
+  RS232-TTL-Wandler für den Hobby-CI-BUS, Steckerbelegung, Pins je Panel. Englische README: Hobby-Abschnitt ergänzt,
+  Hymer-Pfad korrigiert (Einstellungen → Fahrzeug).
+- **Eigene Rubriken statt alles unter „Akkus“:** neuer Menüpunkt/Editor-Reiter **„Sensoren“** (Ruuvi, SwitchBot,
+  BTHome, Simarine, SuperSense-Tank); **Dieselheizung und Kühlbox** stehen unter **Gas/Heizung** – jeweils mit eigener
+  Suche. Bis zu **12** Bluetooth-Geräte (Akkus, Sensoren …) statt 6 auf den großen Panels.
+- Einstellungen: linke Leiste scrollt jetzt (feste Zeilenhöhe statt immer kleiner werdender Punkte); „Hymer“ heißt
+  jetzt **„Fahrzeug“** (Hymer Connect und Hobby).
+- Victron-Edition (Waveshare): kein Hinweis auf das Zigbee-Modul mehr im Programm.
+
 **Behoben**
 - GitHub-Build: NimBLE-Arduino fest auf 2.5.2 (neuere Version baut mit diesem Framework nicht).
 

@@ -109,7 +109,7 @@ bool victron_has_devices();
 #define SATSHUNT_KEY_PREFIX "satshunt:"
 static inline bool victron_is_key(const std::string &k) {
   return k.rfind(VICTRON_KEY_PREFIX, 0) == 0 || k.rfind("cerbo:", 0) == 0 || k.rfind("bms:", 0) == 0 ||
-         k.rfind(SATSHUNT_KEY_PREFIX, 0) == 0;
+         k.rfind(SATSHUNT_KEY_PREFIX, 0) == 0 || k == "hobby:bat";   // Hobby-Bordbatterie (hobby.cpp)
 }
 
 // Vom Bluetooth-Scan (truma.cpp) fuer jedes Paket mit Hersteller-ID 0x02E1 aufgerufen.

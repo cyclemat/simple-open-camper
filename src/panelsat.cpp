@@ -2,6 +2,7 @@
 #include "panelsat.h"
 #include "sat_proto.h"
 #include "hymer.h"
+#include "hobby.h"
 #include "cerbo.h"
 #include "net.h"
 #include "settings.h"
@@ -520,7 +521,7 @@ static bool shunt_of(const std::string &sat, VictronInfo &v) {
   return true;
 }
 
-bool panelsat_victron_get(const std::string &key, VictronInfo &out) {
+static bool sat_victron_get_raw(const std::string &key, VictronInfo &out) {
   if (key.rfind(SATSHUNT_KEY_PREFIX, 0) == 0) {
     Lock l;
     return shunt_of(key.substr(strlen(SATSHUNT_KEY_PREFIX)), out);
@@ -542,7 +543,7 @@ std::vector<MopekaInfo> panelsat_mopeka_list() {
     if (e.second.type == SAT_T_MOPEKA) r.push_back(mopeka_of(e.second));
   return r;
 }
-std::vector<VictronInfo> panelsat_victron_list() {
+static std::vector<VictronInfo> sat_victron_list_raw() {
   std::vector<VictronInfo> r;
   Lock l;
   for (auto &e : s_devs)
@@ -773,10 +774,10 @@ bool panelsat_handle(const std::string &, const char *, size_t) { return false; 
 std::vector<SatNode> panelsat_nodes() { return {}; }
 bool panelsat_truma_get(const std::string &, TrumaInfo &) { return false; }
 bool panelsat_mopeka_get(const std::string &, MopekaInfo &) { return false; }
-bool panelsat_victron_get(const std::string &, VictronInfo &) { return false; }
+static bool sat_victron_get_raw(const std::string &, VictronInfo &) { return false; }
 std::vector<TrumaInfo> panelsat_truma_list() { return {}; }
 std::vector<MopekaInfo> panelsat_mopeka_list() { return {}; }
-std::vector<VictronInfo> panelsat_victron_list() { return {}; }
+static std::vector<VictronInfo> sat_victron_list_raw() { return {}; }
 std::string panelsat_sat_of(const std::string &) { return ""; }
 static std::string sat_via_text_raw(const std::string &) { return ""; }
 bool panelsat_measure(const std::string &) { return false; }
@@ -822,8 +823,34 @@ static SatPoint gx_local(SatPoint p) {
   return p;
 }
 
+// ---------------------------------------------------------------- Hobby (HobbyConnect-Box bzw. CI-BUS am LSG)
+// Werte wie die Anschluesse eines Satelliten "Hobby": Schluessel "satio:Hobby/<punkt>"; Bordbatterie "hobby:bat".
+static const std::string &hb_prefix() {
+  static const std::string p = std::string(SATIO_KEY_PREFIX) + HOBBY_SAT_ID + "/";
+  return p;
+}
+static bool hb_key(const std::string &k) { return WITH_HOBBY && k.rfind(hb_prefix(), 0) == 0; }
+static SatPoint hb_local(SatPoint p) {
+  p.sat = HOBBY_SAT_ID;
+  p.key = hb_prefix() + p.id;
+  return p;
+}
+
+bool panelsat_victron_get(const std::string &key, VictronInfo &out) {
+  if (key == HOBBY_BAT_KEY) return hobby_battery(out);
+  return sat_victron_get_raw(key, out);
+}
+
+std::vector<VictronInfo> panelsat_victron_list() {
+  std::vector<VictronInfo> r = sat_victron_list_raw();
+  VictronInfo v;
+  if (hobby_battery(v)) r.push_back(v);
+  return r;
+}
+
 uint32_t panelsat_version() {
-  return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0);
+  return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0) +
+         hobby_version() * 7919;
 }
 
 std::vector<SatPoint> panelsat_point_list() {
@@ -832,10 +859,19 @@ std::vector<SatPoint> panelsat_point_list() {
     for (auto &p : hymer_points()) r.push_back(hy_local(p));
   if (gx_on())
     for (auto &p : cerbo_points()) r.push_back(gx_local(p));
+  for (auto &p : hobby_points()) r.push_back(hb_local(p));
   return r;
 }
 
 bool panelsat_point_get(const std::string &key, SatPoint &out) {
+  if (hb_key(key)) {
+    for (auto &p : hobby_points())
+      if (hb_prefix() + p.id == key) {
+        out = hb_local(p);
+        return true;
+      }
+    return false;
+  }
   if (gx_key(key)) {
     if (!gx_on()) return false;
     for (auto &p : cerbo_points())
@@ -858,6 +894,11 @@ bool panelsat_point_get(const std::string &key, SatPoint &out) {
 bool panelsat_switch(const std::string &key, bool on, std::string *err) {
   SatPointKind k;
   uint8_t idx;
+  if (hb_key(key)) {
+    if (sat_point_parse(key.substr(hb_prefix().size()), k, idx) && k == SP_SWITCH && hobby_switch(idx, on)) return true;
+    if (err) *err = tr("Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).");
+    return false;
+  }
   if (gx_key(key)) {
     if (gx_on() && sat_point_parse(key.substr(gx_prefix().size()), k, idx) && k == SP_SWITCH && cerbo_set_relay(idx, on))
       return true;
@@ -878,5 +919,6 @@ bool panelsat_switch(const std::string &key, bool on, std::string *err) {
 std::string panelsat_via_text(const std::string &key) {
   if (gx_key(key)) return tr("Victron GX (MQTT)");
   if (hy_key(key)) return tr("Hymer Connect (Bluetooth)");
+  if (hb_key(key)) return tr("Hobby (Bluetooth/CI-BUS)");
   return sat_via_text_raw(key);
 }

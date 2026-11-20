@@ -411,12 +411,14 @@ in the Simarine app, enter the new one. Do not use it as the only measurement fo
 
 - **CP Plus:** LIN transceiver on the UART header (switch set to "UART"), LIN to RJ12 pin 3, ground to pin 5
   (on the Combi or via a splitter). Then run **PR SET → Init** once on the CP Plus.
+  Wiring in detail: [Wired connections](#-wired-connections-lin-bus-and-ci-bus).
 - **iNet X:** Enable the protocol in the settings, tap **"iNet X koppeln"** and then open **"Add device"** on the
   control panel (3 minutes). The iNet X remembers at most four devices.
 
 ### ♨️ Alde
 
 - Connect the LIN wire to the **yellow RJ12 socket** (pin 4, ground pin 2) and enter model and pins under `[alde]`.
+  The panel is the LIN master here (1 kΩ resistor needed) – see [Wired connections](#-wired-connections-lin-bus-and-ci-bus).
 - The panel polls the boiler every 500 ms and only sends on changes – settings on the Alde panel stay valid.
 - Compact 3020 HE: as far as known it can only be read, not controlled – not supported.
 
@@ -425,11 +427,89 @@ in the Simarine app, enter the new one. Do not use it as the only measurement fo
 - For Erwin Hymer Group vehicles with **HYMER Connect** (Hymer, Bürstner, Dethleffs, Eriba, LMC, Carado …): lights,
   main switch, water pump, battery, lithium BMS, fresh/grey water, solar, shore power, outside temperature – directly
   over Bluetooth from the SCU, **no cloud**.
-- On the panel enable "Hymer Connect" under **Einstellungen → Gas/Heizung**, tap **Hymer koppeln** and then press
+- On the panel enable "Hymer Connect" under **Einstellungen → Fahrzeug** (Vehicle), tap **Hymer koppeln** and then press
   **CONNECTION** on the control panel in the vehicle (3 minutes). On a satellite the same works in its web UI.
 - The values show up in the editor like the ports of a satellite named **"Hymer"** and can be dragged onto the panel;
   lights and switches toggle with a tap.
+- Bluetooth only – a cable connection to the SCU is not provided.
 - **Not yet tested on a real SCU** – feedback very welcome.
+
+### 🏕️ Hobby (HobbyConnect box or CI-BUS) *(beta, untested)*
+
+- For **Hobby** caravans and motorhomes: lights (switchable), leisure battery (voltage, current, state of charge,
+  time left, temperature), fresh water, inside/outside temperature, shore power, heating, hot water, fridge,
+  air conditioning, main switch – directly on the panel, no app and no cloud.
+- **Two ways**, each switchable and **off by default** – under **Einstellungen → Fahrzeug** (Vehicle):
+  - **HobbyConnect box via Bluetooth:** switch on, tap the box that was found. Disconnect the Hobby app on the phone
+    first (the box only talks to one device).
+  - **CI-BUS cable at the LSG** (replaces the box): RS232-to-TTL converter (e.g. MAX3232, **3.3 V**) on a free serial
+    port; choose port (UART1, UART2 …) and RX/TX pin on the panel. 115200 baud; the panel fetches the value numbers
+    from the LSG itself. Wiring: see [Wired connections](#-wired-connections-lin-bus-and-ci-bus).
+- The values show up in the editor like the ports of a satellite **"Hobby"**; the leisure battery additionally as a
+  **battery monitor tile**. On the panel **"Kacheln anlegen"** creates all tiles at once. The **main switch** only
+  works over the cable – careful if the panel itself is behind the main switch.
+- `LIGHT_DUSCHE`/`LIGHT_WASCH` are swapped depending on the vehicle – just rename the tile. The serial command
+  `hobby` lists all received values (unknown ones too) – please include it for other models.
+- Protocol: [`docs/protokolle/hobby_ble_cibus.md`](docs/protokolle/hobby_ble_cibus.md) (German).
+
+### 🔌 Wired connections (LIN bus and CI-BUS)
+
+Truma CP Plus, Alde and the Hobby CI-BUS are wired to the panel. **Hymer Connect needs no cable** – it only uses
+Bluetooth to the SCU (see above).
+
+**Basic rules**
+
+- The ESP32 pins only tolerate **3.3 V**. Never connect the bus directly: LIN (12 V) only through a
+  **LIN transceiver**, CI-BUS (RS232, ±12 V) only through an **RS232-to-TTL converter**.
+- Connect **ground (GND)** of panel, converter and vehicle.
+- The panel's **RX** goes to the converter's **output**, the panel's **TX** to its **input**. Nothing arrives?
+  Swap RX and TX.
+- Each device needs its **own serial port** (UART). UART0 is reserved for log/USB.
+
+| Device | Bus and connector | Converter | Baud | Master | Setting |
+|---|---|---|---|---|---|
+| Truma CP Plus | LIN, RJ12: **pin 3 = LIN, pin 5 = ground** (on the Combi or via a splitter) | LIN transceiver | 9600 | CP Plus | `platformio.ini` → `[truma]` |
+| Alde 3020/3030 | LIN, **yellow** RJ12 socket: **pin 4 = LIN, pin 2 = ground** | LIN transceiver + master resistor | 19200 | **panel** | `platformio.ini` → `[alde]` |
+| Hobby (CI-BUS) | RS232 at the LSG, Hobby wiring kit "Bluetooth-Modul" | RS232-to-TTL converter (MAX3232) | 115200 | LSG | on the panel: **Einstellungen → Fahrzeug** (Vehicle) |
+| Hymer Connect | – (Bluetooth) | – | – | – | Einstellungen → Fahrzeug |
+
+**LIN transceiver** (TJA1020/TJA1021 ready-made module; MCP2025 likewise):
+
+| Transceiver | Connection |
+|---|---|
+| VBAT / VS | +12 V vehicle supply (through a fuse) |
+| GND | vehicle ground **and** panel GND |
+| LIN | LIN wire (pin see table above) |
+| RXD | panel RX pin – open-drain output: 4.7 kΩ pull-up to 3.3 V (usually already on ready-made modules) |
+| TXD | panel TX pin |
+| SLP / NSLP (MCP2025: CS) | to 3.3 V – or to a GPIO entered as `lin_en` (the panel drives it high) |
+
+- **Alde:** the panel is the LIN master. It needs a **1 kΩ resistor with a diode** (e.g. 1N4148, anode to +12 V)
+  from +12 V to the LIN wire – many modules have a "Master" jumper for this.
+- **CP Plus:** the CP Plus is the master, the panel only answers – **no** 1 kΩ resistor, "Master" jumper open.
+- Alde 3030 (optional): the internal red bus (glycol/hot-water temperature) can only be listened to with a second
+  transceiver (`red_uart`, `red_rx`).
+
+**RS232-to-TTL converter for the Hobby CI-BUS** (e.g. MAX3232 module):
+
+| Converter (TTL side) | Panel |
+|---|---|
+| VCC | **3.3 V** (not 5 V – otherwise 5 V reach the ESP32) |
+| GND | GND |
+| TXD (output) | RX pin |
+| RXD (input) | TX pin |
+
+The RS232 side (D-sub 9) goes to Hobby's "Bluetooth-Modul" wiring kit (TX, RX, ground of the LSG). The kit's pinout is
+documented in [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity).
+Nothing arrives? Swap RX and TX on the RS232 side (null modem). Port and pins are chosen on the panel (no rebuild);
+the status shows whether the LSG answers.
+
+**Pins per panel**
+
+| Panel | Connection | Note |
+|---|---|---|
+| Waveshare 7B | UART header, **GPIO 15/16** (switch set to "UART", not RS485) | Free pins are scarce – the header serves **one** device (CP Plus, Alde **or** Hobby). Docs and wiki disagree on the direction: nothing arrives → swap RX/TX. |
+| CrowPanel P4 | free GPIOs on the headers | Enter pins in `p4/platformio.ini` or (Hobby) on the panel. **UART3 / GPIO 27/28** is used by the Zigbee radio module (H2) – don't use it while the module is plugged in. |
 
 ### 🖼️ Splash screen
 
@@ -645,6 +725,8 @@ authors!
 | | [holdestmade/esphome-alde-3020](https://github.com/holdestmade/esphome-alde-3020) | MIT | 3020 specifics, checksum detection, timing |
 | | [darenshaw/truma-inet-x-to-alde-3020](https://github.com/darenshaw/truma-inet-x-to-alde-3020), [inetbox.py issue #28](https://github.com/danielfett/inetbox.py/issues/28) | GPL-3.0 / – | Notes on models and limits (3020 HE) |
 | Hymer Connect (`src/hymer.cpp`, `src/hymer_tls.cpp`) | [Facetti/hymer-connect-ha-ble](https://github.com/Facetti/hymer-connect-ha-ble), [BetaHydri/hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) | MIT | GATT services, TLS profile, PIA frames, sensor maps; the seven subscription messages are taken verbatim |
+| Hobby (`src/hobby.cpp`) | [AndreasKirsten79/hobby-caravan-pi](https://github.com/AndreasKirsten79/hobby-caravan-pi) (with [paveltresnak/hobby-caravan-esphome-ble](https://github.com/paveltresnak/hobby-caravan-esphome-ble)) | not stated | protocol knowledge only: BLE service, login, fragments, commands |
+| | [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity) | MIT | CI-BUS serial: login, commands, variable table |
 | WLED (`src/wled.cpp`) | [WLED – MQTT interface](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics and commands |
 | Cerbo GX (`src/cerbo.cpp`) | [victronenergy/dbus-flashmq](https://github.com/victronenergy/dbus-flashmq), [dbus API in the Victron wiki](https://github.com/victronenergy/venus/wiki/dbus) | see project | Topics, keepalive, value paths |
 | Victron Smart Lithium, Smart BatteryProtect (`src/victron.cpp`) | [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble) | Unlicense | Layout of records 0x05 and 0x09 |

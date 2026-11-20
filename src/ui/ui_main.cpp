@@ -24,6 +24,12 @@
 #include "../cerbo.h"
 #include "../bms.h"   // Victron-Edition: automatische Kacheln auch fuer Akkus
 #include "../zb_direct.h"
+// Victron-Edition: kein Zigbee-Text im Programm (Funktion dort nicht eingebaut)
+#if WITH_ZB_DIRECT
+#define ZBD_OFFLINE_TXT tr("Zigbee-Modul nicht verbunden")
+#else
+#define ZBD_OFFLINE_TXT tr("nicht verfügbar")
+#endif
 #include <Preferences.h>
 
 #include <Arduino.h>
@@ -118,7 +124,7 @@ static void tile_paint(TileUi &t, bool force) {
 
   char sub[48];
   if (!found && zbd_is_key(t.key))   // Geraet am eigenen Zigbee-Modul (H2), nicht Zigbee2MQTT
-    snprintf(sub, sizeof(sub), "%s", zbd_info().present ? tr("nicht verfügbar") : tr("Zigbee-Modul nicht verbunden"));
+    snprintf(sub, sizeof(sub), "%s", zbd_info().present ? tr("nicht verfügbar") : ZBD_OFFLINE_TXT);
   else if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? TXT_DEV_MISSING : "…");
   else if (!v.online) snprintf(sub, sizeof(sub), "nicht erreichbar");
   else if (!v.known) snprintf(sub, sizeof(sub), "…");
@@ -396,6 +402,9 @@ static void sio_click(const std::string &key, bool long_press) {
 }
 
 static void tile_event(lv_event_t *e);
+#if UI_ROUND
+void round_ctl_open(const std::string &key);
+#endif
 
 // Gasflaschen, Victron und Heizung teilen sich den Aufbau: Icon, grosser Wert oben rechts, Name, Zeile, Pegel
 static void create_gas_tile(const Tile &t, bool vic = false, bool heat = false, bool sio = false) {
@@ -477,7 +486,10 @@ static void tile_event(lv_event_t *e) {
   if (s_tiles[idx].gas || s_tiles[idx].vic || s_tiles[idx].heat) {
     if (millis() - s_last_gesture < 500) return;
 #if UI_ROUND
-    return;   // Detailfenster sind fuer 1024x600 gebaut – auf dem runden Display nur anzeigen
+    // Detailfenster sind fuer 1024x600 gebaut. Rund: Heizung, Kuehlbox und Power Station bekommen eine eigene
+    // Bedienseite, alles andere zeigt seine Werte ueber die Datenseiten (hoch/runter wischen).
+    if (s_tiles[idx].vic && code == LV_EVENT_SHORT_CLICKED) round_ctl_open(key);
+    return;
 #endif
     if (code == LV_EVENT_SHORT_CLICKED || code == LV_EVENT_LONG_PRESSED) {
       if (s_tiles[idx].heat) ui_heat_open(key);
@@ -769,18 +781,38 @@ static void round_style(TileUi &t) {
   lv_obj_set_style_outline_width(o, 0, LV_STATE_PRESSED);
   int h = t.h;
   if (t.icon) lv_obj_align(t.icon, LV_ALIGN_TOP_MID, 0, 54);
+  // Zeile darunter: bis zu zwei Zeilen (erste Zeile bleibt an derselben Stelle), dann "…"
+  int lh = lv_font_get_line_height(F_SMALL);
   if (t.pct) {   // Gas, Victron, Heizung, Satellit: grosser Wert in der Mitte
-    round_center(t.pct, -18, 0);
-    round_center(t.name, 42, 230);
-    round_center(t.sub, 78, 210);
+    round_center(t.pct, -18, 290);
+    round_center(t.name, 42, 240);
+    round_center(t.sub, 78 + lh / 2, 236);
   } else {       // Licht, Schalter
-    round_center(t.name, -4, 240);
-    round_center(t.sub, 36, 220);
+    round_center(t.name, -4, 250);
+    round_center(t.sub, 36 + lh / 2, 236);
     if (t.track) lv_obj_set_pos(t.track, 14, h * 72 / 100);
   }
+  if (t.pct) lv_label_set_long_mode(t.pct, LV_LABEL_LONG_DOT);
   if (t.name) lv_label_set_long_mode(t.name, LV_LABEL_LONG_DOT);
-  if (t.sub) lv_label_set_long_mode(t.sub, LV_LABEL_LONG_DOT);
+  if (t.sub) {
+    lv_label_set_long_mode(t.sub, LV_LABEL_LONG_DOT);
+    lv_obj_set_height(t.sub, 2 * lh);
+  }
 }
+// Lange Werte/Namen passend machen (je Aktualisierung): grosser Wert bzw. Name eine Schriftgroesse kleiner,
+// wenn er nicht in den Kreis passt
+static void round_fit_label(lv_obj_t *l, const lv_font_t *big, const lv_font_t *small, int maxw) {
+  if (!l) return;
+  lv_point_t sz;
+  lv_txt_get_size(&sz, lv_label_get_text(l), big, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+  const lv_font_t *f = sz.x > maxw ? small : big;
+  if (lv_obj_get_style_text_font(l, 0) != f) lv_obj_set_style_text_font(l, f, 0);
+}
+static void round_fit(TileUi &t) {
+  if (t.pct) round_fit_label(t.pct, F_BIG, F_TITLE, 270);
+  round_fit_label(t.name, F_TITLE, F_BODY, 236);
+}
+
 
 static void round_label(lv_obj_t *p, const char *t, const lv_font_t *f, lv_color_t c, int y, int w = 260) {
   lv_obj_t *l = ui_label(p, "", f, c);
@@ -941,9 +973,229 @@ static void round_data(const std::string &name, const RoundRows &rows) {
   (lv_label_set_text)(s_rd_val, row.second.c_str());
 }
 
+
+// ---- Bedienseite (Dieselheizung, Kuehlbox, Power Station): Kachel antippen oeffnet sie. Drehknopf bzw. −/+ stellt
+// Stufe/Solltemperatur (gesendet 0,8 s nach der letzten Aenderung), unten Ein/Aus bzw. AC/DC. Knopfdruck, Antippen
+// der Flaeche oder 30 s ohne Bedienung schliesst sie; Wischen nach links/rechts wechselt wie immer das Geraet.
+static std::string s_rc_key;              // Geraet mit offener Bedienseite ("" = keine)
+static int s_rc_zone = 0;                 // Kuehlbox mit zwei Zonen: welche Zone (Wert antippen wechselt)
+static int s_rc_want = -1000;             // eingestellter, noch nicht gesendeter Wert
+static uint32_t s_rc_ms = 0, s_rc_act = 0;
+static lv_obj_t *s_rc_val = nullptr, *s_rc_sub = nullptr, *s_rc_cap = nullptr, *s_rc_btn[2] = {nullptr, nullptr};
+
+static bool round_ctl_kind(const VictronInfo &v) {
+  return v.kind == VIC_HEATER || v.kind == VIC_FRIDGE || (v.kind == VIC_PSTATION && (v.can_ac || v.can_dc));
+}
+
+// Einstellbarer Wert: Heizung Stufe (Modus Stufe) bzw. Soll-°C (Modus Temperatur), Kuehlbox Soll der Zone
+static int rc_cur(const VictronInfo &v, int &what, int &lo, int &hi) {
+  if (v.kind == VIC_HEATER) {
+    if (v.ht_mode == 2) {
+      what = 2, lo = 8, hi = 36;
+      return v.ht_set > 0 ? v.ht_set : 20;
+    }
+    what = 1, lo = 1, hi = 10;
+    return v.ht_level > 0 ? v.ht_level : 5;
+  }
+  what = s_rc_zone + 1, lo = v.fr_min, hi = v.fr_max;
+  int s = v.fr_set[s_rc_zone];
+  return s > -128 ? s : 4;
+}
+
+static void rc_btn_style(lv_obj_t *b, bool on, lv_color_t accent) {
+  if (!b) return;
+  lv_obj_set_style_bg_color(b, on ? accent : C_FIELD, 0);
+  lv_obj_t *l = lv_obj_get_child(b, 0);
+  if (l) lv_obj_set_style_text_color(l, on ? C_INK : C_TEXT, 0);
+}
+
+static void rc_paint() {
+  VictronInfo v;
+  if (s_rc_key.empty() || !s_rc_val || !ui_vic_get(s_rc_key, v)) return;
+  char b[48];
+  if (v.kind == VIC_PSTATION) {
+    snprintf(b, sizeof(b), "%s", isnan(v.soc) ? "–" : (std::to_string((int)lroundf(v.soc)) + "\xE2\x80\xAF%").c_str());
+    (lv_label_set_text)(s_rc_val, b);
+    std::string sub = tr("rein ") + ui_num(v.ps_in_w, 0, "W") + tr("  ·  raus ") + ui_num(v.ps_out_w, 0, "W");
+    (lv_label_set_text)(s_rc_sub, sub.c_str());
+    rc_btn_style(s_rc_btn[0], v.ac_on == 1, C_AMBER);
+    rc_btn_style(s_rc_btn[1], v.dc_on == 1, C_AMBER);
+    return;
+  }
+  bool heat = v.kind == VIC_HEATER;
+  int what, lo, hi;
+  int cur = s_rc_want > -1000 ? s_rc_want : rc_cur(v, what, lo, hi);
+  rc_cur(v, what, lo, hi);
+  if (heat && v.ht_err) snprintf(b, sizeof(b), "E%d", v.ht_err);
+  else if (heat && what == 1) snprintf(b, sizeof(b), "%d", cur);
+  else snprintf(b, sizeof(b), "%d\xE2\x80\xAF°C", cur);
+  (lv_label_set_text)(s_rc_val, b);
+  const char *cap = heat ? (v.ht_err ? "Fehler – nur Ausschalten" : what == 1 ? "Stufe" : "Solltemperatur")
+                         : v.fr_zones > 1 ? (s_rc_zone ? "Soll rechts (antippen: links)" : "Soll links (antippen: rechts)") : "Solltemperatur";
+  lv_label_set_text(s_rc_cap, cap);
+  std::string sub;
+  if (heat && !isnan(v.aux)) sub = tr("innen ") + ui_num(v.aux, 0, "°C");
+  if (!heat && v.fr_cur[s_rc_zone] > -128) sub = tr("jetzt ") + std::to_string(v.fr_cur[s_rc_zone]) + "\xE2\x80\xAF°C";
+  (lv_label_set_text)(s_rc_sub, sub.c_str());
+  int on = heat ? v.ht_on : v.fr_on;
+  lv_obj_t *l = s_rc_btn[0] ? lv_obj_get_child(s_rc_btn[0], 0) : nullptr;
+  if (l) lv_label_set_text(l, on == 1 ? "Ausschalten" : "Einschalten");
+  rc_btn_style(s_rc_btn[0], on == 1, heat ? C_AMBER : C_BLUE);
+}
+
+static void rc_close() {
+  s_rc_key.clear();
+  s_rc_want = -1000;
+  ui_main_rebuild();
+}
+
+// Wert um d aendern (Drehknopf, −/+); gesendet wird gesammelt in round_ctl_tick
+static void rc_step(int d) {
+  VictronInfo v;
+  if (!ui_vic_get(s_rc_key, v) || v.kind == VIC_PSTATION) return;
+  s_rc_act = millis();
+  if (v.kind == VIC_HEATER && v.ht_err) {
+    ui_toast("Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.");
+    return;
+  }
+  int what, lo, hi;
+  int cur = s_rc_want > -1000 ? s_rc_want : rc_cur(v, what, lo, hi);
+  rc_cur(v, what, lo, hi);
+  s_rc_want = std::max(lo, std::min(hi, cur + d));
+  s_rc_ms = millis();
+  rc_paint();
+}
+
+static void rc_btn_cb(lv_event_t *e) {
+  if (millis() - s_last_gesture < 400) return;
+  int x = (int)(intptr_t)lv_event_get_user_data(e);   // 0/1 Schalter (Ein/Aus bzw. AC/DC), 10 minus, 11 plus, 20 Zone
+  VictronInfo v;
+  if (!ui_vic_get(s_rc_key, v)) return;
+  s_rc_act = millis();
+  if (x == 10 || x == 11) {
+    rc_step(x == 11 ? 1 : -1);
+    return;
+  }
+  if (x == 20) {
+    if (v.kind == VIC_FRIDGE && v.fr_zones > 1) {
+      s_rc_zone ^= 1;
+      s_rc_want = -1000;
+      rc_paint();
+    }
+    return;
+  }
+  bool ok;
+  if (v.kind == VIC_PSTATION) ok = bms_set_output(v.mac, x == 0, !((x == 0 ? v.ac_on : v.dc_on) == 1));
+  else if (v.kind == VIC_HEATER) ok = bms_heater_cmd(v.mac, 0, v.ht_on == 1 ? 0 : 1);
+  else ok = bms_fridge_cmd(v.mac, 0, v.fr_on == 1 ? 0 : 1);
+  ui_toast(ok ? "Wird geschaltet …" : "Das ging nicht.");
+}
+
+static void rc_bg_cb(lv_event_t *) {
+  if (millis() - s_last_gesture < 400) return;
+  rc_close();
+}
+
+static lv_obj_t *rc_button(lv_obj_t *p, const char *txt, int w, int h, int ud, const lv_font_t *f) {
+  lv_obj_t *b = lv_obj_create(p);
+  ui_plain(b);
+  lv_obj_set_size(b, w, h);
+  lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(b, C_FIELD, 0);
+  lv_obj_set_style_outline_color(b, lv_color_white(), LV_STATE_PRESSED);
+  lv_obj_set_style_outline_width(b, 2, LV_STATE_PRESSED);
+  lv_obj_set_style_outline_opa(b, LV_OPA_40, LV_STATE_PRESSED);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_t *l = ui_label(b, txt, f, C_TEXT);
+  lv_obj_center(l);
+  lv_obj_add_event_cb(b, rc_btn_cb, LV_EVENT_CLICKED, (void *)(intptr_t)ud);
+  return b;
+}
+
+static void round_ctl_build(const std::string &name) {
+  VictronInfo v;
+  if (!ui_vic_get(s_rc_key, v)) return;
+  lv_obj_t *pg = lv_obj_create(s_content);
+  ui_plain(pg);
+  lv_obj_set_size(pg, LCD_H_RES, LCD_V_RES);
+  lv_obj_add_flag(pg, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(pg, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(pg, rc_bg_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *n = ui_label(pg, "", F_SMALL, C_TEXT2);
+  (lv_label_set_text)(n, name.c_str());   // Geraetename: nicht uebersetzen
+  lv_label_set_long_mode(n, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(n, 220);
+  lv_obj_set_style_text_align(n, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(n, LV_ALIGN_TOP_MID, 0, 56);
+  s_rc_cap = ui_label(pg, "", F_SMALL, C_TEXT3);
+  lv_obj_set_width(s_rc_cap, 240);
+  lv_obj_set_style_text_align(s_rc_cap, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_rc_cap, LV_ALIGN_CENTER, 0, -62);
+  s_rc_val = ui_label(pg, "", F_BIG, C_TEXT);
+  lv_obj_set_style_text_align(s_rc_val, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_rc_val, LV_ALIGN_CENTER, 0, -20);
+  s_rc_sub = ui_label(pg, "", F_SMALL, C_TEXT2);
+  lv_obj_set_width(s_rc_sub, 250);
+  lv_label_set_long_mode(s_rc_sub, LV_LABEL_LONG_DOT);
+  lv_obj_set_style_text_align(s_rc_sub, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(s_rc_sub, LV_ALIGN_CENTER, 0, 22);
+  s_rc_btn[0] = s_rc_btn[1] = nullptr;
+  if (v.kind == VIC_PSTATION) {
+    lv_label_set_text(s_rc_cap, "Ladezustand");
+    if (v.can_ac) s_rc_btn[0] = rc_button(pg, "AC", 104, 56, 0, F_BODY);
+    if (v.can_dc) s_rc_btn[1] = rc_button(pg, "DC", 104, 56, 1, F_BODY);
+    if (s_rc_btn[0]) lv_obj_align(s_rc_btn[0], LV_ALIGN_CENTER, s_rc_btn[1] ? -58 : 0, 82);
+    if (s_rc_btn[1]) lv_obj_align(s_rc_btn[1], LV_ALIGN_CENTER, s_rc_btn[0] ? 58 : 0, 82);
+  } else {
+    lv_obj_align(rc_button(pg, "−", 60, 60, 10, F_TITLE), LV_ALIGN_CENTER, -118, -20);
+    lv_obj_align(rc_button(pg, "+", 60, 60, 11, F_TITLE), LV_ALIGN_CENTER, 118, -20);
+    s_rc_btn[0] = rc_button(pg, "Einschalten", 190, 54, 0, F_BODY);
+    lv_obj_align(s_rc_btn[0], LV_ALIGN_CENTER, 0, 82);
+    // Wert antippen: bei zwei Zonen die andere Zone
+    lv_obj_add_flag(s_rc_val, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_rc_val, rc_btn_cb, LV_EVENT_CLICKED, (void *)(intptr_t)20);
+  }
+  rc_paint();
+}
+
+// Alle 100 ms: gesammelten Wert senden, nach 30 s ohne Bedienung schliessen
+static void round_ctl_tick() {
+  if (s_rc_key.empty()) return;
+  if (s_rc_want > -1000 && millis() - s_rc_ms > 800) {
+    VictronInfo v;
+    int what, lo, hi;
+    bool ok = false;
+    if (ui_vic_get(s_rc_key, v)) {
+      rc_cur(v, what, lo, hi);
+      ok = v.kind == VIC_HEATER ? bms_heater_cmd(v.mac, what, s_rc_want) : bms_fridge_cmd(v.mac, what, s_rc_want);
+    }
+    if (!ok) ui_toast("Das ging nicht.");
+    s_rc_want = -1000;
+    s_rc_act = millis();
+  }
+  if (s_rc_want <= -1000 && millis() - s_rc_act > 30000) rc_close();
+}
+
+void round_ctl_open(const std::string &key) {
+  VictronInfo v;
+  if (!ui_vic_get(key, v) || !round_ctl_kind(v)) return;
+  s_rc_key = key;
+  s_rc_zone = 0;
+  s_rc_want = -1000;
+  s_rc_act = millis();
+  s_rd = 0;
+  ui_main_rebuild();
+}
+
 // Jede Sekunde: Werte der offenen Datenseite neu; andere Zeilenzahl (z. B. Geraeteart erst jetzt bekannt) = neu aufbauen
 static void round_data_refresh() {
   if (s_rinfo || s_rkey.empty()) return;
+  if (!s_rc_key.empty()) {
+    rc_paint();
+    return;
+  }
   RoundRows rows = round_rows(s_rkey);
   if ((int)rows.size() != s_rd_n) {
     if (s_rd > (int)rows.size()) s_rd = 0;
@@ -961,6 +1213,7 @@ void ui_main_rebuild() {
   lv_obj_clean(s_content);
   s_tiles.clear();
   s_rd_lab = s_rd_val = nullptr;
+  s_rc_val = s_rc_sub = s_rc_cap = s_rc_btn[0] = s_rc_btn[1] = nullptr;
   std::vector<Tile> all;
   for (auto &p : s_lay.pages)
     for (auto &t : p.tiles) all.push_back(t);
@@ -980,7 +1233,11 @@ void ui_main_rebuild() {
     RoundRows rows = round_rows(t.key, &name);
     s_rd_n = (int)rows.size();
     if (s_rd > s_rd_n || s_rd < 0) s_rd = 0;
-    if (s_rd == 0) {
+    if (s_rc_key != t.key) s_rc_key.clear();   // Bedienseite gehoert zu einem anderen Geraet
+    if (!s_rc_key.empty()) {
+      if (name.empty()) name = s_lay.names.count(t.key) ? s_lay.names[t.key] : std::string();
+      round_ctl_build(name);
+    } else if (s_rd == 0) {
       t.x = 0;
       t.y = 0;
       t.w = R_TILE;
@@ -988,11 +1245,12 @@ void ui_main_rebuild() {
       create_tile(t);
       if (!s_tiles.empty()) round_style(s_tiles.back());
       tiles_update(true);
+      for (auto &tu : s_tiles) round_fit(tu);
     } else {
       if (name.empty()) name = s_lay.names.count(t.key) ? s_lay.names[t.key] : std::string();
       round_data(name, rows);
     }
-    if (s_rd_n) round_dots(s_rd_n + 1, s_rd);
+    if (s_rd_n && s_rc_key.empty()) round_dots(s_rd_n + 1, s_rd);
   }
   s_rpos = ui_label(s_content, "", F_SMALL, C_TEXT3);
   char b[24];
@@ -1024,7 +1282,7 @@ static void gesture_cb(lv_event_t *) {
   } else if (d == LV_DIR_TOP || d == LV_DIR_BOTTOM) {
     s_last_gesture = millis();
     lv_indev_wait_release(lv_indev_get_act());
-    if (!s_rd_n) return;
+    if (!s_rd_n || !s_rc_key.empty()) return;
     int n = s_rd_n + 1;
     s_rd = (s_rd + (d == LV_DIR_TOP ? 1 : -1) + n) % n;
     ui_main_rebuild();
@@ -1107,6 +1365,11 @@ static void round_knob() {
     return;
   }
   lv_disp_trig_activity(nullptr);
+  if (!s_rc_key.empty()) {   // Bedienseite: Drehen stellt ein, Druecken schliesst
+    if (n) rc_step(n);
+    if (b) rc_close();
+    return;
+  }
   if (n) {
     set_page(s_ri + n);
 #if UI_LEDRING
@@ -1332,7 +1595,7 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
   if (!found) {
     m.value = "–";
-    m.sub = zbd_is_key(key) ? (zbd_info().present ? tr("nicht verfügbar") : tr("Zigbee-Modul nicht verbunden"))
+    m.sub = zbd_is_key(key) ? (zbd_info().present ? tr("nicht verfügbar") : ZBD_OFFLINE_TXT)
                             : (z2m_count() ? TXT_DEV_MISSING : "…");
     m.dim = true;
     return true;
@@ -1637,6 +1900,7 @@ void ui_loop() {
 #if UI_KNOB
   round_knob();
 #endif
+  round_ctl_tick();
   round_dim_tick();
 #if UI_LEDRING
   round_ring_loop();
@@ -1682,6 +1946,7 @@ void ui_loop() {
     }
     if (panelsat_version() != s_seen_sat) {   // Satelliten (MQTT/UDP/Bluetooth), Hymer Connect
       s_seen_sat = panelsat_version();
+      ui_settings_tick_hobby();
       ui_settings_tick_hymer();                // Status, Kopplung und Werte von Hymer Connect
       tiles_update(false);
       ui_gas_update();
@@ -1701,6 +1966,7 @@ void ui_loop() {
 #if UI_ROUND
     (void)router_wait_changed;
     tiles_update(false);
+    for (auto &tu : s_tiles) round_fit(tu);
     round_data_refresh();
     static uint32_t t_info = 0;   // Info-Seite: Verbindung alle 3 s neu
     if (s_rinfo && now - t_info > 3000) {

@@ -27,6 +27,7 @@
 #include "truma_cpplus.h"
 #include "truma_inetx.h"
 #include "hymer.h"
+#include "hobby.h"
 #include "alde.h"
 #include "sdcard.h"
 #include "splash.h"
@@ -156,6 +157,7 @@ void setup() {
   debug_mark("hymer");
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
+  hobby_begin();       // Hobby (HobbyConnect-Box / CI-BUS) – ab Werk aus, nur Einstellungen laden
   bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
   zbd_begin();         // Zigbee-Funkmodul (ESP32-H2) per UART – nur mit WITH_ZB_DIRECT, sonst leer

@@ -15,6 +15,7 @@
 #include "board.h"
 #include "settings.h"
 #include "hymer.h"
+#include "hobby.h"
 #include "truma.h"
 #include "cerbo.h"
 #include "web_server.h"
@@ -283,6 +284,8 @@ static void run(const char *cmd) {
     log_printf("Zaehle Bluetooth-Geraete 20 s lang ...\n");
     truma_ble_census(20);
 #if WITH_HYMER
+  } else if (!strcmp(cmd, "hobby")) {
+    hobby_print_debug();
   } else if (!strcmp(cmd, "hymer")) {
     hymer_print_debug();
 #endif
@@ -323,8 +326,8 @@ static void run(const char *cmd) {
     delay(200);
     ESP.restart();
   } else if (!strcmp(cmd, "help") || !strcmp(cmd, "?") || !strcmp(cmd, "hilfe")) {
-    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s\n",
-               WITH_HYMER ? ", hymer" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
+    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s%s\n",
+               WITH_HYMER ? ", hymer" : "", WITH_HOBBY ? ", hobby" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
                HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
 #if WITH_ZB_DIRECT
     log_printf("Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb refresh, zb trace, zb diag, zb raw {\"c\":\"info\"}\n");

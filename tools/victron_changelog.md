@@ -2,6 +2,22 @@
 
 Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet – Rückmeldungen willkommen.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- 🏕️ **Hobby** *(Beta, nur Waveshare 7")* – Wohnwagen/Reisemobile von Hobby: über die HobbyConnect-Box per Bluetooth
+  oder per Kabel am LSG (CI-BUS, RS232-Wandler, UART und Pins wählbar), beide ab Werk aus. Lichter schaltbar,
+  Bordbatterie als Batteriewächter-Kachel, Wasser, Temperaturen, Heizung, Kühlschrank, Klima.
+
+**Verbessert**
+- **Sensoren und Heizung/Kühlbox nicht mehr unter „Akkus“:** eigene Karten „Sensoren per Bluetooth“ und „Dieselheizung
+  und Kühlbox per Bluetooth“, jeweils mit eigener Suche (Waveshare 7": Menüpunkt „Sensoren“, Heizung/Kühlbox unter
+  „Gas“). Waveshare 7": bis zu 12 Bluetooth-Geräte statt 6.
+- Gefundene Ruuvi-, SwitchBot-, Simarine-, BTHome-Sensoren, Heizungen und Kühlboxen tragen in der Suchliste jetzt den
+  richtigen Namen (vorher teils „Power Quarry“).
+- Waveshare 7": linke Leiste der Einstellungen scrollt (feste Zeilenhöhe).
+- README: Verdrahtung des RS232-TTL-Wandlers für den Hobby-CI-BUS ergänzt.
+
 ## 0.2.4 – 2026-11-19
 
 **Neu**
