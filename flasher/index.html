@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simple Open Camper – Flasher</title>
+<!-- ESP Web Tools (Apache-2.0): Flashen per USB direkt aus Chrome/Edge -->
+<script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+<style>
+:root{--bg:#0F1317;--card:#181D22;--line:#272E36;--tx:#E8ECEF;--tx2:#9AA5B1;--tx3:#6B7682;--ac:#F3A43B;--acd:#DD7B1F;--ink:#3A2204;--warn:#F3A43B;--err:#FF6A5C}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--tx2);margin:0 0 18px}
+.note{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--tx2);font-size:14px;margin:0 0 22px}
+.note b{color:var(--tx)}
+.tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--line);background:var(--card);color:var(--tx2);font:inherit;font-weight:600;padding:9px 18px;border-radius:999px;cursor:pointer}
+.tabs button.act{background:var(--ac);border-color:var(--ac);color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.card h2{font-size:17px;margin:0}
+.card .d{color:var(--tx2);font-size:13px;margin:-4px 0 0}
+.chip{display:inline-block;font-size:12px;color:var(--tx2);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:middle}
+.src{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--tx2)}
+.src label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.src b{color:var(--tx)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+.btn{border:1px solid var(--line);background:#20262D;color:var(--tx);font:inherit;font-weight:600;font-size:14px;padding:9px 14px;border-radius:10px;cursor:pointer}
+.btn.p{background:var(--ac);border-color:var(--ac);color:var(--ink)}
+.btn:hover{filter:brightness(1.1)}
+.none{color:var(--tx3);font-size:13px}
+.hint{color:var(--tx3);font-size:12px;margin:0}
+.err{color:var(--err)}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Simple Open Camper – Flasher</h1>
+  <p class="sub">Firmware per USB direkt aus dem Browser aufspielen (Chrome oder Edge am PC).</p>
+  <div class="note">
+    <b>Komplett</b> = Gerät neu einrichten: Bootloader, Partitionen und Firmware – <b>alle Einstellungen gehen verloren</b>
+    (WLAN, Passwörter, gekoppelte Geräte). <b>Nur Firmware</b> = Update: Einstellungen und Kacheln bleiben.
+    Für eingerichtete Geräte geht ein Update auch ohne Kabel über deren Weboberfläche.<br>
+    Gerät per USB anschließen, Knopf drücken, Anschluss wählen. Hängt es bei „Connecting…“: BOOT-Taste halten und kurz RESET drücken.
+  </div>
+  <div class="tabs" id="tabs">
+    <button data-sec="panel" class="act">Panels</button>
+    <button data-sec="sat">Satelliten und Zubehör</button>
+  </div>
+  <div class="grid" id="grid"><p class="none">Lade Geräteliste …</p></div>
+</div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+let DEV = [], SEC = 'panel';
+const pick = {};   // Geraet -> gewaehlte Quelle
+try { SEC = localStorage.getItem('socflash.sec') || 'panel'; } catch (e) {}
+
+function btn(manifest, label, primary) {
+  if (!manifest) return '';
+  return `<esp-web-install-button manifest="gen/${esc(manifest)}">
+    <button slot="activate" class="btn ${primary ? 'p' : ''}">${esc(label)}</button>
+    <span slot="unsupported" class="hint err">Dieser Browser kann kein USB-Flashen – bitte Chrome oder Edge am PC.</span>
+    <span slot="not-allowed" class="hint err">Nur über http://localhost bzw. https möglich (Startskript flasher.bat benutzen).</span>
+  </esp-web-install-button>`;
+}
+
+function render() {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('act', b.dataset.sec === SEC));
+  const list = DEV.filter(d => d.sec === SEC);
+  $('#grid').innerHTML = list.map(d => {
+    if (!d.src.length) return `<div class="card"><h2>${esc(d.name)}<span class="chip">${esc(d.chip)}</span></h2><p class="d">${esc(d.desc)}</p>
+      <p class="none">Noch keine Firmware-Datei – im GitHub-Release fehlt sie und hier wurde sie nicht gebaut.</p></div>`;
+    // Vorgabe: lokal gebaut, wenn vorhanden (neuester Stand), sonst Release
+    const key = pick[d.id] || (d.src.find(s => s.key === 'lokal') || d.src[0]).key;
+    const s = d.src.find(x => x.key === key) || d.src[0];
+    const srcs = d.src.length > 1 ? `<div class="src">${d.src.map(x => `<label><input type="radio" name="src-${esc(d.id)}" value="${esc(x.key)}" ${x.key === s.key ? 'checked' : ''}>
+        ${esc(x.label)} <b>${esc(x.version)}</b>${x.when ? ' · ' + esc(x.when) : ''}</label>`).join('')}</div>`
+      : `<div class="src"><span>${esc(s.label)} <b>${esc(s.version)}</b>${s.when ? ' · ' + esc(s.when) : ''}</span></div>`;
+    return `<div class="card" data-id="${esc(d.id)}"><h2>${esc(d.name)}<span class="chip">${esc(d.chip)}</span></h2><p class="d">${esc(d.desc)}</p>
+      ${srcs}
+      <div class="btns">${btn(s.update, 'Nur Firmware (Update)', true)}${btn(s.komplett, 'Komplett (neu einrichten)', !s.update)}</div></div>`;
+  }).join('') || '<p class="none">Keine Geräte in diesem Bereich.</p>';
+}
+
+$('#tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-sec]');
+  if (!b) return;
+  SEC = b.dataset.sec;
+  try { localStorage.setItem('socflash.sec', SEC); } catch (er) {}
+  render();
+});
+$('#grid').addEventListener('change', e => {
+  const r = e.target.closest('input[type=radio]');
+  if (!r) return;
+  pick[r.closest('.card').dataset.id] = r.value;
+  render();
+});
+fetch('gen/geraete.json', {cache: 'no-store'}).then(r => r.json()).then(j => { DEV = j.devices || []; render(); })
+  .catch(() => { $('#grid').innerHTML = '<p class="none err">Geräteliste fehlt – bitte über das Startskript <b>flasher.bat</b> öffnen.</p>'; });
+</script>
+</body>
+</html>

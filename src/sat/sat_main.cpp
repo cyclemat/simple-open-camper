@@ -26,6 +26,7 @@
 #include "../truma.h"
 #include "../mopeka.h"
 #include "../victron.h"
+#include "../dbglog.h"
 
 static const uint32_t AP_AFTER_MS = 30000;    // so lange ohne WLAN: Einrichtungs-WLAN dazuschalten
 static const uint32_t AP_OFF_MS = 120000;     // so lange verbunden und niemand im Einrichtungs-WLAN: abschalten
@@ -90,6 +91,12 @@ void setup() {
     sat_config_save();
   }
   log_i("PanelSat %s (%s) startet", SAT_FW_VERSION, g_sat.id.c_str());
+  // Debug-Log (ab Werk aus, Weboberflaeche: Fehlersuche): mit PSRAM 32 KB, sonst 8 KB; CYD mit Kartenslot: Dateien
+#if DBGLOG_CYD_SD
+  dbglog_begin(psramFound() ? 32 * 1024 : 8 * 1024, dbglog_cyd_sd);
+#else
+  dbglog_begin(psramFound() ? 32 * 1024 : 8 * 1024);
+#endif
 #if SAT_BLE_SENS
   victron_begin();
   mopeka_begin();

@@ -202,7 +202,7 @@ void ui_detail_update() {
 void ui_detail_open(const std::string &key) {
   ControlView v;
   if (!z2m_get(key, v)) {
-    ui_toast(TXT_DEV_GONE);
+    ui_toast(ui_dev_gone_text(key));
     return;
   }
   if (s_d) lv_obj_del(s_d->overlay);

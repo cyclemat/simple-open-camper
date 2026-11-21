@@ -119,6 +119,9 @@ float board_battery_voltage() {
   static uint8_t good = 0;
   if (!init) {
     init = true;
+    // erst einmal lesen (richtet den Pin als ADC ein), dann daempfen – andersrum meldet Arduino "Pin is not configured
+    // as analog channel" und die Einstellung greift nicht
+    (void)analogReadMilliVolts(P4_VBAT_GPIO);
     analogSetPinAttenuation(P4_VBAT_GPIO, ADC_11db);   // bis ~3,1 V am Pin (4,2 V Akku -> 2,1 V)
   }
   uint32_t mn = UINT32_MAX, mx = 0, sum = 0;

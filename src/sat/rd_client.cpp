@@ -358,6 +358,97 @@ std::string rd_panel_ip() {
 }
 bool rd_panel_seen() { return s_panel_ms && millis() - s_panel_ms < 60000; }
 
+namespace {
+// Lesen mit gemeinsamer Frist (WiFiClient puffert selbst)
+struct HttpIn {
+  WiFiClient &c;
+  uint32_t until;
+  bool wait() {
+    while (!c.available()) {
+      if (!c.connected() || (int32_t)(millis() - until) > 0) return false;
+      delay(5);
+    }
+    return true;
+  }
+  bool line(std::string &s) {
+    s.clear();
+    for (;;) {
+      if (!wait()) return false;
+      int ch = c.read();
+      if (ch < 0) return false;
+      if (ch == '\n') {
+        if (!s.empty() && s.back() == '\r') s.pop_back();
+        return true;
+      }
+      if (s.size() < 512) s += (char)ch;
+    }
+  }
+  // n Bytes anhaengen (n = SIZE_MAX: bis die Gegenstelle schliesst)
+  bool take(std::string &out, size_t n, size_t cap) {
+    uint8_t b[256];
+    while (n) {
+      if (!wait()) return n == SIZE_MAX;
+      size_t k = std::min<size_t>(std::min<size_t>(n, sizeof b), (size_t)c.available());
+      int r = c.read(b, k);
+      if (r <= 0) return false;
+      if (out.size() + r > cap) return false;
+      out.append((const char *)b, r);
+      if (n != SIZE_MAX) n -= r;
+    }
+    return true;
+  }
+};
+}  // namespace
+
+int rd_http(const std::string &path, const std::string &sig, const std::string &body, std::string &out) {
+  const size_t CAP = 64 * 1024;
+  out.clear();
+  std::string ip = rd_panel_ip();
+  if (ip.empty()) return -1;
+  WiFiClient c;
+  if (!c.connect(ip.c_str(), 80, 3000)) return -1;
+  std::string rq = (body.empty() ? "GET " : "POST ") + path + " HTTP/1.1\r\nHost: " + ip +
+                   "\r\nConnection: close\r\nX-SOC-Sig: " + sig + "\r\n";
+  if (!body.empty()) rq += "Content-Type: application/json\r\nContent-Length: " + std::to_string(body.size()) + "\r\n";
+  rq += "\r\n";
+  rq += body;
+  if (c.write((const uint8_t *)rq.data(), rq.size()) != rq.size()) {
+    c.stop();
+    return -1;
+  }
+  HttpIn in{c, millis() + 6000};
+  std::string ln;
+  int code = -2;
+  if (!in.line(ln) || ln.compare(0, 5, "HTTP/") != 0) {
+    c.stop();
+    return -2;
+  }
+  size_t sp = ln.find(' ');
+  if (sp != std::string::npos) code = atoi(ln.c_str() + sp + 1);
+  long len = -1;
+  bool chunked = false;
+  while (in.line(ln) && !ln.empty()) {
+    for (auto &ch : ln) ch = (ch >= 'A' && ch <= 'Z') ? ch + 32 : ch;   // Kopfnamen ohne Gross/klein
+    if (ln.compare(0, 15, "content-length:") == 0) len = atol(ln.c_str() + 15);
+    else if (ln.compare(0, 18, "transfer-encoding:") == 0 && ln.find("chunked") != std::string::npos) chunked = true;
+  }
+  bool ok = true;
+  if (chunked) {
+    for (;;) {
+      if (!in.line(ln)) { ok = false; break; }
+      size_t n = strtoul(ln.c_str(), nullptr, 16);
+      if (!n) break;
+      if (!in.take(out, n, CAP) || !in.line(ln)) { ok = false; break; }
+    }
+  } else if (len >= 0) {
+    ok = in.take(out, (size_t)len, CAP);
+  } else {
+    ok = in.take(out, SIZE_MAX, CAP);
+  }
+  c.stop();
+  return ok ? code : -2;
+}
+
 std::string rd_status() {
   Lock l;
   if (!WiFi.isConnected()) return "kein WLAN";

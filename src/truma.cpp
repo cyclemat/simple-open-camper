@@ -7,6 +7,7 @@
 #include "truma_inetx.h"
 #include "hymer.h"
 #include "hobby.h"
+#include "shelly_ble.h"
 #include "web_server.h"
 // Satelliten haben keinen Webserver: dort gilt dieser Ersatz (das Panel nimmt den aus webserver.cpp)
 __attribute__((weak)) bool web_busy() { return false; }
@@ -406,7 +407,8 @@ class ScanCB : public NimBLEScanCallbacks {
 #endif
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX) && inetx_on_adv(dev)) return;
     if (hymer_enabled() && ble_proto_on(BLE_P_HYMER) && hymer_on_adv(dev)) return;
-    if (hobby_ble_needed() && hobby_on_adv(dev)) return;   // HobbyConnect-Box
+    if (hobby_ble_needed() && hobby_on_adv(dev)) return;
+  if (shb_ble_needed() && shb_on_adv(dev)) return;   // HobbyConnect-Box
     bool truma = false;
     std::string mac = lower(dev->getAddress().toString());
     if (dev->haveManufacturerData()) {
@@ -512,7 +514,7 @@ static bool ble_needed_soon() {
          (ble_proto_on(BLE_P_MOPEKA) && mopeka_has_devices()) || (ble_proto_on(BLE_P_BMS) && bms_has_devices()) ||
          (ble_proto_on(BLE_P_TPMS) && tpms_has_devices()) ||
          (inetx_enabled() && ble_proto_on(BLE_P_INETX)) || (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) ||
-         ble_proto_on(BLE_P_SAT) || hobby_ble_needed();
+         ble_proto_on(BLE_P_SAT) || hobby_ble_needed() || shb_ble_needed();
 }
 
 static void worker(void *) {
@@ -611,6 +613,16 @@ static void worker(void *) {
       }
     }
     hobby_ble_loop();
+    // Shelly per Bluetooth: kurz verbinden, Befehle senden, Stand lesen, trennen (shelly_ble.cpp)
+    if (shb_ble_needed()) {
+      shb_scan_wanted(want_passive, want_active);
+      if (shb_want_connect()) {
+        ble_init();
+        scan_stop();
+        shb_connect_now();
+        scanning = s_ble_ready && NimBLEDevice::getScan()->isScanning();
+      }
+    }
     // Satellit einrichten (Knopf am Panel): verbinden und WLAN-Daten uebertragen, solange der Scan pausiert
     if (satpair_want_connect()) {
       ble_init();

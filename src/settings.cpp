@@ -1,5 +1,6 @@
 #include "settings.h"
 #include "app_config.h"
+#include "mqtt_broker.h"   // WITH_BROKER
 #include <Preferences.h>
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
@@ -162,6 +163,14 @@ void settings_save() {
 }
 
 bool settings_mqtt_auto_active() {
+#if WITH_BROKER
+  if (g_settings.broker_on) return false;   // eingebauter Broker: nicht im Panel-WLAN suchen, das Panel ist der Broker
+#endif
   return (g_settings.net_mode == NET_AP || g_settings.net_mode == NET_APSTA) && g_settings.mqtt_auto;
 }
-bool settings_mqtt_configured() { return !g_settings.mqtt_host.isEmpty() || settings_mqtt_auto_active(); }
+bool settings_mqtt_configured() {
+#if WITH_BROKER
+  if (g_settings.broker_on) return true;    // verbindet sich mit sich selbst (127.0.0.1), keine Adresse noetig
+#endif
+  return !g_settings.mqtt_host.isEmpty() || settings_mqtt_auto_active();
+}

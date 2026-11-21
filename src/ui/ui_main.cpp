@@ -24,6 +24,11 @@
 #include "../cerbo.h"
 #include "../bms.h"   // Victron-Edition: automatische Kacheln auch fuer Akkus
 #include "../zb_direct.h"
+#include "../shelly.h"
+#include "../wled.h"
+#include "../shelly_ble.h"
+#include "../tailscale.h"
+#include "../mqtt_broker.h"   // WITH_BROKER
 // Victron-Edition: kein Zigbee-Text im Programm (Funktion dort nicht eingebaut)
 #if WITH_ZB_DIRECT
 #define ZBD_OFFLINE_TXT tr("Zigbee-Modul nicht verbunden")
@@ -123,9 +128,7 @@ static void tile_paint(TileUi &t, bool force) {
   lv_obj_set_style_outline_width(o, (found && v.pending) ? 2 : 0, 0);
 
   char sub[48];
-  if (!found && zbd_is_key(t.key))   // Geraet am eigenen Zigbee-Modul (H2), nicht Zigbee2MQTT
-    snprintf(sub, sizeof(sub), "%s", zbd_info().present ? tr("nicht verfügbar") : ZBD_OFFLINE_TXT);
-  else if (!found) snprintf(sub, sizeof(sub), "%s", z2m_count() ? TXT_DEV_MISSING : "…");
+  if (!found) snprintf(sub, sizeof(sub), "%s", ui_dev_missing_text(t.key));
   else if (!v.online) snprintf(sub, sizeof(sub), "nicht erreichbar");
   else if (!v.known) snprintf(sub, sizeof(sub), "…");
   else if (!v.on) snprintf(sub, sizeof(sub), v.info.empty() ? "%s" : "%s  ·  %s", tr("Aus"), v.info.c_str());
@@ -502,7 +505,7 @@ static void tile_event(lv_event_t *e) {
     if (millis() - s_last_gesture < 500) return;
     ControlView v;
     if (!z2m_get(key, v)) {
-      ui_toast(TXT_DEV_GONE);
+      ui_toast(ui_dev_gone_text(key));
       return;
     }
     if (!zbd_is_key(key) && !z2m_connected()) {
@@ -666,9 +669,15 @@ static void build_onboarding(int mode) {
       break;
     case OB_MQTT:
       icon = ICON_LINK;
-      title = "MQTT-Broker eintragen";
+      title = "Kein MQTT-Broker eingerichtet";
 #if !SOC_VICTRON_EDITION
-      text = "Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.";
+#if WITH_BROKER
+      text = "MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse "
+             "eintragen, den eingebauten Broker einschalten oder MQTT ausschalten, wenn du es nicht brauchst.";
+#else
+      text = "MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse "
+             "eintragen oder MQTT ausschalten, wenn du es nicht brauchst.";
+#endif
 #endif
       break;
     case OB_ROUTER_WAIT:
@@ -753,6 +762,77 @@ static void build_tabs() {
       }
     }
   }
+}
+
+// Alle Werte eines Geraets als Zeilen (wie das Detailfenster der grossen Panels): Datenseiten des runden Panels
+// und Detail-Fenster der Live-Ansicht (/api/live?key=…). Nur im UI-Task.
+typedef std::vector<std::pair<std::string, std::string>> RoundRows;
+static std::string round_onoff(bool on) { return tr(on ? "an" : "aus"); }
+
+RoundRows ui_tile_rows(const std::string &key, std::string *name) {
+  RoundRows r;
+  std::string nm;
+#if WITH_BMS
+  BmsInfo b;
+  if (bms_get(key, b)) {
+    VictronInfo v;
+    if (name && ui_vic_get(key, v)) *name = ui_vic_label(s_lay, v);
+    RoundRows r = bms_rows(b);
+    for (auto &c : bms_cell_rows(b)) r.push_back(c);   // je Zelle eine Datenseite
+    return r;
+  }
+#endif
+  VictronInfo v;
+  if (victron_is_key(key) && ui_vic_get(key, v)) {
+    if (name) *name = ui_vic_label(s_lay, v);
+    return ui_vic_rows(v);
+  }
+  GasView g;
+  if (ui_gas_is_key(key) && ui_gas_get(key, g)) {
+    if (name) *name = ui_gas_label(s_lay, g);
+    if (!g.has) {
+      r.push_back({tr("Zustand"), g.status.empty() ? std::string("–") : g.status});
+      return r;
+    }
+    char b[48];
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.percent);
+    r.push_back({tr("Füllstand"), b});
+    if (!g.amount.empty()) r.push_back({tr("Inhalt"), g.amount});
+    if (g.level_mm >= 0) {
+      snprintf(b, sizeof(b), "%d\xE2\x80\xAFmm", g.level_mm);
+      r.push_back({tr("Füllhöhe"), b});
+    }
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF°C", g.temperature);
+    r.push_back({tr("Temperatur"), b});
+    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.battery);
+    r.push_back({tr("Sensor-Batterie"), b});
+    snprintf(b, sizeof(b), tr("%d von 3"), g.quality);
+    r.push_back({tr("Messqualität"), b});
+    r.push_back({tr("Letzte Messung"), ui_age_text(g.age_s)});
+    return r;
+  }
+  TrumaHeatInfo h;
+  if (truma_heat_is_key(key) && ui_heat_get(key, h)) {
+    if (name) *name = ui_heat_label(s_lay, h);
+    r.push_back({tr("Raum"), ui_num(h.room_actual, 1, "°C")});
+    r.push_back({tr("Solltemperatur"), ui_num(h.room_target, 1, "°C")});
+    r.push_back({tr(TXT_HEAT), round_onoff(h.heat_on)});
+    if (!isnan(h.water_actual)) r.push_back({tr("Boiler"), ui_num(h.water_actual, 0, "°C")});
+    if (!isnan(h.outdoor)) r.push_back({tr("Außen"), ui_num(h.outdoor, 1, "°C")});
+    if (!isnan(h.battery_v)) r.push_back({tr("Batterie"), ui_num(h.battery_v, 1, "V")});
+    if (h.error) r.push_back({tr("Fehler"), std::to_string(h.error)});
+    r.push_back({tr("Verbindung"), h.connected ? h.source : (h.status.empty() ? std::string("–") : h.status)});
+    return r;
+  }
+  ControlView c;
+  if (z2m_get(key, c)) {
+    if (name) *name = layout_label(s_lay, c);
+    r.push_back({tr("Zustand"), !c.online ? std::string(tr("nicht erreichbar")) : round_onoff(c.on)});
+    if (c.has_bri && c.bri_pct() >= 0) r.push_back({tr("Helligkeit"), std::to_string(c.bri_pct()) + "\xE2\x80\xAF%"});
+    if (c.has_ct && c.ct > 0) r.push_back({tr("Farbtemperatur"), std::to_string(1000000 / c.ct) + "\xE2\x80\xAFK"});
+    if (!c.model.empty()) r.push_back({tr("Modell"), c.vendor.empty() ? c.model : c.vendor + " " + c.model});
+  }
+  return r;
 }
 
 #if UI_ROUND
@@ -841,86 +921,30 @@ static void round_info() {
     round_label(c, "Einrichten im Browser:", F_SMALL, C_TEXT2, 176);
     round_label(c, url.c_str(), F_TITLE, C_AMBER, 200, 300);
   }
+#if WITH_TAILSCALE
+  {
+    TsStatus ts = ts_status();
+    if (ts.on) {
+      std::string t = ts.ip.empty() ? std::string("Tailscale: ") + tr(ts.state.c_str()) : "Tailscale: " + ts.ip;
+      round_label(c, t.c_str(), F_SMALL, ts.ip.empty() ? C_TEXT3 : C_TEXT2, 236, 260);
+    }
+  }
+  round_label(c, z2m_connected() ? "MQTT verbunden" : g_settings.mqtt_on ? "MQTT nicht verbunden" : "MQTT aus", F_SMALL,
+              z2m_connected() ? C_TEXT2 : C_TEXT3, 262);
+#else
   round_label(c, z2m_connected() ? "MQTT verbunden" : g_settings.mqtt_on ? "MQTT nicht verbunden" : "MQTT aus", F_SMALL,
               z2m_connected() ? C_TEXT2 : C_TEXT3, 250);
+#endif
 }
 
 // ---- Datenseiten: nach oben/unten wischen zeigt die Werte des aktuellen Geraets einzeln und gross
 // (dieselben Zeilen wie im Detailfenster der grossen Panels). Seite 0 = die Kachel selbst.
-typedef std::vector<std::pair<std::string, std::string>> RoundRows;
 static int s_rd = 0;                   // aktuelle Datenseite (0 = Kachel)
 static int s_rd_n = 0;                 // Anzahl Datenseiten des Geraets beim Aufbau
 static bool s_rinfo = false;           // Info-Seite wird gezeigt
 static std::string s_rkey;             // Geraet auf dem Bildschirm
 static lv_obj_t *s_rd_lab = nullptr, *s_rd_val = nullptr;
 
-static std::string round_onoff(bool on) { return tr(on ? "an" : "aus"); }
-
-static RoundRows round_rows(const std::string &key, std::string *name = nullptr) {
-  RoundRows r;
-  std::string nm;
-#if WITH_BMS
-  BmsInfo b;
-  if (bms_get(key, b)) {
-    VictronInfo v;
-    if (name && ui_vic_get(key, v)) *name = ui_vic_label(s_lay, v);
-    RoundRows r = bms_rows(b);
-    for (auto &c : bms_cell_rows(b)) r.push_back(c);   // je Zelle eine Datenseite
-    return r;
-  }
-#endif
-  VictronInfo v;
-  if (victron_is_key(key) && ui_vic_get(key, v)) {
-    if (name) *name = ui_vic_label(s_lay, v);
-    return ui_vic_rows(v);
-  }
-  GasView g;
-  if (ui_gas_is_key(key) && ui_gas_get(key, g)) {
-    if (name) *name = ui_gas_label(s_lay, g);
-    if (!g.has) {
-      r.push_back({tr("Zustand"), g.status.empty() ? std::string("–") : g.status});
-      return r;
-    }
-    char b[48];
-    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.percent);
-    r.push_back({tr("Füllstand"), b});
-    if (!g.amount.empty()) r.push_back({tr("Inhalt"), g.amount});
-    if (g.level_mm >= 0) {
-      snprintf(b, sizeof(b), "%d\xE2\x80\xAFmm", g.level_mm);
-      r.push_back({tr("Füllhöhe"), b});
-    }
-    snprintf(b, sizeof(b), "%d\xE2\x80\xAF°C", g.temperature);
-    r.push_back({tr("Temperatur"), b});
-    snprintf(b, sizeof(b), "%d\xE2\x80\xAF%%", g.battery);
-    r.push_back({tr("Sensor-Batterie"), b});
-    snprintf(b, sizeof(b), tr("%d von 3"), g.quality);
-    r.push_back({tr("Messqualität"), b});
-    r.push_back({tr("Letzte Messung"), ui_age_text(g.age_s)});
-    return r;
-  }
-  TrumaHeatInfo h;
-  if (truma_heat_is_key(key) && ui_heat_get(key, h)) {
-    if (name) *name = ui_heat_label(s_lay, h);
-    r.push_back({tr("Raum"), ui_num(h.room_actual, 1, "°C")});
-    r.push_back({tr("Solltemperatur"), ui_num(h.room_target, 1, "°C")});
-    r.push_back({tr(TXT_HEAT), round_onoff(h.heat_on)});
-    if (!isnan(h.water_actual)) r.push_back({tr("Boiler"), ui_num(h.water_actual, 0, "°C")});
-    if (!isnan(h.outdoor)) r.push_back({tr("Außen"), ui_num(h.outdoor, 1, "°C")});
-    if (!isnan(h.battery_v)) r.push_back({tr("Batterie"), ui_num(h.battery_v, 1, "V")});
-    if (h.error) r.push_back({tr("Fehler"), std::to_string(h.error)});
-    r.push_back({tr("Verbindung"), h.connected ? h.source : (h.status.empty() ? std::string("–") : h.status)});
-    return r;
-  }
-  ControlView c;
-  if (z2m_get(key, c)) {
-    if (name) *name = layout_label(s_lay, c);
-    r.push_back({tr("Zustand"), !c.online ? std::string(tr("nicht erreichbar")) : round_onoff(c.on)});
-    if (c.has_bri && c.bri_pct() >= 0) r.push_back({tr("Helligkeit"), std::to_string(c.bri_pct()) + "\xE2\x80\xAF%"});
-    if (c.has_ct && c.ct > 0) r.push_back({tr("Farbtemperatur"), std::to_string(1000000 / c.ct) + "\xE2\x80\xAFK"});
-    if (!c.model.empty()) r.push_back({tr("Modell"), c.vendor.empty() ? c.model : c.vendor + " " + c.model});
-  }
-  return r;
-}
 
 // Punkte am rechten Rand: wo man in den Datenseiten steht (oben = Kachel)
 static void round_dots(int count, int cur) {
@@ -1196,7 +1220,7 @@ static void round_data_refresh() {
     rc_paint();
     return;
   }
-  RoundRows rows = round_rows(s_rkey);
+  RoundRows rows = ui_tile_rows(s_rkey);
   if ((int)rows.size() != s_rd_n) {
     if (s_rd > (int)rows.size()) s_rd = 0;
     ui_main_rebuild();
@@ -1230,7 +1254,7 @@ void ui_main_rebuild() {
     Tile t = all[s_ri];
     s_rkey = t.key;
     std::string name;
-    RoundRows rows = round_rows(t.key, &name);
+    RoundRows rows = ui_tile_rows(t.key, &name);
     s_rd_n = (int)rows.size();
     if (s_rd > s_rd_n || s_rd < 0) s_rd = 0;
     if (s_rc_key != t.key) s_rc_key.clear();   // Bedienseite gehoert zu einem anderen Geraet
@@ -1595,8 +1619,7 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
   if (!found) {
     m.value = "–";
-    m.sub = zbd_is_key(key) ? (zbd_info().present ? tr("nicht verfügbar") : ZBD_OFFLINE_TXT)
-                            : (z2m_count() ? TXT_DEV_MISSING : "…");
+    m.sub = ui_dev_missing_text(key);
     m.dim = true;
     return true;
   }
@@ -1888,6 +1911,7 @@ static void zb_auto_tiles() {
 #endif
 
 void ui_loop() {
+  ui_live_tick();   // Schaltbefehle der Live-Ansicht (Browser/App)
 #if WITH_ZB_DIRECT
   zb_auto_tiles();
 #endif
@@ -1979,4 +2003,23 @@ void ui_loop() {
 #endif
     ui_settings_tick();
   }
+}
+
+// ---------------------------------------------------------------- fehlende Geraete
+// Nur Geraete, die wirklich aus Zigbee2MQTT kommen, heissen "nicht in Zigbee2MQTT". Eingebautes Zigbee (H2-Modul),
+// Shelly (MQTT), Shelly per Bluetooth und WLED bekommen eigene Texte.
+static bool from_z2m(const std::string &key) {
+  return !zbd_is_key(key) && !shelly_is_key(key) && !shb_is_key(key) && !wled_is_key(key);
+}
+
+const char *ui_dev_missing_text(const std::string &key) {
+  if (zbd_is_key(key)) return zbd_info().present ? tr("nicht verfügbar") : ZBD_OFFLINE_TXT;
+  if (from_z2m(key)) return z2m_count() ? TXT_DEV_MISSING : "…";
+  return tr("nicht verfügbar");
+}
+
+const char *ui_dev_gone_text(const std::string &key) {
+  if (from_z2m(key)) return TXT_DEV_GONE;
+  if (zbd_is_key(key) && !zbd_info().present) return ZBD_OFFLINE_TXT;
+  return tr("Dieses Gerät ist gerade nicht verfügbar.");
 }

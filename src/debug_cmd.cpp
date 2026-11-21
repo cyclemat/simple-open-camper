@@ -211,7 +211,7 @@ static void print_info() {
 #else
              ble_proto_on(BLE_P_SAT) ? " Satelliten" : "", ble_proto_on(BLE_P_HYMER) ? " Hymer" : "");
 #endif
-  if (hymer_enabled()) log_printf("Hymer: %s\n", hymer_status().c_str());
+  if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) log_printf("Hymer: %s\n", hymer_status().c_str());   // nur wenn eingeschaltet
   if (cerbo_configured()) log_printf("Cerbo GX: %s – %s\n", cerbo_status().c_str(), cerbo_debug_text().c_str());
 #if HAS_C6
   {

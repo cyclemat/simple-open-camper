@@ -2,6 +2,13 @@
 
 Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet – Rückmeldungen willkommen.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- 🐞 **Debug-Log (Fehlersuche)** – Karte „Fehlersuche (Debug-Log)“ in der Weboberfläche, ab Werk aus: alle Meldungen
+  mit Uhrzeit, alle 60 s Speicher und WLAN, Grund des letzten Neustarts. Mit microSD-Karte im CYD als Dateien
+  (Ordner `logs`), sonst die letzten 8 KB im Arbeitsspeicher; ansehen, herunterladen, löschen im Browser.
+
 ## 0.2.5 – 2026-11-20
 
 **Neu**

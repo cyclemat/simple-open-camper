@@ -30,6 +30,7 @@
 #include "../bms.h"
 
 #include "../soc_version.h"
+#include "../dbglog.h"
 #define VD_FW_VERSION SOC_VERSION   // gemeinsame Versionsnummer (soc_version.h)
 
 static const uint32_t AP_AFTER_MS = 30000;   // so lange ohne WLAN: Einrichtungs-WLAN dazuschalten
@@ -812,6 +813,12 @@ void setup() {
            (unsigned)(mac >> 40) & 0xFF);
   s_id = id;
   load_cfg();
+  // Debug-Log (ab Werk aus, Weboberflaeche: Fehlersuche): 8 KB im RAM, Dateien auf der microSD-Karte des CYD
+#if DBGLOG_CYD_SD
+  dbglog_begin(8 * 1024, dbglog_cyd_sd);
+#else
+  dbglog_begin(8 * 1024);
+#endif
   devsetup::Boot boot = devsetup::boot_check();   // zuerst: Mehrfach-Reset erkennen
   if (boot.factory) {   // 5x: WLAN-Daten loeschen (Passwort setzt devsetup zurueck)
     s_cfg.ssid = "";

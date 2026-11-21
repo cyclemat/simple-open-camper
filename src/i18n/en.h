@@ -296,6 +296,24 @@
 {"Unbekannt", "Unknown"},  // src/cerbo.cpp:1067
 {"Landstrom", "Shore power"},  // src/cerbo.cpp:1070
 {"nicht verbunden", "not connected"},  // src/cerbo.cpp:1071
+{"+%lus ", ""},  // src/dbglog.cpp:111
+{"Einschalten", "Switch on"},  // src/dbglog.cpp:118
+{"Neustart per Software", ""},  // src/dbglog.cpp:119
+{"ABSTURZ (Panic)", ""},  // src/dbglog.cpp:120
+{"WATCHDOG (Interrupt)", ""},  // src/dbglog.cpp:121
+{"WATCHDOG (Task)", ""},  // src/dbglog.cpp:122
+{"SPANNUNGSEINBRUCH (Brownout)", ""},  // src/dbglog.cpp:124
+{"Aufwachen", ""},  // src/dbglog.cpp:125
+{"Reset-Taste", ""},  // src/dbglog.cpp:126
+{"Zustand: Laufzeit %luh%02lum, intern frei %u KB (min %u, Block %u)", ""},  // src/dbglog.cpp:135
+{", PSRAM %u KB", ""},  // src/dbglog.cpp:142
+{", WLAN %d dBm %s", ""},  // src/dbglog.cpp:145
+{", WLAN getrennt", ""},  // src/dbglog.cpp:147
+{", %lu Zeichen verloren", ""},  // src/dbglog.cpp:149
+{"Uhrzeit unbekannt", ""},  // src/dbglog.cpp:213
+{"===== Debug-Log an – Simple Open Camper %s, %s, letzter Start: %s, Laufzeit %lu s =====", ""},  // src/dbglog.cpp:219
+{"Debug-Log eingeschaltet", ""},  // src/dbglog.cpp:386
+{"Debug-Log ausgeschaltet", ""},  // src/dbglog.cpp:388
 {"Interner RAM beim Start (frei nach dem Schritt, Verbrauch des Schritts, Tiefstwert bis dahin):", ""},  // src/debug_cmd.cpp:56
 {"  %6lu ms  %-14s frei %4u KB  Verbrauch %6ld B  Tiefstwert %4u KB  PSRAM-Tiefstwert %5u KB", ""},  // src/debug_cmd.cpp:61
 {"  jetzt              frei %4u KB, Tiefstwert %u KB", ""},  // src/debug_cmd.cpp:66
@@ -310,7 +328,6 @@
 {"Funkchip-Update fertig – Panel startet neu.", ""},  // src/debug_cmd.cpp:165
 {"Funkchip-Update fehlgeschlagen.", ""},  // src/debug_cmd.cpp:165
 {"  %-8s frei %5u KB, Tiefstwert %5u KB, groesster Block %5u KB, gesamt %5u KB", ""},  // src/debug_cmd.cpp:175
-{"Einschalten", "Switch on"},  // src/debug_cmd.cpp:182
 {"Neustart (Software)", ""},  // src/debug_cmd.cpp:183
 {"Absturz", ""},  // src/debug_cmd.cpp:184
 {"Watchdog", ""},  // src/debug_cmd.cpp:187
@@ -358,17 +375,24 @@
 {", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)", ""},  // src/debug_cmd.cpp:331
 {"Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb refresh, zb trace, zb diag, zb raw {\"c\":\"info\"}", ""},  // src/debug_cmd.cpp:333
 {"Unbekannter Befehl \"%s\" - help zeigt die Befehle", ""},  // src/debug_cmd.cpp:336
-{"Ungueltiges JSON", "Invalid JSON"},  // src/devsetup.cpp:71
-{"Set-Cookie", ""},  // src/devsetup.cpp:82
-{"; Path=/; HttpOnly; SameSite=Strict", ""},  // src/devsetup.cpp:82
-{"Zu viele Versuche - bitte 30 Sekunden warten.", "Too many attempts - please wait 30 seconds."},  // src/devsetup.cpp:87
-{"Passwort falsch.", "Wrong password."},  // src/devsetup.cpp:99
-{"Das neue Passwort braucht 8 bis 63 Zeichen.", "The new password needs 8 to 63 characters."},  // src/devsetup.cpp:125
-{"Bitte ein anderes als das Standardpasswort nehmen.", "Please choose a password other than the default."},  // src/devsetup.cpp:126
-{"Das WLAN-Passwort braucht 8 bis 63 Zeichen.", "The WiFi password needs 8 to 63 characters."},  // src/devsetup.cpp:151
-{"Location", ""},  // src/devsetup.cpp:160
-{"Nicht gefunden", ""},  // src/devsetup.cpp:166
-{"Cookie", ""},  // src/devsetup.cpp:223
+{"Ungueltiges JSON", "Invalid JSON"},  // src/devsetup.cpp:72
+{"Set-Cookie", ""},  // src/devsetup.cpp:83
+{"; Path=/; HttpOnly; SameSite=Strict", ""},  // src/devsetup.cpp:83
+{"Zu viele Versuche - bitte 30 Sekunden warten.", "Too many attempts - please wait 30 seconds."},  // src/devsetup.cpp:88
+{"Passwort falsch.", "Wrong password."},  // src/devsetup.cpp:100
+{"Das neue Passwort braucht 8 bis 63 Zeichen.", "The new password needs 8 to 63 characters."},  // src/devsetup.cpp:126
+{"Bitte ein anderes als das Standardpasswort nehmen.", "Please choose a password other than the default."},  // src/devsetup.cpp:127
+{"Das WLAN-Passwort braucht 8 bis 63 Zeichen.", "The WiFi password needs 8 to 63 characters."},  // src/devsetup.cpp:152
+{"Location", ""},  // src/devsetup.cpp:161
+{"Cache-Control", ""},  // src/devsetup.cpp:171
+{"text/plain; charset=utf-8", ""},  // src/devsetup.cpp:172
+{"Datei unbekannt", ""},  // src/devsetup.cpp:178
+{"Datei nicht gefunden", ""},  // src/devsetup.cpp:180
+{"Content-Disposition", ""},  // src/devsetup.cpp:182
+{"attachment; filename=\"", ""},  // src/devsetup.cpp:182
+{"Datei lässt sich nicht löschen (die aktuelle bleibt, solange der Debug-Log läuft).", ""},  // src/devsetup.cpp:213
+{"Nicht gefunden", ""},  // src/devsetup.cpp:222
+{"Cookie", ""},  // src/devsetup.cpp:279
 {"Prüfe ", "Checking "},  // src/gx_find.cpp:218
 {"Gefunden: ", "Found: "},  // src/gx_find.cpp:224
 {" (Portal-ID ", ""},  // src/gx_find.cpp:224
@@ -579,8 +603,15 @@
 {"TLS: SCU meldet Fehler %d", ""},  // src/hymer_tls.cpp:321
 {"TLS: Nachricht zu groß", ""},  // src/hymer_tls.cpp:332
 {"TLS: Datenstrom kaputt", ""},  // src/hymer_tls.cpp:358
-{"nach 10 s", ""},  // src/main.cpp:177
-{"nach 60 s", ""},  // src/main.cpp:178
+{"MQTT ", ""},  // src/main.cpp:101
+{" · Cerbo ", ""},  // src/main.cpp:102
+{" · Hobby ", ""},  // src/main.cpp:104
+{" · Hymer ", ""},  // src/main.cpp:107
+{" · Zigbee-Modul ", ""},  // src/main.cpp:110
+{" · Panel-WLAN ", ""},  // src/main.cpp:114
+{" Teilnehmer", ""},  // src/main.cpp:114
+{"nach 10 s", ""},  // src/main.cpp:204
+{"nach 60 s", ""},  // src/main.cpp:205
 {"11 kg (Europa)", "11 kg (Europe)"},  // src/mopeka.cpp:34
 {"6 kg (Europa)", "6 kg (Europe)"},  // src/mopeka.cpp:35
 {"14 kg (Europa)", "14 kg (Europe)"},  // src/mopeka.cpp:36
@@ -713,10 +744,42 @@
 {"keine Karte eingesteckt", "no card inserted"},  // src/sdcard.cpp:50
 {"keine SD-Karte am Gerät", ""},  // src/sdcard.cpp:58
 {"SPI-Bus nicht verfügbar", "SPI bus not available"},  // src/sdcard.cpp:71
-{"SOC-Panel-%04X", ""},  // src/settings.cpp:110
+{"SOC-Panel-%04X", ""},  // src/settings.cpp:111
 {"Gen2+", "Gen2+"},  // src/shelly.cpp:527
 {"Gen1", "Gen1"},  // src/shelly.cpp:527
 {"Shelly", "Shelly"},  // src/shelly.cpp:528
+{"kein Bluetooth-RPC (Gen1 oder in der Shelly-App ausgeschaltet)", "no Bluetooth RPC (Gen1 or disabled in the Shelly app)"},  // src/shelly_ble.cpp:121
+{"RPC-Kanäle fehlen", "RPC channels missing"},  // src/shelly_ble.cpp:127
+{"Senden fehlgeschlagen", "sending failed"},  // src/shelly_ble.cpp:139
+{"Antwort zu groß", "response too large"},  // src/shelly_ble.cpp:158
+{"keine Antwort", "no response"},  // src/shelly_ble.cpp:158
+{"Antwort unlesbar", "response unreadable"},  // src/shelly_ble.cpp:169
+{"Fehler ", "Fault"},  // src/shelly_ble.cpp:175
+{"Shelly verlangt ein Passwort", "Shelly requires a password"},  // src/shelly_ble.cpp:180
+{"Passwort falsch", "wrong password"},  // src/shelly_ble.cpp:180
+{"Anmeldung unlesbar", "login response unreadable"},  // src/shelly_ble.cpp:186
+{"\",\"algorithm\":\"SHA-256\"}", ""},  // src/shelly_ble.cpp:194
+{" kWh", ""},  // src/shelly_ble.cpp:254
+{"nicht verfügbar", "not available"},  // src/shelly_ble.cpp:342
+{"schon eingerichtet", "already set up"},  // src/shelly_ble.cpp:345
+{"Kein Platz mehr – es sind schon 8 Shellys eingerichtet.", "No room left – 8 Shellys are already set up."},  // src/shelly_ble.cpp:346
+{"Warte auf erste Verbindung …", "Waiting for first connection …"},  // src/shelly_ble.cpp:352
+{"Shelly.GetDeviceInfo", ""},  // src/shelly_ble.cpp:527
+{"Light.", ""},  // src/shelly_ble.cpp:536
+{"Switch.", ""},  // src/shelly_ble.cpp:536
+{"Toggle", ""},  // src/shelly_ble.cpp:536
+{"Set", ""},  // src/shelly_ble.cpp:536
+{"Shelly.GetStatus", ""},  // src/shelly_ble.cpp:541
+{"nicht erreichbar – in Reichweite? Bluetooth am Shelly an?", "not reachable – in range? Bluetooth on the Shelly enabled?"},  // src/shelly_ble.cpp:545
+{"wartet auf WLAN", ""},  // src/tailscale.cpp:63
+{"verbindet …", ""},  // src/tailscale.cpp:64
+{"meldet sich an …", ""},  // src/tailscale.cpp:65
+{"verbindet neu …", ""},  // src/tailscale.cpp:67
+{"Anmeldung abgelehnt – Auth-Key abgelaufen oder Gerät nicht freigegeben", ""},  // src/tailscale.cpp:69
+{"wartet auf Anmeldung (Link öffnen)", ""},  // src/tailscale.cpp:70
+{"startet …", ""},  // src/tailscale.cpp:192
+{"Tailscale ", ""},  // src/tailscale.cpp:232
+{" Geräte)", ""},  // src/tailscale.cpp:232
 {"Kein Empfang – Sensor schlaeft (Rad steht) oder ausser Reichweite", "No signal – sensor asleep (wheel at rest) or out of range"},  // src/tpms.cpp:213
 {"Reifendruck nicht gestartet", ""},  // src/tpms.cpp:245
 {"Es sind höchstens sechs Reifensensoren möglich", "At most six tyre sensors are possible"},  // src/tpms.cpp:248
@@ -724,34 +787,34 @@
 {"vorne rechts", "front right"},  // src/tpms.cpp:299
 {"hinten links", "rear left"},  // src/tpms.cpp:300
 {"hinten rechts", "rear right"},  // src/tpms.cpp:301
-{"Warte auf erste Messung …", "Waiting for first measurement …"},  // src/truma.cpp:55
-{"Verbindung fehlgeschlagen – ist die App verbunden?", "Connection failed – is the app connected?"},  // src/truma.cpp:198
-{"Unbekanntes Gerät (Dienst fehlt)", "Unknown device (service missing)"},  // src/truma.cpp:205
-{"Passwort nicht lesbar", "Password not readable"},  // src/truma.cpp:209
-{"Messung läuft …", "Measuring …"},  // src/truma.cpp:214
-{"Unplausibler Messwert", "Implausible reading"},  // src/truma.cpp:229
-{"Kein Messwert erhalten", "No reading received"},  // src/truma.cpp:231
-{"Apple", ""},  // src/truma.cpp:321
-{"Microsoft", ""},  // src/truma.cpp:322
-{"Samsung", ""},  // src/truma.cpp:323
-{"Google", ""},  // src/truma.cpp:324
-{"Victron", "Victron"},  // src/truma.cpp:325
-{"Nordic", ""},  // src/truma.cpp:326
-{"Garmin", ""},  // src/truma.cpp:327
-{"Huami", ""},  // src/truma.cpp:328
-{"===== Bluetooth in Reichweite (%lu s, aktive Suche) =====", ""},  // src/truma.cpp:336
-{" – Liste voll", ""},  // src/truma.cpp:338
-{"Nach Hersteller:", ""},  // src/truma.cpp:349
-{" %s %d,", ""},  // src/truma.cpp:352
-{" 0x%04X %d,", ""},  // src/truma.cpp:353
-{"Staerkste Sender:", ""},  // src/truma.cpp:355
-{"0x%04X", ""},  // src/truma.cpp:360
-{"  %s %4d dBm %5lu Pakete  %-9s %s", ""},  // src/truma.cpp:361
-{"Kein Speicher fuer die Zaehlung", ""},  // src/truma.cpp:373
-{"SOC-Panel", ""},  // src/truma.cpp:456
-{"Nicht gefunden – außer Reichweite?", "Not found – out of range?"},  // src/truma.cpp:563
-{"Es sind höchstens vier Gasflaschen möglich", "At most four gas bottles are possible"},  // src/truma.cpp:759
-{"Gasflasche ", "Gas bottle"},  // src/truma.cpp:763
+{"Warte auf erste Messung …", "Waiting for first measurement …"},  // src/truma.cpp:56
+{"Verbindung fehlgeschlagen – ist die App verbunden?", "Connection failed – is the app connected?"},  // src/truma.cpp:199
+{"Unbekanntes Gerät (Dienst fehlt)", "Unknown device (service missing)"},  // src/truma.cpp:206
+{"Passwort nicht lesbar", "Password not readable"},  // src/truma.cpp:210
+{"Messung läuft …", "Measuring …"},  // src/truma.cpp:215
+{"Unplausibler Messwert", "Implausible reading"},  // src/truma.cpp:230
+{"Kein Messwert erhalten", "No reading received"},  // src/truma.cpp:232
+{"Apple", ""},  // src/truma.cpp:322
+{"Microsoft", ""},  // src/truma.cpp:323
+{"Samsung", ""},  // src/truma.cpp:324
+{"Google", ""},  // src/truma.cpp:325
+{"Victron", "Victron"},  // src/truma.cpp:326
+{"Nordic", ""},  // src/truma.cpp:327
+{"Garmin", ""},  // src/truma.cpp:328
+{"Huami", ""},  // src/truma.cpp:329
+{"===== Bluetooth in Reichweite (%lu s, aktive Suche) =====", ""},  // src/truma.cpp:337
+{" – Liste voll", ""},  // src/truma.cpp:339
+{"Nach Hersteller:", ""},  // src/truma.cpp:350
+{" %s %d,", ""},  // src/truma.cpp:353
+{" 0x%04X %d,", ""},  // src/truma.cpp:354
+{"Staerkste Sender:", ""},  // src/truma.cpp:356
+{"0x%04X", ""},  // src/truma.cpp:361
+{"  %s %4d dBm %5lu Pakete  %-9s %s", ""},  // src/truma.cpp:362
+{"Kein Speicher fuer die Zaehlung", ""},  // src/truma.cpp:374
+{"SOC-Panel", ""},  // src/truma.cpp:458
+{"Nicht gefunden – außer Reichweite?", "Not found – out of range?"},  // src/truma.cpp:565
+{"Es sind höchstens vier Gasflaschen möglich", "At most four gas bottles are possible"},  // src/truma.cpp:771
+{"Gasflasche ", "Gas bottle"},  // src/truma.cpp:775
 {"CP Plus hat den Befehl abgelehnt (Code %u)", "CP Plus rejected the command (code %u)"},  // src/truma_cpplus.cpp:229
 {"Keine Rückmeldung vom CP Plus", "No response from the CP Plus"},  // src/truma_cpplus.cpp:345
 {"Truma CP Plus", "Truma CP Plus"},  // src/truma_cpplus.cpp:456
@@ -810,29 +873,29 @@
 {"BatterySafe", "BatterySafe"},  // src/victron.cpp:682
 {"Externe Steuerung", "External control"},  // src/victron.cpp:683
 {"WLED ", "WLED "},  // src/wled.cpp:188
-{"Noch keine Geräteliste empfangen", "No device list received yet"},  // src/z2m.cpp:76
-{"Geräteliste empfangen (%u KB), wird ausgewertet …", "Device list received (%u KB), processing …"},  // src/z2m.cpp:209
-{"Zugang abgelehnt – Benutzer/Passwort prüfen", "Access denied – check user/password"},  // src/z2m.cpp:337
-{"Verbindung vom Broker abgelehnt", "Connection refused by the broker"},  // src/z2m.cpp:338
-{"Broker %s:%u nicht erreichbar", "Broker %s:%u not reachable"},  // src/z2m.cpp:340
-{"zu groß", "too large"},  // src/z2m.cpp:351
-{"zu wenig Speicher", "not enough memory"},  // src/z2m.cpp:357
-{"Geräteliste %s (%u KB, frei %u KB)", "Device list %s (%u KB, free %u KB)"},  // src/z2m.cpp:366
-{"MQTT ausgeschaltet", ""},  // src/z2m.cpp:408
-{"%u Geräte mit Lampe/Schalter aus dem Zwischenspeicher – im Editor neu laden", ""},  // src/z2m.cpp:586
-{"Geräteliste nicht lesbar (%s, %u KB)", "Device list not readable (%s, %u KB)"},  // src/z2m.cpp:625
-{", einige ohne Gerätedefinition", ", some without device definition"},  // src/z2m.cpp:720
-{"Geräteliste wird geholt …", ""},  // src/z2m.cpp:780
-{"Warte, bis sich der Hub mit dem Panel-WLAN verbindet …", "Waiting for the hub to connect to the panel Wi-Fi …"},  // src/z2m.cpp:822
-{"Suche MQTT-Broker im Panel-WLAN …", "Looking for MQTT broker in the panel Wi-Fi …"},  // src/z2m.cpp:825
-{"Kein Broker im Panel-WLAN gefunden – läuft Mosquitto auf dem Hub?", "No broker found in the panel Wi-Fi – is Mosquitto running on the hub?"},  // src/z2m.cpp:832
-{"Warte auf WLAN …", "Waiting for Wi-Fi …"},  // src/z2m.cpp:839
-{"Keine Geräteliste unter „%s/bridge/devices“ – Basis-Topic prüfen", "No device list at “%s/bridge/devices” – check the base topic"},  // src/z2m.cpp:844
-{"Keine Verbindung zu MQTT", "No connection to MQTT"},  // src/z2m.cpp:1139
-{"Name darf nicht leer sein", "Name must not be empty"},  // src/z2m.cpp:1143
-{"Die Zeichen # und + sind nicht erlaubt", "The characters # and + are not allowed"},  // src/z2m.cpp:1144
-{"Name darf nicht auf /Zahl enden", "Name must not end with /number"},  // src/z2m.cpp:1148
-{"Gerät nicht gefunden", "Device not found"},  // src/z2m.cpp:1155
+{"Noch keine Geräteliste empfangen", "No device list received yet"},  // src/z2m.cpp:77
+{"Geräteliste empfangen (%u KB), wird ausgewertet …", "Device list received (%u KB), processing …"},  // src/z2m.cpp:210
+{"Zugang abgelehnt – Benutzer/Passwort prüfen", "Access denied – check user/password"},  // src/z2m.cpp:338
+{"Verbindung vom Broker abgelehnt", "Connection refused by the broker"},  // src/z2m.cpp:339
+{"Broker %s:%u nicht erreichbar", "Broker %s:%u not reachable"},  // src/z2m.cpp:341
+{"zu groß", "too large"},  // src/z2m.cpp:352
+{"zu wenig Speicher", "not enough memory"},  // src/z2m.cpp:358
+{"Geräteliste %s (%u KB, frei %u KB)", "Device list %s (%u KB, free %u KB)"},  // src/z2m.cpp:367
+{"MQTT ausgeschaltet", ""},  // src/z2m.cpp:409
+{"%u Geräte mit Lampe/Schalter aus dem Zwischenspeicher – im Editor neu laden", ""},  // src/z2m.cpp:587
+{"Geräteliste nicht lesbar (%s, %u KB)", "Device list not readable (%s, %u KB)"},  // src/z2m.cpp:626
+{", einige ohne Gerätedefinition", ", some without device definition"},  // src/z2m.cpp:721
+{"Geräteliste wird geholt …", ""},  // src/z2m.cpp:781
+{"Warte, bis sich der Hub mit dem Panel-WLAN verbindet …", "Waiting for the hub to connect to the panel Wi-Fi …"},  // src/z2m.cpp:823
+{"Suche MQTT-Broker im Panel-WLAN …", "Looking for MQTT broker in the panel Wi-Fi …"},  // src/z2m.cpp:826
+{"Kein Broker im Panel-WLAN gefunden – läuft Mosquitto auf dem Hub?", "No broker found in the panel Wi-Fi – is Mosquitto running on the hub?"},  // src/z2m.cpp:833
+{"Warte auf WLAN …", "Waiting for Wi-Fi …"},  // src/z2m.cpp:840
+{"Keine Geräteliste unter „%s/bridge/devices“ – Basis-Topic prüfen", "No device list at “%s/bridge/devices” – check the base topic"},  // src/z2m.cpp:845
+{"Keine Verbindung zu MQTT", "No connection to MQTT"},  // src/z2m.cpp:1147
+{"Name darf nicht leer sein", "Name must not be empty"},  // src/z2m.cpp:1151
+{"Die Zeichen # und + sind nicht erlaubt", "The characters # and + are not allowed"},  // src/z2m.cpp:1152
+{"Name darf nicht auf /Zahl enden", "Name must not end with /number"},  // src/z2m.cpp:1156
+{"Gerät nicht gefunden", "Device not found"},  // src/z2m.cpp:1163
 {"Modul gestartet", ""},  // src/zb_direct.cpp:117
 {"Geraet angemeldet: ", ""},  // src/zb_direct.cpp:148
 {" (bekannt)", ""},  // src/zb_direct.cpp:148
@@ -844,7 +907,6 @@
 {"Anlernen offen (", ""},  // src/zb_direct.cpp:229
 {"Anlernen geschlossen", ""},  // src/zb_direct.cpp:229
 {" % rF", ""},  // src/zb_direct.cpp:444
-{" kWh", ""},  // src/zb_direct.cpp:445
 {" lx", ""},  // src/zb_direct.cpp:446
 {"kurz", ""},  // src/zb_direct.cpp:456
 {"doppelt", ""},  // src/zb_direct.cpp:456
@@ -869,6 +931,192 @@
 {"PLL 160", ""},  // src/p4test/p4test.cpp:177
 {"uECC_WORD_SIZE must be 1 for AVR", ""},  // src/third_party/micro-ecc/types.h:51
 {"uECC_WORD_SIZE must be 4 for ARM", ""},  // src/third_party/micro-ecc/types.h:59
+{" net_io", ""},  // src/third_party/microlink/src/microlink.c:229
+{" derp_tx", ""},  // src/third_party/microlink/src/microlink.c:230
+{" coord", ""},  // src/third_party/microlink/src/microlink.c:231
+{" wg_mgr", ""},  // src/third_party/microlink/src/microlink.c:232
+{"stop: begin", ""},  // src/third_party/microlink/src/microlink.c:885
+{"stop: config UI detached", ""},  // src/third_party/microlink/src/microlink.c:888
+{"stop: tasks joined", ""},  // src/third_party/microlink/src/microlink.c:924
+{"stop: run resources freed", ""},  // src/third_party/microlink/src/microlink.c:938
+{"ETH", ""},  // src/third_party/microlink/src/microlink.c:988
+{"AT", ""},  // src/third_party/microlink/src/ml_at_validate.c:140
+{"GMI", ""},  // src/third_party/microlink/src/ml_at_validate.c:174
+{"GMM", ""},  // src/third_party/microlink/src/ml_at_validate.c:175
+{"GMR", ""},  // src/third_party/microlink/src/ml_at_validate.c:176
+{"GSN", ""},  // src/third_party/microlink/src/ml_at_validate.c:177
+{"CSQ", ""},  // src/third_party/microlink/src/ml_at_validate.c:184
+{"CBC", ""},  // src/third_party/microlink/src/ml_at_validate.c:199
+{"+CPIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CPIN2=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CPWD=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CLCK=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CGAUTH=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CSIM=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CRSM=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
+{"+CPINR=", ""},  // src/third_party/microlink/src/ml_at_validate.c:274
+{"+SPIC=", ""},  // src/third_party/microlink/src/ml_at_validate.c:274
+{"+CFTPLOGIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
+{"+CFTPSLOGIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
+{"+CFTPUN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
+{"+CFTPPW=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
+{"+CMQTTCONNECT=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
+{"+CMQTTACCQ=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
+{"+SMCONF=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
+{"+HTTPPARA=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
+{"+CSSLCFG=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
+{"+SMTPAUTH=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
+{"+POP3IN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
+{"+CIPRXGET:", ""},  // src/third_party/microlink/src/ml_at_validate.c:399
+{"POST /ts2021 HTTP/1.1\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"Host: %s\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"Upgrade: tailscale-control-protocol\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"Connection: Upgrade\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"User-Agent: Tailscale\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"X-Tailscale-Handshake: %s\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"Content-Length: 0\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
+{"HTTP/1.1 101", ""},  // src/third_party/microlink/src/ml_coord.c:615
+{"nodeKeyChallenge", ""},  // src/third_party/microlink/src/ml_coord.c:883
+{"Hostname", ""},  // src/third_party/microlink/src/ml_coord.c:1051
+{"OS", ""},  // src/third_party/microlink/src/ml_coord.c:1052
+{"OSVersion", ""},  // src/third_party/microlink/src/ml_coord.c:1053
+{"ESP-IDF", ""},  // src/third_party/microlink/src/ml_coord.c:1053
+{"GoArch", ""},  // src/third_party/microlink/src/ml_coord.c:1054
+{"PreferredDERP", ""},  // src/third_party/microlink/src/ml_coord.c:1058
+{"MappingVariesByDestIP", ""},  // src/third_party/microlink/src/ml_coord.c:1060
+{"NetInfo", ""},  // src/third_party/microlink/src/ml_coord.c:1062
+{"RoutableIPs", ""},  // src/third_party/microlink/src/ml_coord.c:1085
+{"Hostinfo", ""},  // src/third_party/microlink/src/ml_coord.c:1089
+{"Version", ""},  // src/third_party/microlink/src/ml_coord.c:1099
+{"NodeKey", ""},  // src/third_party/microlink/src/ml_coord.c:1106
+{"Followup", ""},  // src/third_party/microlink/src/ml_coord.c:1114
+{"AuthKey", ""},  // src/third_party/microlink/src/ml_coord.c:1117
+{"Auth", ""},  // src/third_party/microlink/src/ml_coord.c:1118
+{"NodeKeyChallengeResponse", ""},  // src/third_party/microlink/src/ml_coord.c:1142
+{"Error", ""},  // src/third_party/microlink/src/ml_coord.c:1354
+{"MachineAuthorized", ""},  // src/third_party/microlink/src/ml_coord.c:1361
+{"AuthURL", ""},  // src/third_party/microlink/src/ml_coord.c:1366
+{"Node", ""},  // src/third_party/microlink/src/ml_coord.c:1398
+{"Addresses", ""},  // src/third_party/microlink/src/ml_coord.c:1400
+{"HomeDERP", ""},  // src/third_party/microlink/src/ml_coord.c:1416
+{"Key", ""},  // src/third_party/microlink/src/ml_coord.c:1439
+{"Peers", ""},  // src/third_party/microlink/src/ml_coord.c:1471
+{"PeersChanged", ""},  // src/third_party/microlink/src/ml_coord.c:1476
+{"ID", ""},  // src/third_party/microlink/src/ml_coord.c:1509
+{"Name", "Name"},  // src/third_party/microlink/src/ml_coord.c:1515
+{"DiscoKey", ""},  // src/third_party/microlink/src/ml_coord.c:1543
+{"Online", ""},  // src/third_party/microlink/src/ml_coord.c:1567
+{"Endpoints", ""},  // src/third_party/microlink/src/ml_coord.c:1586
+{"PeersRemoved", ""},  // src/third_party/microlink/src/ml_coord.c:1646
+{"PeersChangedPatch", ""},  // src/third_party/microlink/src/ml_coord.c:1689
+{"NodeID", ""},  // src/third_party/microlink/src/ml_coord.c:1695
+{"DERPRegion", ""},  // src/third_party/microlink/src/ml_coord.c:1730
+{"EndpointTypes", ""},  // src/third_party/microlink/src/ml_coord.c:1786
+{"KeyExpiry", ""},  // src/third_party/microlink/src/ml_coord.c:1911
+{"Expired", ""},  // src/third_party/microlink/src/ml_coord.c:1938
+{"DERPMap", ""},  // src/third_party/microlink/src/ml_coord.c:1952
+{"Regions", ""},  // src/third_party/microlink/src/ml_coord.c:1954
+{"RegionID", ""},  // src/third_party/microlink/src/ml_coord.c:1964
+{"RegionCode", ""},  // src/third_party/microlink/src/ml_coord.c:1967
+{"Avoid", ""},  // src/third_party/microlink/src/ml_coord.c:1972
+{"Nodes", ""},  // src/third_party/microlink/src/ml_coord.c:1976
+{"HostName", ""},  // src/third_party/microlink/src/ml_coord.c:1984
+{"IPv4", ""},  // src/third_party/microlink/src/ml_coord.c:1989
+{"IPv6", ""},  // src/third_party/microlink/src/ml_coord.c:1994
+{"STUNPort", ""},  // src/third_party/microlink/src/ml_coord.c:1999
+{"DERPPort", ""},  // src/third_party/microlink/src/ml_coord.c:2002
+{"STUNOnly", ""},  // src/third_party/microlink/src/ml_coord.c:2005
+{" [avoid]", ""},  // src/third_party/microlink/src/ml_coord.c:2014
+{" stun-only", ""},  // src/third_party/microlink/src/ml_coord.c:2022
+{"Stream", ""},  // src/third_party/microlink/src/ml_coord.c:2070
+{"KeepAlive", ""},  // src/third_party/microlink/src/ml_coord.c:2071
+{"Compress", ""},  // src/third_party/microlink/src/ml_coord.c:2072
+{"OmitPeers", ""},  // src/third_party/microlink/src/ml_coord.c:2401
+{"Health", ""},  // src/third_party/microlink/src/ml_coord.c:2486
+{"MBEDTLS_CERTIFICATE_BUNDLE is disabled: the control plane TLS certificate will not be verified (ML_CTRL_TLS_VERIFY_CERT unavailable)", ""},  // src/third_party/microlink/src/ml_coord_tls.c:29
+{"CONFIG_ML_CTRL_TLS_VERIFY_CERT=n", ""},  // src/third_party/microlink/src/ml_coord_tls.c:89
+{"CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n", ""},  // src/third_party/microlink/src/ml_coord_tls.c:91
+{"MBEDTLS_CERTIFICATE_BUNDLE is disabled: DERP relay TLS certificates will not be verified (ML_DERP_VERIFY_CERT unavailable)", ""},  // src/third_party/microlink/src/ml_derp.c:38
+{"derp_tx: exit begin", ""},  // src/third_party/microlink/src/ml_derp.c:766
+{"derp_tx: TLS + socket freed", ""},  // src/third_party/microlink/src/ml_derp.c:768
+{"CONFIG_ML_DERP_VERIFY_CERT=n", ""},  // src/third_party/microlink/src/ml_derp.c:941
+{"GET /derp HTTP/1.1\r", ""},  // src/third_party/microlink/src/ml_derp.c:1025
+{"Upgrade: DERP\r", ""},  // src/third_party/microlink/src/ml_derp.c:1025
+{"{\"Version\":2,\"CanAckPings\":true,\"IsProber\":false}", ""},  // src/third_party/microlink/src/ml_derp.c:1170
+{"DstPorts", ""},  // src/third_party/microlink/src/ml_filter.c:224
+{"SrcIPs", ""},  // src/third_party/microlink/src/ml_filter.c:240
+{"IP", ""},  // src/third_party/microlink/src/ml_filter.c:245
+{"Ports", ""},  // src/third_party/microlink/src/ml_filter.c:281
+{"First", ""},  // src/third_party/microlink/src/ml_filter.c:283
+{"IPProto", ""},  // src/third_party/microlink/src/ml_filter.c:305
+{"Too many packet filter sets; \"%s\" ignored", ""},  // src/third_party/microlink/src/ml_filter.c:337
+{"Packet filter set \"%s\" rejected (invalid or more than %d entries): it allows nothing", ""},  // src/third_party/microlink/src/ml_filter.c:408
+{"PacketFilter", ""},  // src/third_party/microlink/src/ml_filter.c:417
+{"PacketFilters", ""},  // src/third_party/microlink/src/ml_filter.c:418
+{"Packet filter updated: %u rule(s)%s", ""},  // src/third_party/microlink/src/ml_filter.c:454
+{" (log-only mode)", ""},  // src/third_party/microlink/src/ml_filter.c:455
+{"drop proto=%u to %u.%u.%u.%u: destination not local", ""},  // src/third_party/microlink/src/ml_filter.c:652
+{"no rule", ""},  // src/third_party/microlink/src/ml_filter.c:662
+{"icmp reply/error", ""},  // src/third_party/microlink/src/ml_filter.c:669
+{"tcp non-syn", ""},  // src/third_party/microlink/src/ml_filter.c:675
+{"udp reply", ""},  // src/third_party/microlink/src/ml_filter.c:684
+{"drop proto=%u %u.%u.%u.%u -> port %u (%s)%s", ""},  // src/third_party/microlink/src/ml_filter.c:694
+{" [log-only]", ""},  // src/third_party/microlink/src/ml_filter.c:696
+{"PRI * HTTP/2.0\r", ""},  // src/third_party/microlink/src/ml_h2.c:41
+{"SM\r", ""},  // src/third_party/microlink/src/ml_h2.c:41
+{"WG", ""},  // src/third_party/microlink/src/ml_net_io.c:66
+{"UNK", ""},  // src/third_party/microlink/src/ml_net_io.c:66
+{"Noise_IK_25519_ChaChaPoly_BLAKE2s", ""},  // src/third_party/microlink/src/ml_noise.c:40
+{"Tailscale Control Protocol v%d", ""},  // src/third_party/microlink/src/ml_noise.c:182
+{"wg_mgr: netif teardown begin", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:476
+{"wg_mgr: netif + device freed", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:500
+{"MISMATCH!", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:735
+{"KEY_MISMATCH!", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:1095
+{"expand 32-byte k", ""},  // src/third_party/microlink/src/nacl_box.c:95
+{"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguard.c:47
+{"WireGuard v1 zx2c4 Jason@zx2c4.com", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguard.c:48
+{"[WG] link %s post dropped (tcpip mailbox full), will retry", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:151
+{"[WG] update_peer_addr: skipping DERP (0.0.0.0)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:195
+{"[WG] update_peer_addr: refusing non-underlay endpoint %s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:199
+{"[WG] update_peer_addr: %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:202
+{"[WG_OUT] peer_output: endpoint=%s:%u, tot_len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:240
+{"[WG_OUT] No direct endpoint or force_derp, checking DERP", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:248
+{"[WG_OUT] DERP mem_malloc failed!", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:259
+{"[WG_OUT] No DERP callback, returning ERR_RTE", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:264
+{"[WG_OUT] Using magicsock callback", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:277
+{"[WG_OUT] mem_malloc OK, copying pbuf", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:282
+{"[WG_OUT] Calling udp_output_fn, dest_ip=0x%08lx port=%u len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:287
+{"[WG_OUT] udp_output_fn returned %d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:291
+{"[WG_OUT] mem_malloc FAILED for magicsock!", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:296
+{"[WG_OUT] Using direct udp_sendto", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:301
+{"[WG_TX] Sending encrypted DATA packet: %u bytes, remote_idx=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:439
+{"[WG_TX] peer_output result=%d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:443
+{"[WG_OUTPUT] Looking up peer for dest %s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:472
+{"[WG_OUTPUT] Found peer, peer_index=%d, valid=%d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:477
+{"[WG_OUTPUT] NO PEER FOUND for %s! Dumping all peers:", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:482
+{"  peer[%d]: valid=%d, curr_keypair.valid=%d, last_rx=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:486
+{"    allowed[%d]: %s/%s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:490
+{"[WG] Processing handshake response from %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:523
+{"[WG_DECRYPT] result=%d, src_len=%u, nonce=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:639
+{"[WG_RX_IP] DROPPED: v%u inner source not routed to this peer (or malformed)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:716
+{"[WG_RX_IP] DROPPED: header_len=%u > tot_len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:719
+{"[WG_RX_IP] DROPPED by packet filter", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:724
+{"[WG_RX_IP] Passing %u bytes to IP layer", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:729
+{"[WG_RX_IP] netif->input() failed: %d, dropping", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:735
+{"[WG_RX] DROPPED: replayed or too old, nonce=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:744
+{"wireguardif_network_rx: invalid arg", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:907
+{"wireguardif_network_rx: invalid pbuf", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:908
+{"[WG_RX] type=%d (%s) len=%u from %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:924
+{"Initiation MAC check passed", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:938
+{"Response MAC check passed", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:990
+{"[WG_TX] Starting handshake to %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1061
+{"netif != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1079
+{"state != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1080
+{"p != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1240
+{"[WG] Socket binding disabled - using magicsock mode", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1492
+{"peer != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1596
+{"[WG] UDP output callback registered (magicsock mode)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1638
+{"[WG] zero-copy UDP output callback registered", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1649
 {"Nicht erreichbar", "Not reachable"},  // src/ui/ui_detail.cpp:174
 {"  ·  Kanal ", "  ·  Channel"},  // src/ui/ui_detail.cpp:261
 {"Helligkeit", "Brightness"},  // src/ui/ui_detail.cpp:300
@@ -948,68 +1196,70 @@
 {"ABC", "ABC"},  // src/ui/ui_input.cpp:11
 {"Abbrechen", "Cancel"},  // src/ui/ui_input.cpp:143
 {"Übernehmen", "Apply"},  // src/ui/ui_input.cpp:145
-{"Zigbee-Modul nicht verbunden", ""},  // src/ui/ui_main.cpp:29
-{"nicht verfügbar", ""},  // src/ui/ui_main.cpp:31
-{"Unbekanntes Gerät", "Unknown device"},  // src/ui/ui_main.cpp:92
-{"nicht erreichbar", "not reachable"},  // src/ui/ui_main.cpp:129
-{"Sensor nicht eingerichtet", "Sensor not set up"},  // src/ui/ui_main.cpp:173
-{"misst …", "measuring …"},  // src/ui/ui_main.cpp:195
-{"nicht eingerichtet", "not set up"},  // src/ui/ui_main.cpp:209
-{"in der Firmware ausgeschaltet", "disabled in the firmware"},  // src/ui/ui_main.cpp:241
-{"Sonden %d/%d", "Probes %d/%d"},  // src/ui/ui_main.cpp:284
-{"Sonden unplausibel", "Probes implausible"},  // src/ui/ui_main.cpp:286
-{"Der Satellit meldet diesen Anschluss gerade nicht.", "The satellite is currently not reporting this connection."},  // src/ui/ui_main.cpp:383
-{"Keine Verbindung zum MQTT-Broker.", "No connection to the MQTT broker."},  // src/ui/ui_main.cpp:509
-{"Noch keine Geräte – zuerst Victron, Cerbo GX, Gas oder Akkus einrichten.", ""},  // src/ui/ui_main.cpp:628
-{"Noch keine Verbindung zum MQTT-Broker.", "No connection to the MQTT broker yet."},  // src/ui/ui_main.cpp:630
-{"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Devices have been arranged. Fine-tune in the browser editor."},  // src/ui/ui_main.cpp:635
-{"Willkommen", "Welcome"},  // src/ui/ui_main.cpp:658
-{"Verbinde das Panel mit deinem WLAN (dort, wo auch der Cerbo GX ist). Victron-Geräte, Gasflaschen und Akkus per Bluetooth laufen auch ohne WLAN.", ""},  // src/ui/ui_main.cpp:660
-{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connect the panel to your camp Wi-Fi – or let it open its own Wi-Fi for your Zigbee hub in router mode."},  // src/ui/ui_main.cpp:663
-{"MQTT-Broker eintragen", "Enter MQTT broker"},  // src/ui/ui_main.cpp:669
-{"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "The panel talks directly to Zigbee2MQTT. It needs the address of your MQTT broker."},  // src/ui/ui_main.cpp:671
-{"Panel-WLAN ist bereit", "Panel Wi-Fi is ready"},  // src/ui/ui_main.cpp:676
-{"Verbinde den SMHUB Nano im WLAN-Menü mit „%s“, Passwort %s. Das Panel findet den MQTT-Broker darauf von selbst. Stand: %s", "Connect the SMHUB Nano in its Wi-Fi menu to “%s”, password %s. The panel finds the MQTT broker on it automatically. Status: %s"},  // src/ui/ui_main.cpp:678
-{"Noch keine Geräte auf dem Panel", "No devices on the panel yet"},  // src/ui/ui_main.cpp:685
-{"Richte Victron-Geräte, den Cerbo GX, Gasflaschen oder Akkus ein – sobald sie Werte liefern, erscheinen ihre Kacheln von selbst. Anordnen geht im Browser-Editor.", ""},  // src/ui/ui_main.cpp:688
-{"Ordne sie im Browser an: http://%s/ – oder lass alle Lampen und Schalter automatisch verteilen.", "Arrange them in the browser: http://%s/ – or let all lights and switches be placed automatically."},  // src/ui/ui_main.cpp:691
-{"Diese Seite ist leer", "This page is empty"},  // src/ui/ui_main.cpp:698
-{"Zieh im Editor unter http://%s/ Geräte auf diese Seite.", "Drag devices onto this page in the editor at http://%s/."},  // src/ui/ui_main.cpp:699
-{"Netzwerk einrichten", "Set up network"},  // src/ui/ui_main.cpp:715
-{"Status", "Status"},  // src/ui/ui_main.cpp:716
-{"MQTT einrichten", "Set up MQTT"},  // src/ui/ui_main.cpp:717
-{"Akkus", ""},  // src/ui/ui_main.cpp:722
-{"Automatisch anordnen", "Arrange automatically"},  // src/ui/ui_main.cpp:724
-{"Adresse anzeigen", "Show address"},  // src/ui/ui_main.cpp:725
-{"WLAN: ", ""},  // src/ui/ui_main.cpp:834
-{"Passwort: ", ""},  // src/ui/ui_main.cpp:834
-{"Einrichten im Browser:", ""},  // src/ui/ui_main.cpp:841
-{"MQTT verbunden", ""},  // src/ui/ui_main.cpp:844
-{"MQTT nicht verbunden", ""},  // src/ui/ui_main.cpp:844
-{"MQTT aus", ""},  // src/ui/ui_main.cpp:844
-{"Füllstand", ""},  // src/ui/ui_main.cpp:886
-{"Sensor-Batterie", ""},  // src/ui/ui_main.cpp:895
-{"%d von 3", ""},  // src/ui/ui_main.cpp:896
-{"Verbindung", "Connection"},  // src/ui/ui_main.cpp:911
-{"Modell", ""},  // src/ui/ui_main.cpp:920
-{"  ·  raus ", ""},  // src/ui/ui_main.cpp:1019
-{"E%d", ""},  // src/ui/ui_main.cpp:1029
-{"Fehler – nur Ausschalten", "Error – switch off only"},  // src/ui/ui_main.cpp:1033
-{"Soll rechts (antippen: links)", "Set right (tap: left)"},  // src/ui/ui_main.cpp:1034
-{"Soll links (antippen: rechts)", "Set left (tap: right)"},  // src/ui/ui_main.cpp:1034
-{"innen ", "inside "},  // src/ui/ui_main.cpp:1037
-{"jetzt ", "now "},  // src/ui/ui_main.cpp:1038
-{"Ausschalten", "Switch off"},  // src/ui/ui_main.cpp:1042
-{"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", "The heater reports an error – it can only be switched off."},  // src/ui/ui_main.cpp:1058
-{"Wird geschaltet …", "Switching …"},  // src/ui/ui_main.cpp:1091
-{"Das ging nicht.", "That did not work."},  // src/ui/ui_main.cpp:1091
-{"Geste %s, Datenseiten %d, Seite %d", ""},  // src/ui/ui_main.cpp:1274
-{"Kein WLAN: %s  –  antippen, um ein Netz zu wählen", "No Wi-Fi: %s  –  tap to choose a network"},  // src/ui/ui_main.cpp:1453
-{"Kein Schalter.", ""},  // src/ui/ui_main.cpp:1658
-{"Nur Anzeige.", ""},  // src/ui/ui_main.cpp:1666
-{"Gerät nicht gefunden.", ""},  // src/ui/ui_main.cpp:1671
-{"Neues Zigbee-Gerät – Kachel angelegt.", ""},  // src/ui/ui_main.cpp:1886
-{"Neue Zigbee-Geräte – Kacheln angelegt.", ""},  // src/ui/ui_main.cpp:1886
+{"Zigbee-Modul nicht verbunden", ""},  // src/ui/ui_main.cpp:34
+{"Unbekanntes Gerät", "Unknown device"},  // src/ui/ui_main.cpp:97
+{"nicht erreichbar", "not reachable"},  // src/ui/ui_main.cpp:132
+{"Sensor nicht eingerichtet", "Sensor not set up"},  // src/ui/ui_main.cpp:176
+{"misst …", "measuring …"},  // src/ui/ui_main.cpp:198
+{"nicht eingerichtet", "not set up"},  // src/ui/ui_main.cpp:212
+{"in der Firmware ausgeschaltet", "disabled in the firmware"},  // src/ui/ui_main.cpp:244
+{"Sonden %d/%d", "Probes %d/%d"},  // src/ui/ui_main.cpp:287
+{"Sonden unplausibel", "Probes implausible"},  // src/ui/ui_main.cpp:289
+{"Der Satellit meldet diesen Anschluss gerade nicht.", "The satellite is currently not reporting this connection."},  // src/ui/ui_main.cpp:386
+{"Keine Verbindung zum MQTT-Broker.", "No connection to the MQTT broker."},  // src/ui/ui_main.cpp:512
+{"Noch keine Geräte – zuerst Victron, Cerbo GX, Gas oder Akkus einrichten.", ""},  // src/ui/ui_main.cpp:631
+{"Noch keine Verbindung zum MQTT-Broker.", "No connection to the MQTT broker yet."},  // src/ui/ui_main.cpp:633
+{"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Devices have been arranged. Fine-tune in the browser editor."},  // src/ui/ui_main.cpp:638
+{"Willkommen", "Welcome"},  // src/ui/ui_main.cpp:661
+{"Verbinde das Panel mit deinem WLAN (dort, wo auch der Cerbo GX ist). Victron-Geräte, Gasflaschen und Akkus per Bluetooth laufen auch ohne WLAN.", ""},  // src/ui/ui_main.cpp:663
+{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connect the panel to your camp Wi-Fi – or let it open its own Wi-Fi for your Zigbee hub in router mode."},  // src/ui/ui_main.cpp:666
+{"Kein MQTT-Broker eingerichtet", "No MQTT broker set up"},  // src/ui/ui_main.cpp:672
+{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen, den eingebauten Broker einschalten oder MQTT ausschalten, wenn du es nicht brauchst.", "MQTT is switched on, but no broker is set up yet. Under Settings → MQTT enter the address, switch on the built-in broker or switch MQTT off if you don’t need it."},  // src/ui/ui_main.cpp:675
+{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen oder MQTT ausschalten, wenn du es nicht brauchst.", "MQTT is switched on, but no broker is set up yet. Under Settings → MQTT enter the address or switch MQTT off if you don’t need it."},  // src/ui/ui_main.cpp:678
+{"Panel-WLAN ist bereit", "Panel Wi-Fi is ready"},  // src/ui/ui_main.cpp:685
+{"Verbinde den SMHUB Nano im WLAN-Menü mit „%s“, Passwort %s. Das Panel findet den MQTT-Broker darauf von selbst. Stand: %s", "Connect the SMHUB Nano in its Wi-Fi menu to “%s”, password %s. The panel finds the MQTT broker on it automatically. Status: %s"},  // src/ui/ui_main.cpp:687
+{"Noch keine Geräte auf dem Panel", "No devices on the panel yet"},  // src/ui/ui_main.cpp:694
+{"Richte Victron-Geräte, den Cerbo GX, Gasflaschen oder Akkus ein – sobald sie Werte liefern, erscheinen ihre Kacheln von selbst. Anordnen geht im Browser-Editor.", ""},  // src/ui/ui_main.cpp:697
+{"Ordne sie im Browser an: http://%s/ – oder lass alle Lampen und Schalter automatisch verteilen.", "Arrange them in the browser: http://%s/ – or let all lights and switches be placed automatically."},  // src/ui/ui_main.cpp:700
+{"Diese Seite ist leer", "This page is empty"},  // src/ui/ui_main.cpp:707
+{"Zieh im Editor unter http://%s/ Geräte auf diese Seite.", "Drag devices onto this page in the editor at http://%s/."},  // src/ui/ui_main.cpp:708
+{"Netzwerk einrichten", "Set up network"},  // src/ui/ui_main.cpp:724
+{"Status", "Status"},  // src/ui/ui_main.cpp:725
+{"MQTT einrichten", "Set up MQTT"},  // src/ui/ui_main.cpp:726
+{"Akkus", ""},  // src/ui/ui_main.cpp:731
+{"Automatisch anordnen", "Arrange automatically"},  // src/ui/ui_main.cpp:733
+{"Adresse anzeigen", "Show address"},  // src/ui/ui_main.cpp:734
+{"WLAN: ", ""},  // src/ui/ui_main.cpp:843
+{"Passwort: ", ""},  // src/ui/ui_main.cpp:843
+{"Einrichten im Browser:", ""},  // src/ui/ui_main.cpp:850
+{"Tailscale: ", ""},  // src/ui/ui_main.cpp:857
+{"MQTT verbunden", ""},  // src/ui/ui_main.cpp:861
+{"MQTT nicht verbunden", ""},  // src/ui/ui_main.cpp:861
+{"MQTT aus", ""},  // src/ui/ui_main.cpp:861
+{"Füllstand", ""},  // src/ui/ui_main.cpp:907
+{"Sensor-Batterie", ""},  // src/ui/ui_main.cpp:916
+{"%d von 3", ""},  // src/ui/ui_main.cpp:917
+{"Verbindung", "Connection"},  // src/ui/ui_main.cpp:932
+{"Modell", ""},  // src/ui/ui_main.cpp:941
+{"  ·  raus ", ""},  // src/ui/ui_main.cpp:1040
+{"E%d", ""},  // src/ui/ui_main.cpp:1050
+{"Fehler – nur Ausschalten", "Error – switch off only"},  // src/ui/ui_main.cpp:1054
+{"Soll rechts (antippen: links)", "Set right (tap: left)"},  // src/ui/ui_main.cpp:1055
+{"Soll links (antippen: rechts)", "Set left (tap: right)"},  // src/ui/ui_main.cpp:1055
+{"innen ", "inside "},  // src/ui/ui_main.cpp:1058
+{"jetzt ", "now "},  // src/ui/ui_main.cpp:1059
+{"Ausschalten", "Switch off"},  // src/ui/ui_main.cpp:1063
+{"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", "The heater reports an error – it can only be switched off."},  // src/ui/ui_main.cpp:1079
+{"Wird geschaltet …", "Switching …"},  // src/ui/ui_main.cpp:1112
+{"Das ging nicht.", "That did not work."},  // src/ui/ui_main.cpp:1112
+{"Geste %s, Datenseiten %d, Seite %d", ""},  // src/ui/ui_main.cpp:1295
+{"Kein WLAN: %s  –  antippen, um ein Netz zu wählen", "No Wi-Fi: %s  –  tap to choose a network"},  // src/ui/ui_main.cpp:1474
+{"Kein Schalter.", ""},  // src/ui/ui_main.cpp:1678
+{"Nur Anzeige.", ""},  // src/ui/ui_main.cpp:1686
+{"Gerät nicht gefunden.", ""},  // src/ui/ui_main.cpp:1691
+{"Neues Zigbee-Gerät – Kachel angelegt.", ""},  // src/ui/ui_main.cpp:1906
+{"Neue Zigbee-Geräte – Kacheln angelegt.", ""},  // src/ui/ui_main.cpp:1906
+{"Dieses Gerät ist gerade nicht verfügbar.", "This device is currently not available."},  // src/ui/ui_main.cpp:2021
 {"Sonntag", "Sunday"},  // src/ui/ui_saver.cpp:33
 {"Montag", "Monday"},  // src/ui/ui_saver.cpp:33
 {"Dienstag", "Tuesday"},  // src/ui/ui_saver.cpp:33
@@ -1034,468 +1284,514 @@
 {"Tippen zum Starten", ""},  // src/ui/ui_saver.cpp:340
 {"Links gewinnt!", ""},  // src/ui/ui_saver.cpp:402
 {"Rechts gewinnt!", ""},  // src/ui/ui_saver.cpp:402
-{"Verbinde mit ", "Connect to"},  // src/ui/ui_settings.cpp:122
-{"Passwort für ", "Password for"},  // src/ui/ui_settings.cpp:127
-{"WLAN-Passwort eingeben. Mit dem Auge-Symbol wird es sichtbar.", "Enter the Wi-Fi password. The eye icon makes it visible."},  // src/ui/ui_settings.cpp:128
-{"Die Suche hat nicht geklappt. Bitte noch einmal auf „Netzwerke suchen“ tippen.", "The scan did not work. Please tap “Search networks” again."},  // src/ui/ui_settings.cpp:148
-{"Keine Netze gefunden. Das Panel unterstützt nur 2,4 GHz.", "No networks found. The panel only supports 2.4 GHz."},  // src/ui/ui_settings.cpp:149
-{"Suche nach Netzen …", "Searching for networks …"},  // src/ui/ui_settings.cpp:177
-{"Netzname (SSID)", "Network name (SSID)"},  // src/ui/ui_settings.cpp:183
-{"Name des verborgenen Netzes, genau wie im Router eingetragen.", "Name of the hidden network, exactly as set in the router."},  // src/ui/ui_settings.cpp:184
-{"Panel startet neu …", "Panel is restarting …"},  // src/ui/ui_settings.cpp:199
-{"Netzwerk", "Network"},  // src/ui/ui_settings.cpp:203
-{"Router", "Router"},  // src/ui/ui_settings.cpp:203
-{"Kombi", "Combined"},  // src/ui/ui_settings.cpp:203
-{"WLAN aus", ""},  // src/ui/ui_settings.cpp:203
-{"Das Panel hängt im WLAN – z. B. dort, wo auch der Cerbo GX ist.", ""},  // src/ui/ui_settings.cpp:205
-{"Das Panel öffnet ein eigenes WLAN – Editor per Handy, kein Heimnetz nötig.", ""},  // src/ui/ui_settings.cpp:206
-{"Eigenes WLAN plus Camp-WLAN mit Internet-Weiterleitung.", ""},  // src/ui/ui_settings.cpp:207
-{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein Cerbo, kein Editor.", ""},  // src/ui/ui_settings.cpp:208
-{"Panel und Hub hängen beide im Camp-WLAN.", "Panel and hub are both on the camp Wi-Fi."},  // src/ui/ui_settings.cpp:210
-{"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "The panel opens its own Wi-Fi for the hub. No home network needed."},  // src/ui/ui_settings.cpp:211
-{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Own Wi-Fi for the hub plus camp Wi-Fi with internet forwarding."},  // src/ui/ui_settings.cpp:212
-{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor.", ""},  // src/ui/ui_settings.cpp:213
-{"Das Panel wechselt in den %s-Modus und startet dafür neu.", "The panel switches to %s mode and restarts."},  // src/ui/ui_settings.cpp:222
-{"Betriebsart wechseln?", "Change operating mode?"},  // src/ui/ui_settings.cpp:223
-{"Wechseln und neu starten", "Change and restart"},  // src/ui/ui_settings.cpp:223
-{"Name des Panel-WLANs", "Panel Wi-Fi name"},  // src/ui/ui_settings.cpp:235
-{"Unter diesem Namen findest du das Panel im WLAN. Änderung gilt nach einem Neustart.", ""},  // src/ui/ui_settings.cpp:237
-{"Unter diesem Namen findet der Hub das Panel. Änderung gilt nach einem Neustart.", "The hub finds the panel under this name. Takes effect after a restart."},  // src/ui/ui_settings.cpp:239
-{"Passwort des Panel-WLANs", "Panel Wi-Fi password"},  // src/ui/ui_settings.cpp:244
-{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart.", ""},  // src/ui/ui_settings.cpp:246
-{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart – der Hub muss dann neu verbunden werden.", "8 to 63 characters. Takes effect after a restart – the hub then has to reconnect."},  // src/ui/ui_settings.cpp:248
-{"Funkkanal (1–13)", "Radio channel (1–13)"},  // src/ui/ui_settings.cpp:253
-{"Funkkanal des Panel-WLANs (1–13).", ""},  // src/ui/ui_settings.cpp:255
-{"Möglichst weit weg vom Zigbee-Kanal: bei Zigbee 11 eignet sich WLAN 13, bei Zigbee 25 WLAN 1.", "As far as possible from the Zigbee channel: with Zigbee 11 use Wi-Fi 13, with Zigbee 25 use Wi-Fi 1."},  // src/ui/ui_settings.cpp:257
-{"Das Passwort braucht mindestens 8 Zeichen.", "The password needs at least 8 characters."},  // src/ui/ui_settings.cpp:272
-{"Bitte einen Kanal zwischen 1 und 13 wählen.", "Please choose a channel between 1 and 13."},  // src/ui/ui_settings.cpp:279
-{"Zugangspasswort zurücksetzen?", ""},  // src/ui/ui_settings.cpp:300
-{"Das Passwort für Editor und Weboberfläche ist danach wieder „panelsat“. Beim nächsten Öffnen im Browser muss ein neues festgelegt werden. Angemeldete Browser werden abgemeldet.", ""},  // src/ui/ui_settings.cpp:301
-{"Zurücksetzen", ""},  // src/ui/ui_settings.cpp:303
-{"Zurückgesetzt – im Browser ein neues Passwort festlegen.", ""},  // src/ui/ui_settings.cpp:305
-{"Aus (WLAN ausgeschaltet)", ""},  // src/ui/ui_settings.cpp:315
-{"Aus – zum Bearbeiten freigeben", ""},  // src/ui/ui_settings.cpp:316
-{"Läuft", ""},  // src/ui/ui_settings.cpp:318
-{"Läuft, aus in %lu min ohne Zugriff", ""},  // src/ui/ui_settings.cpp:320
-{"Webinterface (Editor)", ""},  // src/ui/ui_settings.cpp:327
-{"Webinterface", ""},  // src/ui/ui_settings.cpp:328
-{"Immer an", ""},  // src/ui/ui_settings.cpp:328
-{"Nur bei Bedarf", ""},  // src/ui/ui_settings.cpp:328
-{"Zugangspasswort", ""},  // src/ui/ui_settings.cpp:332
-{"festgelegt – antippen zum Zurücksetzen", ""},  // src/ui/ui_settings.cpp:332
-{"noch nicht festgelegt (beim ersten Öffnen im Browser)", ""},  // src/ui/ui_settings.cpp:332
-{"Webinterface beenden", ""},  // src/ui/ui_settings.cpp:336
-{"Webinterface freigeben", ""},  // src/ui/ui_settings.cpp:336
-{"„Nur bei Bedarf“ spart internen Speicher: Der Editor ist erst nach „freigeben“ erreichbar und schaltet sich nach 15 Minuten ohne Zugriff wieder ab.", ""},  // src/ui/ui_settings.cpp:340
-{"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "New operating mode is saved and takes effect after the restart."},  // src/ui/ui_settings.cpp:378
-{"Panel-WLAN", "Panel Wi-Fi"},  // src/ui/ui_settings.cpp:382
-{" (folgt dem Camp-WLAN)", " (follows the camp Wi-Fi)"},  // src/ui/ui_settings.cpp:386
-{"Name", "Name"},  // src/ui/ui_settings.cpp:387
-{"Passwort", "Password"},  // src/ui/ui_settings.cpp:388
-{"Kanal", "Channel"},  // src/ui/ui_settings.cpp:389
-{"Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.", ""},  // src/ui/ui_settings.cpp:391
-{"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "On the SMHUB Nano, choose this network under Settings > Wi-Fi (2.4 GHz). The editor is then reachable at http://192.168.4.1/ if your phone is connected too."},  // src/ui/ui_settings.cpp:395
-{"Camp-WLAN", "Camp Wi-Fi"},  // src/ui/ui_settings.cpp:403
-{"Netzwerke suchen", "Search networks"},  // src/ui/ui_settings.cpp:413
-{"Verborgenes Netz", "Hidden network"},  // src/ui/ui_settings.cpp:414
-{"nicht gesetzt", "not set"},  // src/ui/ui_settings.cpp:429
-{"IP-Adresse oder Hostname des Brokers, z. B. 192.168.1.10 oder homeassistant.local", "IP address or host name of the broker, e.g. 192.168.1.10 or homeassistant.local"},  // src/ui/ui_settings.cpp:443
-{"Standard ist 1883.", "Default is 1883."},  // src/ui/ui_settings.cpp:447
-{"Leer lassen, wenn der Broker ohne Anmeldung arbeitet.", "Leave empty if the broker works without login."},  // src/ui/ui_settings.cpp:453
-{"Wie in Zigbee2MQTT unter mqtt.base_topic – meistens zigbee2mqtt.", "As in Zigbee2MQTT under mqtt.base_topic – usually zigbee2mqtt."},  // src/ui/ui_settings.cpp:463
-{"Gespeichert – verbinde mit dem Broker …", "Saved – connecting to the broker …"},  // src/ui/ui_settings.cpp:493
-{"Eingebauter Broker an (Port 1883).", ""},  // src/ui/ui_settings.cpp:506
-{"Eingebauter Broker aus.", ""},  // src/ui/ui_settings.cpp:506
-{"Shelly (MQTT)", ""},  // src/ui/ui_settings.cpp:526
-{"Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche MQTT einschalten und denselben Broker eintragen – die Shellys erscheinen dann als Geräte.", ""},  // src/ui/ui_settings.cpp:526
-{"MQTT-Broker", "MQTT broker"},  // src/ui/ui_settings.cpp:529
-{"Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", "The same broker Zigbee2MQTT uses – on the SMHUB Nano the built-in Mosquitto. Enable “Allow External” under MQTT there so the panel may connect."},  // src/ui/ui_settings.cpp:529
-{"MQTT verwenden", ""},  // src/ui/ui_settings.cpp:537
-{"Eingebauter Broker (dieses Panel)", ""},  // src/ui/ui_settings.cpp:551
-{"Shellys mit diesem Panel verbinden: Server %s, Port 1883%s.", ""},  // src/ui/ui_settings.cpp:563
-{", Benutzer und Passwort wie im Editor", ""},  // src/ui/ui_settings.cpp:564
-{"Geräte mit diesem Panel verbinden: Server %s, Port 1883%s.", ""},  // src/ui/ui_settings.cpp:566
-{"MQTT ist aus: keine Shellys. Victron, Cerbo GX, Gas und Akkus laufen weiter.", ""},  // src/ui/ui_settings.cpp:579
-{"MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.", ""},  // src/ui/ui_settings.cpp:583
-{"Broker im Panel-WLAN automatisch finden", "Find broker in the panel Wi-Fi automatically"},  // src/ui/ui_settings.cpp:595
-{"Speichern und verbinden", "Save and connect"},  // src/ui/ui_settings.cpp:611
-{"Display aus", "Display off"},  // src/ui/ui_settings.cpp:636
-{"Gerätename im Netzwerk", "Device name on the network"},  // src/ui/ui_settings.cpp:663
-{"Erreichbar als <name>.local. Erlaubt sind a–z, 0–9 und Bindestrich. Gilt nach einem Neustart.", "Reachable as <name>.local. Allowed are a–z, 0–9 and hyphen. Takes effect after a restart."},  // src/ui/ui_settings.cpp:664
-{"Wird nach dem nächsten Neustart übernommen.", "Applied after the next restart."},  // src/ui/ui_settings.cpp:678
-{"Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.", "The dashboard stays visible, dimmed. An LCD can keep an imprint if the image never changes."},  // src/ui/ui_settings.cpp:707
-{"Bild schwarz, Beleuchtung aus. Schont das Display am meisten.", "Black picture, backlight off. Easiest on the display."},  // src/ui/ui_settings.cpp:708
-{"Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.", "Time and date, dimmed. The clock jumps to a new place every minute."},  // src/ui/ui_settings.cpp:709
-{"Ein Abzeichen mit Uhrzeit hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Ein eigenes Logo lädst du im Browser-Editor hoch.", "A badge with the time bounces across the screen and changes colour at every edge. Upload your own logo in the browser editor."},  // src/ui/ui_settings.cpp:710
-{"Zwei Schläger spielen von selbst Ball gegeneinander, oben steht der Punktestand.", ""},  // src/ui/ui_settings.cpp:712
-{"nicht gestellt", "not set"},  // src/ui/ui_settings.cpp:753
-{"Diesen Tag gibt es in dem Monat nicht.", "This day does not exist in that month."},  // src/ui/ui_settings.cpp:800
-{"Uhrzeit gestellt.", "Time set."},  // src/ui/ui_settings.cpp:805
-{"Datum und Uhrzeit", "Date and time"},  // src/ui/ui_settings.cpp:833
-{"Jan.", "Jan"},  // src/ui/ui_settings.cpp:851
-{"Feb.", "Feb"},  // src/ui/ui_settings.cpp:851
-{"Aug.", "Aug"},  // src/ui/ui_settings.cpp:851
-{"Sep.", "Sep"},  // src/ui/ui_settings.cpp:851
-{"Okt.", "Oct"},  // src/ui/ui_settings.cpp:851
-{"Nov.", "Nov"},  // src/ui/ui_settings.cpp:851
-{"Dez.", "Dec"},  // src/ui/ui_settings.cpp:851
-{"Anzeige", "Display"},  // src/ui/ui_settings.cpp:870
-{"Ruhezustand", "Screen saver"},  // src/ui/ui_settings.cpp:876
-{"Starten nach", "Start after"},  // src/ui/ui_settings.cpp:880
-{"Nie", "Never"},  // src/ui/ui_settings.cpp:880
-{"30 Sekunden", "30 seconds"},  // src/ui/ui_settings.cpp:880
-{"1 Minute", "1 minute"},  // src/ui/ui_settings.cpp:880
-{"2 Minuten", "2 minutes"},  // src/ui/ui_settings.cpp:880
-{"5 Minuten", "5 minutes"},  // src/ui/ui_settings.cpp:880
-{"10 Minuten", "10 minutes"},  // src/ui/ui_settings.cpp:880
-{"30 Minuten", "30 minutes"},  // src/ui/ui_settings.cpp:880
-{"Abdunkeln", "Dim"},  // src/ui/ui_settings.cpp:884
-{"Schwarz", "Black"},  // src/ui/ui_settings.cpp:884
-{"Dunkle Uhr", "Dark clock"},  // src/ui/ui_settings.cpp:884
-{"Hüpfendes Logo", "Bouncing logo"},  // src/ui/ui_settings.cpp:884
-{"Ball-Duell", ""},  // src/ui/ui_settings.cpp:884
-{"Helligkeit im Ruhezustand", "Brightness in screen saver"},  // src/ui/ui_settings.cpp:890
-{"Helligkeit von Uhr und Logo", "Brightness of clock and logo"},  // src/ui/ui_settings.cpp:890
-{"Eigenes Logo beim Abprallen umfärben", "Recolour own logo when bouncing"},  // src/ui/ui_settings.cpp:898
-{"Vorschau", "Preview"},  // src/ui/ui_settings.cpp:908
-{"Uhrzeit", "Time"},  // src/ui/ui_settings.cpp:910
-{"Mit Internet stellt sich die Uhr selbst. Ohne Internet hier von Hand stellen – der Uhrenchip der Platine behält die Zeit auch ohne Strom.", "With internet the clock sets itself. Without internet set it here by hand – the board's RTC chip keeps the time even without power."},  // src/ui/ui_settings.cpp:915
-{"Mit Internet stellt sich die Uhr selbst, ebenso beim Öffnen des Editors im Browser. Ohne beides hier von Hand stellen. Ohne Uhrenchip geht die Zeit nach einem Stromausfall verloren.", "With internet the clock sets itself, also when the editor is opened in the browser. Without either, set it here by hand. Without an RTC chip the time is lost after a power failure."},  // src/ui/ui_settings.cpp:917
-{"Netzwerkname", "Network name"},  // src/ui/ui_settings.cpp:923
-{"Gerät umbenennen", "Rename device"},  // src/ui/ui_settings.cpp:934
-{"Name in Zigbee2MQTT: ", "Name in Zigbee2MQTT:"},  // src/ui/ui_settings.cpp:936
-{" (Kanal ", " (channel"},  // src/ui/ui_settings.cpp:937
-{"). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät.", "). Renaming in Zigbee2MQTT affects the whole device."},  // src/ui/ui_settings.cpp:937
-{"Auch in Zigbee2MQTT umbenennen", "Also rename in Zigbee2MQTT"},  // src/ui/ui_settings.cpp:938
-{"Shelly ", "Shelly "},  // src/ui/ui_settings.cpp:943
-{"). Der Name gilt nur für dieses Panel.", "). The name only applies to this panel."},  // src/ui/ui_settings.cpp:943
-{"WLED „", "WLED “"},  // src/ui/ui_settings.cpp:946
-{"Zigbee-Gerät ", ""},  // src/ui/ui_settings.cpp:951
-{". Der Name gilt nur für dieses Panel.", ""},  // src/ui/ui_settings.cpp:951
-{"Umbenennung an Zigbee2MQTT gesendet.", "Rename sent to Zigbee2MQTT."},  // src/ui/ui_settings.cpp:970
-{"Noch keine Geräte mit Werten.", ""},  // src/ui/ui_settings.cpp:992
-{"Noch keine Geräte von Zigbee2MQTT empfangen.", "No devices received from Zigbee2MQTT yet."},  // src/ui/ui_settings.cpp:994
-{"Fehlende Geräte wurden ergänzt.", "Missing devices have been added."},  // src/ui/ui_settings.cpp:999
-{"Alles neu anordnen?", "Rearrange everything?"},  // src/ui/ui_settings.cpp:1003
-{"Alle Kacheln werden neu verteilt. Eigene Positionen und Größen gehen dabei verloren, Namen bleiben erhalten.", "All tiles will be rearranged. Custom positions and sizes are lost, names are kept."},  // src/ui/ui_settings.cpp:1004
-{"Neu anordnen", "Rearrange"},  // src/ui/ui_settings.cpp:1005
-{"Kacheln wurden neu verteilt.", "Tiles have been rearranged."},  // src/ui/ui_settings.cpp:1008
-{"Tippe auf ein Gerät, um seinen Namen zu ändern. Anordnen, Icons und Größen gehen bequemer im Browser-Editor.", "Tap a device to change its name. Arranging, icons and sizes are easier in the browser editor."},  // src/ui/ui_settings.cpp:1015
-{"Fehlende ergänzen", "Add missing"},  // src/ui/ui_settings.cpp:1017
-{"Alles neu anordnen", "Rearrange everything"},  // src/ui/ui_settings.cpp:1018
-{"Zigbee2MQTT", "Zigbee2MQTT"},  // src/ui/ui_settings.cpp:1023
-{"Noch keine Shellys gefunden.", ""},  // src/ui/ui_settings.cpp:1031
-{"Shellys: unter „Shelly (MQTT)“ einschalten.", ""},  // src/ui/ui_settings.cpp:1032
-{"Dieser Sensor ist schon eingerichtet.", "This sensor is already set up."},  // src/ui/ui_settings.cpp:1065
-{"Name der Gasflasche", "Name of the gas bottle"},  // src/ui/ui_settings.cpp:1069
-{"Bluetooth-Adresse ", "Bluetooth address"},  // src/ui/ui_settings.cpp:1070
-{". Zum Beispiel „Flasche links“ oder „Reserve“.", ". For example “Left bottle” or “Reserve”."},  // src/ui/ui_settings.cpp:1070
-{"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Set up. The first measurement follows as soon as the sensor reports."},  // src/ui/ui_settings.cpp:1075
-{"Es sind schon vier Gasflaschen eingerichtet.", "Four gas bottles are already set up."},  // src/ui/ui_settings.cpp:1084
-{"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Searching. The sensor only advertises every few minutes – please be patient."},  // src/ui/ui_settings.cpp:1088
-{"Messung angefordert.", "Measurement requested."},  // src/ui/ui_settings.cpp:1093
-{"Name des Tanks", "Name of the tank"},  // src/ui/ui_settings.cpp:1119
-{". Den Flaschentyp wählst du danach in der Detailansicht.", ". You choose the bottle type afterwards in the detail view."},  // src/ui/ui_settings.cpp:1120
-{"Tank ", "Tank "},  // src/ui/ui_settings.cpp:1121
-{"Eingerichtet. Antippen, um den Flaschentyp zu wählen (vorgegeben: 11 kg).", "Set up. Tap to choose the bottle type (default: 11 kg)."},  // src/ui/ui_settings.cpp:1128
-{"Es sind schon vier Mopeka-Sensoren eingerichtet.", "Four Mopeka sensors are already set up."},  // src/ui/ui_settings.cpp:1138
-{"Suche läuft. Am Sensor kurz die Sync-Taste drücken, dann ist er leicht zu erkennen.", "Searching. Briefly press the sync button on the sensor to identify it easily."},  // src/ui/ui_settings.cpp:1142
-{"Pro Check, Pro Plus, Pro Universal, H2O, TD40 und die älteren Standard-Sensoren. Sie senden ihre Werte laufend – das Panel hört nur mit, die Mopeka-App bleibt nutzbar.", "Pro Check, Pro Plus, Pro Universal, H2O, TD40 and the older Standard sensors. They send their values continuously – the panel only listens, the Mopeka app keeps working."},  // src/ui/ui_settings.cpp:1175
-{"Noch kein Mopeka-Sensor eingerichtet.", "No Mopeka sensor set up yet."},  // src/ui/ui_settings.cpp:1182
-{"Suche läuft …", "Searching …"},  // src/ui/ui_settings.cpp:1190
-{"Mopeka suchen", "Search Mopeka"},  // src/ui/ui_settings.cpp:1190
-{"Gefundene Mopeka-Sensoren (Suche läuft …)", "Mopeka sensors found (searching …)"},  // src/ui/ui_settings.cpp:1194
-{"Gefundene Mopeka-Sensoren", "Mopeka sensors found"},  // src/ui/ui_settings.cpp:1194
-{"Noch nichts gefunden. Sync-Taste am Sensor drücken.", "Nothing found yet. Press the sync button on the sensor."},  // src/ui/ui_settings.cpp:1196
-{"Taste gedrückt, ", "button pressed,"},  // src/ui/ui_settings.cpp:1201
-{"eingerichtet, ", "set up,"},  // src/ui/ui_settings.cpp:1201
-{"Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.", ""},  // src/ui/ui_settings.cpp:1218
-{"Kopplung lösen?", "Unpair?"},  // src/ui/ui_settings.cpp:1221
-{"Das Panel trennt sich von der Hymer-SCU. Zum erneuten Verbinden musst du neu koppeln.", ""},  // src/ui/ui_settings.cpp:1221
-{"Lösen", "Unpair"},  // src/ui/ui_settings.cpp:1221
-{"Jetzt am iNet X „Gerät hinzufügen“ öffnen – du hast 3 Minuten.", "Now open “Add device” on the iNet X – you have 3 minutes."},  // src/ui/ui_settings.cpp:1232
-{"Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.", "The panel disconnects from the iNet X. To connect again you have to pair again."},  // src/ui/ui_settings.cpp:1235
-{"Die Uhrzeit geht beim nächsten Abruf ans CP Plus.", "The time is sent to the CP Plus on its next request."},  // src/ui/ui_settings.cpp:1240
-{"Das Panel kennt die Uhrzeit noch nicht.", "The panel does not know the time yet."},  // src/ui/ui_settings.cpp:1240
-{"Truma CP Plus (LIN-Bus)", "Truma CP Plus (LIN bus)"},  // src/ui/ui_settings.cpp:1252
-{" (LIN-Bus)", " (LIN bus)"},  // src/ui/ui_settings.cpp:1252
-{"Truma iNet X (Bluetooth)", "Truma iNet X (Bluetooth)"},  // src/ui/ui_settings.cpp:1252
-{"Uhr ans CP Plus", "Clock to CP Plus"},  // src/ui/ui_settings.cpp:1257
-{"Kopplung läuft …", "Pairing …"},  // src/ui/ui_settings.cpp:1259
-{"iNet X neu koppeln", "Pair iNet X again"},  // src/ui/ui_settings.cpp:1260
-{"iNet X koppeln", "Pair iNet X"},  // src/ui/ui_settings.cpp:1260
-{"Kopplung lösen", "Unpair"},  // src/ui/ui_settings.cpp:1261
-{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: After connecting, run “PR SET” > Init once on the CP Plus so it registers the panel as an iNet Box."},  // src/ui/ui_settings.cpp:1264
-{"Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ", "Alde: LIN wire to the yellow RJ12 socket (pin 4, ground pin 2). Model, pins and baud rate are set in platformio.ini under [alde]."},  // src/ui/ui_settings.cpp:1265
-{"iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.", "iNet X: First tap “Pair” here, then open “Add device” on the control panel. The iNet X remembers at most four devices."},  // src/ui/ui_settings.cpp:1266
-{"%s · %u Gerät(e) · %s", "%s · %u device(s) · %s"},  // src/ui/ui_settings.cpp:1364
-{"online", "online"},  // src/ui/ui_settings.cpp:1364
-{"offline", "offline"},  // src/ui/ui_settings.cpp:1364
-{"Weboberfläche: http://", ""},  // src/ui/ui_settings.cpp:1387
-{"Per Bluetooth verbunden (ohne IP). Seine Weboberfläche: WLAN „SOC-Satellite-…“, dann 4.3.2.1.", ""},  // src/ui/ui_settings.cpp:1388
-{"Keine IP gemeldet – Weboberfläche über sein eigenes WLAN „SOC-Satellite-…“.", ""},  // src/ui/ui_settings.cpp:1389
-{"Entfernen nimmt ihn aus der Liste, seine Kacheln bleiben leer. Sendet er weiter, taucht er wieder auf – dann am Satelliten die Sendewege abschalten oder ein anderes Bluetooth-Passwort setzen.", ""},  // src/ui/ui_settings.cpp:1390
-{"%s · %u Kachel(n)%s%s", ""},  // src/ui/ui_settings.cpp:1432
-{"verbunden", "connected"},  // src/ui/ui_settings.cpp:1432
-{"Noch keine IP gemeldet.", ""},  // src/ui/ui_settings.cpp:1442
-{"Welche Kacheln es zeigt: im Editor dieses Panels (Reiter Zusatzdisplays) oder in seiner eigenen Weboberfläche. Entfernen nimmt es aus der Liste – solange es läuft, meldet es sich wieder an.", ""},  // src/ui/ui_settings.cpp:1443
-{"Bluetooth-Passwort der Satelliten", "Bluetooth password of the satellites"},  // src/ui/ui_settings.cpp:1454
-{"Gilt für alle Satelliten. Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen – nur dann nimmt das Panel ihn per Bluetooth auf.", "Applies to all satellites. Enter the same password in the satellite's web interface – only then does the panel accept it via Bluetooth."},  // src/ui/ui_settings.cpp:1455
-{"Passwort gespeichert.", "Password saved."},  // src/ui/ui_settings.cpp:1461
-{"Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.", ""},  // src/ui/ui_settings.cpp:1469
-{"Suche läuft – noch %u:%02u. Am Satelliten die BOOT-Taste 3 s halten (oder 3× schnell aus/ein).", ""},  // src/ui/ui_settings.cpp:1479
-{"Satelliten", "Satellites"},  // src/ui/ui_settings.cpp:1486
-{"Eigene ESP32 mit Sensoren und Relais im Fahrzeug. Sie senden per UDP im WLAN direkt ans Panel (oder über einen MQTT-Broker) – ihre Geräte erscheinen hier und im Editor wie eigene.", ""},  // src/ui/ui_settings.cpp:1488
-{"Satelliten-Passwort", ""},  // src/ui/ui_settings.cpp:1495
-{"Noch kein Satellit gehört.", "No satellite heard yet."},  // src/ui/ui_settings.cpp:1496
-{"Zusatzdisplays", ""},  // src/ui/ui_settings.cpp:1504
-{"Neuen Satelliten hinzufügen", ""},  // src/ui/ui_settings.cpp:1519
-{"%d dBm · antippen zum Einrichten", ""},  // src/ui/ui_settings.cpp:1525
-{"Stand", ""},  // src/ui/ui_settings.cpp:1530
-{"Suche", ""},  // src/ui/ui_settings.cpp:1530
-{"Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", ""},  // src/ui/ui_settings.cpp:1533
-{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", ""},  // src/ui/ui_settings.cpp:1562
-{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "The sensor allows only one connection at a time: if the Truma app, Home Assistant or the Victron GX is connected, the panel measures on the next round."},  // src/ui/ui_settings.cpp:1565
-{"Noch keine Gasflasche eingerichtet.", "No gas bottle set up yet."},  // src/ui/ui_settings.cpp:1573
-{"Truma suchen", "Search Truma"},  // src/ui/ui_settings.cpp:1581
-{"Alle jetzt messen", "Measure all now"},  // src/ui/ui_settings.cpp:1582
-{"Gefundene Sensoren (Suche läuft …)", "Sensors found (searching …)"},  // src/ui/ui_settings.cpp:1586
-{"Gefundene Sensoren", "Sensors found"},  // src/ui/ui_settings.cpp:1586
-{"Noch nichts gefunden. Der Sensor muss in Reichweite sein.", "Nothing found yet. The sensor must be in range."},  // src/ui/ui_settings.cpp:1588
-{"LevelControl ", "LevelControl "},  // src/ui/ui_settings.cpp:1594
-{"Messen", "Measuring"},  // src/ui/ui_settings.cpp:1598
-{"Abfrage alle", "Poll every"},  // src/ui/ui_settings.cpp:1602
-{"15 Minuten", "15 minutes"},  // src/ui/ui_settings.cpp:1602
-{"60 Minuten", "60 minutes"},  // src/ui/ui_settings.cpp:1602
-{"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Measuring more often drains the sensor battery faster."},  // src/ui/ui_settings.cpp:1603
-{"Hymer Connect", ""},  // src/ui/ui_settings.cpp:1627
-{"Licht, Batterie, Tanks und Schalter direkt von der SCU im Fahrzeug (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – per Bluetooth, ohne Cloud.", ""},  // src/ui/ui_settings.cpp:1627
-{"SCU im Fahrzeug suchen und verbinden", ""},  // src/ui/ui_settings.cpp:1629
-{"SCU (Bluetooth)", ""},  // src/ui/ui_settings.cpp:1633
-{"Neu koppeln", ""},  // src/ui/ui_settings.cpp:1636
-{"Hymer koppeln", ""},  // src/ui/ui_settings.cpp:1636
-{"Erst hier „Hymer koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). Die Werte stehen danach im Editor wie die eines Satelliten namens „Hymer“ und lassen sich aufs Panel ziehen.", ""},  // src/ui/ui_settings.cpp:1639
-{"Gefundene Geräte", "Devices found"},  // src/ui/ui_settings.cpp:1649
-{"Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.", ""},  // src/ui/ui_settings.cpp:1652
-{" · Hymer", ""},  // src/ui/ui_settings.cpp:1657
-{"Gerät antippen, dann am Bedienteil „CONNECTION“ drücken.", ""},  // src/ui/ui_settings.cpp:1662
-{"Schalter und Lichter: Zeile antippen zum Umschalten.", ""},  // src/ui/ui_settings.cpp:1677
-{"Box gewählt – verbinde …", "Box selected – connecting …"},  // src/ui/ui_settings.cpp:1785
-{"Andere Box wählen", "Choose another box"},  // src/ui/ui_settings.cpp:1789
-{"Die gemerkte HobbyConnect-Box vergessen und neu suchen?", "Forget the saved HobbyConnect box and search again?"},  // src/ui/ui_settings.cpp:1789
-{"Vergessen", "Forget"},  // src/ui/ui_settings.cpp:1789
-{"RX-Pin (GPIO)", "RX pin (GPIO)"},  // src/ui/ui_settings.cpp:1804
-{"TX-Pin (GPIO)", "TX pin (GPIO)"},  // src/ui/ui_settings.cpp:1804
-{"GPIO, an dem die Sendeleitung des RS232-Wandlers (TXD) hängt; leer = keiner", "GPIO connected to the transmit line of the RS232 converter (TXD); empty = none"},  // src/ui/ui_settings.cpp:1805
-{"GPIO zur Empfangsleitung des RS232-Wandlers (RXD); leer = keiner", "GPIO to the receive line of the RS232 converter (RXD); empty = none"},  // src/ui/ui_settings.cpp:1806
-{"Gerade nicht schaltbar (nicht verbunden; Hauptschalter nur über das Kabel).", "Cannot switch right now (not connected; main switch only via cable)."},  // src/ui/ui_settings.cpp:1825
-{"Noch keine Werte – erst verbinden.", "No values yet – connect first."},  // src/ui/ui_settings.cpp:1845
-{"Kacheln angelegt (vorhandene bleiben).", "Tiles created (existing ones stay)."},  // src/ui/ui_settings.cpp:1849
-{"Wohnwagen und Reisemobile von Hobby: Licht, Bordbatterie, Wasser, Heizung, Kühlschrank und Klima – per Bluetooth über die HobbyConnect-Box oder per Kabel direkt am Steuergerät (LSG, CI-BUS).", "Hobby caravans and motorhomes: lights, leisure battery, water, heating, fridge and air conditioning – via Bluetooth through the HobbyConnect box or by cable directly at the control unit (LSG, CI-BUS)."},  // src/ui/ui_settings.cpp:1857
-{"HobbyConnect-Box", "HobbyConnect box"},  // src/ui/ui_settings.cpp:1859
-{"Box im Fahrzeug per Bluetooth verbinden", "Connect the box in the vehicle via Bluetooth"},  // src/ui/ui_settings.cpp:1859
-{"Box (Bluetooth)", "Box (Bluetooth)"},  // src/ui/ui_settings.cpp:1862
-{"Adresse", "Address"},  // src/ui/ui_settings.cpp:1864
-{"Suche läuft … Die Box muss eingeschaltet und in Reichweite sein; die Hobby-App auf dem Handy vorher trennen.", "Searching … The box must be switched on and in range; disconnect the Hobby app on the phone first."},  // src/ui/ui_settings.cpp:1869
-{"HobbyConnect", "HobbyConnect"},  // src/ui/ui_settings.cpp:1879
-{"CI-BUS am LSG (Kabel)", "CI-BUS at the LSG (cable)"},  // src/ui/ui_settings.cpp:1885
-{"Ersetzt die Box: RS232-Wandler an einer seriellen Schnittstelle", "Replaces the box: RS232 converter on a serial port"},  // src/ui/ui_settings.cpp:1885
-{"UART%d", "UART%d"},  // src/ui/ui_settings.cpp:1890
-{"Schnittstelle", "Port"},  // src/ui/ui_settings.cpp:1891
-{"GPIO ", "GPIO "},  // src/ui/ui_settings.cpp:1892
-{"RX-Pin", "RX pin"},  // src/ui/ui_settings.cpp:1894
-{"TX-Pin", "TX pin"},  // src/ui/ui_settings.cpp:1895
-{"Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte holt das Panel selbst vom LSG.", "The LSG talks RS232 (±12 V): connect only via an RS232-TTL converter (e.g. MAX3232, 3.3 V), 115200 baud. Waveshare 7\": UART header (GPIO 15/16). The panel reads the value numbers from the LSG itself."},  // src/ui/ui_settings.cpp:1897
-{"Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen.", "Caution: UART%d is used by the Zigbee module – please choose another one."},  // src/ui/ui_settings.cpp:1906
-{"Kacheln anlegen", "Create tiles"},  // src/ui/ui_settings.cpp:1922
-{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values are in the device list under “Hobby”, the leisure battery as a battery monitor."},  // src/ui/ui_settings.cpp:1923
-{"nicht gestartet", ""},  // src/ui/ui_settings.cpp:1956
-{"nicht gefunden – Modul gesteckt und aufgespielt?", ""},  // src/ui/ui_settings.cpp:1957
-{" · Firmware ", ""},  // src/ui/ui_settings.cpp:1958
-{"wird gebildet …", ""},  // src/ui/ui_settings.cpp:1962
-{"PAN 0x%04X · %s %d", ""},  // src/ui/ui_settings.cpp:1964
-{"geschlossen", ""},  // src/ui/ui_settings.cpp:1968
-{"offen, noch %d s", ""},  // src/ui/ui_settings.cpp:1970
-{"Noch keine Meldungen.", ""},  // src/ui/ui_settings.cpp:1978
-{"wird abgefragt …", ""},  // src/ui/ui_settings.cpp:1981
-{"noch keine Werte", ""},  // src/ui/ui_settings.cpp:1982
-{"Ausgeschaltet – wirkt nach dem nächsten Neustart des Panels.", ""},  // src/ui/ui_settings.cpp:1991
-{"Anlernen beendet.", ""},  // src/ui/ui_settings.cpp:1997
-{"Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.", ""},  // src/ui/ui_settings.cpp:2000
-{"' && json.back() == '", ""},  // src/ui/ui_settings.cpp:2022
-{"Änderungen verwerfen?", ""},  // src/ui/ui_settings.cpp:2053
-{"Die geänderten Einstellungen wurden noch nicht gespeichert.", ""},  // src/ui/ui_settings.cpp:2053
-{"Verwerfen", ""},  // src/ui/ui_settings.cpp:2053
-{"Zigbee-Modul nicht verbunden.", ""},  // src/ui/ui_settings.cpp:2069
-{"Gesendet – das Gerät übernimmt die Einstellungen.", ""},  // src/ui/ui_settings.cpp:2073
-{"Name des Geräts", ""},  // src/ui/ui_settings.cpp:2087
-{"z. B. „Bewegung Flur“ oder „Taster Bett“. Leer lassen = Modellname.", ""},  // src/ui/ui_settings.cpp:2088
-{"Das Gerät ", ""},  // src/ui/ui_settings.cpp:2099
-{" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.", ""},  // src/ui/ui_settings.cpp:2099
-{"Gerät entfernen?", "Remove device?"},  // src/ui/ui_settings.cpp:2100
-{"Gerät entfernt.", ""},  // src/ui/ui_settings.cpp:2103
-{"Wert von %g bis %g%s%s", ""},  // src/ui/ui_settings.cpp:2121
-{"Wert außerhalb des erlaubten Bereichs.", ""},  // src/ui/ui_settings.cpp:2132
-{"Zurück zur Liste", ""},  // src/ui/ui_settings.cpp:2170
-{"Aktuelle Werte", ""},  // src/ui/ui_settings.cpp:2177
-{"Noch keine Werte – das Gerät meldet sich bei der nächsten Änderung.", ""},  // src/ui/ui_settings.cpp:2180
-{"Einstellungen", ""},  // src/ui/ui_settings.cpp:2186
-{"Werden vom Funkmodul geladen …", ""},  // src/ui/ui_settings.cpp:2189
-{"Dieses Gerät hat keine Einstellungen.", ""},  // src/ui/ui_settings.cpp:2191
-{"Mit * markiert: geändert, noch nicht gespeichert.", ""},  // src/ui/ui_settings.cpp:2213
-{"Speichern", ""},  // src/ui/ui_settings.cpp:2218
-{"Gerät entfernen", ""},  // src/ui/ui_settings.cpp:2220
-{"Zigbee-Netz neu bilden?", ""},  // src/ui/ui_settings.cpp:2223
-{"Alle Geräte verlieren die Verbindung und müssen neu angelernt werden. Nur bei Störungen nötig.", ""},  // src/ui/ui_settings.cpp:2224
-{"Neu bilden", ""},  // src/ui/ui_settings.cpp:2224
-{"Netz wird neu gebildet …", ""},  // src/ui/ui_settings.cpp:2227
-{"Zigbee", ""},  // src/ui/ui_settings.cpp:2242
-{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee2MQTT und ohne Broker.", ""},  // src/ui/ui_settings.cpp:2242
-{"Zigbee-Modul", ""},  // src/ui/ui_settings.cpp:2251
-{"Funkmodul im Steckplatz verwenden", ""},  // src/ui/ui_settings.cpp:2252
-{"Funkmodul", ""},  // src/ui/ui_settings.cpp:2262
-{"Modul", ""},  // src/ui/ui_settings.cpp:2264
-{"Zigbee-Netz", ""},  // src/ui/ui_settings.cpp:2265
-{"Anlernen", ""},  // src/ui/ui_settings.cpp:2266
-{"Anlernen beenden", ""},  // src/ui/ui_settings.cpp:2269
-{"Gerät anlernen", ""},  // src/ui/ui_settings.cpp:2269
-{"„Gerät anlernen“ öffnet das Netz für 3 Minuten. Dann das Gerät in den Kopplungsmodus bringen (meist Taste lange drücken oder Lampe mehrmals aus- und einschalten). Das Modul fragt neue Geräte selbst ab und richtet die Meldungen ein.", ""},  // src/ui/ui_settings.cpp:2272
-{"Noch keine Geräte angelernt.", ""},  // src/ui/ui_settings.cpp:2282
-{"Ohne Funkmodul keine Geräte.", ""},  // src/ui/ui_settings.cpp:2282
-{"Gerät antippen: Werte, Einstellungen, Name, Entfernen.", ""},  // src/ui/ui_settings.cpp:2293
-{"Meldungen des Moduls", ""},  // src/ui/ui_settings.cpp:2298
-{"Netz neu bilden", ""},  // src/ui/ui_settings.cpp:2304
-{"Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", ""},  // src/ui/ui_settings.cpp:2348
-{"Gas und Heizung", "Gas and heating"},  // src/ui/ui_settings.cpp:2351
-{"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Levels and heating over Bluetooth. Choose which devices the panel should read – disabled ones are not scanned and don't load radio and Wi-Fi."},  // src/ui/ui_settings.cpp:2351
-{"Gasflaschen, bis zu vier", "Gas bottles, up to four"},  // src/ui/ui_settings.cpp:2354
-{"Gas- und Tanksensoren, bis zu vier", "Gas and tank sensors, up to four"},  // src/ui/ui_settings.cpp:2355
-{"Heizung, Boiler und Klima über das Bedienteil", "Heating, boiler and air conditioning via the control panel"},  // src/ui/ui_settings.cpp:2356
-{"Kachel anlegen?", ""},  // src/ui/ui_settings.cpp:2395
-{"Soll „", ""},  // src/ui/ui_settings.cpp:2395
-{"“ als Kachel auf den Hauptbildschirm?", ""},  // src/ui/ui_settings.cpp:2395
-{"Kachel anlegen", ""},  // src/ui/ui_settings.cpp:2396
-{"Kachel angelegt. Position und Größe änderst du im Editor.", ""},  // src/ui/ui_settings.cpp:2401
-{"Dieses Gerät ist schon eingerichtet.", "This device is already set up."},  // src/ui/ui_settings.cpp:2443
-{"Schlüssel für ", "Key for"},  // src/ui/ui_settings.cpp:2447
-{"32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "32 characters from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:2448
-{"Eingerichtet. Die Werte erscheinen in wenigen Sekunden.", "Set up. The values appear within a few seconds."},  // src/ui/ui_settings.cpp:2452
-{"Es sind schon sechs Victron-Geräte eingerichtet.", "Six Victron devices are already set up."},  // src/ui/ui_settings.cpp:2462
-{"Suche läuft. Victron-Geräte erscheinen meist nach wenigen Sekunden.", "Searching. Victron devices usually appear within a few seconds."},  // src/ui/ui_settings.cpp:2466
-{"Kopplungs-PIN", ""},  // src/ui/ui_settings.cpp:2511
-{"Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.", ""},  // src/ui/ui_settings.cpp:2513
-{"Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen. Später änderbar: Akku antippen > PIN.", ""},  // src/ui/ui_settings.cpp:2514
-{"Eingerichtet – das Panel verbindet sich gleich.", ""},  // src/ui/ui_settings.cpp:2521
-{"Eingerichtet – das Panel koppelt gleich mit PIN.", ""},  // src/ui/ui_settings.cpp:2522
-{"Name der Power Station", ""},  // src/ui/ui_settings.cpp:2539
-{"Name des Sensors", ""},  // src/ui/ui_settings.cpp:2539
-{"Name des Akkus", ""},  // src/ui/ui_settings.cpp:2540
-{"Zum Beispiel „Kühlschrank“ oder „Frischwasser“.", ""},  // src/ui/ui_settings.cpp:2541
-{"Zum Beispiel „Standheizung“. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem Gerät.", ""},  // src/ui/ui_settings.cpp:2542
-{"Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.", ""},  // src/ui/ui_settings.cpp:2543
-{"Kein Platz mehr – es sind schon so viele Bluetooth-Geräte eingerichtet, wie möglich sind.", ""},  // src/ui/ui_settings.cpp:2562
-{"Suche läuft (1 Minute). Die App des Herstellers vorher schließen.", ""},  // src/ui/ui_settings.cpp:2566
-{"EcoFlow-Benutzer-ID", ""},  // src/ui/ui_settings.cpp:2571
-{"Die Benutzer-ID des EcoFlow-Kontos, an das die Power Station gebunden ist. Bequemer: im Editor unter „Power Stations“ mit E-Mail und Passwort anmelden – dann wird sie automatisch eingetragen. Leer = löschen.", ""},  // src/ui/ui_settings.cpp:2572
-{"Benutzer-ID gelöscht.", ""},  // src/ui/ui_settings.cpp:2578
-{"Benutzer-ID gespeichert.", ""},  // src/ui/ui_settings.cpp:2578
-{"Power Stations", ""},  // src/ui/ui_settings.cpp:2589
-{"Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.", ""},  // src/ui/ui_settings.cpp:2589
-{"Sensoren", ""},  // src/ui/ui_settings.cpp:2593
-{"Bluetooth-Sensoren – ungetestet: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi mit pvvx-Firmware …), Simarine STRx und SuperSense-Tankmodul. Sie senden nur, das Panel hört zu. Verschlüsselte BTHome- und Simarine-Sensoren brauchen den Schlüssel (32 Zeichen) als PIN.", ""},  // src/ui/ui_settings.cpp:2593
-{"Dieselheizung und Kühlbox", ""},  // src/ui/ui_settings.cpp:2597
-{"Akkus (BMS)", ""},  // src/ui/ui_settings.cpp:2599
-{"Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.", ""},  // src/ui/ui_settings.cpp:2599
-{"China-Dieselheizungen (Vevor, Hcalory, HeaterCC/AirHeater) und Kompressor-Kühlboxen (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – ungetestet. Bedienen im Fenster der Kachel.", ""},  // src/ui/ui_settings.cpp:2602
-{"Akkus auswerten", ""},  // src/ui/ui_settings.cpp:2608
-{"Bluetooth-Geräte auswerten", ""},  // src/ui/ui_settings.cpp:2608
-{"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer – nur lesen", ""},  // src/ui/ui_settings.cpp:2609
-{"Ein Schalter für Akkus, Power Stations, Sensoren, Heizung und Kühlbox", ""},  // src/ui/ui_settings.cpp:2611
-{"Noch keine Power Station eingerichtet.", ""},  // src/ui/ui_settings.cpp:2629
-{"Noch kein Sensor eingerichtet.", ""},  // src/ui/ui_settings.cpp:2629
-{"Noch keine Heizung oder Kühlbox eingerichtet.", ""},  // src/ui/ui_settings.cpp:2630
-{"Noch kein Akku eingerichtet.", ""},  // src/ui/ui_settings.cpp:2630
-{"gespeichert ", ""},  // src/ui/ui_settings.cpp:2634
-{"nicht eingetragen", ""},  // src/ui/ui_settings.cpp:2634
-{"Power Stations suchen", ""},  // src/ui/ui_settings.cpp:2640
-{"Sensoren suchen", ""},  // src/ui/ui_settings.cpp:2640
-{"Heizung/Kühlbox suchen", ""},  // src/ui/ui_settings.cpp:2641
-{"Akkus suchen", ""},  // src/ui/ui_settings.cpp:2641
-{"Gefunden (Suche läuft …)", ""},  // src/ui/ui_settings.cpp:2647
-{"Gefunden", ""},  // src/ui/ui_settings.cpp:2647
-{"Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?", ""},  // src/ui/ui_settings.cpp:2650
-{"Noch nichts gefunden. Sensor in der Nähe? Manche senden nur alle paar Sekunden.", ""},  // src/ui/ui_settings.cpp:2651
-{"Noch nichts gefunden. Gerät eingeschaltet und in der Nähe? App des Herstellers geschlossen?", ""},  // src/ui/ui_settings.cpp:2652
-{"Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", ""},  // src/ui/ui_settings.cpp:2653
-{"Suche den Cerbo GX im Netz … (bis etwa 20 Sekunden)", ""},  // src/ui/ui_settings.cpp:2674
-{"Suche läuft schon.", ""},  // src/ui/ui_settings.cpp:2675
-{"Adresse des Cerbo GX", "Cerbo GX address"},  // src/ui/ui_settings.cpp:2680
-{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen > Dienste > MQTT einschalten.", "IP address or name, e.g. 192.168.1.50. Empty = Cerbo GX off. On the GX: Settings > Services > enable MQTT."},  // src/ui/ui_settings.cpp:2681
-{"Cerbo GX ausgeschaltet.", "Cerbo GX turned off."},  // src/ui/ui_settings.cpp:2690
-{"Gespeichert, verbinde …", "Saved, connecting …"},  // src/ui/ui_settings.cpp:2690
-{"Passwort des Cerbo GX", "Cerbo GX password"},  // src/ui/ui_settings.cpp:2698
-{"Nur nötig, wenn am GX ein Passwort für das lokale Netz gesetzt ist. Leer = kein Passwort.", "Only needed if a password for the local network is set on the GX. Empty = no password."},  // src/ui/ui_settings.cpp:2699
-{"Gespeichert, verbinde neu …", "Saved, reconnecting …"},  // src/ui/ui_settings.cpp:2706
-{"Cerbo GX (MQTT)", "Cerbo GX (MQTT)"},  // src/ui/ui_settings.cpp:2719
-{"im Netz suchen und eintragen", ""},  // src/ui/ui_settings.cpp:2724
-{"Automatisch suchen", ""},  // src/ui/ui_settings.cpp:2725
-{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen > Dienste > MQTT einschalten, dann „Automatisch suchen“ oder die IP-Adresse von Hand eintragen. Die Kacheln setzt du danach im Editor.", ""},  // src/ui/ui_settings.cpp:2735
-{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "SmartSolar, SmartShunt, BMV and Orion over Bluetooth (“Instant Readout”). The panel only listens – VictronConnect and a GX are not disturbed. For each device you need the key from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:2747
-{"Bluetooth (Instant Readout)", "Bluetooth (Instant Readout)"},  // src/ui/ui_settings.cpp:2752
-{"Victron auswerten", "Read Victron"},  // src/ui/ui_settings.cpp:2754
-{"Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", "Off = the panel does not scan or listen for Victron devices"},  // src/ui/ui_settings.cpp:2754
-{"Noch kein Victron-Gerät eingerichtet.", "No Victron device set up yet."},  // src/ui/ui_settings.cpp:2762
-{"Geräte suchen", "Search devices"},  // src/ui/ui_settings.cpp:2767
-{"Gefundene Geräte (Suche läuft …)", "Devices found (searching …)"},  // src/ui/ui_settings.cpp:2771
-{"Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?", "Nothing found yet. Is Bluetooth enabled on the device?"},  // src/ui/ui_settings.cpp:2773
-{"Firmware", "Firmware"},  // src/ui/ui_settings.cpp:2827
-{"IP-Adresse", "IP address"},  // src/ui/ui_settings.cpp:2827
-{"WLAN-Signal", "Wi-Fi signal"},  // src/ui/ui_settings.cpp:2827
-{"Geräteliste", "Device list"},  // src/ui/ui_settings.cpp:2827
-{"Touch", "Touch"},  // src/ui/ui_settings.cpp:2828
-{"Freier Speicher", "Free memory"},  // src/ui/ui_settings.cpp:2828
-{"Laufzeit", "Uptime"},  // src/ui/ui_settings.cpp:2828
-{"oder http://%s.local/", "or http://%s.local/"},  // src/ui/ui_settings.cpp:2838
-{" (Bridge offline)", " (Bridge offline)"},  // src/ui/ui_settings.cpp:2846
-{"Zustände werden neu abgefragt.", "States are being requested again."},  // src/ui/ui_settings.cpp:2867
-{"Panel neu starten?", "Restart panel?"},  // src/ui/ui_settings.cpp:2871
-{"Das dauert etwa zehn Sekunden.", "This takes about ten seconds."},  // src/ui/ui_settings.cpp:2871
-{"Neu starten", "Restart"},  // src/ui/ui_settings.cpp:2871
-{"Info", "Info"},  // src/ui/ui_settings.cpp:2878
-{"Layout-Editor im Browser", "Layout editor in the browser"},  // src/ui/ui_settings.cpp:2885
-{"Zustände neu abfragen", "Request states again"},  // src/ui/ui_settings.cpp:2894
-{"Sicherung läuft …", "Backup running …"},  // src/ui/ui_settings.cpp:2926
-{"Sicherung liegt auf der SD-Karte.", "Backup is on the SD card."},  // src/ui/ui_settings.cpp:2929
-{"Diese Sicherung ist unvollständig.", "This backup is incomplete."},  // src/ui/ui_settings.cpp:2939
-{"Layout, Einstellungen und Hintergründe werden durch den Stand vom ", "Layout, settings and backgrounds will be replaced by the state of"},  // src/ui/ui_settings.cpp:2943
-{" ersetzt. Danach startet das Panel neu.", ". The panel then restarts."},  // src/ui/ui_settings.cpp:2944
-{"Sicherung einspielen?", "Restore backup?"},  // src/ui/ui_settings.cpp:2945
-{"Einspielen", "Restore"},  // src/ui/ui_settings.cpp:2945
-{"Sicherung wird eingespielt …", "Restoring backup …"},  // src/ui/ui_settings.cpp:2946
-{"Die Sicherung vom ", "The backup of"},  // src/ui/ui_settings.cpp:2963
-{" wird von der SD-Karte entfernt.", " will be removed from the SD card."},  // src/ui/ui_settings.cpp:2963
-{"Sicherung löschen?", "Delete backup?"},  // src/ui/ui_settings.cpp:2964
-{"Löschen", "Delete"},  // src/ui/ui_settings.cpp:2964
-{"Sicherung", "Backup"},  // src/ui/ui_settings.cpp:2972
-{"Sichert Layout, Namen, alle Einstellungen, Gasflaschen, Victron-Geräte, Logo und Hintergründe auf die microSD-Karte. Achtung: WLAN- und MQTT-Passwörter stehen dort lesbar.", "Saves layout, names, all settings, gas bottles, Victron devices, logo and backgrounds to the microSD card. Caution: Wi-Fi and MQTT passwords are stored there in plain text."},  // src/ui/ui_settings.cpp:2973
-{"SD-Karte", "SD card"},  // src/ui/ui_settings.cpp:2977
-{"Karte (FAT32 oder exFAT) einstecken und das Panel neu starten.", "Insert a card (FAT32 or exFAT) and restart the panel."},  // src/ui/ui_settings.cpp:2978
-{" frei von ", " free of"},  // src/ui/ui_settings.cpp:2984
-{"Jetzt sichern", "Back up now"},  // src/ui/ui_settings.cpp:2987
-{"Tippen zum Einspielen", "Tap to restore"},  // src/ui/ui_settings.cpp:2989
-{"Noch keine Sicherung auf der Karte.", "No backup on the card yet."},  // src/ui/ui_settings.cpp:2993
-{"%d Hintergrund", "%d background"},  // src/ui/ui_settings.cpp:2999
-{"%d Hintergründe", "%d backgrounds"},  // src/ui/ui_settings.cpp:2999
-{"unvollständig", "incomplete"},  // src/ui/ui_settings.cpp:3000
-{"Regel „%s“ ausgeführt", ""},  // src/ui/ui_settings.cpp:3022
-{"Regeln", ""},  // src/ui/ui_settings.cpp:3028
-{"Automatisch schalten: wenn etwas passiert (Taster, Bewegungsmelder, Gerät, Uhrzeit), und falls eine Bedingung stimmt, dann Aktionen ausführen. Angelegt und bearbeitet werden Regeln im Web-Editor (Einstellungen > Regeln) mit Bausteinen.", ""},  // src/ui/ui_settings.cpp:3028
-{"Noch keine Regel angelegt.", ""},  // src/ui/ui_settings.cpp:3032
-{"Pfeil: Regel sofort ausführen (ohne Auslöser und Bedingung). Schalter: Regel an/aus.", ""},  // src/ui/ui_settings.cpp:3059
-{"Fahrzeug", "Vehicle"},  // src/ui/ui_settings.cpp:3084
-{"Zurück", "Back"},  // src/ui/ui_settings.cpp:3173
-{"IP-Adresse ", "IP address"},  // src/ui/ui_settings.cpp:3246
-{"Panel-WLAN 192.168.4.1", "Panel Wi-Fi 192.168.4.1"},  // src/ui/ui_settings.cpp:3247
+{"Verbinde mit ", "Connect to"},  // src/ui/ui_settings.cpp:131
+{"Passwort für ", "Password for"},  // src/ui/ui_settings.cpp:136
+{"WLAN-Passwort eingeben. Mit dem Auge-Symbol wird es sichtbar.", "Enter the Wi-Fi password. The eye icon makes it visible."},  // src/ui/ui_settings.cpp:137
+{"Die Suche hat nicht geklappt. Bitte noch einmal auf „Netzwerke suchen“ tippen.", "The scan did not work. Please tap “Search networks” again."},  // src/ui/ui_settings.cpp:157
+{"Keine Netze gefunden. Das Panel unterstützt nur 2,4 GHz.", "No networks found. The panel only supports 2.4 GHz."},  // src/ui/ui_settings.cpp:158
+{"Suche nach Netzen …", "Searching for networks …"},  // src/ui/ui_settings.cpp:186
+{"Netzname (SSID)", "Network name (SSID)"},  // src/ui/ui_settings.cpp:192
+{"Name des verborgenen Netzes, genau wie im Router eingetragen.", "Name of the hidden network, exactly as set in the router."},  // src/ui/ui_settings.cpp:193
+{"Panel startet neu …", "Panel is restarting …"},  // src/ui/ui_settings.cpp:208
+{"Netzwerk", "Network"},  // src/ui/ui_settings.cpp:212
+{"Router", "Router"},  // src/ui/ui_settings.cpp:212
+{"Kombi", "Combined"},  // src/ui/ui_settings.cpp:212
+{"WLAN aus", ""},  // src/ui/ui_settings.cpp:212
+{"Das Panel hängt im WLAN – z. B. dort, wo auch der Cerbo GX ist.", ""},  // src/ui/ui_settings.cpp:214
+{"Das Panel öffnet ein eigenes WLAN – Editor per Handy, kein Heimnetz nötig.", ""},  // src/ui/ui_settings.cpp:215
+{"Eigenes WLAN plus Camp-WLAN mit Internet-Weiterleitung.", ""},  // src/ui/ui_settings.cpp:216
+{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein Cerbo, kein Editor.", ""},  // src/ui/ui_settings.cpp:217
+{"Panel und Hub hängen beide im Camp-WLAN.", "Panel and hub are both on the camp Wi-Fi."},  // src/ui/ui_settings.cpp:219
+{"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "The panel opens its own Wi-Fi for the hub. No home network needed."},  // src/ui/ui_settings.cpp:220
+{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Own Wi-Fi for the hub plus camp Wi-Fi with internet forwarding."},  // src/ui/ui_settings.cpp:221
+{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor.", ""},  // src/ui/ui_settings.cpp:222
+{"Das Panel wechselt in den %s-Modus und startet dafür neu.", "The panel switches to %s mode and restarts."},  // src/ui/ui_settings.cpp:231
+{"Betriebsart wechseln?", "Change operating mode?"},  // src/ui/ui_settings.cpp:232
+{"Wechseln und neu starten", "Change and restart"},  // src/ui/ui_settings.cpp:232
+{"Name des Panel-WLANs", "Panel Wi-Fi name"},  // src/ui/ui_settings.cpp:244
+{"Unter diesem Namen findest du das Panel im WLAN. Änderung gilt nach einem Neustart.", ""},  // src/ui/ui_settings.cpp:246
+{"Unter diesem Namen findet der Hub das Panel. Änderung gilt nach einem Neustart.", "The hub finds the panel under this name. Takes effect after a restart."},  // src/ui/ui_settings.cpp:248
+{"Passwort des Panel-WLANs", "Panel Wi-Fi password"},  // src/ui/ui_settings.cpp:253
+{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart.", ""},  // src/ui/ui_settings.cpp:255
+{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart – der Hub muss dann neu verbunden werden.", "8 to 63 characters. Takes effect after a restart – the hub then has to reconnect."},  // src/ui/ui_settings.cpp:257
+{"Funkkanal (1–13)", "Radio channel (1–13)"},  // src/ui/ui_settings.cpp:262
+{"Funkkanal des Panel-WLANs (1–13).", ""},  // src/ui/ui_settings.cpp:264
+{"Möglichst weit weg vom Zigbee-Kanal: bei Zigbee 11 eignet sich WLAN 13, bei Zigbee 25 WLAN 1.", "As far as possible from the Zigbee channel: with Zigbee 11 use Wi-Fi 13, with Zigbee 25 use Wi-Fi 1."},  // src/ui/ui_settings.cpp:266
+{"Das Passwort braucht mindestens 8 Zeichen.", "The password needs at least 8 characters."},  // src/ui/ui_settings.cpp:281
+{"Bitte einen Kanal zwischen 1 und 13 wählen.", "Please choose a channel between 1 and 13."},  // src/ui/ui_settings.cpp:288
+{"Zugangspasswort zurücksetzen?", ""},  // src/ui/ui_settings.cpp:309
+{"Das Passwort für Editor und Weboberfläche ist danach wieder „panelsat“. Beim nächsten Öffnen im Browser muss ein neues festgelegt werden. Angemeldete Browser werden abgemeldet.", ""},  // src/ui/ui_settings.cpp:310
+{"Zurücksetzen", ""},  // src/ui/ui_settings.cpp:312
+{"Zurückgesetzt – im Browser ein neues Passwort festlegen.", ""},  // src/ui/ui_settings.cpp:314
+{"Aus (WLAN ausgeschaltet)", ""},  // src/ui/ui_settings.cpp:324
+{"Aus – zum Bearbeiten freigeben", ""},  // src/ui/ui_settings.cpp:325
+{"Läuft", ""},  // src/ui/ui_settings.cpp:327
+{"Läuft, aus in %lu min ohne Zugriff", ""},  // src/ui/ui_settings.cpp:329
+{"Webinterface (Editor)", ""},  // src/ui/ui_settings.cpp:336
+{"Webinterface", ""},  // src/ui/ui_settings.cpp:337
+{"Immer an", ""},  // src/ui/ui_settings.cpp:337
+{"Nur bei Bedarf", ""},  // src/ui/ui_settings.cpp:337
+{"Zugangspasswort", ""},  // src/ui/ui_settings.cpp:341
+{"festgelegt – antippen zum Zurücksetzen", ""},  // src/ui/ui_settings.cpp:341
+{"noch nicht festgelegt (beim ersten Öffnen im Browser)", ""},  // src/ui/ui_settings.cpp:341
+{"Webinterface beenden", ""},  // src/ui/ui_settings.cpp:345
+{"Webinterface freigeben", ""},  // src/ui/ui_settings.cpp:345
+{"„Nur bei Bedarf“ spart internen Speicher: Der Editor ist erst nach „freigeben“ erreichbar und schaltet sich nach 15 Minuten ohne Zugriff wieder ab.", ""},  // src/ui/ui_settings.cpp:349
+{"Tailscale (Beta)", "Tailscale (beta)"},  // src/ui/ui_settings.cpp:356
+{"Adresse im Tailnet", ""},  // src/ui/ui_settings.cpp:358
+{"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "New operating mode is saved and takes effect after the restart."},  // src/ui/ui_settings.cpp:394
+{"Panel-WLAN", "Panel Wi-Fi"},  // src/ui/ui_settings.cpp:398
+{" (folgt dem Camp-WLAN)", " (follows the camp Wi-Fi)"},  // src/ui/ui_settings.cpp:402
+{"Passwort", "Password"},  // src/ui/ui_settings.cpp:404
+{"Kanal", "Channel"},  // src/ui/ui_settings.cpp:405
+{"Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.", ""},  // src/ui/ui_settings.cpp:407
+{"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "On the SMHUB Nano, choose this network under Settings > Wi-Fi (2.4 GHz). The editor is then reachable at http://192.168.4.1/ if your phone is connected too."},  // src/ui/ui_settings.cpp:411
+{"Camp-WLAN", "Camp Wi-Fi"},  // src/ui/ui_settings.cpp:419
+{"Netzwerke suchen", "Search networks"},  // src/ui/ui_settings.cpp:429
+{"Verborgenes Netz", "Hidden network"},  // src/ui/ui_settings.cpp:430
+{"nicht gesetzt", "not set"},  // src/ui/ui_settings.cpp:445
+{"IP-Adresse oder Hostname des Brokers, z. B. 192.168.1.10 oder homeassistant.local", "IP address or host name of the broker, e.g. 192.168.1.10 or homeassistant.local"},  // src/ui/ui_settings.cpp:459
+{"Standard ist 1883.", "Default is 1883."},  // src/ui/ui_settings.cpp:463
+{"Leer lassen, wenn der Broker ohne Anmeldung arbeitet.", "Leave empty if the broker works without login."},  // src/ui/ui_settings.cpp:469
+{"Wie in Zigbee2MQTT unter mqtt.base_topic – meistens zigbee2mqtt.", "As in Zigbee2MQTT under mqtt.base_topic – usually zigbee2mqtt."},  // src/ui/ui_settings.cpp:479
+{"Gespeichert – verbinde mit dem Broker …", "Saved – connecting to the broker …"},  // src/ui/ui_settings.cpp:509
+{"Eingebauter Broker an (Port 1883).", ""},  // src/ui/ui_settings.cpp:522
+{"Eingebauter Broker aus.", ""},  // src/ui/ui_settings.cpp:522
+{"Shelly (MQTT)", "Shelly (MQTT)"},  // src/ui/ui_settings.cpp:542
+{"Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche MQTT einschalten und denselben Broker eintragen – die Shellys erscheinen dann als Geräte.", ""},  // src/ui/ui_settings.cpp:542
+{"MQTT-Broker", "MQTT broker"},  // src/ui/ui_settings.cpp:545
+{"Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", "The same broker Zigbee2MQTT uses – on the SMHUB Nano the built-in Mosquitto. Enable “Allow External” under MQTT there so the panel may connect."},  // src/ui/ui_settings.cpp:545
+{"MQTT verwenden", ""},  // src/ui/ui_settings.cpp:553
+{"Eingebauter Broker (dieses Panel)", ""},  // src/ui/ui_settings.cpp:567
+{"Shellys mit diesem Panel verbinden: Server %s, Port 1883%s.", ""},  // src/ui/ui_settings.cpp:579
+{", Benutzer und Passwort wie im Editor", ""},  // src/ui/ui_settings.cpp:580
+{"Geräte mit diesem Panel verbinden: Server %s, Port 1883%s.", ""},  // src/ui/ui_settings.cpp:582
+{"MQTT ist aus: keine Shellys. Victron, Cerbo GX, Gas und Akkus laufen weiter.", ""},  // src/ui/ui_settings.cpp:595
+{"MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.", ""},  // src/ui/ui_settings.cpp:599
+{"Broker im Panel-WLAN automatisch finden", "Find broker in the panel Wi-Fi automatically"},  // src/ui/ui_settings.cpp:611
+{"Speichern und verbinden", "Save and connect"},  // src/ui/ui_settings.cpp:627
+{"Display aus", "Display off"},  // src/ui/ui_settings.cpp:652
+{"Gerätename im Netzwerk", "Device name on the network"},  // src/ui/ui_settings.cpp:679
+{"Erreichbar als <name>.local. Erlaubt sind a–z, 0–9 und Bindestrich. Gilt nach einem Neustart.", "Reachable as <name>.local. Allowed are a–z, 0–9 and hyphen. Takes effect after a restart."},  // src/ui/ui_settings.cpp:680
+{"Wird nach dem nächsten Neustart übernommen.", "Applied after the next restart."},  // src/ui/ui_settings.cpp:694
+{"Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.", "The dashboard stays visible, dimmed. An LCD can keep an imprint if the image never changes."},  // src/ui/ui_settings.cpp:723
+{"Bild schwarz, Beleuchtung aus. Schont das Display am meisten.", "Black picture, backlight off. Easiest on the display."},  // src/ui/ui_settings.cpp:724
+{"Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.", "Time and date, dimmed. The clock jumps to a new place every minute."},  // src/ui/ui_settings.cpp:725
+{"Ein Abzeichen mit Uhrzeit hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Ein eigenes Logo lädst du im Browser-Editor hoch.", "A badge with the time bounces across the screen and changes colour at every edge. Upload your own logo in the browser editor."},  // src/ui/ui_settings.cpp:726
+{"Zwei Schläger spielen von selbst Ball gegeneinander, oben steht der Punktestand.", ""},  // src/ui/ui_settings.cpp:728
+{"nicht gestellt", "not set"},  // src/ui/ui_settings.cpp:769
+{"Diesen Tag gibt es in dem Monat nicht.", "This day does not exist in that month."},  // src/ui/ui_settings.cpp:816
+{"Uhrzeit gestellt.", "Time set."},  // src/ui/ui_settings.cpp:821
+{"Datum und Uhrzeit", "Date and time"},  // src/ui/ui_settings.cpp:849
+{"Jan.", "Jan"},  // src/ui/ui_settings.cpp:867
+{"Feb.", "Feb"},  // src/ui/ui_settings.cpp:867
+{"Aug.", "Aug"},  // src/ui/ui_settings.cpp:867
+{"Sep.", "Sep"},  // src/ui/ui_settings.cpp:867
+{"Okt.", "Oct"},  // src/ui/ui_settings.cpp:867
+{"Nov.", "Nov"},  // src/ui/ui_settings.cpp:867
+{"Dez.", "Dec"},  // src/ui/ui_settings.cpp:867
+{"Anzeige", "Display"},  // src/ui/ui_settings.cpp:886
+{"Ruhezustand", "Screen saver"},  // src/ui/ui_settings.cpp:892
+{"Starten nach", "Start after"},  // src/ui/ui_settings.cpp:896
+{"Nie", "Never"},  // src/ui/ui_settings.cpp:896
+{"30 Sekunden", "30 seconds"},  // src/ui/ui_settings.cpp:896
+{"1 Minute", "1 minute"},  // src/ui/ui_settings.cpp:896
+{"2 Minuten", "2 minutes"},  // src/ui/ui_settings.cpp:896
+{"5 Minuten", "5 minutes"},  // src/ui/ui_settings.cpp:896
+{"10 Minuten", "10 minutes"},  // src/ui/ui_settings.cpp:896
+{"30 Minuten", "30 minutes"},  // src/ui/ui_settings.cpp:896
+{"Abdunkeln", "Dim"},  // src/ui/ui_settings.cpp:900
+{"Schwarz", "Black"},  // src/ui/ui_settings.cpp:900
+{"Dunkle Uhr", "Dark clock"},  // src/ui/ui_settings.cpp:900
+{"Hüpfendes Logo", "Bouncing logo"},  // src/ui/ui_settings.cpp:900
+{"Ball-Duell", ""},  // src/ui/ui_settings.cpp:900
+{"Helligkeit im Ruhezustand", "Brightness in screen saver"},  // src/ui/ui_settings.cpp:906
+{"Helligkeit von Uhr und Logo", "Brightness of clock and logo"},  // src/ui/ui_settings.cpp:906
+{"Eigenes Logo beim Abprallen umfärben", "Recolour own logo when bouncing"},  // src/ui/ui_settings.cpp:914
+{"Vorschau", "Preview"},  // src/ui/ui_settings.cpp:924
+{"Uhrzeit", "Time"},  // src/ui/ui_settings.cpp:926
+{"Mit Internet stellt sich die Uhr selbst. Ohne Internet hier von Hand stellen – der Uhrenchip der Platine behält die Zeit auch ohne Strom.", "With internet the clock sets itself. Without internet set it here by hand – the board's RTC chip keeps the time even without power."},  // src/ui/ui_settings.cpp:931
+{"Mit Internet stellt sich die Uhr selbst, ebenso beim Öffnen des Editors im Browser. Ohne beides hier von Hand stellen. Ohne Uhrenchip geht die Zeit nach einem Stromausfall verloren.", "With internet the clock sets itself, also when the editor is opened in the browser. Without either, set it here by hand. Without an RTC chip the time is lost after a power failure."},  // src/ui/ui_settings.cpp:933
+{"Netzwerkname", "Network name"},  // src/ui/ui_settings.cpp:939
+{"Gerät umbenennen", "Rename device"},  // src/ui/ui_settings.cpp:950
+{"Name in Zigbee2MQTT: ", "Name in Zigbee2MQTT:"},  // src/ui/ui_settings.cpp:952
+{" (Kanal ", " (channel"},  // src/ui/ui_settings.cpp:953
+{"). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät.", "). Renaming in Zigbee2MQTT affects the whole device."},  // src/ui/ui_settings.cpp:953
+{"Auch in Zigbee2MQTT umbenennen", "Also rename in Zigbee2MQTT"},  // src/ui/ui_settings.cpp:954
+{"Shelly ", "Shelly "},  // src/ui/ui_settings.cpp:959
+{"). Der Name gilt nur für dieses Panel.", "). The name only applies to this panel."},  // src/ui/ui_settings.cpp:959
+{"Shelly per Bluetooth ", "Shelly via Bluetooth "},  // src/ui/ui_settings.cpp:962
+{". Der Name gilt nur für dieses Panel.", ". The name applies only to this panel."},  // src/ui/ui_settings.cpp:962
+{"WLED „", "WLED “"},  // src/ui/ui_settings.cpp:965
+{"Zigbee-Gerät ", ""},  // src/ui/ui_settings.cpp:970
+{"Umbenennung an Zigbee2MQTT gesendet.", "Rename sent to Zigbee2MQTT."},  // src/ui/ui_settings.cpp:989
+{"Noch keine Geräte mit Werten.", ""},  // src/ui/ui_settings.cpp:1011
+{"Noch keine Geräte von Zigbee2MQTT empfangen.", "No devices received from Zigbee2MQTT yet."},  // src/ui/ui_settings.cpp:1013
+{"Fehlende Geräte wurden ergänzt.", "Missing devices have been added."},  // src/ui/ui_settings.cpp:1018
+{"Alles neu anordnen?", "Rearrange everything?"},  // src/ui/ui_settings.cpp:1022
+{"Alle Kacheln werden neu verteilt. Eigene Positionen und Größen gehen dabei verloren, Namen bleiben erhalten.", "All tiles will be rearranged. Custom positions and sizes are lost, names are kept."},  // src/ui/ui_settings.cpp:1023
+{"Neu anordnen", "Rearrange"},  // src/ui/ui_settings.cpp:1024
+{"Kacheln wurden neu verteilt.", "Tiles have been rearranged."},  // src/ui/ui_settings.cpp:1027
+{"Tippe auf ein Gerät, um seinen Namen zu ändern. Anordnen, Icons und Größen gehen bequemer im Browser-Editor.", "Tap a device to change its name. Arranging, icons and sizes are easier in the browser editor."},  // src/ui/ui_settings.cpp:1034
+{"Fehlende ergänzen", "Add missing"},  // src/ui/ui_settings.cpp:1036
+{"Alles neu anordnen", "Rearrange everything"},  // src/ui/ui_settings.cpp:1037
+{"Noch keine Shellys gefunden.", ""},  // src/ui/ui_settings.cpp:1045
+{"Shellys: unter „Shelly (MQTT)“ einschalten.", ""},  // src/ui/ui_settings.cpp:1046
+{"Zigbee2MQTT", "Zigbee2MQTT"},  // src/ui/ui_settings.cpp:1048
+{"Zigbee (eingebaut)", "Zigbee (built-in)"},  // src/ui/ui_settings.cpp:1057
+{"Shelly (Bluetooth)", "Shelly (Bluetooth)"},  // src/ui/ui_settings.cpp:1057
+{"Dieser Sensor ist schon eingerichtet.", "This sensor is already set up."},  // src/ui/ui_settings.cpp:1101
+{"Name der Gasflasche", "Name of the gas bottle"},  // src/ui/ui_settings.cpp:1105
+{"Bluetooth-Adresse ", "Bluetooth address"},  // src/ui/ui_settings.cpp:1106
+{". Zum Beispiel „Flasche links“ oder „Reserve“.", ". For example “Left bottle” or “Reserve”."},  // src/ui/ui_settings.cpp:1106
+{"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Set up. The first measurement follows as soon as the sensor reports."},  // src/ui/ui_settings.cpp:1111
+{"Es sind schon vier Gasflaschen eingerichtet.", "Four gas bottles are already set up."},  // src/ui/ui_settings.cpp:1120
+{"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Searching. The sensor only advertises every few minutes – please be patient."},  // src/ui/ui_settings.cpp:1124
+{"Messung angefordert.", "Measurement requested."},  // src/ui/ui_settings.cpp:1129
+{"Name des Tanks", "Name of the tank"},  // src/ui/ui_settings.cpp:1155
+{". Den Flaschentyp wählst du danach in der Detailansicht.", ". You choose the bottle type afterwards in the detail view."},  // src/ui/ui_settings.cpp:1156
+{"Tank ", "Tank "},  // src/ui/ui_settings.cpp:1157
+{"Eingerichtet. Antippen, um den Flaschentyp zu wählen (vorgegeben: 11 kg).", "Set up. Tap to choose the bottle type (default: 11 kg)."},  // src/ui/ui_settings.cpp:1164
+{"Es sind schon vier Mopeka-Sensoren eingerichtet.", "Four Mopeka sensors are already set up."},  // src/ui/ui_settings.cpp:1174
+{"Suche läuft. Am Sensor kurz die Sync-Taste drücken, dann ist er leicht zu erkennen.", "Searching. Briefly press the sync button on the sensor to identify it easily."},  // src/ui/ui_settings.cpp:1178
+{"Pro Check, Pro Plus, Pro Universal, H2O, TD40 und die älteren Standard-Sensoren. Sie senden ihre Werte laufend – das Panel hört nur mit, die Mopeka-App bleibt nutzbar.", "Pro Check, Pro Plus, Pro Universal, H2O, TD40 and the older Standard sensors. They send their values continuously – the panel only listens, the Mopeka app keeps working."},  // src/ui/ui_settings.cpp:1211
+{"Noch kein Mopeka-Sensor eingerichtet.", "No Mopeka sensor set up yet."},  // src/ui/ui_settings.cpp:1218
+{"Suche läuft …", "Searching …"},  // src/ui/ui_settings.cpp:1226
+{"Mopeka suchen", "Search Mopeka"},  // src/ui/ui_settings.cpp:1226
+{"Gefundene Mopeka-Sensoren (Suche läuft …)", "Mopeka sensors found (searching …)"},  // src/ui/ui_settings.cpp:1230
+{"Gefundene Mopeka-Sensoren", "Mopeka sensors found"},  // src/ui/ui_settings.cpp:1230
+{"Noch nichts gefunden. Sync-Taste am Sensor drücken.", "Nothing found yet. Press the sync button on the sensor."},  // src/ui/ui_settings.cpp:1232
+{"Taste gedrückt, ", "button pressed,"},  // src/ui/ui_settings.cpp:1237
+{"eingerichtet, ", "set up,"},  // src/ui/ui_settings.cpp:1237
+{"Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.", ""},  // src/ui/ui_settings.cpp:1254
+{"Kopplung lösen?", "Unpair?"},  // src/ui/ui_settings.cpp:1257
+{"Das Panel trennt sich von der Hymer-SCU. Zum erneuten Verbinden musst du neu koppeln.", ""},  // src/ui/ui_settings.cpp:1257
+{"Lösen", "Unpair"},  // src/ui/ui_settings.cpp:1257
+{"Jetzt am iNet X „Gerät hinzufügen“ öffnen – du hast 3 Minuten.", "Now open “Add device” on the iNet X – you have 3 minutes."},  // src/ui/ui_settings.cpp:1268
+{"Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.", "The panel disconnects from the iNet X. To connect again you have to pair again."},  // src/ui/ui_settings.cpp:1271
+{"Die Uhrzeit geht beim nächsten Abruf ans CP Plus.", "The time is sent to the CP Plus on its next request."},  // src/ui/ui_settings.cpp:1276
+{"Das Panel kennt die Uhrzeit noch nicht.", "The panel does not know the time yet."},  // src/ui/ui_settings.cpp:1276
+{"Truma CP Plus (LIN-Bus)", "Truma CP Plus (LIN bus)"},  // src/ui/ui_settings.cpp:1288
+{" (LIN-Bus)", " (LIN bus)"},  // src/ui/ui_settings.cpp:1288
+{"Truma iNet X (Bluetooth)", "Truma iNet X (Bluetooth)"},  // src/ui/ui_settings.cpp:1288
+{"Uhr ans CP Plus", "Clock to CP Plus"},  // src/ui/ui_settings.cpp:1293
+{"Kopplung läuft …", "Pairing …"},  // src/ui/ui_settings.cpp:1295
+{"iNet X neu koppeln", "Pair iNet X again"},  // src/ui/ui_settings.cpp:1296
+{"iNet X koppeln", "Pair iNet X"},  // src/ui/ui_settings.cpp:1296
+{"Kopplung lösen", "Unpair"},  // src/ui/ui_settings.cpp:1297
+{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: After connecting, run “PR SET” > Init once on the CP Plus so it registers the panel as an iNet Box."},  // src/ui/ui_settings.cpp:1300
+{"Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ", "Alde: LIN wire to the yellow RJ12 socket (pin 4, ground pin 2). Model, pins and baud rate are set in platformio.ini under [alde]."},  // src/ui/ui_settings.cpp:1301
+{"iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.", "iNet X: First tap “Pair” here, then open “Add device” on the control panel. The iNet X remembers at most four devices."},  // src/ui/ui_settings.cpp:1302
+{"%s · %u Gerät(e) · %s", "%s · %u device(s) · %s"},  // src/ui/ui_settings.cpp:1400
+{"online", "online"},  // src/ui/ui_settings.cpp:1400
+{"offline", "offline"},  // src/ui/ui_settings.cpp:1400
+{"Weboberfläche: http://", ""},  // src/ui/ui_settings.cpp:1423
+{"Per Bluetooth verbunden (ohne IP). Seine Weboberfläche: WLAN „SOC-Satellite-…“, dann 4.3.2.1.", ""},  // src/ui/ui_settings.cpp:1424
+{"Keine IP gemeldet – Weboberfläche über sein eigenes WLAN „SOC-Satellite-…“.", ""},  // src/ui/ui_settings.cpp:1425
+{"Entfernen nimmt ihn aus der Liste, seine Kacheln bleiben leer. Sendet er weiter, taucht er wieder auf – dann am Satelliten die Sendewege abschalten oder ein anderes Bluetooth-Passwort setzen.", ""},  // src/ui/ui_settings.cpp:1426
+{"%s · %u Kachel(n)%s%s", ""},  // src/ui/ui_settings.cpp:1468
+{"verbunden", "connected"},  // src/ui/ui_settings.cpp:1468
+{"Noch keine IP gemeldet.", ""},  // src/ui/ui_settings.cpp:1478
+{"Welche Kacheln es zeigt: im Editor dieses Panels (Reiter Zusatzdisplays) oder in seiner eigenen Weboberfläche. Entfernen nimmt es aus der Liste – solange es läuft, meldet es sich wieder an.", ""},  // src/ui/ui_settings.cpp:1479
+{"Bluetooth-Passwort der Satelliten", "Bluetooth password of the satellites"},  // src/ui/ui_settings.cpp:1490
+{"Gilt für alle Satelliten. Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen – nur dann nimmt das Panel ihn per Bluetooth auf.", "Applies to all satellites. Enter the same password in the satellite's web interface – only then does the panel accept it via Bluetooth."},  // src/ui/ui_settings.cpp:1491
+{"Passwort gespeichert.", "Password saved."},  // src/ui/ui_settings.cpp:1497
+{"Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.", ""},  // src/ui/ui_settings.cpp:1505
+{"Suche läuft – noch %u:%02u. Am Satelliten die BOOT-Taste 3 s halten (oder 3× schnell aus/ein).", ""},  // src/ui/ui_settings.cpp:1515
+{"Satelliten", "Satellites"},  // src/ui/ui_settings.cpp:1522
+{"Eigene ESP32 mit Sensoren und Relais im Fahrzeug. Sie senden per UDP im WLAN direkt ans Panel (oder über einen MQTT-Broker) – ihre Geräte erscheinen hier und im Editor wie eigene.", ""},  // src/ui/ui_settings.cpp:1524
+{"Satelliten-Passwort", ""},  // src/ui/ui_settings.cpp:1531
+{"Noch kein Satellit gehört.", "No satellite heard yet."},  // src/ui/ui_settings.cpp:1532
+{"Zusatzdisplays", ""},  // src/ui/ui_settings.cpp:1540
+{"Neuen Satelliten hinzufügen", ""},  // src/ui/ui_settings.cpp:1555
+{"%d dBm · antippen zum Einrichten", ""},  // src/ui/ui_settings.cpp:1561
+{"Stand", ""},  // src/ui/ui_settings.cpp:1566
+{"Suche", ""},  // src/ui/ui_settings.cpp:1566
+{"Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", ""},  // src/ui/ui_settings.cpp:1569
+{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", ""},  // src/ui/ui_settings.cpp:1598
+{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "The sensor allows only one connection at a time: if the Truma app, Home Assistant or the Victron GX is connected, the panel measures on the next round."},  // src/ui/ui_settings.cpp:1601
+{"Noch keine Gasflasche eingerichtet.", "No gas bottle set up yet."},  // src/ui/ui_settings.cpp:1609
+{"Truma suchen", "Search Truma"},  // src/ui/ui_settings.cpp:1617
+{"Alle jetzt messen", "Measure all now"},  // src/ui/ui_settings.cpp:1618
+{"Gefundene Sensoren (Suche läuft …)", "Sensors found (searching …)"},  // src/ui/ui_settings.cpp:1622
+{"Gefundene Sensoren", "Sensors found"},  // src/ui/ui_settings.cpp:1622
+{"Noch nichts gefunden. Der Sensor muss in Reichweite sein.", "Nothing found yet. The sensor must be in range."},  // src/ui/ui_settings.cpp:1624
+{"LevelControl ", "LevelControl "},  // src/ui/ui_settings.cpp:1630
+{"Messen", "Measuring"},  // src/ui/ui_settings.cpp:1634
+{"Abfrage alle", "Poll every"},  // src/ui/ui_settings.cpp:1638
+{"15 Minuten", "15 minutes"},  // src/ui/ui_settings.cpp:1638
+{"60 Minuten", "60 minutes"},  // src/ui/ui_settings.cpp:1638
+{"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Measuring more often drains the sensor battery faster."},  // src/ui/ui_settings.cpp:1639
+{"Hymer Connect", ""},  // src/ui/ui_settings.cpp:1663
+{"Licht, Batterie, Tanks und Schalter direkt von der SCU im Fahrzeug (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – per Bluetooth, ohne Cloud.", ""},  // src/ui/ui_settings.cpp:1663
+{"SCU im Fahrzeug suchen und verbinden", ""},  // src/ui/ui_settings.cpp:1665
+{"SCU (Bluetooth)", ""},  // src/ui/ui_settings.cpp:1669
+{"Neu koppeln", ""},  // src/ui/ui_settings.cpp:1672
+{"Hymer koppeln", ""},  // src/ui/ui_settings.cpp:1672
+{"Erst hier „Hymer koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). Die Werte stehen danach im Editor wie die eines Satelliten namens „Hymer“ und lassen sich aufs Panel ziehen.", ""},  // src/ui/ui_settings.cpp:1675
+{"Gefundene Geräte", "Devices found"},  // src/ui/ui_settings.cpp:1685
+{"Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.", ""},  // src/ui/ui_settings.cpp:1688
+{" · Hymer", ""},  // src/ui/ui_settings.cpp:1693
+{"Gerät antippen, dann am Bedienteil „CONNECTION“ drücken.", ""},  // src/ui/ui_settings.cpp:1698
+{"Schalter und Lichter: Zeile antippen zum Umschalten.", ""},  // src/ui/ui_settings.cpp:1713
+{"Box gewählt – verbinde …", "Box selected – connecting …"},  // src/ui/ui_settings.cpp:1821
+{"Andere Box wählen", "Choose another box"},  // src/ui/ui_settings.cpp:1825
+{"Die gemerkte HobbyConnect-Box vergessen und neu suchen?", "Forget the saved HobbyConnect box and search again?"},  // src/ui/ui_settings.cpp:1825
+{"Vergessen", "Forget"},  // src/ui/ui_settings.cpp:1825
+{"RX-Pin (GPIO)", "RX pin (GPIO)"},  // src/ui/ui_settings.cpp:1840
+{"TX-Pin (GPIO)", "TX pin (GPIO)"},  // src/ui/ui_settings.cpp:1840
+{"GPIO, an dem die Sendeleitung des RS232-Wandlers (TXD) hängt; leer = keiner", "GPIO connected to the transmit line of the RS232 converter (TXD); empty = none"},  // src/ui/ui_settings.cpp:1841
+{"GPIO zur Empfangsleitung des RS232-Wandlers (RXD); leer = keiner", "GPIO to the receive line of the RS232 converter (RXD); empty = none"},  // src/ui/ui_settings.cpp:1842
+{"Gerade nicht schaltbar (nicht verbunden; Hauptschalter nur über das Kabel).", "Cannot switch right now (not connected; main switch only via cable)."},  // src/ui/ui_settings.cpp:1861
+{"Noch keine Werte – erst verbinden.", "No values yet – connect first."},  // src/ui/ui_settings.cpp:1881
+{"Kacheln angelegt (vorhandene bleiben).", "Tiles created (existing ones stay)."},  // src/ui/ui_settings.cpp:1885
+{"Wohnwagen und Reisemobile von Hobby: Licht, Bordbatterie, Wasser, Heizung, Kühlschrank und Klima – per Bluetooth über die HobbyConnect-Box oder per Kabel direkt am Steuergerät (LSG, CI-BUS).", "Hobby caravans and motorhomes: lights, leisure battery, water, heating, fridge and air conditioning – via Bluetooth through the HobbyConnect box or by cable directly at the control unit (LSG, CI-BUS)."},  // src/ui/ui_settings.cpp:1893
+{"HobbyConnect-Box", "HobbyConnect box"},  // src/ui/ui_settings.cpp:1895
+{"Box im Fahrzeug per Bluetooth verbinden", "Connect the box in the vehicle via Bluetooth"},  // src/ui/ui_settings.cpp:1895
+{"Box (Bluetooth)", "Box (Bluetooth)"},  // src/ui/ui_settings.cpp:1898
+{"Adresse", "Address"},  // src/ui/ui_settings.cpp:1900
+{"Suche läuft … Die Box muss eingeschaltet und in Reichweite sein; die Hobby-App auf dem Handy vorher trennen.", "Searching … The box must be switched on and in range; disconnect the Hobby app on the phone first."},  // src/ui/ui_settings.cpp:1905
+{"HobbyConnect", "HobbyConnect"},  // src/ui/ui_settings.cpp:1915
+{"CI-BUS am LSG (Kabel)", "CI-BUS at the LSG (cable)"},  // src/ui/ui_settings.cpp:1921
+{"Ersetzt die Box: RS232-Wandler an einer seriellen Schnittstelle", "Replaces the box: RS232 converter on a serial port"},  // src/ui/ui_settings.cpp:1921
+{"UART%d", "UART%d"},  // src/ui/ui_settings.cpp:1926
+{"Schnittstelle", "Port"},  // src/ui/ui_settings.cpp:1927
+{"GPIO ", "GPIO "},  // src/ui/ui_settings.cpp:1928
+{"RX-Pin", "RX pin"},  // src/ui/ui_settings.cpp:1930
+{"TX-Pin", "TX pin"},  // src/ui/ui_settings.cpp:1931
+{"Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte holt das Panel selbst vom LSG.", "The LSG talks RS232 (±12 V): connect only via an RS232-TTL converter (e.g. MAX3232, 3.3 V), 115200 baud. Waveshare 7\": UART header (GPIO 15/16). The panel reads the value numbers from the LSG itself."},  // src/ui/ui_settings.cpp:1933
+{"Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen.", "Caution: UART%d is used by the Zigbee module – please choose another one."},  // src/ui/ui_settings.cpp:1942
+{"Kacheln anlegen", "Create tiles"},  // src/ui/ui_settings.cpp:1958
+{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values are in the device list under “Hobby”, the leisure battery as a battery monitor."},  // src/ui/ui_settings.cpp:1959
+{"nicht gestartet", ""},  // src/ui/ui_settings.cpp:1992
+{"nicht gefunden – Modul gesteckt und aufgespielt?", ""},  // src/ui/ui_settings.cpp:1993
+{" · Firmware ", ""},  // src/ui/ui_settings.cpp:1994
+{"wird gebildet …", ""},  // src/ui/ui_settings.cpp:1998
+{"PAN 0x%04X · %s %d", ""},  // src/ui/ui_settings.cpp:2000
+{"geschlossen", ""},  // src/ui/ui_settings.cpp:2004
+{"offen, noch %d s", ""},  // src/ui/ui_settings.cpp:2006
+{"Noch keine Meldungen.", ""},  // src/ui/ui_settings.cpp:2014
+{"wird abgefragt …", ""},  // src/ui/ui_settings.cpp:2017
+{"noch keine Werte", ""},  // src/ui/ui_settings.cpp:2018
+{"Ausgeschaltet – wirkt nach dem nächsten Neustart des Panels.", ""},  // src/ui/ui_settings.cpp:2027
+{"Anlernen beendet.", ""},  // src/ui/ui_settings.cpp:2033
+{"Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.", ""},  // src/ui/ui_settings.cpp:2036
+{"' && json.back() == '", ""},  // src/ui/ui_settings.cpp:2058
+{"Änderungen verwerfen?", ""},  // src/ui/ui_settings.cpp:2089
+{"Die geänderten Einstellungen wurden noch nicht gespeichert.", ""},  // src/ui/ui_settings.cpp:2089
+{"Verwerfen", ""},  // src/ui/ui_settings.cpp:2089
+{"Zigbee-Modul nicht verbunden.", ""},  // src/ui/ui_settings.cpp:2105
+{"Gesendet – das Gerät übernimmt die Einstellungen.", ""},  // src/ui/ui_settings.cpp:2109
+{"Name des Geräts", ""},  // src/ui/ui_settings.cpp:2123
+{"z. B. „Bewegung Flur“ oder „Taster Bett“. Leer lassen = Modellname.", ""},  // src/ui/ui_settings.cpp:2124
+{"Das Gerät ", ""},  // src/ui/ui_settings.cpp:2135
+{" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.", ""},  // src/ui/ui_settings.cpp:2135
+{"Gerät entfernen?", "Remove device?"},  // src/ui/ui_settings.cpp:2136
+{"Gerät entfernt.", ""},  // src/ui/ui_settings.cpp:2139
+{"Wert von %g bis %g%s%s", ""},  // src/ui/ui_settings.cpp:2157
+{"Wert außerhalb des erlaubten Bereichs.", ""},  // src/ui/ui_settings.cpp:2168
+{"Zurück zur Liste", ""},  // src/ui/ui_settings.cpp:2206
+{"Aktuelle Werte", ""},  // src/ui/ui_settings.cpp:2213
+{"Noch keine Werte – das Gerät meldet sich bei der nächsten Änderung.", ""},  // src/ui/ui_settings.cpp:2216
+{"Einstellungen", ""},  // src/ui/ui_settings.cpp:2222
+{"Werden vom Funkmodul geladen …", ""},  // src/ui/ui_settings.cpp:2225
+{"Dieses Gerät hat keine Einstellungen.", ""},  // src/ui/ui_settings.cpp:2227
+{"Mit * markiert: geändert, noch nicht gespeichert.", ""},  // src/ui/ui_settings.cpp:2249
+{"Speichern", ""},  // src/ui/ui_settings.cpp:2254
+{"Gerät entfernen", ""},  // src/ui/ui_settings.cpp:2256
+{"Zigbee-Netz neu bilden?", ""},  // src/ui/ui_settings.cpp:2259
+{"Alle Geräte verlieren die Verbindung und müssen neu angelernt werden. Nur bei Störungen nötig.", ""},  // src/ui/ui_settings.cpp:2260
+{"Neu bilden", ""},  // src/ui/ui_settings.cpp:2260
+{"Netz wird neu gebildet …", ""},  // src/ui/ui_settings.cpp:2263
+{"Zigbee", ""},  // src/ui/ui_settings.cpp:2278
+{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee2MQTT und ohne Broker.", ""},  // src/ui/ui_settings.cpp:2278
+{"Zigbee-Modul", ""},  // src/ui/ui_settings.cpp:2287
+{"Funkmodul im Steckplatz verwenden", ""},  // src/ui/ui_settings.cpp:2288
+{"Funkmodul", ""},  // src/ui/ui_settings.cpp:2298
+{"Modul", ""},  // src/ui/ui_settings.cpp:2300
+{"Zigbee-Netz", ""},  // src/ui/ui_settings.cpp:2301
+{"Anlernen", ""},  // src/ui/ui_settings.cpp:2302
+{"Anlernen beenden", ""},  // src/ui/ui_settings.cpp:2305
+{"Gerät anlernen", ""},  // src/ui/ui_settings.cpp:2305
+{"„Gerät anlernen“ öffnet das Netz für 3 Minuten. Dann das Gerät in den Kopplungsmodus bringen (meist Taste lange drücken oder Lampe mehrmals aus- und einschalten). Das Modul fragt neue Geräte selbst ab und richtet die Meldungen ein.", ""},  // src/ui/ui_settings.cpp:2308
+{"Noch keine Geräte angelernt.", ""},  // src/ui/ui_settings.cpp:2318
+{"Ohne Funkmodul keine Geräte.", ""},  // src/ui/ui_settings.cpp:2318
+{"Gerät antippen: Werte, Einstellungen, Name, Entfernen.", ""},  // src/ui/ui_settings.cpp:2329
+{"Meldungen des Moduls", ""},  // src/ui/ui_settings.cpp:2334
+{"Netz neu bilden", ""},  // src/ui/ui_settings.cpp:2340
+{"Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", ""},  // src/ui/ui_settings.cpp:2384
+{"Gas und Heizung", "Gas and heating"},  // src/ui/ui_settings.cpp:2387
+{"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Levels and heating over Bluetooth. Choose which devices the panel should read – disabled ones are not scanned and don't load radio and Wi-Fi."},  // src/ui/ui_settings.cpp:2387
+{"Gasflaschen, bis zu vier", "Gas bottles, up to four"},  // src/ui/ui_settings.cpp:2390
+{"Gas- und Tanksensoren, bis zu vier", "Gas and tank sensors, up to four"},  // src/ui/ui_settings.cpp:2391
+{"Heizung, Boiler und Klima über das Bedienteil", "Heating, boiler and air conditioning via the control panel"},  // src/ui/ui_settings.cpp:2392
+{"Kachel anlegen?", ""},  // src/ui/ui_settings.cpp:2431
+{"Soll „", ""},  // src/ui/ui_settings.cpp:2431
+{"“ als Kachel auf den Hauptbildschirm?", ""},  // src/ui/ui_settings.cpp:2431
+{"Kachel anlegen", ""},  // src/ui/ui_settings.cpp:2432
+{"Kachel angelegt. Position und Größe änderst du im Editor.", ""},  // src/ui/ui_settings.cpp:2437
+{"Dieses Gerät ist schon eingerichtet.", "This device is already set up."},  // src/ui/ui_settings.cpp:2479
+{"Schlüssel für ", "Key for"},  // src/ui/ui_settings.cpp:2483
+{"32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "32 characters from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:2484
+{"Eingerichtet. Die Werte erscheinen in wenigen Sekunden.", "Set up. The values appear within a few seconds."},  // src/ui/ui_settings.cpp:2488
+{"Es sind schon sechs Victron-Geräte eingerichtet.", "Six Victron devices are already set up."},  // src/ui/ui_settings.cpp:2498
+{"Suche läuft. Victron-Geräte erscheinen meist nach wenigen Sekunden.", "Searching. Victron devices usually appear within a few seconds."},  // src/ui/ui_settings.cpp:2502
+{"Kopplungs-PIN", ""},  // src/ui/ui_settings.cpp:2547
+{"Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.", ""},  // src/ui/ui_settings.cpp:2549
+{"Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen. Später änderbar: Akku antippen > PIN.", ""},  // src/ui/ui_settings.cpp:2550
+{"Eingerichtet – das Panel verbindet sich gleich.", ""},  // src/ui/ui_settings.cpp:2557
+{"Eingerichtet – das Panel koppelt gleich mit PIN.", ""},  // src/ui/ui_settings.cpp:2558
+{"Name der Power Station", ""},  // src/ui/ui_settings.cpp:2575
+{"Name des Sensors", ""},  // src/ui/ui_settings.cpp:2575
+{"Name des Akkus", ""},  // src/ui/ui_settings.cpp:2576
+{"Zum Beispiel „Kühlschrank“ oder „Frischwasser“.", ""},  // src/ui/ui_settings.cpp:2577
+{"Zum Beispiel „Standheizung“. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem Gerät.", ""},  // src/ui/ui_settings.cpp:2578
+{"Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.", ""},  // src/ui/ui_settings.cpp:2579
+{"Kein Platz mehr – es sind schon so viele Bluetooth-Geräte eingerichtet, wie möglich sind.", ""},  // src/ui/ui_settings.cpp:2598
+{"Suche läuft (1 Minute). Die App des Herstellers vorher schließen.", ""},  // src/ui/ui_settings.cpp:2602
+{"EcoFlow-Benutzer-ID", ""},  // src/ui/ui_settings.cpp:2607
+{"Die Benutzer-ID des EcoFlow-Kontos, an das die Power Station gebunden ist. Bequemer: im Editor unter „Power Stations“ mit E-Mail und Passwort anmelden – dann wird sie automatisch eingetragen. Leer = löschen.", ""},  // src/ui/ui_settings.cpp:2608
+{"Benutzer-ID gelöscht.", ""},  // src/ui/ui_settings.cpp:2614
+{"Benutzer-ID gespeichert.", ""},  // src/ui/ui_settings.cpp:2614
+{"Power Stations", ""},  // src/ui/ui_settings.cpp:2625
+{"Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.", ""},  // src/ui/ui_settings.cpp:2625
+{"Sensoren", ""},  // src/ui/ui_settings.cpp:2629
+{"Bluetooth-Sensoren – ungetestet: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi mit pvvx-Firmware …), Simarine STRx und SuperSense-Tankmodul. Sie senden nur, das Panel hört zu. Verschlüsselte BTHome- und Simarine-Sensoren brauchen den Schlüssel (32 Zeichen) als PIN.", ""},  // src/ui/ui_settings.cpp:2629
+{"Dieselheizung und Kühlbox", ""},  // src/ui/ui_settings.cpp:2633
+{"Akkus (BMS)", ""},  // src/ui/ui_settings.cpp:2635
+{"Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.", ""},  // src/ui/ui_settings.cpp:2635
+{"China-Dieselheizungen (Vevor, Hcalory, HeaterCC/AirHeater) und Kompressor-Kühlboxen (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – ungetestet. Bedienen im Fenster der Kachel.", ""},  // src/ui/ui_settings.cpp:2638
+{"Akkus auswerten", ""},  // src/ui/ui_settings.cpp:2644
+{"Bluetooth-Geräte auswerten", ""},  // src/ui/ui_settings.cpp:2644
+{"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer – nur lesen", ""},  // src/ui/ui_settings.cpp:2645
+{"Ein Schalter für Akkus, Power Stations, Sensoren, Heizung und Kühlbox", ""},  // src/ui/ui_settings.cpp:2647
+{"Noch keine Power Station eingerichtet.", ""},  // src/ui/ui_settings.cpp:2665
+{"Noch kein Sensor eingerichtet.", ""},  // src/ui/ui_settings.cpp:2665
+{"Noch keine Heizung oder Kühlbox eingerichtet.", ""},  // src/ui/ui_settings.cpp:2666
+{"Noch kein Akku eingerichtet.", ""},  // src/ui/ui_settings.cpp:2666
+{"gespeichert ", ""},  // src/ui/ui_settings.cpp:2670
+{"nicht eingetragen", ""},  // src/ui/ui_settings.cpp:2670
+{"Power Stations suchen", ""},  // src/ui/ui_settings.cpp:2676
+{"Sensoren suchen", ""},  // src/ui/ui_settings.cpp:2676
+{"Heizung/Kühlbox suchen", ""},  // src/ui/ui_settings.cpp:2677
+{"Akkus suchen", ""},  // src/ui/ui_settings.cpp:2677
+{"Gefunden (Suche läuft …)", ""},  // src/ui/ui_settings.cpp:2683
+{"Gefunden", ""},  // src/ui/ui_settings.cpp:2683
+{"Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?", ""},  // src/ui/ui_settings.cpp:2686
+{"Noch nichts gefunden. Sensor in der Nähe? Manche senden nur alle paar Sekunden.", ""},  // src/ui/ui_settings.cpp:2687
+{"Noch nichts gefunden. Gerät eingeschaltet und in der Nähe? App des Herstellers geschlossen?", ""},  // src/ui/ui_settings.cpp:2688
+{"Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", ""},  // src/ui/ui_settings.cpp:2689
+{"Suche den Cerbo GX im Netz … (bis etwa 20 Sekunden)", ""},  // src/ui/ui_settings.cpp:2710
+{"Suche läuft schon.", ""},  // src/ui/ui_settings.cpp:2711
+{"Adresse des Cerbo GX", "Cerbo GX address"},  // src/ui/ui_settings.cpp:2716
+{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen > Dienste > MQTT einschalten.", "IP address or name, e.g. 192.168.1.50. Empty = Cerbo GX off. On the GX: Settings > Services > enable MQTT."},  // src/ui/ui_settings.cpp:2717
+{"Cerbo GX ausgeschaltet.", "Cerbo GX turned off."},  // src/ui/ui_settings.cpp:2726
+{"Gespeichert, verbinde …", "Saved, connecting …"},  // src/ui/ui_settings.cpp:2726
+{"Passwort des Cerbo GX", "Cerbo GX password"},  // src/ui/ui_settings.cpp:2734
+{"Nur nötig, wenn am GX ein Passwort für das lokale Netz gesetzt ist. Leer = kein Passwort.", "Only needed if a password for the local network is set on the GX. Empty = no password."},  // src/ui/ui_settings.cpp:2735
+{"Gespeichert, verbinde neu …", "Saved, reconnecting …"},  // src/ui/ui_settings.cpp:2742
+{"Cerbo GX (MQTT)", "Cerbo GX (MQTT)"},  // src/ui/ui_settings.cpp:2755
+{"im Netz suchen und eintragen", ""},  // src/ui/ui_settings.cpp:2760
+{"Automatisch suchen", ""},  // src/ui/ui_settings.cpp:2761
+{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen > Dienste > MQTT einschalten, dann „Automatisch suchen“ oder die IP-Adresse von Hand eintragen. Die Kacheln setzt du danach im Editor.", ""},  // src/ui/ui_settings.cpp:2771
+{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "SmartSolar, SmartShunt, BMV and Orion over Bluetooth (“Instant Readout”). The panel only listens – VictronConnect and a GX are not disturbed. For each device you need the key from VictronConnect: Settings > Product info > Instant Readout > Show details."},  // src/ui/ui_settings.cpp:2783
+{"Bluetooth (Instant Readout)", "Bluetooth (Instant Readout)"},  // src/ui/ui_settings.cpp:2788
+{"Victron auswerten", "Read Victron"},  // src/ui/ui_settings.cpp:2790
+{"Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", "Off = the panel does not scan or listen for Victron devices"},  // src/ui/ui_settings.cpp:2790
+{"Noch kein Victron-Gerät eingerichtet.", "No Victron device set up yet."},  // src/ui/ui_settings.cpp:2798
+{"Geräte suchen", "Search devices"},  // src/ui/ui_settings.cpp:2803
+{"Gefundene Geräte (Suche läuft …)", "Devices found (searching …)"},  // src/ui/ui_settings.cpp:2807
+{"Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?", "Nothing found yet. Is Bluetooth enabled on the device?"},  // src/ui/ui_settings.cpp:2809
+{"Firmware", "Firmware"},  // src/ui/ui_settings.cpp:2863
+{"IP-Adresse", "IP address"},  // src/ui/ui_settings.cpp:2863
+{"WLAN-Signal", "Wi-Fi signal"},  // src/ui/ui_settings.cpp:2863
+{"Geräteliste", "Device list"},  // src/ui/ui_settings.cpp:2863
+{"Touch", "Touch"},  // src/ui/ui_settings.cpp:2864
+{"Freier Speicher", "Free memory"},  // src/ui/ui_settings.cpp:2864
+{"Laufzeit", "Uptime"},  // src/ui/ui_settings.cpp:2864
+{"Aus – zum Einschalten antippen. Ab Werk aus.", "Off – tap to switch on. Off by default."},  // src/ui/ui_settings.cpp:2871
+{"Schreibt auf die SD-Karte: ", "Writing to the SD card: "},  // src/ui/ui_settings.cpp:2872
+{"An – SD-Karte wird eingebunden …", "On – mounting the SD card …"},  // src/ui/ui_settings.cpp:2873
+{"An – keine SD-Karte, nur die letzten 64 KB im Arbeitsspeicher (im Editor unter Info ansehen).", "On – no SD card, only the last 64 KB in memory (view in the editor under Info)."},  // src/ui/ui_settings.cpp:2874
+{"Debug-Log läuft – alle Meldungen werden mitgeschrieben.", "Debug log running – all messages are recorded."},  // src/ui/ui_settings.cpp:2880
+{"Debug-Log ist aus.", "Debug log is off."},  // src/ui/ui_settings.cpp:2880
+{"aus (einschalten im Editor unter Netzwerk)", "off (switch on in the editor under Network)"},  // src/ui/ui_settings.cpp:2889
+{"oder http://%s.local/", "or http://%s.local/"},  // src/ui/ui_settings.cpp:2900
+{" (Bridge offline)", " (Bridge offline)"},  // src/ui/ui_settings.cpp:2908
+{"Zustände werden neu abgefragt.", "States are being requested again."},  // src/ui/ui_settings.cpp:2929
+{"Panel neu starten?", "Restart panel?"},  // src/ui/ui_settings.cpp:2933
+{"Das dauert etwa zehn Sekunden.", "This takes about ten seconds."},  // src/ui/ui_settings.cpp:2933
+{"Neu starten", "Restart"},  // src/ui/ui_settings.cpp:2933
+{"Info", "Info"},  // src/ui/ui_settings.cpp:2940
+{"Layout-Editor im Browser", "Layout editor in the browser"},  // src/ui/ui_settings.cpp:2947
+{"Zustände neu abfragen", "Request states again"},  // src/ui/ui_settings.cpp:2956
+{"Fehlersuche (Debug-Log)", "Troubleshooting (debug log)"},  // src/ui/ui_settings.cpp:2959
+{"Debug-Log auf die SD-Karte schreiben", "Write debug log to the SD card"},  // src/ui/ui_settings.cpp:2964
+{"Alle Meldungen mit Uhrzeit, alle 60 s Speicher, WLAN und Verbindungen. Dateien je bis 1 MB, die letzten 10. Ansehen und herunterladen im Editor unter Einstellungen → Info.", "All messages with time, every 60 s memory, Wi-Fi and connections. Files up to 1 MB each, the last 10. View and download in the editor under Settings → Info."},  // src/ui/ui_settings.cpp:2975
+{"Projekt auf GitHub", "Project on GitHub"},  // src/ui/ui_settings.cpp:2988
+{"Unterstütze das Projekt", "Support the project"},  // src/ui/ui_settings.cpp:2989
+{"Gefällt dir das Panel? Über eine kleine Spende freue ich mich:", "Do you like the panel? I’m happy about a small donation:"},  // src/ui/ui_settings.cpp:2996
+{"Suche läuft (2 Minuten). Bluetooth muss am Shelly an sein (Shelly-App > Einstellungen > Bluetooth).", "Searching (2 minutes). Bluetooth must be enabled on the Shelly (Shelly app > Settings > Bluetooth)."},  // src/ui/ui_settings.cpp:3025
+{"Noch keine Kanäle – die erste Verbindung zum Shelly steht noch aus.", "No channels yet – the first connection to the Shelly is still pending."},  // src/ui/ui_settings.cpp:3034
+{"Kacheln angelegt.", "Tiles created."},  // src/ui/ui_settings.cpp:3038
+{"Passwort des Shelly", "Shelly password"},  // src/ui/ui_settings.cpp:3052
+{"Nur nötig, wenn am Shelly ein Passwort gesetzt ist (Shelly-App > Einstellungen > Authentifizierung). Meist leer lassen. Später änderbar: Shelly antippen.", "Only needed if a password is set on the Shelly (Shelly app > Settings > Authentication). Usually leave empty. Can be changed later: tap the Shelly."},  // src/ui/ui_settings.cpp:3053
+{"Eingerichtet – das Panel verbindet sich gleich. Danach „Kacheln anlegen“.", "Set up – the panel connects shortly. Then “Create tiles”."},  // src/ui/ui_settings.cpp:3059
+{"Dieser Shelly ist schon eingerichtet.", "This Shelly is already set up."},  // src/ui/ui_settings.cpp:3070
+{"Name des Shelly", "Shelly name"},  // src/ui/ui_settings.cpp:3074
+{"Zum Beispiel „Außenlicht“ oder „Wasserpumpe“.", "For example “Outdoor light” or “Water pump”."},  // src/ui/ui_settings.cpp:3075
+{"Shelly umbenennen", "Rename Shelly"},  // src/ui/ui_settings.cpp:3088
+{"Diesen Shelly entfernen", "Remove this Shelly"},  // src/ui/ui_settings.cpp:3091
+{"Entfernt.", "Removed."},  // src/ui/ui_settings.cpp:3095
+{"Wie in der Shelly-App unter Authentifizierung. Leer = kein Passwort.", "As in the Shelly app under Authentication. Empty = no password."},  // src/ui/ui_settings.cpp:3107
+{"Gespeichert – das Panel meldet sich gleich neu an.", "Saved – the panel signs in again shortly."},  // src/ui/ui_settings.cpp:3112
+{"noch nicht verbunden", "not connected yet"},  // src/ui/ui_settings.cpp:3119
+{" %.0f W", ""},  // src/ui/ui_settings.cpp:3128
+{"keine Kanäle", "no channels"},  // src/ui/ui_settings.cpp:3132
+{"Shelly per Bluetooth (Beta)", "Shelly via Bluetooth (beta)"},  // src/ui/ui_settings.cpp:3136
+{"Shelly Gen2, Gen3 und Gen4 (Plus, Pro, Mini …) ohne WLAN schalten – das Panel verbindet sich kurz per Bluetooth (Stand alle 30 s, Schalten sofort, dauert 1–2 s). Gen1 hat kein Bluetooth: dafür Shelly über MQTT.", "Switch Shelly Gen2, Gen3 and Gen4 (Plus, Pro, Mini …) without Wi-Fi – the panel connects briefly via Bluetooth (state every 30 s, switching immediately, takes 1–2 s). Gen1 has no Bluetooth: use Shelly over MQTT for those."},  // src/ui/ui_settings.cpp:3137
+{"Shellys per Bluetooth", "Shellys via Bluetooth"},  // src/ui/ui_settings.cpp:3143
+{"Shellys suchen", "Search Shellys"},  // src/ui/ui_settings.cpp:3155
+{"Eingerichtet", "Set up"},  // src/ui/ui_settings.cpp:3159
+{"gesetzt – antippen zum Ändern", "set – tap to change"},  // src/ui/ui_settings.cpp:3166
+{"VERLANGT – antippen zum Eintragen", "REQUIRED – tap to enter"},  // src/ui/ui_settings.cpp:3166
+{"Gefundene Shellys (Suche läuft)", "Shellys found (searching)"},  // src/ui/ui_settings.cpp:3172
+{"Gefundene Shellys", "Shellys found"},  // src/ui/ui_settings.cpp:3172
+{"Noch keiner gefunden … Shelly in der Nähe und Bluetooth an?", "None found yet … Is the Shelly nearby with Bluetooth on?"},  // src/ui/ui_settings.cpp:3174
+{" · schon eingerichtet", " · already set up"},  // src/ui/ui_settings.cpp:3178
+{"Sicherung läuft …", "Backup running …"},  // src/ui/ui_settings.cpp:3220
+{"Sicherung liegt auf der SD-Karte.", "Backup is on the SD card."},  // src/ui/ui_settings.cpp:3223
+{"Diese Sicherung ist unvollständig.", "This backup is incomplete."},  // src/ui/ui_settings.cpp:3233
+{"Layout, Einstellungen und Hintergründe werden durch den Stand vom ", "Layout, settings and backgrounds will be replaced by the state of"},  // src/ui/ui_settings.cpp:3237
+{" ersetzt. Danach startet das Panel neu.", ". The panel then restarts."},  // src/ui/ui_settings.cpp:3238
+{"Sicherung einspielen?", "Restore backup?"},  // src/ui/ui_settings.cpp:3239
+{"Einspielen", "Restore"},  // src/ui/ui_settings.cpp:3239
+{"Sicherung wird eingespielt …", "Restoring backup …"},  // src/ui/ui_settings.cpp:3240
+{"Die Sicherung vom ", "The backup of"},  // src/ui/ui_settings.cpp:3257
+{" wird von der SD-Karte entfernt.", " will be removed from the SD card."},  // src/ui/ui_settings.cpp:3257
+{"Sicherung löschen?", "Delete backup?"},  // src/ui/ui_settings.cpp:3258
+{"Löschen", "Delete"},  // src/ui/ui_settings.cpp:3258
+{"Sicherung", "Backup"},  // src/ui/ui_settings.cpp:3266
+{"Sichert Layout, Namen, alle Einstellungen, Gasflaschen, Victron-Geräte, Logo und Hintergründe auf die microSD-Karte. Achtung: WLAN- und MQTT-Passwörter stehen dort lesbar.", "Saves layout, names, all settings, gas bottles, Victron devices, logo and backgrounds to the microSD card. Caution: Wi-Fi and MQTT passwords are stored there in plain text."},  // src/ui/ui_settings.cpp:3267
+{"SD-Karte", "SD card"},  // src/ui/ui_settings.cpp:3271
+{"Karte (FAT32 oder exFAT) einstecken und das Panel neu starten.", "Insert a card (FAT32 or exFAT) and restart the panel."},  // src/ui/ui_settings.cpp:3272
+{" frei von ", " free of"},  // src/ui/ui_settings.cpp:3278
+{"Jetzt sichern", "Back up now"},  // src/ui/ui_settings.cpp:3281
+{"Tippen zum Einspielen", "Tap to restore"},  // src/ui/ui_settings.cpp:3283
+{"Noch keine Sicherung auf der Karte.", "No backup on the card yet."},  // src/ui/ui_settings.cpp:3287
+{"%d Hintergrund", "%d background"},  // src/ui/ui_settings.cpp:3293
+{"%d Hintergründe", "%d backgrounds"},  // src/ui/ui_settings.cpp:3293
+{"unvollständig", "incomplete"},  // src/ui/ui_settings.cpp:3294
+{"Regel „%s“ ausgeführt", ""},  // src/ui/ui_settings.cpp:3316
+{"Regeln", ""},  // src/ui/ui_settings.cpp:3322
+{"Automatisch schalten: wenn etwas passiert (Taster, Bewegungsmelder, Gerät, Uhrzeit), und falls eine Bedingung stimmt, dann Aktionen ausführen. Angelegt und bearbeitet werden Regeln im Web-Editor (Einstellungen > Regeln) mit Bausteinen.", ""},  // src/ui/ui_settings.cpp:3322
+{"Noch keine Regel angelegt.", ""},  // src/ui/ui_settings.cpp:3326
+{"Pfeil: Regel sofort ausführen (ohne Auslöser und Bedingung). Schalter: Regel an/aus.", ""},  // src/ui/ui_settings.cpp:3353
+{"Fahrzeug", "Vehicle"},  // src/ui/ui_settings.cpp:3378
+{"Shelly (BT)", "Shelly (BT)"},  // src/ui/ui_settings.cpp:3378
+{"Zurück", "Back"},  // src/ui/ui_settings.cpp:3470
+{"IP-Adresse ", "IP address"},  // src/ui/ui_settings.cpp:3544
+{"Panel-WLAN 192.168.4.1", "Panel Wi-Fi 192.168.4.1"},  // src/ui/ui_settings.cpp:3545
 {"über 10 Tage", "over 10 days"},  // src/ui/ui_victron.cpp:46
 {"  ·  heute ", "  ·  today"},  // src/ui/ui_victron.cpp:97
 {"Batteriefühler", ""},  // src/ui/ui_victron.cpp:104
@@ -1508,7 +1804,6 @@
 {"Eingang ", ""},  // src/ui/ui_victron.cpp:237
 {"  ·  Ausgang ", ""},  // src/ui/ui_victron.cpp:238
 {"kein Empfang", "no reception"},  // src/ui/ui_victron.cpp:252
-{"Fehler ", "Fault"},  // src/ui/ui_victron.cpp:254
 {"Ausgang an", "Output on"},  // src/ui/ui_victron.cpp:281
 {"Ausgang aus", "Output off"},  // src/ui/ui_victron.cpp:281
 {", rein ", ""},  // src/ui/ui_victron.cpp:288
@@ -1574,12 +1869,12 @@
 {"text/html; charset=utf-8", ""},  // src/updater/updater_main.cpp:133
 {"HTML(<!doctype html><html lang=", ""},  // src/updater/updater_page.h:5
 {"><head><meta charset=", ""},  // src/updater/updater_page.h:5
-{"Geht gerade nicht - Cerbo verbunden und Wert einstellbar?", "Not possible right now - Cerbo connected and value adjustable?"},  // src/vicdisp/vd_main.cpp:535
-{"Das ging nicht", ""},  // src/vicdisp/vd_main.cpp:612
-{"Dieses Gerät lässt sich nicht schalten", "This device cannot be switched"},  // src/vicdisp/vd_main.cpp:617
-{"Suche fehlgeschlagen - bitte nochmal.", "Search failed - please try again."},  // src/vicdisp/vd_main.cpp:697
-{"Update fehlgeschlagen", "Update failed"},  // src/vicdisp/vd_main.cpp:739
-{"SOC-Victron-%02X%02X%02X", ""},  // src/vicdisp/vd_main.cpp:811
+{"Geht gerade nicht - Cerbo verbunden und Wert einstellbar?", "Not possible right now - Cerbo connected and value adjustable?"},  // src/vicdisp/vd_main.cpp:536
+{"Das ging nicht", ""},  // src/vicdisp/vd_main.cpp:613
+{"Dieses Gerät lässt sich nicht schalten", "This device cannot be switched"},  // src/vicdisp/vd_main.cpp:618
+{"Suche fehlgeschlagen - bitte nochmal.", "Search failed - please try again."},  // src/vicdisp/vd_main.cpp:698
+{"Update fehlgeschlagen", "Update failed"},  // src/vicdisp/vd_main.cpp:740
+{"SOC-Victron-%02X%02X%02X", ""},  // src/vicdisp/vd_main.cpp:812
 {"Segoe UI", ""},  // src/vicdisp/vd_page.h:10
 {"hName", ""},  // src/vicdisp/vd_page.h:38
 {"hSub", ""},  // src/vicdisp/vd_page.h:38
@@ -1667,31 +1962,39 @@
 {"ldrNow", ""},  // src/vicdisp/vd_page.h:140
 {"bDpSave", ""},  // src/vicdisp/vd_page.h:142
 {"bTcal", ""},  // src/vicdisp/vd_page.h:142
-{"fwInfo", ""},  // src/vicdisp/vd_page.h:146
-{"bUpd", ""},  // src/vicdisp/vd_page.h:149
-{"bReboot", ""},  // src/vicdisp/vd_page.h:149
-{"fwFile", ""},  // src/vicdisp/vd_page.h:151
-{"bFw", ""},  // src/vicdisp/vd_page.h:151
-{"chip ${x[0]}", ""},  // src/vicdisp/vd_page.h:177
-{"t mono", ""},  // src/vicdisp/vd_page.h:186
-{"width:5em;padding:4px 6px", ""},  // src/vicdisp/vd_page.h:191
-{"width:7em;padding:4px 8px", ""},  // src/vicdisp/vd_page.h:206
-{"hint mono", ""},  // src/vicdisp/vd_page.h:236
-{"dN", ""},  // src/vicdisp/vd_page.h:237
-{"dQ", ""},  // src/vicdisp/vd_page.h:238
-{"dPl", ""},  // src/vicdisp/vd_page.h:239
-{"dP", ""},  // src/vicdisp/vd_page.h:239
-{"dC", ""},  // src/vicdisp/vd_page.h:240
-{"dO", ""},  // src/vicdisp/vd_page.h:240
-{"tl${sel?' sel':''}", ""},  // src/vicdisp/vd_page.h:337
-{"tl em", ""},  // src/vicdisp/vd_page.h:337
-{"s d", ""},  // src/vicdisp/vd_page.h:338
-{"scr n${pg.n}", ""},  // src/vicdisp/vd_page.h:338
-{"dpAdd", ""},  // src/vicdisp/vd_page.h:339
-{"margin:0 0 12px", ""},  // src/vicdisp/vd_page.h:339
-{"dpName", ""},  // src/vicdisp/vd_page.h:341
-{"dpHide", ""},  // src/vicdisp/vd_page.h:341
-{"dpDone", ""},  // src/vicdisp/vd_page.h:341
+{"dbCard", ""},  // src/vicdisp/vd_page.h:145
+{"dbOn", ""},  // src/vicdisp/vd_page.h:146
+{"dbInfo", ""},  // src/vicdisp/vd_page.h:147
+{"dbBtns", ""},  // src/vicdisp/vd_page.h:148
+{"bDbView", ""},  // src/vicdisp/vd_page.h:148
+{"dbPre", ""},  // src/vicdisp/vd_page.h:149
+{"display:none;max-height:50vh;overflow:auto;font-size:11px;line-height:1.35;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0", ""},  // src/vicdisp/vd_page.h:149
+{"dbFiles", ""},  // src/vicdisp/vd_page.h:150
+{"fwInfo", ""},  // src/vicdisp/vd_page.h:152
+{"bUpd", ""},  // src/vicdisp/vd_page.h:155
+{"bReboot", ""},  // src/vicdisp/vd_page.h:155
+{"fwFile", ""},  // src/vicdisp/vd_page.h:157
+{"bFw", ""},  // src/vicdisp/vd_page.h:157
+{"chip ${x[0]}", ""},  // src/vicdisp/vd_page.h:183
+{"t mono", ""},  // src/vicdisp/vd_page.h:192
+{"width:5em;padding:4px 6px", ""},  // src/vicdisp/vd_page.h:197
+{"width:7em;padding:4px 8px", ""},  // src/vicdisp/vd_page.h:212
+{"hint mono", ""},  // src/vicdisp/vd_page.h:242
+{"dN", ""},  // src/vicdisp/vd_page.h:243
+{"dQ", ""},  // src/vicdisp/vd_page.h:244
+{"dPl", ""},  // src/vicdisp/vd_page.h:245
+{"dP", ""},  // src/vicdisp/vd_page.h:245
+{"dC", ""},  // src/vicdisp/vd_page.h:246
+{"dO", ""},  // src/vicdisp/vd_page.h:246
+{"tl${sel?' sel':''}", ""},  // src/vicdisp/vd_page.h:355
+{"tl em", ""},  // src/vicdisp/vd_page.h:355
+{"s d", ""},  // src/vicdisp/vd_page.h:356
+{"scr n${pg.n}", ""},  // src/vicdisp/vd_page.h:356
+{"dpAdd", ""},  // src/vicdisp/vd_page.h:357
+{"margin:0 0 12px", ""},  // src/vicdisp/vd_page.h:357
+{"dpName", ""},  // src/vicdisp/vd_page.h:359
+{"dpHide", ""},  // src/vicdisp/vd_page.h:359
+{"dpDone", ""},  // src/vicdisp/vd_page.h:359
 {"noch nicht geprueft", ""},  // src/zb_h2/zb_h2.cpp:77
 {"Bereich zbdrv fehlt (alte Speicheraufteilung – Modul komplett neu aufspielen)", ""},  // src/zb_h2/zb_h2.cpp:83
 {"Bereich zbdrv nicht lesbar", ""},  // src/zb_h2/zb_h2.cpp:87
@@ -1724,6 +2027,17 @@
 {"Zigbee-Netz wird zurueckgesetzt – alle Geraete muessen neu angelernt werden", ""},  // src/zb_h2/zb_h2.cpp:1072
 {"unbekannter Befehl \"%s\"", ""},  // src/zb_h2/zb_h2.cpp:1080
 // --- nicht mehr im Quelltext gefunden ---
+{"Wie in der Zigbee-Bridge unter mqtt.base_topic – meistens zigbee2mqtt.", "As in the Zigbee bridge under mqtt.base_topic – usually zigbee2mqtt."},
+{"Derselbe Broker, den auch die Zigbee-Bridge benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", ""},
+{"Name in der Zigbee-Bridge: ", "Name in the Zigbee bridge: "},
+{"). Das Umbenennen in der Zigbee-Bridge betrifft das ganze Gerät.", "). Renaming in the Zigbee bridge affects the whole device."},
+{"Auch in der Zigbee-Bridge umbenennen", "Also rename in the Zigbee bridge"},
+{"Umbenennung an die Zigbee-Bridge gesendet.", "Rename sent to the Zigbee bridge."},
+{"Noch keine Geräte von der Zigbee-Bridge empfangen.", "No devices received from the Zigbee bridge yet."},
+{"Zigbee (MQTT)", "Zigbee (MQTT)"},
+{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee-Bridge und ohne Broker.", ""},
+{"MQTT-Broker eintragen", "Enter MQTT broker"},
+{"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "The panel talks directly to Zigbee2MQTT. It needs the address of your MQTT broker."},
 {"Achtung: UART3 benutzt das Zigbee-Modul – bitte eine andere wählen.", "Caution: UART3 is used by the Zigbee module – please choose another one."},
 {"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values appear like those of a satellite “Hobby”, the leisure battery as a battery monitor."},
 {"Es sind höchstens sechs Geräte möglich", "At most six devices are possible"},

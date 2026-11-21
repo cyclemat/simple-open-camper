@@ -99,7 +99,10 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 📡 **BTHome** *(Beta)* – Shelly BLU (Tür, Bewegung, Taster, H&T), Xiaomi mit pvvx-Firmware u. v. a., auch verschlüsselt
 - 🐝 **Zigbee direkt** *(Beta, P4 und rundes Panel)* – mit dem ESP32-H2-Funkmodul ganz ohne Zigbee2MQTT: Geräte anlernen,
   Lampen, Steckdosen (mit Leistung und Verbrauch), Schalter und Sensoren als Kacheln
-- 🧩 **Regeln** *(Beta, nur P4)* – Automationen mit grafischen Bausteinen (Blockly) im Editor, z. B. Bewegungslicht,
+- 📱 **Live-Ansicht** – das Panel im Browser bzw. am Handy bedienen (`/live`), mit Passwort
+- 🔐 **Tailscale** *(Beta, P4 und rundes Panel)* – Editor und Weboberfläche von unterwegs, ohne offenen Port und ohne
+  Cloud: Panel per Link-Anmeldung ins eigene Tailnet
+- 🧩 **Regeln** *(Beta, P4 und rundes Panel)* – Automationen mit grafischen Bausteinen (Blockly) im Editor, z. B. Bewegungslicht,
   Licht per Taster, Dimmen per Taster
 
 **Drei Betriebsarten**
@@ -115,8 +118,8 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 ## 📋 Voraussetzungen
 
 - Ein Panel – Vergleich siehe [Welches Panel?](#welches-panel):
-  **Elecrow CrowPanel Advanced 7" (ESP32-P4)**, **Waveshare ESP32-S3-Touch-LCD-7B** oder als kleines rundes Panel
-  das **Elecrow CrowPanel 1,46" Rotary**
+  **Elecrow CrowPanel Advanced 7" (ESP32-P4)** (EC-P4-7-V1.2), **Waveshare ESP32-S3-Touch-LCD-7B** (WS-S3-7B) oder als
+  kleines rundes Panel das **Elecrow CrowPanel 1,46" Rotary** (EC-S3-1.46)
 - MQTT-Broker mit **Zigbee2MQTT** (z. B. SMHUB Nano)
 - VS Code mit **PlatformIO** (pioarduino, Arduino-ESP32 3.x / ESP-IDF 5.x)
 - Optional: microSD-Karte (FAT32/exFAT) für Hintergründe und Sicherungen
@@ -128,10 +131,20 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 
 ## 🖥️ Welches Panel? P4 oder Waveshare
 
+**Gerätekürzel** – im Text und in den Dateien kurz so genannt: Hersteller – Chip – Zoll – Platinen-Revision
+(die Revision nur, wo sie für die Firmware zählt).
+
+| Kürzel | Gerät |
+|---|---|
+| **EC-P4-7-V1.2** | Elecrow CrowPanel Advanced 7" HMI (ESP32-P4), Platine V1.2 – spätere Revisionen entsprechend V1.3 usw. |
+| **WS-S3-7B** | Waveshare ESP32-S3-Touch-LCD-7B |
+| **EC-S3-1.46** | Elecrow CrowPanel 1,46" Rotary (rund, ESP32-S3) |
+| **CYD-ESP32-2.8** | „Cheap Yellow Display“ ESP32-2432S028R (2,8", ESP32) – Victron-Display, Satellit, Zusatzdisplay |
+
 Beide große Panels haben 7 Zoll und 1024 × 600 Bildpunkte und laufen mit derselben Firmware und demselben Editor.
 Der Unterschied liegt im Chip – und damit darin, wie viel gleichzeitig laufen kann.
 
-| | **Elecrow CrowPanel Advanced 7" (ESP32-P4)** | **Waveshare ESP32-S3-Touch-LCD-7B** |
+| | **Elecrow CrowPanel Advanced 7" (ESP32-P4)** (EC-P4-7-V1.2) | **Waveshare ESP32-S3-Touch-LCD-7B** (WS-S3-7B) |
 |---|---|---|
 | Chip | ESP32-P4, 2 Kerne RISC-V, 400 MHz | ESP32-S3, 2 Kerne Xtensa LX7, 240 MHz |
 | Interner RAM | 768 KB – im Betrieb **~270 KB frei** | 512 KB – im Betrieb **~45 KB frei** (mit WLAN, Zigbee, Cerbo und Bluetooth) |
@@ -145,7 +158,7 @@ Der Unterschied liegt im Chip – und damit darin, wie viel gleichzeitig laufen 
 | Umgebung | `crowpanel-p4` (Ordner `p4/`) | `waveshare-7b` |
 | Bezugsquelle | [bei Amazon](https://link.amazon/B04j2pDnV) | [bei Amazon](https://www.amazon.de/dp/B0FDQXKFJ5) |
 
-**P4 – Vorteile:** viel Reserve, alle Module gleichzeitig möglich; eingebauter MQTT-Broker (nur P4); Funk auf eigenem
+**P4 – Vorteile:** viel Reserve, alle Module gleichzeitig möglich; eingebauter MQTT-Broker (P4 und rundes Panel); Funk auf eigenem
 Chip; ruhiges Bild ohne PSRAM-Engpass beim Bildaufbau; geplant: Zigbee direkt über das ESP32-H2-Funkmodul.
 **P4 – Nachteile:** teurer; Akku nicht ab Werk messbar; der Funkchip C6 braucht ggf. ein Firmware-Update
 (serieller Befehl `c6update`); frühe Chips (Revision v1.x) rechnen Bluetooth-Kopplungen mit dem Hardware-ECC falsch –
@@ -162,7 +175,7 @@ WLAN und Bluetooth teilen sich Speicher und Antenne.
 > Schalte am Panel außerdem Bluetooth-Protokolle ab, die du nicht nutzt (z. B. iNet X ohne Kopplung): Abgeschaltete
 > Module belegen keinen RAM. Wer viele Module gleichzeitig nutzen möchte, nimmt den **P4**.
 
-**Rundes Panel – Elecrow CrowPanel 1,46" Rotary** (ESP32-S3R8, 8 MB PSRAM, 16 MB Flash, rund 360 × 360,
+**Rundes Panel – Elecrow CrowPanel 1,46" Rotary** (EC-S3-1.46; ESP32-S3R8, 8 MB PSRAM, 16 MB Flash, rund 360 × 360,
 Drehknopf, LED-Ring; Umgebung `crowpanel-146`, Ordner `crowpanel146/`): kleines Panel bzw. Zusatzdisplay für eine
 Kachel je Bildschirm. Ohne Einstellungsmenü – eingerichtet wird im Browser (eigenes WLAN mit Captive Portal).
 Bezugsquelle: [bei Amazon](https://link.amazon/B02xEzSrj).
@@ -183,6 +196,12 @@ Bezugsquelle: [bei Amazon](https://link.amazon/B02xEzSrj).
 
 ### 📁 Fertige Firmware ohne neu zu bauen
 
+**Web-Flasher (am einfachsten):** Doppelklick auf **`flasher.bat`** im Projektordner (bzw. `python tools/flasher.py`).
+Das startet einen kleinen Webserver nur für diesen Rechner und öffnet **http://localhost:8765/flasher/** – mit den
+Bereichen **Panels** und **Satelliten und Zubehör**. Je Gerät wählbar: Firmware aus dem **GitHub-Release** oder die
+hier **lokal gebaute** (neuester Stand), und **„Nur Firmware (Update)“** (Einstellungen bleiben) oder **„Komplett (neu
+einrichten)“** (alles gelöscht). Gerät per USB anschließen, Knopf drücken, Anschluss wählen – Chrome oder Edge am PC.
+
 Jeder Build legt seine Dateien zusätzlich in **`release/lokal/`** ab (nicht im Git) – je Umgebung immer nur die
 neueste:
 
@@ -198,6 +217,12 @@ eingerichtetes Gerät (Einstellungen behalten) `esptool --port COM11 write-flash
 
 ### 🛠 Wartung und Diagnose
 
+- **Debug-Log (Fehlersuche):** in der Weboberfläche einschalten (Panel: Editor → Einstellungen → Info; Satelliten,
+  Victron-Display, Zusatzdisplays: Karte „Fehlersuche“), **ab Werk aus**. Schreibt alle Meldungen der Firmware mit
+  Uhrzeit mit, dazu alle 60 s Speicher, WLAN und Verbindungen (MQTT, Cerbo …) und beim Start den Grund des letzten
+  Neustarts (Absturz, Watchdog, Spannungseinbruch). Mit SD-Karte (P4, Waveshare, CYD mit Kartenslot) als Dateien
+  `log-NNNNN.txt` (je bis 1 MB, die letzten 10; Panel: `panel/logs`, CYD: `logs`), sonst die letzten 8–64 KB im
+  Arbeitsspeicher. Ansehen, herunterladen und löschen direkt im Browser. Ausgeschaltet belegt er keinen Speicher.
 - `tools/embed_web.py` packt bei jedem Build den Editor gzip-komprimiert in die Firmware.
 - `tools/upload_wait.py` wartet vor dem Hochladen auf Enter (`PANEL_UPLOAD_NOWAIT=1` schaltet es ab).
 - `pio run -e check-all` baut zur Probe eine Variante mit **allen** Modulen (nicht zum Hochladen gedacht).
@@ -553,11 +578,62 @@ Danach im Browser-Editor **Einstellungen → Zigbee → „Zigbee-Modul verwende
 anlernen; dort lassen sie sich auch umbenennen, einstellen und entfernen. Neue Geräte bekommen von selbst eine Kachel.
 Die Belegung stammt aus Elecrows Schaltplan – vor dem Löten nachmessen. **Nie 5 V oder 5-V-Pegel direkt an das H2!**
 
+### 📱 Live-Ansicht (Panel im Browser bedienen)
+
+- **`http://<panel>/live`** (bzw. Knopf **„Live“** oben im Editor) zeigt das Panel mit seinen Seiten und Kacheln im
+  Browser – **Antippen schaltet**, **lange drücken** öffnet Helligkeit bzw. Ein/Aus. Werte frischen sich alle 1,5 s auf.
+- Geschützt durch das **Zugangspasswort** (wie der Editor). Am Handy „Zum Startbildschirm hinzufügen“ – dann startet
+  sie wie eine App; quer gehalten wird das Panel größer. Mit **Tailscale** auch von unterwegs
+  (`http://<name-im-tailnet>/live`).
+- Kostet am Panel nur Rechenzeit, solange jemand zuschaut; geschaltet wird über dieselben Wege wie am Bildschirm.
+- **Android-App „S.O.C. Live“** *(Beta)*: [`release/soc-live.apk`](release/soc-live.apk) aufs Handy laden und
+  installieren (Installation aus unbekannten Quellen erlauben). **Tailscale ist eingebaut** – die Tailscale-App wird
+  nicht gebraucht: beim ersten Start „Mit Tailscale anmelden“ (Browser), danach sucht die App das Panel im Tailnet und
+  verbindet sich (am Panel muss Tailscale an sein, gleiches Konto). Ohne Tailscale: Adresse im WLAN eintragen.
+  Das Panel-Passwort fragt das Panel einmal ab, die App merkt es sich. Die App zeigt die Kacheln genau wie das Panel
+  (quer, ganzer Bildschirm); Antippen schaltet bzw. zeigt bei Messwerten alle Werte (z. B. Akku mit Zellen). Zurück-Taste
+  lange drücken = Einstellungen.
+  <p><img src="assets/app/live.png" width="49%" alt="S.O.C. Live – Live-Ansicht"> <img src="assets/app/detail.png" width="49%" alt="S.O.C. Live – alle Werte eines Akkus"></p>
+
+### 🔐 Tailscale – Fernzugriff von unterwegs (P4 und rundes Panel) *(Beta)*
+
+- Bringt das Panel per [microlink](https://github.com/CamM2325/microlink) (Tailscale-kompatibler Client, MIT) in dein
+  **Tailnet**. Editor und Weboberfläche sind dann von überall erreichbar – unter der 100.x-Adresse oder dem Namen
+  (z. B. `http://simply-open-camper/`, mit MagicDNS), auf allen Geräten mit Tailscale (Handy, Laptop …). Das
+  Zugangspasswort gilt weiter. Kein offener Port am Router, keine Cloud dazwischen.
+- **Einrichten (ab Werk aus):**
+  1. Im Browser-Editor **Einstellungen → Netzwerk** ganz nach unten zu **„Tailscale (Beta)“**.
+  2. **„Panel ins Tailnet bringen“** einschalten. Ohne Auth-Key erscheint nach ein paar Sekunden der Knopf
+     **„Bei Tailscale anmelden“** – Link öffnen, mit dem Tailscale-Konto anmelden, das Gerät bestätigen. Alternativ
+     einen **Auth-Key** aus dem Tailscale-Admin eintragen (Settings → Keys, am besten einmalig und kurz gültig).
+  3. Fertig: Stand und Adresse stehen im Editor und am Panel unter **Einstellungen → Netzwerk**.
+- Der Auth-Key und die Schlüssel des Panels bleiben **nur im Panel** (nicht in der Firmware, nicht im Repo).
+  **„Abmelden“** löscht sie – danach das alte Gerät im Tailscale-Admin entfernen. Gerätename im Tailnet: Feld
+  „Gerätename im Tailnet“ (sonst der Netzwerkname des Panels).
+- **Getestet (P4):** im Heim-WLAN direkt verbunden (Editor in 0,3 s), über Handy-Hotspot/Mobilfunk über das
+  Tailscale-Relais in Frankfurt (Ping 150–200 ms, Editor in 4–5 s, auch mehrere Abrufe gleichzeitig). Rundes Panel:
+  gebaut, noch ungetestet.
+- Kostet etwa 105 KB Flash und gut 40 KB internen RAM – nur, wenn eingeschaltet. Nicht beim Waveshare (zu wenig
+  interner RAM) und nicht bei den kleinen Displays/Satelliten (kein PSRAM). Headscale kann microlink, im Panel aber
+  noch nicht einstellbar.
+- Tipp: Andere Geräte im Camper (Satelliten, GX, Zusatzdisplays) erreichst du von unterwegs am einfachsten über einen
+  Router mit Tailscale als „Subnet Router“ (z. B. GL.iNet).
+
 ### 🖼️ Startbild
 
 Beim Start zeigt das Panel 6 Sekunden lang ein Startbild und gibt den Speicher danach wieder frei. Standard ist das
 Banner (`assets/splash.jpg`); eine eigene **`splash.jpg`** im Projektordner hat beim Bauen Vorrang. Das Bild als JPEG „baseline“ speichern (nicht „progressive“), am besten 1024×600 –
 größere Bilder werden um 1/2, 1/4 oder 1/8 verkleinert.
+
+### 🔌 Shelly per Bluetooth *(Beta, ungetestet)*
+
+- Für **Shelly Gen2, Gen3 und Gen4** (Plus, Pro, Mini …) – ohne WLAN-Anbindung und ohne MQTT-Broker. P4, rundes Panel
+  (EC-S3-1.46) und Waveshare 7B. Gen1 hat kein Bluetooth: dafür weiter Shelly über MQTT.
+- Bluetooth am Shelly einschalten (Shelly-App → Einstellungen → Bluetooth).
+- Panel: **Einstellungen → Shelly (BT)** einschalten, „Shellys suchen“, gefundenen Shelly hinzufügen (Name, Passwort nur
+  wenn am Shelly gesetzt). Im Editor dieselbe Seite unter Einstellungen.
+- Das Panel verbindet sich kurz: Stand alle 30 s, Schalten sofort (1–2 s). Schalter, Licht/Dimmer, Leistung und Energie
+  erscheinen als Kacheln wie die MQTT-Shellys und gehen auch in Regeln und auf Zusatzdisplays.
 
 ### 🌈 WLED
 
@@ -739,7 +815,7 @@ Damit kein Wert im Kreis läuft (Panel → HA → Panel → HA …), gelten fest
 ## 📟 Victron-Display (eigene kleine Firmware)
 
 Für alle, die nur **Victron und den Gasvorrat** sehen wollen, gibt es eine schlanke Firmware für das 2,8"-Display
-ESP32-2432S028R („Cheap Yellow Display“, rund 15 €): Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl, Mopeka,
+ESP32-2432S028R („Cheap Yellow Display“, CYD-ESP32-2.8, rund 15 €): Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl, Mopeka,
 Akkus mit Bluetooth-BMS und Power Stations, dazu als Beta SuperSense, Simarine STRx, Ruuvi und SwitchBot – als Kacheln, ohne großes
 Panel. **Deutsch oder Englisch.** Dieselbe Firmware gibt es auch für das Waveshare 7" mit Einstellungen am Bildschirm.
 
@@ -811,6 +887,7 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | | [holdestmade/esphome-alde-3020](https://github.com/holdestmade/esphome-alde-3020) | MIT | 3020-Besonderheiten, Prüfsummen-Erkennung, Zeitverhalten |
 | | [darenshaw/truma-inet-x-to-alde-3020](https://github.com/darenshaw/truma-inet-x-to-alde-3020), [inetbox.py Issue #28](https://github.com/danielfett/inetbox.py/issues/28) | GPL-3.0 / – | Hinweise zu Modellen und Grenzen (3020 HE) |
 | Hymer Connect (`src/hymer.cpp`, `src/hymer_tls.cpp`) | [Facetti/hymer-connect-ha-ble](https://github.com/Facetti/hymer-connect-ha-ble), [BetaHydri/hymer-connect-ha](https://github.com/BetaHydri/hymer-connect-ha) | MIT | GATT-Dienste, TLS-Profil, PIA-Rahmen, Sensor-Karten; die sieben Abo-Nachrichten sind wörtlich übernommen |
+| Tailscale (`src/tailscale.cpp`, `src/third_party/microlink/`) | [CamM2325/microlink](https://github.com/CamM2325/microlink) (enthält wireguard-lwip, BSD-3-Clause) | MIT | Tailscale-kompatibler Client, unverändert übernommen (nur Einstellungen statt Kconfig) |
 | Hobby (`src/hobby.cpp`) | [AndreasKirsten79/hobby-caravan-pi](https://github.com/AndreasKirsten79/hobby-caravan-pi) (mit [paveltresnak/hobby-caravan-esphome-ble](https://github.com/paveltresnak/hobby-caravan-esphome-ble)) | keine Angabe | nur Protokollwissen: BLE-Dienst, Anmeldung, Teilstücke, Befehle |
 | | [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity) | MIT | CI-BUS seriell: Anmeldung, Befehle, Variablentabelle |
 | WLED (`src/wled.cpp`) | [WLED – MQTT-Schnittstelle](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics und Befehle |

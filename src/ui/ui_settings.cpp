@@ -39,6 +39,10 @@ static std::string lower_mac(std::string s);
 #include <functional>
 #include <vector>
 #include "esp_heap_caps.h"
+#include "../dbglog.h"
+#include "../tailscale.h"
+#include "../shelly_ble.h"
+#include "../sdcard.h"
 
 static lv_obj_t *s_scr = nullptr, *s_content = nullptr;
 static lv_obj_t *s_nav_items[SEC_COUNT];
@@ -53,6 +57,8 @@ static lv_obj_t *s_mqtt_status = nullptr;
 static lv_obj_t *s_bl_val = nullptr, *s_dim_val = nullptr;
 static lv_obj_t *s_info[10];
 static lv_obj_t *s_info_url = nullptr, *s_info_url2 = nullptr;
+static lv_obj_t *s_dbg_state = nullptr;   // Info: Stand des Debug-Logs
+static lv_obj_t *s_ts_val = nullptr;      // Info: Tailscale
 static std::vector<lv_obj_t *> s_vic_vals;
 static uint32_t s_vic_sig = 0;
 static std::vector<lv_obj_t *> s_sat_vals;   // Satelliten in "Geraete"
@@ -66,6 +72,7 @@ static lv_obj_t *s_web_val = nullptr;   // Netzwerk-Seite: Zustand des Webinterf
 
 bool ui_settings_is_open() { return s_scr != nullptr; }
 static void show_section(int sec);
+static void info_fill();
 
 static void reset_dynamic() {
   s_wifi_status = s_wifi_ip = s_scan_box = nullptr;
@@ -74,6 +81,8 @@ static void reset_dynamic() {
   s_clock_val = nullptr;
   s_web_val = nullptr;
   s_info_url = s_info_url2 = nullptr;
+  s_dbg_state = nullptr;
+  s_ts_val = nullptr;
   for (auto &p : s_mqtt_vals) p = nullptr;
   for (auto &p : s_info) p = nullptr;
   s_vic_vals.clear();
@@ -342,6 +351,13 @@ static void build_web() {
                          F_SMALL, C_TEXT2);
   lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(h, lv_pct(100));
+#if WITH_TAILSCALE
+  // Fernzugriff: Adresse im Tailnet (einschalten/anmelden im Browser-Editor unter Netzwerk)
+  subheading("Tailscale (Beta)");
+  lv_obj_t *tg = group();
+  s_ts_val = ui_row(tg, "Adresse im Tailnet", "", nullptr, nullptr, false);
+  info_fill();
+#endif
 }
 
 static void build_wifi() {
@@ -942,6 +958,9 @@ void ui_rename_device(const std::string &key) {
   if (shelly_is_key(key)) {   // Shelly: nur der Name auf dem Panel
     o.hint = tr("Shelly ") + v.model + " (" + v.ieee + tr("). Der Name gilt nur für dieses Panel.");
     o.check_label.clear();
+  } else if (shb_is_key(key)) {   // Shelly per Bluetooth: ebenso
+    o.hint = tr("Shelly per Bluetooth ") + v.model + tr(". Der Name gilt nur für dieses Panel.");
+    o.check_label.clear();
   } else if (wled_is_key(key)) {   // WLED: ebenso
     o.hint = tr("WLED „") + v.name + "“ (" + v.description + tr("). Der Name gilt nur für dieses Panel.");
     o.check_label.clear();
@@ -1017,33 +1036,50 @@ static void build_devices() {
   ui_button(row, ICON_WAND, "Fehlende ergänzen", true, arrange_missing_cb, nullptr);
   ui_button(row, ICON_GRID, "Alles neu anordnen", false, arrange_all_cb, nullptr);
   build_sats();
-#if SOC_VICTRON_EDITION
-  subheading("Shelly");
-#else
-  if (panelsat_enabled()) subheading("Zigbee2MQTT");
-#endif
   auto all = z2m_all();
   Layout lay = layout_get();
   s_dev_keys.clear();
-  lv_obj_t *g = group();
   if (all.empty()) {
 #if SOC_VICTRON_EDITION
-    lv_obj_t *l = ui_label(g, g_settings.mqtt_on ? (z2m_connected() ? "Noch keine Shellys gefunden." : "Keine Verbindung zum MQTT-Broker.")
-                                                 : "Shellys: unter „Shelly (MQTT)“ einschalten.", F_BODY, C_TEXT2);
+    subheading("Shelly");
+    lv_obj_t *l = ui_label(group(), g_settings.mqtt_on ? (z2m_connected() ? "Noch keine Shellys gefunden." : "Keine Verbindung zum MQTT-Broker.")
+                                                       : "Shellys: unter „Shelly (MQTT)“ einschalten.", F_BODY, C_TEXT2);
 #else
-    lv_obj_t *l = ui_label(g, z2m_connected() ? z2m_diag_text() : "Keine Verbindung zum MQTT-Broker.", F_BODY, C_TEXT2);
+    subheading("Zigbee2MQTT");
+    lv_obj_t *l = ui_label(group(), z2m_connected() ? z2m_diag_text() : "Keine Verbindung zum MQTT-Broker.", F_BODY, C_TEXT2);
 #endif
     lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(l, lv_pct(100));
     return;
   }
-  for (size_t i = 0; i < all.size() && i < 80; i++) {
-    const ControlView &v = all[i];
-    s_dev_keys.push_back(v.key);
-    std::string label = layout_label(lay, v);
-    std::string def = v.name + (v.ep.empty() ? "" : " " + v.ep);
-    std::string val = label != def ? def : v.model;
-    ui_row(g, label.c_str(), val.c_str(), dev_row_cb, (void *)(intptr_t)i);
+  // Nach Herkunft gruppiert: Zigbee2MQTT, eingebautes Zigbee, Shelly (MQTT), Shelly per Bluetooth, WLED
+  enum { G_Z2M, G_ZBD, G_SHELLY, G_SHB, G_WLED, G_N };
+  static const char *const G_TITLE[G_N] = {"Zigbee2MQTT", "Zigbee (eingebaut)", "Shelly (MQTT)", "Shelly (Bluetooth)", "WLED"};
+  auto group_of = [](const std::string &k) {
+    if (zbd_is_key(k)) return (int)G_ZBD;
+    if (shb_is_key(k)) return (int)G_SHB;
+    if (shelly_is_key(k)) return (int)G_SHELLY;
+    if (wled_is_key(k)) return (int)G_WLED;
+    return (int)G_Z2M;
+  };
+  size_t shown = 0;
+  for (int gi = 0; gi < G_N; gi++) {
+    lv_obj_t *g = nullptr;
+    for (size_t i = 0; i < all.size() && shown < 80; i++) {
+      const ControlView &v = all[i];
+      if (group_of(v.key) != gi) continue;
+      if (!g) {
+        subheading(SOC_VICTRON_EDITION && gi == G_SHELLY ? "Shelly" : G_TITLE[gi]);
+        g = group();
+      }
+      size_t idx = s_dev_keys.size();
+      s_dev_keys.push_back(v.key);
+      std::string label = layout_label(lay, v);
+      std::string def = v.name + (v.ep.empty() ? "" : " " + v.ep);
+      std::string val = label != def ? def : v.model;
+      ui_row(g, label.c_str(), val.c_str(), dev_row_cb, (void *)(intptr_t)idx);
+      shown++;
+    }
   }
 }
 
@@ -2828,7 +2864,33 @@ static const char *INFO_TITLES[] = {"Firmware", "IP-Adresse", "WLAN-Signal", SOC
                                     "Touch", "Akku", "Freier Speicher", "Laufzeit", "Panel-WLAN"};
 static const int INFO_N = 10;
 
+// Debug-Log am Bildschirm ein/aus (dasselbe wie im Editor unter Info); Stand: SD-Datei bzw. nur Arbeitsspeicher
+static void dbg_state_fill() {
+  if (!s_dbg_state) return;
+  std::string t;
+  if (!dbglog_on()) t = tr("Aus – zum Einschalten antippen. Ab Werk aus.");
+  else if (!dbglog_current().empty()) t = std::string(tr("Schreibt auf die SD-Karte: ")) + "panel/logs/" + dbglog_current();
+  else if (sd_ok()) t = tr("An – SD-Karte wird eingebunden …");
+  else t = tr("An – keine SD-Karte, nur die letzten 64 KB im Arbeitsspeicher (im Editor unter Info ansehen).");
+  (lv_label_set_text)(s_dbg_state, t.c_str());
+}
+static void dbg_sw_cb(lv_event_t *e) {
+  bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  dbglog_set(on);
+  ui_toast(on ? "Debug-Log läuft – alle Meldungen werden mitgeschrieben." : "Debug-Log ist aus.");
+  dbg_state_fill();
+}
+
 static void info_fill() {
+  dbg_state_fill();
+#if WITH_TAILSCALE
+  if (s_ts_val) {
+    TsStatus t = ts_status();
+    std::string v = !t.on ? std::string(tr("aus (einschalten im Editor unter Netzwerk)"))
+                    : t.ip.empty() ? std::string(tr(t.state.c_str())) : t.ip + "  ·  " + t.name;
+    (lv_label_set_text)(s_ts_val, v.c_str());
+  }
+#endif
   if (!s_info[0]) return;
   char b[96];
   String ip = net_editor_ip();
@@ -2893,8 +2955,240 @@ static void build_info() {
   lv_obj_t *row = button_row();
   if (!SOC_VICTRON_EDITION) ui_button(row, ICON_REFRESH, "Zustände neu abfragen", false, refresh_cb, nullptr);
   ui_button(row, ICON_POWER, "Neu starten", false, reboot_cb, nullptr);
+  // Debug-Log (Fehlersuche): auch am Bildschirm schaltbar, Dateien auf der SD-Karte
+  subheading("Fehlersuche (Debug-Log)");
+  {
+    lv_obj_t *r = lv_obj_create(s_content);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 64);
+    lv_obj_t *t = ui_label(r, "Debug-Log auf die SD-Karte schreiben", F_BODY, C_TEXT);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_t *sw = lv_switch_create(r);
+    lv_obj_set_size(sw, 64, 34);
+    lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if (dbglog_on()) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_add_event_cb(sw, dbg_sw_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+    s_dbg_state = ui_label(s_content, "", F_SMALL, C_TEXT2);
+    lv_label_set_long_mode(s_dbg_state, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(s_dbg_state, lv_pct(100));
+    lv_obj_t *h = ui_label(s_content, "Alle Meldungen mit Uhrzeit, alle 60 s Speicher, WLAN und Verbindungen. Dateien je bis 1 MB, "
+                                      "die letzten 10. Ansehen und herunterladen im Editor unter Einstellungen → Info.", F_SMALL, C_TEXT3);
+    lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(h, lv_pct(100));
+  }
   info_fill();
+  // Projekt und Unterstuetzung (Edition: nur das oeffentliche Beta-Repo)
+#if SOC_VICTRON_EDITION
+  const char *git = "github.com/cyclemat/simply-open-camper-victron-beta";
+#else
+  const char *git = "github.com/cyclemat/simple-open-camper";
+#endif
+  lv_obj_t *pg = group();
+  ui_row(pg, "Projekt auf GitHub", git, nullptr, nullptr, false);
+  subheading("Unterstütze das Projekt");
+  lv_obj_t *sup = group();
+  lv_obj_set_style_bg_opa(sup, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(sup, C_CARD, 0);
+  lv_obj_set_style_radius(sup, 16, 0);
+  lv_obj_set_style_pad_all(sup, 20, 0);
+  lv_obj_set_style_pad_row(sup, 6, 0);
+  lv_obj_t *h = ui_label(sup, "Gefällt dir das Panel? Über eine kleine Spende freue ich mich:", F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+  lv_obj_t *pp = ui_label(sup, "", F_TITLE, C_AMBER);
+  (lv_label_set_text)(pp, "paypal.me/cyclemat");
 }
+
+
+// ---------------------------------------------------------------- Shelly per Bluetooth (Gen2+, Beta)
+#if WITH_SHELLY_BLE
+static std::vector<ShbFound> s_shb_found;
+static std::vector<ShbInfo> s_shb_list;
+static uint32_t s_shb_sig = 0;
+
+static void shb_rebuild(void *) {
+  if (!s_scr || s_sec != SEC_SHELLY_BT || ui_input_is_open()) return;
+  lv_coord_t y = lv_obj_get_scroll_y(s_content);
+  show_section(SEC_SHELLY_BT);
+  lv_obj_update_layout(s_content);
+  lv_obj_scroll_to_y(s_content, y, LV_ANIM_OFF);
+}
+
+static void shb_on_cb(lv_event_t *e) {
+  shb_set_enabled(lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED));
+  lv_async_call(shb_rebuild, nullptr);
+}
+
+static void shb_search_cb(lv_event_t *) {
+  shb_search(120000);
+  ui_toast("Suche läuft (2 Minuten). Bluetooth muss am Shelly an sein (Shelly-App > Einstellungen > Bluetooth).");
+  lv_async_call(shb_rebuild, nullptr);
+}
+
+static void shb_tiles_cb(lv_event_t *) {
+  std::vector<ControlView> all, add;
+  shb_all(all);
+  for (auto &v : all) add.push_back(v);
+  if (add.empty()) {
+    ui_toast("Noch keine Kanäle – die erste Verbindung zum Shelly steht noch aus.");
+    return;
+  }
+  layout_auto_arrange(add, true);
+  ui_toast("Kacheln angelegt.");
+}
+
+struct ShbAdd {
+  ShbFound f;
+  std::string name;
+};
+static void shb_pw_ask_cb(lv_timer_t *tm) {
+  ShbAdd *a = (ShbAdd *)tm->user_data;
+  lv_timer_del(tm);
+  ShbFound f = a->f;
+  std::string name = a->name;
+  delete a;
+  InputOptions o;
+  o.title = "Passwort des Shelly";
+  o.hint = "Nur nötig, wenn am Shelly ein Passwort gesetzt ist (Shelly-App > Einstellungen > Authentifizierung). "
+           "Meist leer lassen. Später änderbar: Shelly antippen.";
+  o.password = true;
+  o.max_len = 64;
+  o.on_ok = [f, name](const std::string &pw, bool) {
+    std::string err = shb_add(f.mac, f.type, name, pw);
+    ui_toast(err.empty() ? "Eingerichtet – das Panel verbindet sich gleich. Danach „Kacheln anlegen“." : err.c_str());
+    lv_async_call(shb_rebuild, nullptr);
+  };
+  ui_input_open(o);
+}
+
+static void shb_found_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_shb_found.size()) return;
+  ShbFound f = s_shb_found[i];
+  if (f.configured) {
+    ui_toast("Dieser Shelly ist schon eingerichtet.");
+    return;
+  }
+  InputOptions o;
+  o.title = "Name des Shelly";
+  o.hint = "Zum Beispiel „Außenlicht“ oder „Wasserpumpe“.";
+  o.initial = f.name;
+  o.max_len = 32;
+  o.on_ok = [f](const std::string &t, bool) { lv_timer_create(shb_pw_ask_cb, 300, new ShbAdd{f, t}); };
+  ui_input_open(o);
+}
+
+// Shelly antippen: umbenennen; Haken = entfernen
+static void shb_dev_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_shb_list.size()) return;
+  ShbInfo x = s_shb_list[i];
+  InputOptions o;
+  o.title = "Shelly umbenennen";
+  o.initial = x.name;
+  o.max_len = 32;
+  o.check_label = "Diesen Shelly entfernen";
+  o.on_ok = [x](const std::string &t, bool remove) {
+    if (remove) shb_remove(x.mac);
+    else shb_rename(x.mac, t);
+    ui_toast(remove ? "Entfernt." : "Gespeichert.");
+    lv_async_call(shb_rebuild, nullptr);
+  };
+  ui_input_open(o);
+}
+
+static void shb_pw_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_shb_list.size()) return;
+  std::string mac = s_shb_list[i].mac;
+  InputOptions o;
+  o.title = "Passwort des Shelly";
+  o.hint = "Wie in der Shelly-App unter Authentifizierung. Leer = kein Passwort.";
+  o.password = true;
+  o.max_len = 64;
+  o.on_ok = [mac](const std::string &pw, bool) {
+    shb_set_password(mac, pw);
+    ui_toast("Gespeichert – das Panel meldet sich gleich neu an.");
+    lv_async_call(shb_rebuild, nullptr);
+  };
+  ui_input_open(o);
+}
+
+static std::string shb_ch_text(const ShbInfo &x) {
+  if (!x.online) return x.status.empty() ? std::string(tr("noch nicht verbunden")) : x.status;
+  std::string r;
+  for (auto &c : x.ch) {
+    if (!r.empty()) r += "  ·  ";
+    if (x.ch.size() > 1) r += std::to_string(atoi(c.comp.c_str() + c.comp.find(':') + 1) + 1) + ": ";
+    r += tr(c.on ? "An" : "Aus");
+    if (c.bri >= 0 && c.on) r += " " + std::to_string(c.bri) + " %";
+    if (!isnan(c.power)) {
+      char b[16];
+      snprintf(b, sizeof(b), " %.0f W", c.power);
+      r += b;
+    }
+  }
+  return r.empty() ? std::string(tr("keine Kanäle")) : r;
+}
+
+static void build_shb() {
+  heading("Shelly per Bluetooth (Beta)",
+          "Shelly Gen2, Gen3 und Gen4 (Plus, Pro, Mini …) ohne WLAN schalten – das Panel verbindet sich kurz per "
+          "Bluetooth (Stand alle 30 s, Schalten sofort, dauert 1–2 s). Gen1 hat kein Bluetooth: dafür Shelly über MQTT.");
+  {
+    lv_obj_t *r = lv_obj_create(s_content);
+    ui_plain(r);
+    lv_obj_set_size(r, lv_pct(100), 56);
+    lv_obj_t *t = ui_label(r, "Shellys per Bluetooth", F_BODY, C_TEXT);
+    lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);
+    lv_obj_t *sw = lv_switch_create(r);
+    lv_obj_set_size(sw, 64, 34);
+    lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if (shb_enabled()) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_add_event_cb(sw, shb_on_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  }
+  s_shb_sig = shb_version() * 2 + shb_searching();
+  if (!shb_enabled()) return;
+  lv_obj_t *row = button_row();
+  ui_button(row, ICON_SEARCH, shb_searching() ? "Suche läuft …" : "Shellys suchen", !shb_searching(), shb_search_cb, nullptr);
+  ui_button(row, ICON_PLUS, "Kacheln anlegen", false, shb_tiles_cb, nullptr);
+  s_shb_list = shb_list();
+  if (!s_shb_list.empty()) {
+    subheading("Eingerichtet");
+    lv_obj_t *g = group();
+    for (size_t i = 0; i < s_shb_list.size(); i++) {
+      auto &x = s_shb_list[i];
+      std::string title = x.name.empty() ? x.mac : x.name;
+      if (!x.model.empty()) title += "  (" + x.model + ")";
+      ui_row(g, title.c_str(), shb_ch_text(x).c_str(), shb_dev_cb, (void *)(intptr_t)i);
+      ui_row(g, "Passwort", x.has_pw ? "gesetzt – antippen zum Ändern" : x.auth ? "VERLANGT – antippen zum Eintragen" : "keins",
+             shb_pw_cb, (void *)(intptr_t)i);
+    }
+  }
+  s_shb_found = shb_found();
+  if (shb_searching() || !s_shb_found.empty()) {
+    subheading(shb_searching() ? "Gefundene Shellys (Suche läuft)" : "Gefundene Shellys");
+    lv_obj_t *g = group();
+    if (s_shb_found.empty()) ui_label(g, "Noch keiner gefunden … Shelly in der Nähe und Bluetooth an?", F_SMALL, C_TEXT2);
+    for (size_t i = 0; i < s_shb_found.size(); i++) {
+      auto &f = s_shb_found[i];
+      char v[48];
+      snprintf(v, sizeof(v), "%d dBm%s", f.rssi, f.configured ? tr(" · schon eingerichtet") : "");
+      ui_row(g, (f.name.empty() ? f.mac : f.name).c_str(), v, shb_found_cb, (void *)(intptr_t)i);
+    }
+  }
+}
+
+static void ui_settings_tick_shb() {
+  if (!s_scr || s_sec != SEC_SHELLY_BT || ui_input_is_open()) return;
+  if (shb_version() * 2 + shb_searching() != s_shb_sig) lv_async_call(shb_rebuild, nullptr);
+}
+#else
+static void build_shb() {}
+static void ui_settings_tick_shb() {}
+#endif
 
 // ---------------------------------------------------------------- Sicherung (SD-Karte)
 static std::vector<BackupInfo> s_bk;
@@ -3079,11 +3373,11 @@ static void ui_settings_tick_rules() {
 #endif
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_THERMO, ICON_HOUSE, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_THERMO, ICON_HOUSE, ICON_PLUG, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
 #if SOC_VICTRON_EDITION
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "", "", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "", "", "Sicherung", "Info"};
 #else
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Zigbee", "Regeln", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "Zigbee", "Regeln", "Sicherung", "Info"};
 #endif
 
 static void show_section(int sec) {
@@ -3119,6 +3413,9 @@ static void show_section(int sec) {
     case SEC_HYMER:   // "Fahrzeug": Hymer Connect und Hobby
       if (hymer_enabled()) build_hymer();
       build_hobby();
+      break;
+    case SEC_SHELLY_BT:
+      build_shb();
       break;
 #if WITH_ZB_DIRECT
     case SEC_ZIGBEE: build_zigbee(); break;
@@ -3182,6 +3479,7 @@ void ui_settings_open(int section) {
   auto nav_visible = [](int i) {
     if (i == SEC_HYMER && !hymer_enabled() && !WITH_HOBBY) return false;
     if ((i == SEC_BMS || i == SEC_PSTATION || i == SEC_SENSOR) && !WITH_BMS) return false;
+    if (i == SEC_SHELLY_BT && !WITH_SHELLY_BLE) return false;
     if (i == SEC_ZIGBEE && !WITH_ZB_DIRECT) return false;
     if (i == SEC_RULES && !WITH_RULES) return false;
     return true;
@@ -3253,6 +3551,7 @@ void ui_settings_tick() {
   if (s_clock_val) lv_label_set_text(s_clock_val, clock_text().c_str());
   info_fill();
   ui_settings_tick_victron();  // Ende der Suche, Alter der Werte
+  ui_settings_tick_shb();      // Shelly per Bluetooth: neue Werte, Suche
   ui_settings_tick_sat();      // Satelliten im Einrichtungsmodus kommen und gehen, Stand der Einrichtung
 #if WITH_ZB_DIRECT
   ui_settings_tick_zigbee();   // Zigbee-Modul: Stand, Anlernen, Geraete und Werte

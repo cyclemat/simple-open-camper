@@ -19,7 +19,7 @@ FILES = [
     "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h", "src/bms.cpp", "src/bms.h",
     "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
     "src/hymer.cpp", "src/hymer.h", "src/hobby.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
-    "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h",
+    "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h", "src/dbglog.cpp", "src/dbglog.h",
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
     "src/fonts/font_ui_26.c", "src/fonts/font_ui_40.c",
     "src/fonts/font_icons_24.c",
@@ -104,6 +104,7 @@ build_flags =
     -DSAT_DISPLAY=1
     -DSAT_BOARD_CYD=1
     -DSAT_VICTRON_ONLY=1
+    -DDBGLOG_CYD_SD=1
     -DSAT_BIG_FONT=1
     -DWITH_BMS=1
     -DBMS_SUPERB_ON=${bms.superb}

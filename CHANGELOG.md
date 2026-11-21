@@ -3,9 +3,52 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
-## In Arbeit (nächste Version)
+## 0.2.6 – 2026-11-21
 
 **Neu**
+- 📱 **Live-Ansicht** unter `http://<panel>/live`: das Panel im Browser bedienen – gleiche Seiten und Kacheln, Werte alle
+  1,5 s, Antippen schaltet, lange drücken = Helligkeit. Mit Zugangspasswort, am Handy „Zum Startbildschirm“ wie eine
+  App, über Tailscale auch von unterwegs. Knopf „Live“ im Editor.
+- ⚡ **Lokaler Web-Flasher** fürs Hauptprojekt (`flasher.bat`): Bereiche „Panels“ und „Satelliten und Zubehör“, je Gerät
+  GitHub-Release oder lokal gebaut, „Nur Firmware“ (Einstellungen bleiben) oder „Komplett“.
+- 🔐 **Tailscale am P4** *(Beta)* – das Panel kommt per [microlink](https://github.com/CamM2325/microlink) (MIT) ins
+  Tailnet: Editor und Weboberfläche von unterwegs unter der 100.x-Adresse bzw. dem Namen (MagicDNS). Anmeldung per Link
+  oder Auth-Key (bleibt im Panel), ab Werk aus – Editor: Einstellungen → Netzwerk → Tailscale. Getestet: direkt im
+  WLAN, Editor über Tailnet-IP und -Namen erreichbar.
+- 🔌 Debug-Log auch am Bildschirm schaltbar (Einstellungen → Info), dort auch GitHub-Adresse und „Unterstütze das Projekt“.
+- 🔌 **Shelly per Bluetooth** *(Beta, ungetestet)* – Shelly Gen2/Gen3/Gen4 (Plus, Pro, Mini …) ohne WLAN und ohne Broker
+  schalten und ablesen (Schalter, Licht/Dimmer, Leistung, Energie), Passwort am Shelly wird unterstützt. P4, rundes Panel
+  und Waveshare; eigener Menüpunkt „Shelly (BT)“ am Panel und im Editor, ab Werk aus. Kurze Verbindungen: Stand alle
+  30 s, Schalten sofort. Gen1 hat kein Bluetooth (dafür Shelly über MQTT).
+- 🔐 Tailscale auch am runden Panel *(Beta)*; Tailnet-Adresse am Panel jetzt unter Einstellungen → Netzwerk.
+- 🧩 Regeln (Blockly) und eingebauter MQTT-Broker jetzt auch am runden Panel – einrichten im Browser-Editor.
+- 📲 **Android-App „S.O.C. Live“** *(Beta)* – das Panel aufs Handy (`release/soc-live.apk`): **Tailscale eingebaut**
+  (Anmeldung im Browser, App sucht das Panel im Tailnet – ohne Tailscale-App), Kacheln genau wie am Panel (quer, ganzer
+  Bildschirm), Antippen schaltet bzw. zeigt alle Werte, Passwort wird gemerkt. Alternativ direkt im WLAN.
+- 📱 Live-Ansicht zeigt die Kacheln jetzt so, wie das Panel sie berechnet (`GET /api/live`), inkl. Akku, Victron, Gas,
+  Heizung; Antippen einer Messwert-Kachel öffnet ein Fenster mit allen Werten.
+
+**Behoben** (Live/App)
+- Webserver: verschwundene Gegenstellen (Handy weg) belegten Verbindungen, bis keine neue mehr ging (Editor vom PC
+  nicht mehr erreichbar) – jetzt TCP-Keepalive, frei nach ~45 s.
+
+**Geändert**
+- Panel → Einstellungen → Geräte: Liste nach Herkunft gruppiert (Zigbee2MQTT, Zigbee eingebaut, Shelly MQTT, Shelly
+  Bluetooth, WLED) – vorher stand alles unter „Zigbee2MQTT“. Fehlt ein Gerät, heißt es nur bei Zigbee2MQTT-Geräten
+  „nicht in Zigbee2MQTT“, sonst „nicht verfügbar“ (Panel und Editor).
+- Zusatzdisplay (CYD): Abruf der Geräteliste beim Hauptpanel ohne die große HTTP-Bibliothek (passte sonst nicht mehr in
+  den schnellen Programmspeicher). Hauptpanels müssen dafür nicht neu.
+- Satellit ESP32-C6: ohne Hymer und ohne Debug-Log – Flash war voll. Hymer-Satellit mit ESP32, C3 oder S3.
+
+**Behoben**
+- Debug-Log: Neustart-Schleife, wenn er beim Start schon an war (Zustandszeile fragte Module vor deren Start ab).
+- Eingebauter MQTT-Broker: kein Hinweis „MQTT-Broker eintragen“ mehr, keine Suche nach fremden Brokern im Router-Modus;
+  Hinweis heißt jetzt „Kein MQTT-Broker eingerichtet“ (ohne Zigbee2MQTT).
+- Hymer erscheint im Log/Status nur noch, wenn es eingeschaltet ist.
+- P4: Akkumessung an GPIO 49 – Dämpfung griff nicht („Pin is not configured as analog channel“).
+- 🐞 **Debug-Log auf allen Geräten** – in der Weboberfläche ein- und ausschaltbar, ab Werk aus: alle Meldungen mit
+  Uhrzeit, alle 60 s Speicher/WLAN/Verbindungen, Grund des letzten Neustarts. Dateien auf der SD-Karte (P4, Waveshare,
+  CYD mit Kartenslot), sonst im Arbeitsspeicher; ansehen, herunterladen und löschen im Browser.
 - 🐝 **Zigbee direkt am runden Panel** *(Beta, ungetestet)* – ESP32-H2-Funkmodul an der UART-Buchse hinten (GPIO 43/44,
   UART2; 3,3-V-Regler und Pegelwandler nötig, siehe README), ab Werk aus. Einschalten, anlernen, umbenennen,
   einstellen und entfernen im Browser-Editor (Einstellungen → Zigbee) – das geht jetzt auf allen Panels auch dort.

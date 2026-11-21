@@ -3,9 +3,6 @@
 #include "sat_config.h"
 #include "rd_client.h"
 #include "../updater_link.h"
-#if SAT_REMOTE
-#include <HTTPClient.h>
-#endif
 #include "sat_io.h"
 #include "sat_send.h"
 #include "sat_page.h"
@@ -550,21 +547,15 @@ void sat_web_begin() {
   s_srv.on("/api/rd/avail", HTTP_GET, G([] {
              std::string ip = rd_panel_ip();
              if (ip.empty()) return send_err("Hauptpanel noch unbekannt – zuerst am Panel anlernen.");
-             HTTPClient http;
-             http.setTimeout(6000);
-             String url = String("http://") + ip.c_str() + "/api/rdisp?avail=1&id=" + g_sat.id;
-             if (!http.begin(url)) return send_err("Hauptpanel nicht erreichbar");
              // Hauptpanel mit Zugangspasswort: ausweisen mit dem Pruefwert aus dem Satelliten-Passwort
-             http.addHeader("X-SOC-Sig", rd_sign(std::string("avail|") + g_sat.id.c_str()).c_str());
-             int code = http.GET();
-             if (code != 200) {
-               http.end();
+             std::string body;
+             int code = rd_http(std::string("/api/rdisp?avail=1&id=") + g_sat.id.c_str(),
+                                rd_sign(std::string("avail|") + g_sat.id.c_str()), "", body);
+             if (code < 0) return send_err("Hauptpanel nicht erreichbar");
+             if (code != 200)
                return send_err(code == 401 ? String("Hauptpanel lehnt ab – Satelliten-Passwort stimmt nicht mit dem Panel überein.")
                                            : "Hauptpanel antwortet nicht (Weboberfläche dort aus?) – Code " + String(code));
-             }
-             String body = http.getString();
-             http.end();
-             s_srv.send(200, "application/json", body);
+             s_srv.send(200, "application/json", body.c_str());
            }));
   s_srv.on("/api/rd/sel", HTTP_POST, G([] {
              JsonDocument d;
@@ -576,13 +567,9 @@ void sat_web_begin() {
              o["tiles"] = d["tiles"];
              String js;
              serializeJson(o, js);
-             HTTPClient http;
-             http.setTimeout(6000);
-             if (!http.begin(String("http://") + ip.c_str() + "/api/rdisp")) return send_err("Hauptpanel nicht erreichbar");
-             http.addHeader("Content-Type", "application/json");
-             http.addHeader("X-SOC-Sig", rd_sign(std::string("sel|") + js.c_str()).c_str());
-             int code = http.POST(js);
-             http.end();
+             std::string ans;
+             int code = rd_http("/api/rdisp", rd_sign(std::string("sel|") + js.c_str()), js.c_str(), ans);
+             if (code < 0) return send_err("Hauptpanel nicht erreichbar");
              if (code != 200) return send_err("Hauptpanel lehnt ab – Code " + String(code));
              send_ok();
            }));

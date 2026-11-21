@@ -28,11 +28,14 @@
 #include "truma_inetx.h"
 #include "hymer.h"
 #include "hobby.h"
+#include "shelly_ble.h"
 #include "alde.h"
 #include "sdcard.h"
 #include "splash.h"
 #include "debug_cmd.h"
 #include "zb_direct.h"
+#include "dbglog.h"
+#include "tailscale.h"
 
 static void apply_settings_event(Settings *st) {
   Settings old = settings_copy();
@@ -93,6 +96,25 @@ static void handle_events() {
   }
 }
 
+// Debug-Log: Zusatz fuer die Zustandszeile alle 60 s (laeuft im Task "dbglog")
+static std::string dbg_status() {
+  std::string s = std::string("MQTT ") + (z2m_connected() ? "verbunden" : "getrennt") + " (" + std::to_string(z2m_count()) + ")";
+  if (cerbo_configured()) s += " · Cerbo " + cerbo_status();
+#if WITH_HOBBY
+  if (hobby_active()) s += " · Hobby " + hobby_status() + " / " + hobby_uart_status();
+#endif
+#if WITH_HYMER && !SOC_VICTRON_EDITION
+  if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) s += " · Hymer " + hymer_status();   // nur wenn eingeschaltet
+#endif
+#if WITH_ZB_DIRECT
+  if (zbd_enabled()) s += std::string(" · Zigbee-Modul ") + (zbd_present() ? "da" : "fehlt");
+#endif
+  std::string ts = ts_status_line();
+  if (!ts.empty()) s += " · " + ts;
+  if (net_ap_active()) s += " · Panel-WLAN " + std::to_string(net_ap_clients()) + " Teilnehmer";
+  return s;
+}
+
 void setup() {
   heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);   // kleine Speicherstuecke ins PSRAM (app_config.h)
   Serial.begin(115200);
@@ -138,6 +160,9 @@ void setup() {
   debug_mark("startbild");
   log_i("Akkuspannung: %.2f V", board_battery_voltage());
   sd_begin();          // braucht den IO-Expander (CS) aus board_init
+  // Debug-Log (ab Werk aus, Editor: Einstellungen > Info): 64 KB im PSRAM, Dateien auf der SD-Karte (panel/logs)
+  dbglog_begin(64 * 1024, []() -> const char * { return sd_ok() ? SD_DIR "/logs" : ""; });
+  dbglog_set_status(dbg_status);
   bg_migrate();        // Hintergruende auf die SD-Karte verschieben bzw. alte Rohbilder entfernen
   debug_mark("sd");
   net_begin();         // WLAN/Netzwerk-Stack zuerst – MQTT setzt darauf auf
@@ -157,9 +182,11 @@ void setup() {
   debug_mark("hymer");
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
-  hobby_begin();       // Hobby (HobbyConnect-Box / CI-BUS) – ab Werk aus, nur Einstellungen laden
+  hobby_begin();
+  shb_begin();         // Shelly per Bluetooth (Gen2+, ab Werk aus)       // Hobby (HobbyConnect-Box / CI-BUS) – ab Werk aus, nur Einstellungen laden
   bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
+  ts_begin();          // Tailscale (nur P4, ab Werk aus): eigener Task, startet mit WLAN
   zbd_begin();         // Zigbee-Funkmodul (ESP32-H2) per UART – nur mit WITH_ZB_DIRECT, sonst leer
   debug_mark("bluetooth");
   ui_init();

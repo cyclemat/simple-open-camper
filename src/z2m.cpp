@@ -4,6 +4,7 @@
 #include "app.h"
 #include "net.h"
 #include "shelly.h"
+#include "shelly_ble.h"
 #include "zb_direct.h"
 #include "wled.h"
 #include "panelsat.h"
@@ -968,8 +969,8 @@ std::string z2m_broker_host() {
 const char *z2m_diag_text() { return s_diag; }
 bool z2m_bridge_online() { return s_bridge_online; }
 const char *z2m_status_text() { return s_status; }
-uint32_t z2m_devices_version() { return s_dev_ver + shelly_devices_version() + wled_devices_version() + zbd_devices_version(); }
-uint32_t z2m_state_version() { return s_state_ver + shelly_state_version() + wled_state_version() + zbd_state_version(); }
+uint32_t z2m_devices_version() { return s_dev_ver + shelly_devices_version() + wled_devices_version() + zbd_devices_version() + shb_count() * 977; }
+uint32_t z2m_state_version() { return s_state_ver + shelly_state_version() + wled_state_version() + zbd_state_version() + shb_version(); }
 
 void z2m_publish(const std::string &topic, const std::string &payload) { publish(topic, payload.c_str()); }
 void z2m_publish_retained(const std::string &topic, const std::string &payload) {
@@ -993,6 +994,7 @@ static void fill_view(const Device &d, const Control &c, ControlView &v) {
 
 bool z2m_get(const std::string &key, ControlView &out) {
   if (shelly_is_key(key)) return shelly_get(key, out);
+  if (shb_is_key(key)) return shb_get(key, out);
   if (wled_is_key(key)) return wled_get(key, out);
   if (zbd_is_key(key)) return zbd_get(key, out);   // Zigbee direkt (Funkmodul ESP32-H2)
   Lock l;
@@ -1015,6 +1017,7 @@ std::vector<ControlView> z2m_all() {
       }
   }
   shelly_all(out);
+  shb_all(out);
   zbd_all(out);
   wled_all(out);
   std::sort(out.begin(), out.end(), [](const ControlView &a, const ControlView &b) {
@@ -1027,7 +1030,7 @@ size_t z2m_count() {
   Lock l;
   size_t n = 0;
   for (auto &d : s_devs) n += d.controls.size();
-  return n + shelly_count() + wled_count() + zbd_count();
+  return n + shelly_count() + wled_count() + zbd_count() + shb_count();
 }
 
 // Baut ein Set-Kommando fuer ein Control und markiert es als ausstehend
@@ -1053,6 +1056,7 @@ static void send_cmd(const std::string &key, F fill) {
 
 void z2m_toggle(const std::string &key) {
   if (shelly_is_key(key)) return shelly_toggle(key);
+  if (shb_is_key(key)) return shb_toggle(key);
   if (zbd_is_key(key)) return zbd_toggle(key);
   if (wled_is_key(key)) return wled_toggle(key);
   // Fester Befehl nach dem angezeigten Zustand (zeigt "aus" -> ON, "an" -> OFF): Antippen tut immer, was die Kachel
@@ -1067,6 +1071,7 @@ void z2m_toggle(const std::string &key) {
 
 void z2m_set_on(const std::string &key, bool on) {
   if (shelly_is_key(key)) return shelly_set_on(key, on);
+  if (shb_is_key(key)) return shb_set_on(key, on);
   if (zbd_is_key(key)) return zbd_set_on(key, on);
   if (wled_is_key(key)) return wled_set_on(key, on);
   send_cmd(key, [on](Control &c, JsonDocument &doc) {
@@ -1078,6 +1083,7 @@ void z2m_set_on(const std::string &key, bool on) {
 void z2m_set_brightness_pct(const std::string &key, int pct) {
   pct = constrain(pct, 1, 100);
   if (shelly_is_key(key)) return shelly_set_brightness_pct(key, pct);
+  if (shb_is_key(key)) return shb_set_brightness_pct(key, pct);
   if (zbd_is_key(key)) return zbd_set_brightness_pct(key, pct);
   if (wled_is_key(key)) return wled_set_brightness_pct(key, pct);
   send_cmd(key, [pct](Control &c, JsonDocument &doc) {
@@ -1092,6 +1098,7 @@ void z2m_set_brightness_pct(const std::string &key, int pct) {
 
 void z2m_set_ct(const std::string &key, int mired) {
   if (shelly_is_key(key)) return shelly_set_ct(key, mired);
+  if (shb_is_key(key)) return;
   if (zbd_is_key(key)) return zbd_set_ct(key, mired);
   if (wled_is_key(key)) return;   // WLED: keine Farbtemperatur ueber MQTT
   send_cmd(key, [mired](Control &c, JsonDocument &doc) {
@@ -1117,6 +1124,7 @@ static void hsv_to_hex(float h, float s, char *out) {
 
 void z2m_set_color_hs(const std::string &key, float hue, float sat) {
   if (shelly_is_key(key)) return shelly_set_color_hs(key, hue, sat);
+  if (shb_is_key(key)) return;
   if (zbd_is_key(key)) return zbd_set_color_hs(key, hue, sat);
   if (wled_is_key(key)) return wled_set_color_hs(key, hue, sat);
   send_cmd(key, [hue, sat](Control &c, JsonDocument &doc) {

@@ -213,6 +213,9 @@ jobs:
             [esp32-relay16]=satellit-relay16
             [esp32-cyd]=satellit-cyd
             [esp32-cyd-remote]=zusatzdisplay-cyd
+            [crowpanel-146-remote]=zusatzdisplay-146
+            [esp32-c3-oled]=satellit-esp32-c3-oled
+            [shunt-c3]=satellit-shunt-c3
             [zigbee-h2]=zigbee-modul-h2
           )
           UPD=$(ls art/*/esp32-updater/firmware.bin 2>/dev/null | head -1 || true)

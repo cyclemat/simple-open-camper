@@ -11,13 +11,16 @@
 #include "../truma_heat.h"
 struct Layout;
 
-enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_BMS, SEC_PSTATION, SEC_SENSOR, SEC_HYMER, SEC_ZIGBEE, SEC_RULES, SEC_BACKUP, SEC_INFO, SEC_COUNT };
+enum SettingsSection { SEC_WIFI = 0, SEC_MQTT, SEC_DISPLAY, SEC_DEVICES, SEC_GAS, SEC_VICTRON, SEC_BMS, SEC_PSTATION, SEC_SENSOR, SEC_HYMER, SEC_SHELLY_BT, SEC_ZIGBEE, SEC_RULES, SEC_BACKUP, SEC_INFO, SEC_COUNT };
 
 // ui_main.cpp
 void ui_main_rebuild();
 lv_obj_t *ui_main_screen();
 
 // ui_detail.cpp
+// Texte fuer fehlende Geraete je nach Herkunft (Zigbee2MQTT, eingebautes Zigbee, Shelly, Shelly-BT, WLED)
+const char *ui_dev_missing_text(const std::string &key);   // Kachel-Unterzeile
+const char *ui_dev_gone_text(const std::string &key);      // Hinweis beim Antippen
 void ui_detail_open(const std::string &key);
 void ui_detail_update();
 void ui_detail_close();
@@ -124,6 +127,9 @@ bool ui_tile_switch(const std::string &key, bool on, std::string *err);
 // Licht: 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired; MultiPlus/Ladegeraet: 'm' Schalter, 'l' Begrenzung in 0,1 A
 bool ui_tile_set(const std::string &key, char what, int value);
 std::vector<std::string> ui_tile_keys();   // alle Kacheln aller Seiten (Reihenfolge der Seiten)
+// Alle Werte eines Geraets als (Bezeichnung, Wert) – Akku, Victron, Gas, Heizung, Zigbee (UI-Task); name = Anzeigename
+std::vector<std::pair<std::string, std::string>> ui_tile_rows(const std::string &key, std::string *name = nullptr);
+void ui_live_tick();                        // ui_live.cpp: Befehle der Live-Ansicht ausfuehren (UI-Task)
 
 // ui_remote.cpp (Zusatzdisplays)
 void ui_remote_tick();

@@ -25,6 +25,9 @@
 #include "hymer.h"
 #include "hymer_cloud.h"
 #include "hobby.h"
+#include "shelly_ble.h"
+#include "dbglog.h"
+#include "tailscale.h"
 #include "alde.h"
 #include "i18n/i18n.h"
 #include "backup.h"
@@ -41,6 +44,7 @@
 #include <algorithm>
 #include <set>
 #include "ui/ui_remote.h"
+#include "ui/ui.h"
 #include "mqtt_broker.h"
 #include <Preferences.h>
 #include <atomic>
@@ -186,6 +190,8 @@ static esp_err_t h_info(httpd_req_t *req) {
   d["feat"]["hobby"] = (bool)WITH_HOBBY;
   d["feat"]["bms"] = (bool)WITH_BMS;
   d["feat"]["sats"] = (bool)WITH_SATELLITES;
+  d["feat"]["ts"] = (bool)WITH_TAILSCALE;
+  d["feat"]["shb"] = (bool)WITH_SHELLY_BLE;
   std::string s;
   serializeJson(d, s);
   return send_json(req, s);
@@ -1420,6 +1426,215 @@ static esp_err_t h_zbd_post(httpd_req_t *req) {
 }
 #endif
 
+// Debug-Log: GET = Stand + Dateien | ?ring=1 = Arbeitsspeicher als Text | ?file=log-NNNNN.txt = Datei herunterladen.
+// POST {"on":bool} | {"delete":"log-NNNNN.txt"|"*"}
+static esp_err_t h_dbglog_get(httpd_req_t *req) {
+  if (query(req, "ring") == "1") {
+    std::string r = dbglog_ring();
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return httpd_resp_send(req, r.data(), r.size());
+  }
+  std::string f = query(req, "file");
+  if (!f.empty()) {
+    std::string dir = dbglog_dir();
+    if (!dbglog_valid_name(f) || dir.empty()) return send_err(req, "404 Not Found", "Datei unbekannt");
+    FILE *fp = fopen((dir + "/" + f).c_str(), "r");
+    if (!fp) return send_err(req, "404 Not Found", "Datei nicht gefunden");
+    char *buf = (char *)heap_caps_malloc(4096, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buf) buf = (char *)heap_caps_malloc(4096, MALLOC_CAP_8BIT);
+    if (!buf) {
+      fclose(fp);
+      return send_err(req, "500 Internal Server Error", "Kein Speicher");
+    }
+    httpd_resp_set_type(req, "text/plain; charset=utf-8");
+    std::string cd = "attachment; filename=\"" + f + "\"";
+    httpd_resp_set_hdr(req, "Content-Disposition", cd.c_str());
+    size_t n;
+    esp_err_t e = ESP_OK;
+    while (e == ESP_OK && (n = fread(buf, 1, 4096, fp)) > 0) e = httpd_resp_send_chunk(req, buf, n);
+    fclose(fp);
+    heap_caps_free(buf);
+    return e == ESP_OK ? httpd_resp_send_chunk(req, nullptr, 0) : e;
+  }
+  JsonDocument d(&s_ps);
+  d["on"] = dbglog_on();
+  d["avail"] = (bool)WITH_DBGLOG;
+  std::string dir = dbglog_dir();
+  d["files_ok"] = !dir.empty();
+  d["sd"] = sd_ok();
+  d["current"] = dbglog_current();
+  d["lost"] = dbglog_lost();
+  d["ring_kb"] = (int)(dbglog_ring_size() / 1024);
+  JsonArray a = d["files"].to<JsonArray>();
+  for (auto &x : dbglog_files()) {
+    JsonObject o = a.add<JsonObject>();
+    o["name"] = x.name;
+    o["size"] = x.size;
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+#if WITH_TAILSCALE
+// Tailscale: GET Stand | POST {"on":bool,"name":"…","key":"tskey-…"|""} bzw. {"logout":true}
+static esp_err_t h_ts_get(httpd_req_t *req) {
+  TsStatus t = ts_status();
+  JsonDocument d(&s_ps);
+  d["avail"] = t.avail;
+  d["on"] = t.on;
+  d["running"] = t.running;
+  d["code"] = t.code;
+  d["state"] = t.state;
+  d["ip"] = t.ip;
+  d["url"] = t.url;
+  d["name"] = t.name;
+  d["has_key"] = t.has_key;
+  d["peers"] = t.peers;
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+static esp_err_t h_ts_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  memset(body, 0, len);   // enthaelt ggf. den Auth-Key
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["logout"] | false) {
+    ts_logout();
+    return send_ok(req);
+  }
+  bool on = d["on"] | false;
+  std::string name = d["name"] | "", key = d["key"] | "";
+  if (key.size() && key.rfind("tskey-", 0) != 0) return send_err(req, "400 Bad Request", "Der Auth-Key beginnt mit „tskey-“.");
+  ts_set(d["on"].is<bool>() ? &on : nullptr, d["name"].is<const char *>() ? &name : nullptr,
+         d["key"].is<const char *>() ? &key : nullptr);
+  return send_ok(req);
+}
+#endif
+
+// Live-Ansicht: {"key":"…","a":"t"} umschalten bzw. {"key","a":"b|h|c|m|l","v":Zahl} – wird im UI-Task ausgefuehrt
+#if WITH_SHELLY_BLE
+// Shelly per Bluetooth: GET Stand, Geraete, Funde | POST {"on"} {"search":bool} {"add":{mac,type,name,pw}} {"remove":mac}
+// {"rename":{mac,name}} {"pw":{mac,pw}}
+static esp_err_t h_shb_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  d["on"] = shb_enabled();
+  d["searching"] = shb_searching();
+  d["max"] = SHB_MAX;
+  JsonArray a = d["devices"].to<JsonArray>();
+  for (auto &x : shb_list()) {
+    JsonObject o = a.add<JsonObject>();
+    o["mac"] = x.mac;
+    o["name"] = x.name;
+    o["model"] = x.model;
+    o["status"] = x.status;
+    o["online"] = x.online;
+    o["age"] = x.age_s;
+    o["has_pw"] = x.has_pw;
+    o["auth"] = x.auth;
+    o["rssi"] = x.rssi;
+    JsonArray ch = o["ch"].to<JsonArray>();
+    for (auto &c : x.ch) {
+      JsonObject co = ch.add<JsonObject>();
+      co["comp"] = c.comp;
+      co["key"] = "shb:" + x.mac + "#" + c.comp;
+      co["on"] = c.on;
+      if (c.bri >= 0) co["bri"] = c.bri;
+      put(co, "w", c.power, 10);
+      put(co, "kwh", c.energy, 1000);
+    }
+  }
+  JsonArray f = d["found"].to<JsonArray>();
+  for (auto &x : shb_found()) {
+    JsonObject o = f.add<JsonObject>();
+    o["mac"] = x.mac;
+    o["name"] = x.name;
+    o["type"] = x.type;
+    o["rssi"] = x.rssi;
+    o["configured"] = x.configured;
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+static esp_err_t h_shb_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  memset(body, 0, len);   // kann ein Passwort enthalten
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>()) shb_set_enabled(d["on"]);
+  if (d["search"].is<bool>()) {
+    if (d["search"].as<bool>() && !shb_enabled()) shb_set_enabled(true);
+    shb_search(d["search"].as<bool>() ? 120000 : 0);
+  }
+  if (d["add"].is<JsonObject>()) {
+    std::string err = shb_add(d["add"]["mac"] | "", d["add"]["type"] | 0, d["add"]["name"] | "", d["add"]["pw"] | "");
+    if (!err.empty()) return send_err(req, "400 Bad Request", err);
+  }
+  if (d["remove"].is<const char *>()) shb_remove(d["remove"].as<const char *>());
+  if (d["rename"].is<JsonObject>()) shb_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (d["pw"].is<JsonObject>()) shb_set_password(d["pw"]["mac"] | "", d["pw"]["pw"] | "");
+  return send_ok(req);
+}
+#endif
+
+// GET: alle Kacheln wie am Panel berechnet (ui_live_snapshot) – leer, solange der UI-Task noch keinen Stand hat
+static esp_err_t h_live_get(httpd_req_t *req) {
+  char q[160], key[128] = "";
+  if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK) httpd_query_key_value(q, "key", key, sizeof(key));
+  std::string k = key;
+  // %-Kodierung aufloesen (Schluessel wie "bms:aa:bb…" oder "zb:0x…#l2")
+  std::string dk;
+  for (size_t i = 0; i < k.size(); i++) {
+    if (k[i] == '%' && i + 2 < k.size()) {
+      dk += (char)strtol(k.substr(i + 1, 2).c_str(), nullptr, 16);
+      i += 2;
+    } else dk += k[i] == '+' ? ' ' : k[i];
+  }
+  std::string s = ui_live_snapshot(dk);
+  return send_json(req, s.empty() ? std::string("{\"v\":0,\"t\":{}}") : s);
+}
+
+static esp_err_t h_live_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 512, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  std::string key = d["key"] | "", a = d["a"] | "t";
+  if (key.empty() || a.size() != 1 || !ui_live_queue(key, a[0], d["v"] | 0))
+    return send_err(req, "400 Bad Request", "Befehl nicht angenommen");
+  return send_ok(req);
+}
+
+static esp_err_t h_dbglog_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 256, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>()) dbglog_set(d["on"].as<bool>());
+  if (d["delete"].is<const char *>() && !dbglog_delete(d["delete"].as<const char *>()))
+    return send_err(req, "400 Bad Request", "Datei lässt sich nicht löschen (die aktuelle Datei bleibt, solange der Debug-Log läuft)");
+  return send_ok(req);
+}
+
 #if WITH_HOBBY
 // Hobby (HobbyConnect-Box per Bluetooth, CI-BUS per Kabel): Einstellungen, Stand, gefundene Boxen, Werte
 static esp_err_t h_hobby_get(httpd_req_t *req) {
@@ -2036,10 +2251,17 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 56;
+  cfg.max_uri_handlers = 60;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
+  // Verschwundene Gegenstellen (Handy ueber Tailscale weg, WLAN-Abbruch) belegen sonst ihre Verbindung, bis der
+  // ganze Socket-Vorrat (lwIP, 16 fuer alles) leer ist – dann wird jede neue Verbindung abgewiesen. TCP-Keepalive
+  // gibt sie nach ~45 s frei.
+  cfg.keep_alive_enable = true;
+  cfg.keep_alive_idle = 30;
+  cfg.keep_alive_interval = 5;
+  cfg.keep_alive_count = 3;
   cfg.core_id = 0;
   if (httpd_start(&s_srv, &cfg) != ESP_OK) {
     log_e("HTTP-Server konnte nicht starten");
@@ -2049,6 +2271,7 @@ void web_start() {
   log_i("Webinterface gestartet");
   reg("/", HTTP_GET, h_index);
   reg("/index.html", HTTP_GET, h_index);
+  reg("/live", HTTP_GET, h_index);   // Live-Ansicht: derselbe Editor im Bedien-Modus
   reg("/api/info", HTTP_GET, h_info);
   reg("/api/auth", HTTP_GET, h_auth_get);
   reg("/api/auth", HTTP_POST, h_auth_post);
@@ -2074,6 +2297,18 @@ void web_start() {
 #if WITH_HYMER
   reg("/api/hymer", HTTP_GET, h_hymer_get);
   reg("/api/hymer", HTTP_POST, h_hymer_post);
+#endif
+  reg("/api/live", HTTP_POST, h_live_post);
+  reg("/api/live", HTTP_GET, h_live_get);
+#if WITH_SHELLY_BLE
+  reg("/api/shb", HTTP_GET, h_shb_get);
+  reg("/api/shb", HTTP_POST, h_shb_post);
+#endif
+  reg("/api/dbglog", HTTP_GET, h_dbglog_get);
+  reg("/api/dbglog", HTTP_POST, h_dbglog_post);
+#if WITH_TAILSCALE
+  reg("/api/ts", HTTP_GET, h_ts_get);
+  reg("/api/ts", HTTP_POST, h_ts_post);
 #endif
 #if WITH_HOBBY
   reg("/api/hobby", HTTP_GET, h_hobby_get);

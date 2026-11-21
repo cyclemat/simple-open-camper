@@ -198,7 +198,13 @@ static const char SAT_PAGE_OL_CARD[] PROGMEM = R"HTML(<div class="card" id="olCa
 <label class="ck"><input type="checkbox" id="olRot">Um 180° drehen</label>
 <div class="row" style="margin-top:8px"><button id="bOlSave" style="flex:none">Speichern</button></div></div>)HTML";
 #endif
-static const char SAT_PAGE_C[] PROGMEM = R"HTML(<div class="card"><h2>Firmware</h2>
+static const char SAT_PAGE_C[] PROGMEM = R"HTML(<div class="card" id="dbCard" style="display:none"><h2>Fehlersuche (Debug-Log)</h2>
+<label class="ck"><input type="checkbox" id="dbOn">Debug-Log mitschreiben</label>
+<p class="hint" id="dbInfo"></p>
+<div class="row" id="dbBtns" style="display:none"><button id="bDbView" style="flex:none">Log ansehen</button><a href="/api/dbglog?ring=1" download="log-arbeitsspeicher.txt" style="align-self:center">Arbeitsspeicher herunterladen</a></div>
+<pre id="dbPre" class="mono" style="display:none;max-height:50vh;overflow:auto;font-size:11px;line-height:1.35;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0"></pre>
+<div id="dbFiles"></div></div>
+<div class="card"><h2>Firmware</h2>
 <p class="hint" id="fwInfo"></p>
 <div id="updRow" style="display:none"><p class="hint">Update: „Update-Modus starten“ – das Gerät startet in den kleinen Updater (gleiche Adresse, gleiches Passwort). Dort die neue Firmware hochladen; danach startet sie von selbst. Hier unten lässt sich nur der Updater selbst erneuern (max. 1 MB).</p>
 <div class="row"><button id="bUpd" style="flex:none">Update-Modus starten</button></div></div>
@@ -264,6 +270,18 @@ function render(){
  $('#bViScan').disabled=V.scanning||V.devices.length>=V.max;$('#bViScan').textContent=V.scanning?'Suche läuft …':'Geräte suchen';
  $('#viFound').innerHTML=V.scanning||V.found.length?'<h2 style="margin-top:12px">Gefunden</h2>'+(V.found.length?V.found.map((f,i)=>`<div class="dev"><div class="t">${esc(f.name||'Victron')} <span class="mono">${f.mac}</span><div class="v">Signal ${sig(f.rssi)}${f.configured?', eingerichtet':''}</div></div><button data-via="${i}" ${f.configured?'disabled':''}>Hinzufügen</button></div>`).join(''):'<p class="hint">Noch nichts gefunden …</p>'):'';
 }
+let DB=null,dbT=null;
+async function dbLoad(){try{const r=await fetch('/api/dbglog');if(!r.ok)return;DB=await r.json();$('#dbCard').style.display='';dbRender()}catch(e){}}
+function dbKB(n){return n<1024?n+' B':(n/1024).toFixed(n<10240?1:0)+' KB'}
+function dbRender(){$('#dbOn').checked=DB.on;
+ $('#dbInfo').textContent=(DB.files_ok?'Dateien auf der SD-Karte (Ordner logs, je bis 1 MB, die letzten 10). ':DB.sd?'Keine SD-Karte gefunden – nur die letzten '+DB.ring_kb+' KB im Arbeitsspeicher. ':'Die letzten '+DB.ring_kb+' KB im Arbeitsspeicher. ')+'Alle Meldungen mit Uhrzeit, alle 60 s Speicher und WLAN. Ab Werk aus – nur zur Fehlersuche einschalten.';
+ $('#dbBtns').style.display=DB.on?'':'none';
+ $('#dbFiles').innerHTML=(DB.files||[]).slice().reverse().map(f=>`<div class="row" style="align-items:center"><span class="mono" style="flex:1">${f.name} · ${dbKB(f.size)}${f.name===DB.current?' · läuft':''}</span><a href="/api/dbglog?file=${f.name}" download="${f.name}">Herunterladen</a>${f.name===DB.current?'':`<button class="s" data-dbdel="${f.name}" style="flex:none">Löschen</button>`}</div>`).join('')}
+$('#dbOn').onchange=()=>post('/api/dbglog',{on:$('#dbOn').checked}).then(()=>{toast($('#dbOn').checked?'Debug-Log läuft.':'Debug-Log ist aus.');dbLoad()}).catch(e=>toast(e.message,true));
+$('#bDbView').onclick=()=>{const p=$('#dbPre');if(p.style.display===''){p.style.display='none';clearTimeout(dbT);$('#bDbView').textContent='Log ansehen';return}
+ p.style.display='';$('#bDbView').textContent='Log ausblenden';
+ const ld=async()=>{try{const t=await (await fetch('/api/dbglog?ring=1')).text();const end=p.scrollTop+p.clientHeight>=p.scrollHeight-30;p.textContent=t||'Noch nichts mitgeschrieben.';if(end)p.scrollTop=p.scrollHeight}catch(e){}if(p.style.display==='')dbT=setTimeout(ld,2000)};ld()};
+$('#dbFiles').onclick=e=>{const b=e.target.closest('[data-dbdel]');if(!b||!confirm('Datei '+b.dataset.dbdel+' löschen?'))return;post('/api/dbglog',{delete:b.dataset.dbdel}).then(dbLoad).catch(er=>toast(er.message,true))};
 async function apLoad(){try{const r=await fetch('/api/appw');if(!r.ok)return;const j=await r.json();$('#apOn').checked=j.on;apShow();document.querySelectorAll('.apSsid').forEach(e=>e.textContent=j.ssid||'…');$('#apPw').placeholder=j.custom?'unverändert':'unverändert (panelsat)'}catch(e){}}
 function apShow(){$('#apPwRow').style.display=$('#apOn').checked?'':'none';$('#apOpenHint').style.display=$('#apOn').checked?'none':''}
 $('#apOn').onchange=apShow;
@@ -283,7 +301,7 @@ $('#bPw').onclick=async()=>{const o=prompt('Aktuelles Zugangspasswort');if(o==nu
  try{await post('/api/setpw',{old:o,new:n});toast('Passwort geändert.')}catch(e){toast(e.message,true)}};
 $('#netList').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const n=$('#netList')._n[+b.dataset.net];$('#cSsid').value=n.ssid;$('#netList').innerHTML='';$('#cWpass').value='';$('#cWpass').focus();toast('„'+n.ssid+'“ gewählt – Passwort eingeben und speichern.')});
 async function load(){try{const r=await fetch('/api/state');if(r.status===401){const j=await r.json();if(AUTH!==j.auth)showAuth(j.auth);return}
- AUTH=null;$('#authCard').style.display='none';$('#app').style.display='';S=await r.json();if(!loaded){fill();apLoad();loaded=true}render();ioLive();if(window.ldrShow)ldrShow()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
+ AUTH=null;$('#authCard').style.display='none';$('#app').style.display='';S=await r.json();if(!loaded){fill();apLoad();dbLoad();loaded=true}render();ioLive();if(window.ldrShow)ldrShow()}catch(e){$('#hSub').textContent='Keine Verbindung zum Satelliten …'}}
 // ---------------- Anschluesse (GPIO)
 let IO=null,PINS=[];
 const CLS=[['','Allgemein'],['temperature','Temperatur'],['humidity','Luftfeuchte'],['level','Füllstand'],['voltage','Spannung'],['pressure','Druck'],['current','Strom']];

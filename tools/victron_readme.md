@@ -369,6 +369,10 @@ Was sich von Version zu Version geändert hat: **[CHANGELOG.md](CHANGELOG.md)**
 Bitte hier als [Issue](../../issues) melden. Der Code wird automatisch aktualisiert – Pull Requests werden deshalb
 nicht direkt übernommen, sondern von Hand eingearbeitet (siehe [CONTRIBUTING.md](CONTRIBUTING.md)).
 
+**Log für die Fehlermeldung:** In der Weboberfläche bei **„Fehlersuche (Debug-Log)“** einschalten (ab Werk aus), den
+Fehler nachstellen und das Log herunterladen – am besten an das Issue hängen. Mit microSD-Karte im CYD (Ordner `logs`)
+bleibt das Log auch über einen Absturz oder Neustart hinweg erhalten; Waveshare 7": Editor → Einstellungen → Info.
+
 ---
 
 <details>
