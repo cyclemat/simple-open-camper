@@ -65,6 +65,12 @@ def anchor(h):
     return a.replace(' ', '-')
 
 
+FLASHER_URL = 'https://cyclemat.github.io/simple-open-camper/flasher/'
+FLASHER_BOX = ('<h2 align="center"><a href="%s">⚡ Zum Online-Flasher ⚡</a></h2>\n'
+               '<p align="center">Firmware für Panels, Satelliten und Zubehör per USB direkt aus Chrome oder Edge aufspielen – '
+               'ohne Download, ohne Installation.</p>\n\n' % FLASHER_URL)
+
+
 def main():
     text = open(os.path.join(ROOT, 'README.md'), encoding='utf-8').read()
     # Abschnitte: (Ebene, roher Titel, Text inkl. Ueberschrift)
@@ -127,11 +133,11 @@ def main():
     toc = '\n'.join('\n### %s\n' % g + '\n'.join('- [%s](%s)' % (titles[p], p) for p in pids) for g, pids in GROUPS)
     home = ('# Simple Open Camper – Handbuch\n\n'
             'Bedienpanel für Wohnmobil und Wohnwagen: Licht, Gas, Heizung und Batterie auf einem Bildschirm – '
-            'per MQTT, Bluetooth, Zigbee und Kabel.\n\n' + '\n'.join(intro).strip() + '\n\n## Inhalt\n' + toc +
+            'per MQTT, Bluetooth, Zigbee und Kabel.\n\n' + FLASHER_BOX + '\n'.join(intro).strip() + '\n\n## Inhalt\n' + toc +
             '\n\n---\n[Code und fertige Firmware](%s) · [Änderungen](%s/blob/main/CHANGELOG.md) · '
             '[English README](%s/blob/main/README_EN.md)\n' % (REPO, REPO, REPO))
     open(os.path.join(OUT, 'Home.md'), 'w', encoding='utf-8', newline='\n').write(fix(home))
-    side = '**[Startseite](Home)**\n' + '\n'.join('\n**%s**\n' % g + '\n'.join('- [%s](%s)' % (titles[p], p) for p in pids)
+    side = '**[Startseite](Home)**\n\n**[⚡ Online-Flasher](%s)**\n' % FLASHER_URL + '\n'.join('\n**%s**\n' % g + '\n'.join('- [%s](%s)' % (titles[p], p) for p in pids)
                                                for g, pids in GROUPS) + '\n'
     open(os.path.join(OUT, '_Sidebar.md'), 'w', encoding='utf-8', newline='\n').write(side)
     missing = [secs[i][1] for i in range(len(secs)) if i not in page_of and secs[i][0] == 2]

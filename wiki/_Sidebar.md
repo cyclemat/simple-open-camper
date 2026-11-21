@@ -1,5 +1,7 @@
 **[Startseite](Home)**
 
+**[⚡ Online-Flasher](https://cyclemat.github.io/simple-open-camper/flasher/)**
+
 **Start**
 - [Funktionen](Funktionen)
 - [Panels und Voraussetzungen](Panels-und-Voraussetzungen)

@@ -2,6 +2,9 @@
 
 Bedienpanel für Wohnmobil und Wohnwagen: Licht, Gas, Heizung und Batterie auf einem Bildschirm – per MQTT, Bluetooth, Zigbee und Kabel.
 
+<h2 align="center"><a href="https://cyclemat.github.io/simple-open-camper/flasher/">⚡ Zum Online-Flasher ⚡</a></h2>
+<p align="center">Firmware für Panels, Satelliten und Zubehör per USB direkt aus Chrome oder Edge aufspielen – ohne Download, ohne Installation.</p>
+
 Ein Wand-Panel mit 7-Zoll-Touch (1024 × 600), das Lampen und Schalter aus **Zigbee2MQTT direkt per MQTT** steuert –
 ohne Home Assistant dazwischen. Dazu liest es Gasflaschen, Tanks, Victron-Geräte und die Heizung im Wohnmobil.
 Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
