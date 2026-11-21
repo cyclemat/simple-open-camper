@@ -23,6 +23,7 @@
 #include "gx_find.h"
 #include "bms.h"
 #include "panelsat.h"
+#include "mqtt_disco.h"
 #include "mopeka.h"
 #include "truma_cpplus.h"
 #include "truma_inetx.h"
@@ -169,6 +170,7 @@ void setup() {
   debug_mark("wlan");
   panelsat_begin();    // Satelliten (MQTT/UDP/Bluetooth) – vor z2m und Bluetooth-Scan, die hineinliefern
   debug_mark(SOC_VICTRON_EDITION ? "module" : "satelliten");
+  mqd_begin();         // MQTT-Discovery (ESPHome …): Einstellungen vor dem ersten Verbinden
   z2m_begin();         // vor der Oberflaeche, damit das Geraetemodell existiert
   debug_mark("mqtt");
   cerbo_begin();       // Victron Cerbo GX per MQTT – nur mit WITH_CERBO, sonst leer

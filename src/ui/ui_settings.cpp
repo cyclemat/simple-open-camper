@@ -42,6 +42,7 @@ static std::string lower_mac(std::string s);
 #include "../dbglog.h"
 #include "../tailscale.h"
 #include "../shelly_ble.h"
+#include "../mqtt_disco.h"
 #include "../sdcard.h"
 
 static lv_obj_t *s_scr = nullptr, *s_content = nullptr;
@@ -537,6 +538,42 @@ static void auto_cb(lv_event_t *e) {
   if (s_mqtt_vals[0]) lv_label_set_text(s_mqtt_vals[0], s_draft.mqtt_auto ? "automatisch" : mqtt_value(0).c_str());
 }
 
+#if WITH_MQTT_DISCO
+// ESPHome, Tasmota & Co.: Geraete aus MQTT-Discovery (gilt sofort, nicht ueber "Speichern")
+static void mqd_sw_cb(lv_event_t *e) {
+  bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  mqd_set(on, mqd_prefix());
+  ui_toast(on ? "Geräte aus MQTT-Discovery werden gesucht." : "MQTT-Discovery ist aus.");
+}
+static void mqd_section() {
+  subheading("ESPHome, Tasmota & Co.");
+  lv_obj_t *r = lv_obj_create(s_content);
+  ui_plain(r);
+  lv_obj_set_size(r, lv_pct(100), 64);
+  lv_obj_t *t = ui_label(r, "Geräte aus MQTT-Discovery anzeigen", F_BODY, C_TEXT);
+  lv_obj_align(t, LV_ALIGN_LEFT_MID, 4, 0);
+  lv_obj_t *sw = lv_switch_create(r);
+  lv_obj_set_size(sw, 64, 34);
+  lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+  if (mqd_enabled()) lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+  lv_obj_add_event_cb(sw, mqd_sw_cb, LV_EVENT_VALUE_CHANGED, nullptr);
+  std::string hint = tr("Geräte, die sich am Broker per Home-Assistant-Discovery melden (ESPHome mit „mqtt:“, Tasmota …), "
+                        "erscheinen wie Satelliten in der Geräteliste – eigene Gruppe je Gerät.");
+  if (mqd_enabled()) {
+    MqdInfo mi = mqd_info();
+    char b[96];
+    snprintf(b, sizeof(b), tr(" Gefunden: %u Werte von %u Geräten."), (unsigned)mi.entities, (unsigned)mi.devices);
+    hint += b;
+  }
+  lv_obj_t *h = ui_label(s_content, hint.c_str(), F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+}
+#else
+static void mqd_section() {}
+#endif
+
 static void build_mqtt() {
 #if SOC_VICTRON_EDITION
   heading("Shelly (MQTT)", "Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche "
@@ -586,6 +623,7 @@ static void build_mqtt() {
       lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
       lv_obj_set_width(h, lv_pct(100));
       s_mqtt_status = ui_label(s_content, z2m_status_text(), F_BODY, C_TEXT2);
+      mqd_section();
       return;   // eigene Broker-Felder gelten solange nicht
     }
   }
@@ -625,6 +663,7 @@ static void build_mqtt() {
   s_mqtt_status = ui_label(s_content, z2m_status_text(), F_BODY, C_TEXT2);
   lv_obj_t *row = button_row();
   ui_button(row, ICON_CHECK, "Speichern und verbinden", true, mqtt_save_cb, nullptr);
+  mqd_section();
 }
 
 // ---------------------------------------------------------------- Anzeige

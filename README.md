@@ -78,6 +78,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 **Geräte**
 - 🐝 **Zigbee2MQTT** – Lampen und Schalter, auch große Netze
 - 🔌 **Shelly** (Gen1 und Gen2+) über denselben Broker
+- 🧩 **ESPHome, Tasmota & Co.** – Geräte mit MQTT-Discovery erscheinen von selbst, wie Satelliten (Sensoren, Schalter, Lampen)
 - 🌈 **WLED** über denselben Broker – Ein/Aus, Helligkeit, Farbe
 - ⛽ **Truma LevelControl** per Bluetooth – bis zu vier Gasflaschen
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
@@ -658,6 +659,33 @@ größere Bilder werden um 1/2, 1/4 oder 1/8 verkleinert.
   wenn am Shelly gesetzt). Im Editor dieselbe Seite unter Einstellungen.
 - Das Panel verbindet sich kurz: Stand alle 30 s, Schalten sofort (1–2 s). Schalter, Licht/Dimmer, Leistung und Energie
   erscheinen als Kacheln wie die MQTT-Shellys und gehen auch in Regeln und auf Zusatzdisplays.
+
+### 🧩 ESPHome, Tasmota & Co. (MQTT-Discovery)
+
+Geräte, die sich am Broker per **Home-Assistant-Discovery** anmelden, zeigt das Panel automatisch an – ohne Home
+Assistant. Jedes Gerät erscheint in der Geräteliste **wie ein Satellit** (eigene Gruppe mit seinem Namen); daraus
+Kacheln aufs Panel ziehen. Unterstützt: **Sensoren** (Wert + Einheit), **Binärsensoren** (Tür, Bewegung, Wasser …),
+**Schalter** und **Lampen** (ein/aus). Die Werte gehen auch in Regeln, die App, die Live-Ansicht und auf
+Zusatzdisplays.
+
+1. Panel: **Einstellungen → MQTT → „Geräte aus MQTT-Discovery anzeigen“** (ab Werk aus; Präfix `homeassistant`,
+   im Editor änderbar).
+2. Gerät mit demselben Broker verbinden wie das Panel – im Camper am einfachsten mit dem **eingebauten Broker** des
+   Panels. Beispiel für ESPHome:
+
+   ```yaml
+   mqtt:
+     broker: 192.168.4.1        # IP des Panels (Panel-WLAN) bzw. seine Adresse im Netz
+     username: !secret mqtt_user   # nur, wenn am Panel-Broker ein Benutzer gesetzt ist
+     password: !secret mqtt_pass
+   ```
+
+   Tasmota: unter *Konfiguration → MQTT* den Broker eintragen und `SetOption19 1` (Home-Assistant-Discovery) setzen.
+3. Nach wenigen Sekunden steht unter dem Schalter „Gefunden: … Werte von … Geräten“.
+
+Eigene Satelliten und Zigbee2MQTT-Geräte werden übergangen (die kennt das Panel schon direkt); das Panel meldet aus
+Discovery-Geräten nichts weiter – kein Kreislauf. Wert-Vorlagen werden in der einfachen Form verstanden
+(`{{ value }}`, `{{ value_json.ENERGY.Power }}`); Regler wie Zahlen, Auswahlen oder Klima kommen später.
 
 ### 🌈 WLED
 

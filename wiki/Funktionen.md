@@ -19,6 +19,7 @@
 **Geräte**
 - 🐝 **Zigbee2MQTT** – Lampen und Schalter, auch große Netze
 - 🔌 **Shelly** (Gen1 und Gen2+) über denselben Broker
+- 🧩 **ESPHome, Tasmota & Co.** – Geräte mit MQTT-Discovery erscheinen von selbst, wie Satelliten (Sensoren, Schalter, Lampen)
 - 🌈 **WLED** über denselben Broker – Ein/Aus, Helligkeit, Farbe
 - ⛽ **Truma LevelControl** per Bluetooth – bis zu vier Gasflaschen
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren

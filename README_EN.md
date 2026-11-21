@@ -79,6 +79,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 **Devices**
 - 🐝 **Zigbee2MQTT** – lights and switches, large networks too
 - 🔌 **Shelly** (Gen1 and Gen2+) on the same broker
+- 🧩 **ESPHome, Tasmota & co.** – devices with MQTT discovery show up by themselves, like satellites (sensors, switches, lights)
 - 🌈 **WLED** on the same broker – on/off, brightness, colour
 - ⛽ **Truma LevelControl** over Bluetooth – up to two gas bottles
 - 🛢️ **Mopeka** over Bluetooth – up to four gas and tank sensors
@@ -628,6 +629,32 @@ by 1/2, 1/4 or 1/8.
   Shelly). The editor has the same page under Settings.
 - The panel connects briefly: state every 30 s, switching immediately (1–2 s). Switches, lights/dimmers, power and
   energy appear as tiles like the MQTT Shellys and also work in rules and on remote displays.
+
+### 🧩 ESPHome, Tasmota & co. (MQTT discovery)
+
+Devices that announce themselves on the broker via **Home Assistant discovery** are shown on the panel automatically –
+without Home Assistant. Each device appears in the device list **like a satellite** (its own group with its name);
+drag tiles onto the panel from there. Supported: **sensors** (value + unit), **binary sensors** (door, motion, water …),
+**switches** and **lights** (on/off). The values also work in rules, the app, the live view and on extra displays.
+
+1. Panel: **Settings → MQTT → "Show devices from MQTT discovery"** (off by default; prefix `homeassistant`, can be
+   changed in the editor).
+2. Connect the device to the same broker as the panel – in a camper the easiest is the panel's **built-in broker**.
+   Example for ESPHome:
+
+   ```yaml
+   mqtt:
+     broker: 192.168.4.1        # panel IP (panel Wi-Fi) or its address on your network
+     username: !secret mqtt_user   # only if a user is set on the panel's broker
+     password: !secret mqtt_pass
+   ```
+
+   Tasmota: enter the broker under *Configuration → MQTT* and set `SetOption19 1` (Home Assistant discovery).
+3. After a few seconds "Found: … values from … devices" shows below the switch.
+
+Own satellites and Zigbee2MQTT devices are skipped (the panel knows them directly); the panel does not forward anything
+from discovery devices – no loop. Value templates are understood in the simple form (`{{ value }}`,
+`{{ value_json.ENERGY.Power }}`); controls like numbers, selects or climate will come later.
 
 ### 🌈 WLED
 

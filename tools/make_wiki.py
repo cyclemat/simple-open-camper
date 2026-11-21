@@ -31,7 +31,8 @@ PAGES = [
     ('App', 'App „S.O.C. Live“ (Android)', ['App S.O.C. Live']),
     ('Live-Ansicht', 'Live-Ansicht', ['Live-Ansicht']),
     ('Tailscale', 'Tailscale – Fernzugriff', ['Tailscale']),
-    ('Startbild-und-WLED', 'Startbild und WLED', ['Startbild', 'WLED']),
+    ('Shelly-ESPHome-WLED', 'Shelly, ESPHome, Tasmota und WLED', ['Shelly per Bluetooth', 'ESPHome, Tasmota & Co.', 'WLED']),
+    ('Startbild', 'Startbild', ['Startbild']),
     ('Satelliten', 'Satelliten', ['Satelliten', 'Einrichten', 'Tanksonden', 'Neigung beruhigen']),
     ('Home-Assistant', 'Home Assistant', ['Home Assistant', 'Kein Daten-Kreislauf']),
     ('Victron-Display', 'Victron-Display (eigene Firmware)', ['Victron-Display']),
@@ -42,10 +43,10 @@ PAGES = [
     ('Mitmachen', 'Mitmachen und Unterstützen', ['Feedback & Beiträge', 'Support & Spenden', 'Beta – Tester und Ideen willkommen']),
 ]
 GROUPS = [('Start', ['Funktionen', 'Panels-und-Voraussetzungen', 'Installation', 'Konfiguration']),
-          ('Geräte', ['Gas-und-Tanks', 'Akkus-und-Victron', 'Sensoren', 'Heizung-und-Kuehlbox', 'Fahrzeug', 'Startbild-und-WLED']),
+          ('Geräte', ['Gas-und-Tanks', 'Akkus-und-Victron', 'Sensoren', 'Heizung-und-Kuehlbox', 'Fahrzeug', 'Shelly-ESPHome-WLED']),
           ('Satelliten und Displays', ['Satelliten', 'Victron-Display']),
           ('Bedienen und Fernzugriff', ['App', 'Live-Ansicht', 'Tailscale', 'Home-Assistant']),
-          ('Technik', ['Kabelanschluesse', 'Fehlersuche', 'REST-API']),
+          ('Technik', ['Kabelanschluesse', 'Startbild', 'Fehlersuche', 'REST-API']),
           ('Projekt', ['Quellen-und-Lizenzen', 'Mitmachen'])]
 
 

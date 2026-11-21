@@ -3066,7 +3066,12 @@ async function openSettings(tab = 'net') {
         <p class="hint">${/*@@FULL{*/"Für Camper ohne eigenen Server: Zigbee2MQTT, Home Assistant, Satelliten und Zusatzdisplays verbinden sich mit diesem Panel"/*@@FULL}*//*@@ED{"Ohne eigenen Server: die Shellys verbinden sich mit diesem Panel"@@ED}*/} (Adresse ${esc(info.ip || '–')}). Das Panel nutzt ihn dann selbst – die Felder oben gelten solange nicht. Nur der aktuelle Stand wird gehalten (gespeicherte Nachrichten, Letzter Wille), keine Warteschlangen.${/*@@FULL{*/" Satelliten bekommen den Zugang beim Anlernen."/*@@FULL}*//*@@ED{""@@ED}*/}</p>
         <div ${b.on ? '' : 'style="display:none"'}><div class="row"><label class="field"><span>Benutzer</span><input data-bk="user" value="${esc(b.user || '')}" autocomplete="off"></label>
         <label class="field"><span>Passwort (leer = ohne Anmeldung)</span><input data-bk="pass" type="password" placeholder="${b.has_pass ? 'unverändert' : 'ohne'}" autocomplete="new-password"></label></div>
-        <p class="hint">${b.running ? `Läuft: ${b.clients} Verbindung(en), ${b.retained} gespeicherte Nachrichten (${b.retained_kb} KB), ${b.msgs} weitergeleitet.` : b.on ? 'Startet nach dem Speichern.' : ''}</p></div>`; })() : ''}`;
+        <p class="hint">${b.running ? `Läuft: ${b.clients} Verbindung(en), ${b.retained} gespeicherte Nachrichten (${b.retained_kb} KB), ${b.msgs} weitergeleitet.` : b.on ? 'Startet nach dem Speichern.' : ''}</p></div>`; })() : ''}
+        ${/*@@FULL{*/draft.mqd && draft.mqd.avail ? (() => { const q = draft.mqd; return `<h3 style="font-size:13px;margin:18px 0 8px">ESPHome, Tasmota &amp; Co.</h3>
+        <label class="switch"><input type="checkbox" data-mq="on" ${q.on ? 'checked' : ''}>Geräte aus MQTT-Discovery anzeigen</label>
+        <p class="hint">Geräte, die sich am Broker per Home-Assistant-Discovery melden (ESPHome mit „mqtt:“, Tasmota, OpenMQTTGateway …), erscheinen in der Geräteliste wie Satelliten – eine Gruppe je Gerät. In ESPHome den Broker eintragen, mit dem auch das Panel verbunden ist (z. B. den eingebauten: <code>mqtt: broker: &lt;IP des Panels&gt;</code>). Eigene Satelliten und Zigbee2MQTT-Geräte werden übergangen, das Panel meldet hieraus nichts weiter.</p>
+        <div ${q.on ? '' : 'style="display:none"'}><label class="field"><span>Discovery-Präfix</span><input data-mq="prefix" value="${esc(q.prefix || 'homeassistant')}" autocomplete="off"></label>
+        <p class="hint">Gefunden: ${q.entities || 0} Werte von ${q.devices || 0} Geräten${q.skipped ? `, ${q.skipped} übergangen (eigene, Zigbee2MQTT oder nicht unterstützt)` : ''}.</p></div>`; })() : /*@@FULL}*/''}`;
     } else if (tab === 'disp') {
       const dd = draft.display, sv = dd.saver ?? 1;
       const minLvl = sv === 0 ? 0 : 6;
@@ -3490,6 +3495,11 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
       if (k === 'on') render();   // Felder ein-/ausblenden
       if (k === 'auto') render();
     }
+    if (el.dataset.mq) {   // MQTT-Discovery (ESPHome …)
+      const k = el.dataset.mq;
+      draft.mqd[k] = k === 'on' ? el.checked : el.value;
+      if (k === 'on') render();
+    }
     if (el.dataset.bk) {   // eingebauter Broker
       const k = el.dataset.bk;
       draft.broker[k] = k === 'on' ? el.checked : el.value;
@@ -3512,6 +3522,7 @@ ${info && info.ledring ? `<h3 style="font-size:13px;margin:16px 0 8px">LED-Ring<
         mqtt: {host: draft.mqtt.host, port: draft.mqtt.port, user: draft.mqtt.user, base: draft.mqtt.base, auto: !!draft.mqtt.auto, on: draft.mqtt.on !== false},
         net: {mode: draft.net.mode, ap_ssid: draft.net.ap_ssid, ap_channel: draft.net.ap_channel, web_mode: draft.net.web_mode}};
       if (draft.mqtt.pass) p.mqtt.pass = draft.mqtt.pass;
+      if (draft.mqd && draft.mqd.avail) p.mqd = {on: !!draft.mqd.on, prefix: draft.mqd.prefix || 'homeassistant'};
       if (draft.broker && draft.broker.avail) {
         p.broker = {on: !!draft.broker.on, user: draft.broker.user || ''};
         if (draft.broker.pass) p.broker.pass = draft.broker.pass;

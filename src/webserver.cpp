@@ -17,6 +17,7 @@
 #include "generated/blockly_gz.h"
 #endif
 #include "panelsat.h"
+#include "mqtt_disco.h"
 #include "panelsat_pair.h"
 #include "mopeka.h"
 #include "power.h"
@@ -558,11 +559,12 @@ static esp_err_t h_devices(httpd_req_t *req) {
     auto it = lay.names.find(p.key);
     o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : p.name;
     o["model"] = std::string(sat_kind_name(p.kind));
-    o["vendor"] = "Satellit";
+    const bool mq = p.sat == MQD_SAT_ID;   // aus MQTT-Discovery (ESPHome …), kein echter Satellit
+    o["vendor"] = mq ? "MQTT" : "Satellit";
     o["kind"] = "satio";
     o["sio"] = std::string(sat_kind_name(p.kind));
     o["sat"] = panelsat_via_text(p.key);
-    o["online"] = p.status != "Satellit offline";
+    o["online"] = p.status != "Satellit offline" && !(mq && p.status == tr("offline"));
     JsonObject st = o["state"].to<JsonObject>();
     st["ok"] = p.ok;
     if (p.ok && !isnan(p.value)) st["value"] = p.value;
@@ -737,6 +739,16 @@ static esp_err_t h_settings_get(httpd_req_t *req) {
   d["mqtt"]["base"] = st.mqtt_base;
   d["mqtt"]["has_pass"] = !st.mqtt_pass.isEmpty();
   d["mqtt"]["auto"] = st.mqtt_auto;
+  {
+    MqdInfo mi = mqd_info();
+    JsonObject md = d["mqd"].to<JsonObject>();
+    md["avail"] = (bool)WITH_MQTT_DISCO;
+    md["on"] = mqd_enabled();
+    md["prefix"] = mqd_prefix();
+    md["entities"] = mi.entities;
+    md["devices"] = mi.devices;
+    md["skipped"] = mi.skipped;
+  }
   d["broker"]["avail"] = (bool)WITH_BROKER;   // eingebauter Broker (nur P4)
   d["broker"]["on"] = st.broker_on;
   d["broker"]["user"] = st.broker_user;
@@ -804,6 +816,9 @@ static esp_err_t h_settings_post(httpd_req_t *req) {
     if (m["auto"].is<bool>()) st->mqtt_auto = m["auto"].as<bool>();
     if (m["on"].is<bool>()) st->mqtt_on = m["on"].as<bool>();
   }
+  JsonObject mdq = d["mqd"];
+  if (!mdq.isNull() && (mdq["on"].is<bool>() || mdq["prefix"].is<const char *>()))
+    mqd_set(mdq["on"] | mqd_enabled(), std::string(mdq["prefix"] | mqd_prefix().c_str()));
   JsonObject bk = d["broker"];
   if (!bk.isNull()) {
     if (bk["on"].is<bool>()) st->broker_on = bk["on"].as<bool>();

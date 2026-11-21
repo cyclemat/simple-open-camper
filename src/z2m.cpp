@@ -8,6 +8,7 @@
 #include "zb_direct.h"
 #include "wled.h"
 #include "panelsat.h"
+#include "mqtt_disco.h"
 #include "layout.h"
 #include <LittleFS.h>
 
@@ -245,6 +246,7 @@ static void handle_message(const std::string &topic, char *payload, size_t len) 
   if (shelly_handle(topic, payload, len)) return;
   if (wled_handle(topic, payload, len)) return;
   if (panelsat_handle(topic, payload, len)) return;
+  if (mqd_handle(topic, payload, len)) return;   // ESPHome, Tasmota … (MQTT-Discovery)
   int di = -1;
   TopicType t = T_STATE;
   {
@@ -801,6 +803,7 @@ static void resubscribe_all() {
   for (auto &t : shelly_topics()) topics.push_back(t);
   for (auto &t : wled_topics()) topics.push_back(t);
   for (auto &t : panelsat_topics()) topics.push_back(t);
+  for (auto &t : mqd_topics()) topics.push_back(t);
   subscribe_many(topics);
   shelly_on_connect();
   wled_on_connect();
@@ -869,6 +872,11 @@ static void worker(void *) {
         log_w("Interner RAM knapp: frei %u, größter Block %u, Tiefstwert %u", (unsigned)fr,
               (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
               (unsigned)heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+    }
+    // MQTT-Discovery: Zustands-Topics neu entdeckter Geraete abonnieren
+    if (s_connected) {
+      std::vector<std::string> nt = mqd_take_new_topics();
+      if (!nt.empty()) subscribe_many(nt);
     }
     Job j;
     if (xQueueReceive(s_jobs, &j, pdMS_TO_TICKS(50)) == pdTRUE) {

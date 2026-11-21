@@ -1,5 +1,6 @@
 #include "app_config.h"
 #include "panelsat.h"
+#include "mqtt_disco.h"
 #include "sat_proto.h"
 #include "hymer.h"
 #include "hobby.h"
@@ -823,6 +824,19 @@ static SatPoint gx_local(SatPoint p) {
   return p;
 }
 
+// ---------------------------------------------------------------- MQTT-Discovery (ESPHome, Tasmota …)
+// Schluessel "satio:MQTT/<punkt>"; Gruppe in der Geraeteliste = Name des Geraets (panelsat_via_text)
+static const std::string &mq_prefix() {
+  static const std::string p = std::string(SATIO_KEY_PREFIX) + MQD_SAT_ID + "/";
+  return p;
+}
+static bool mq_key(const std::string &k) { return WITH_MQTT_DISCO && k.rfind(mq_prefix(), 0) == 0; }
+static SatPoint mq_local(SatPoint p) {
+  p.sat = MQD_SAT_ID;
+  p.key = mq_prefix() + p.id;
+  return p;
+}
+
 // ---------------------------------------------------------------- Hobby (HobbyConnect-Box bzw. CI-BUS am LSG)
 // Werte wie die Anschluesse eines Satelliten "Hobby": Schluessel "satio:Hobby/<punkt>"; Bordbatterie "hobby:bat".
 static const std::string &hb_prefix() {
@@ -850,7 +864,7 @@ std::vector<VictronInfo> panelsat_victron_list() {
 
 uint32_t panelsat_version() {
   return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0) +
-         hobby_version() * 7919;
+         hobby_version() * 7919 + mqd_version() * 104729;
 }
 
 std::vector<SatPoint> panelsat_point_list() {
@@ -860,10 +874,19 @@ std::vector<SatPoint> panelsat_point_list() {
   if (gx_on())
     for (auto &p : cerbo_points()) r.push_back(gx_local(p));
   for (auto &p : hobby_points()) r.push_back(hb_local(p));
+  for (auto &p : mqd_points()) r.push_back(mq_local(p));
   return r;
 }
 
 bool panelsat_point_get(const std::string &key, SatPoint &out) {
+  if (mq_key(key)) {
+    for (auto &p : mqd_points())
+      if (mq_prefix() + p.id == key) {
+        out = mq_local(p);
+        return true;
+      }
+    return false;
+  }
   if (hb_key(key)) {
     for (auto &p : hobby_points())
       if (hb_prefix() + p.id == key) {
@@ -894,6 +917,11 @@ bool panelsat_point_get(const std::string &key, SatPoint &out) {
 bool panelsat_switch(const std::string &key, bool on, std::string *err) {
   SatPointKind k;
   uint8_t idx;
+  if (mq_key(key)) {
+    if (sat_point_parse(key.substr(mq_prefix().size()), k, idx) && k == SP_SWITCH) return mqd_switch(idx, on, err);
+    if (err) *err = tr("Nicht verbunden.");
+    return false;
+  }
   if (hb_key(key)) {
     if (sat_point_parse(key.substr(hb_prefix().size()), k, idx) && k == SP_SWITCH && hobby_switch(idx, on)) return true;
     if (err) *err = tr("Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).");
@@ -917,6 +945,13 @@ bool panelsat_switch(const std::string &key, bool on, std::string *err) {
 }
 
 std::string panelsat_via_text(const std::string &key) {
+  if (mq_key(key)) {
+    SatPointKind k;
+    uint8_t idx;
+    std::string dn;
+    if (sat_point_parse(key.substr(mq_prefix().size()), k, idx)) dn = mqd_device_name(idx);
+    return dn.empty() ? std::string("MQTT") : dn + " (MQTT)";
+  }
   if (gx_key(key)) return tr("Victron GX (MQTT)");
   if (hy_key(key)) return tr("Hymer Connect (Bluetooth)");
   if (hb_key(key)) return tr("Hobby (Bluetooth/CI-BUS)");

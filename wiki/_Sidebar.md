@@ -12,7 +12,7 @@
 - [Sensoren (BTHome, Ruuvi, SwitchBot)](Sensoren)
 - [Heizung und Kühlbox](Heizung-und-Kuehlbox)
 - [Fahrzeug: Hymer und Hobby](Fahrzeug)
-- [Startbild und WLED](Startbild-und-WLED)
+- [Shelly, ESPHome, Tasmota und WLED](Shelly-ESPHome-WLED)
 
 **Satelliten und Displays**
 - [Satelliten](Satelliten)
@@ -26,6 +26,7 @@
 
 **Technik**
 - [Kabelanschlüsse (LIN, CI-BUS, Zigbee-Modul)](Kabelanschluesse)
+- [Startbild](Startbild)
 - [Fehlersuche und Wartung](Fehlersuche)
 - [REST-API](REST-API)
 
