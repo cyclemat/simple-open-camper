@@ -79,7 +79,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 **Devices**
 - 🐝 **Zigbee2MQTT** – lights and switches, large networks too
 - 🔌 **Shelly** (Gen1 and Gen2+) on the same broker
-- 🧩 **ESPHome, Tasmota & co.** – devices with MQTT discovery show up by themselves, like satellites (sensors, switches, lights)
+- 🧩 **ESPHome, Tasmota & co.** 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – devices with MQTT discovery show up by themselves, like satellites (sensors, switches, lights)
 - 🌈 **WLED** on the same broker – on/off, brightness, colour
 - ⛽ **Truma LevelControl** over Bluetooth – up to two gas bottles
 - 🛢️ **Mopeka** over Bluetooth – up to four gas and tank sensors
@@ -632,6 +632,8 @@ by 1/2, 1/4 or 1/8.
 
 ### 🧩 ESPHome, Tasmota & co. (MQTT discovery)
 
+> 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – coming with the next regular version for all panels.
+
 Devices that announce themselves on the broker via **Home Assistant discovery** are shown on the panel automatically –
 without Home Assistant. Each device appears in the device list **like a satellite** (its own group with its name);
 drag tiles onto the panel from there. Supported: **sensors** (value + unit), **binary sensors** (door, motion, water …),
@@ -773,10 +775,12 @@ as a **control panel for Home Assistant**.
 |---|---|---|
 | **Satellites → HA** | All satellites register themselves via MQTT discovery: tank probes, temperatures, relays (switchable), inputs, level, extra sensors and their Bluetooth sensors | ✅ working |
 | **Zigbee2MQTT → HA** | as usual through Zigbee2MQTT itself | ✅ working |
-| **Panel → HA** | Via the integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): selected panel values (lights, switches, batteries, Victron, gas, satellite tanks and temperatures …) as sensors, switches and lights in HA | 🧪 beta |
-| **HA → Panel** | Via the same integration: selected HA entities (lights, switches, sensors …) appear on the panel like a satellite "Home Assistant" – as tiles, in rules, the app and the live view | 🧪 beta |
+| **Panel → HA** | Via the integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): selected panel values (lights, switches, batteries, Victron, gas, satellite tanks and temperatures …) as sensors, switches and lights in HA | 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* |
+| **HA → Panel** | Via the same integration: selected HA entities (lights, switches, sensors …) appear on the panel like a satellite "Home Assistant" – as tiles, in rules, the app and the live view | 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* |
 
 ### 🔌 "Simple Open Camper" integration for Home Assistant *(beta)*
+
+> 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – coming with the next regular version for all panels.
 
 Home Assistant connects to the panel itself – **one** WebSocket connection, local or over Tailscale, no MQTT broker.
 In the integration you choose **which panel values HA gets** and **which HA entities the panel shows**; each side only

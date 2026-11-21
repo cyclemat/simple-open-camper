@@ -6,11 +6,11 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
 ## In Arbeit (nächste Version)
 
 **Neu**
-- 🧩 **ESPHome, Tasmota & Co.** (MQTT-Discovery) – Geräte, die sich per Home-Assistant-Discovery am Broker melden,
+- 🧩 **ESPHome, Tasmota & Co.** (MQTT-Discovery) 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – Geräte, die sich per Home-Assistant-Discovery am Broker melden,
   erscheinen auf dem Panel wie Satelliten (eine Gruppe je Gerät): Sensoren, Binärsensoren, Schalter, Lampen (ein/aus).
   Ohne Home Assistant, mit dem eingebauten Broker. Eigene Satelliten und Zigbee2MQTT werden übergangen. Einstellungen →
   MQTT, ab Werk aus. P4, rundes Panel, Waveshare. Getestet am P4 mit einem Gerät im ESPHome-Format.
-- 🏠 **Home Assistant** *(Beta)* – Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration)
+- 🏠 **Home Assistant** *(Beta)* 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration)
   (MIT, HACS): HA verbindet sich per WebSocket mit dem Panel (`/api/ha`, Zugangscode, auch über Tailscale). HA übernimmt
   nur ausgewählte Panel-Werte, das Panel zeigt nur ausgewählte HA-Entitäten (wie ein Satellit „Home Assistant“). Am Panel:
   Einstellungen → Netzwerk → Home Assistant. Testfassung für den P4 in `release/test/`.

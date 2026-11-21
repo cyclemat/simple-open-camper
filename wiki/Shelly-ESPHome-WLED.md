@@ -12,6 +12,8 @@
 
 ### 🧩 ESPHome, Tasmota & Co. (MQTT-Discovery)
 
+> 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/) (P4)* – kommt mit der nächsten regulären Version für alle Panels.
+
 Geräte, die sich am Broker per **Home-Assistant-Discovery** anmelden, zeigt das Panel automatisch an – ohne Home
 Assistant. Jedes Gerät erscheint in der Geräteliste **wie ein Satellit** (eigene Gruppe mit seinem Namen); daraus
 Kacheln aufs Panel ziehen. Unterstützt: **Sensoren** (Wert + Einheit), **Binärsensoren** (Tür, Bewegung, Wasser …),

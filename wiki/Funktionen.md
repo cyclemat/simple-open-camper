@@ -19,7 +19,7 @@
 **Geräte**
 - 🐝 **Zigbee2MQTT** – Lampen und Schalter, auch große Netze
 - 🔌 **Shelly** (Gen1 und Gen2+) über denselben Broker
-- 🧩 **ESPHome, Tasmota & Co.** – Geräte mit MQTT-Discovery erscheinen von selbst, wie Satelliten (Sensoren, Schalter, Lampen)
+- 🧩 **ESPHome, Tasmota & Co.** 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/) (P4)* – Geräte mit MQTT-Discovery erscheinen von selbst, wie Satelliten (Sensoren, Schalter, Lampen)
 - 🌈 **WLED** über denselben Broker – Ein/Aus, Helligkeit, Farbe
 - ⛽ **Truma LevelControl** per Bluetooth – bis zu vier Gasflaschen
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
