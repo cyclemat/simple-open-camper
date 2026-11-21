@@ -29,8 +29,7 @@ ENVS = [
     ('crowpanel-p4', 'p4', 'panel-crowpanel-p4'),
     ('crowpanel-146', 'crowpanel146', 'panel-crowpanel-146'),
     ('crowpanel-146-remote', 'crowpanel146', 'zusatzdisplay-146'),
-    ('esp32-cyd-victron', 'satellite', 'victron-display-cyd'),
-    ('esp32-cyd-victron-en', 'satellite', 'victron-display-cyd-en'),
+    # Victron-Display (esp32-cyd-victron/-en) bewusst nicht: liegt nur im Beta-Repo
     ('esp32', 'satellite', 'satellit-esp32'),
     ('esp32-c3', 'satellite', 'satellit-esp32-c3'),
     ('esp32-c3-oled', 'satellite', 'satellit-esp32-c3-oled'),
@@ -42,7 +41,7 @@ ENVS = [
     ('shunt-c3', 'shunt', 'satellit-shunt-c3'),
     ('zigbee-h2', 'h2', 'zigbee-modul-h2'),
 ]
-WITH_UPDATER = {'esp32-cyd-victron', 'esp32-cyd-victron-en', 'esp32-cyd-remote'}
+WITH_UPDATER = {'esp32-cyd-remote'}
 ESPTOOL = os.path.join(ROOT, 'satellite', '.pio', 'packages', 'tool-esptoolpy', 'esptool.py')
 # esptool braucht seine Module (rich_click …) – die hat das Python von PlatformIO
 _PIO_PY = os.path.join(os.path.expanduser('~'), '.platformio', 'penv', 'Scripts', 'python.exe')

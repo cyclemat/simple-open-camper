@@ -38,10 +38,7 @@ DEVICES = [
     ('satcyd', 'sat', 'CYD-Satellit 2,8"', 'ESP32-2432S028R mit Anzeige', 'ESP32', 'satellit-cyd.bin', 'esp32-cyd', True),
     ('rdcyd', 'sat', 'Zusatzdisplay CYD 2,8"', 'zeigt Kacheln des Hauptpanels', 'ESP32', 'zusatzdisplay-cyd.bin', 'esp32-cyd-remote', True),
     ('rdrund', 'sat', 'Zusatzdisplay rund 1,46"', 'CrowPanel 1,46" als Zusatzdisplay', 'ESP32-S3', 'zusatzdisplay-146.bin', 'crowpanel-146-remote', False),
-    ('vdcyd', 'sat', 'Victron-Display CYD 2,8"', 'eigenständig: Victron, Gas, Akkus (Deutsch)', 'ESP32', 'victron-display-cyd.bin',
-     'esp32-cyd-victron', True),
-    ('vdcyden', 'sat', 'Victron display CYD 2.8" (English)', 'standalone: Victron, gas, batteries', 'ESP32',
-     'victron-display-cyd-en.bin', 'esp32-cyd-victron-en', True),
+    # Victron-Display: nicht im Hauptprojekt (eigenes Beta-Repo mit eigenem Online-Flasher)
     ('h2', 'sat', 'Zigbee-Funkmodul ESP32-H2', 'Steckmodul für den P4 bzw. das runde Panel (eigener USB-Anschluss)', 'ESP32-H2',
      'zigbee-modul-h2.bin', None, False),
 ]

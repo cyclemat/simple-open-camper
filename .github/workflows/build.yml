@@ -204,8 +204,7 @@ jobs:
             [waveshare-7b]=panel-waveshare-7b
             [crowpanel-p4]=panel-crowpanel-p4
             [crowpanel-146]=panel-crowpanel-146
-            [esp32-cyd-victron]=victron-display-cyd
-            [esp32-cyd-victron-en]=victron-display-cyd-en
+            # Victron-Display (esp32-cyd-victron/-en) wird mitgebaut, kommt aber nicht nach release/ (nur Beta-Repo)
             [esp32]=satellit-esp32
             [esp32-c3]=satellit-esp32-c3
             [esp32-s3]=satellit-esp32-s3
