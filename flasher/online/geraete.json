@@ -1,0 +1,234 @@
+{
+ "devices": [
+  {
+   "id": "p4",
+   "sec": "panel",
+   "name": "CrowPanel Advanced 7\"",
+   "desc": "ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale)",
+   "chip": "ESP32-P4",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/p4-release-komplett.json",
+     "update": "m/p4-release-update.json"
+    },
+    {
+     "key": "test",
+     "label": "Testfassung „HA Addon Test“",
+     "version": "Test",
+     "komplett": "m/p4-test-komplett.json",
+     "update": "m/p4-test-update.json"
+    }
+   ]
+  },
+  {
+   "id": "ws7",
+   "sec": "panel",
+   "name": "Waveshare 7\" (7B)",
+   "desc": "ESP32-S3, 1024 × 600",
+   "chip": "ESP32-S3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/ws7-release-komplett.json",
+     "update": "m/ws7-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "rund",
+   "sec": "panel",
+   "name": "CrowPanel 1,46\" rund",
+   "desc": "ESP32-S3, 360 × 360 mit Drehknopf",
+   "chip": "ESP32-S3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/rund-release-komplett.json",
+     "update": "m/rund-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "sat32",
+   "sec": "sat",
+   "name": "Satellit ESP32",
+   "desc": "ESP32 (z. B. DevKit, WROOM)",
+   "chip": "ESP32",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/sat32-release-komplett.json",
+     "update": "m/sat32-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "satc3",
+   "sec": "sat",
+   "name": "Satellit ESP32-C3",
+   "desc": "ESP32-C3 (z. B. Super Mini)",
+   "chip": "ESP32-C3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/satc3-release-komplett.json",
+     "update": "m/satc3-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "satc3o",
+   "sec": "sat",
+   "name": "Satellit ESP32-C3 mit OLED",
+   "desc": "ESP32-C3 mit 0,42\"-OLED (72 × 40)",
+   "chip": "ESP32-C3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/satc3o-release-komplett.json",
+     "update": "m/satc3o-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "satc6",
+   "sec": "sat",
+   "name": "Satellit ESP32-C6",
+   "desc": "ESP32-C6",
+   "chip": "ESP32-C6",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/satc6-release-komplett.json",
+     "update": "m/satc6-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "sats3",
+   "sec": "sat",
+   "name": "Satellit ESP32-S3",
+   "desc": "ESP32-S3 (DevKitC-1)",
+   "chip": "ESP32-S3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/sats3-release-komplett.json",
+     "update": "m/sats3-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "relay",
+   "sec": "sat",
+   "name": "16-Relais-Platine",
+   "desc": "ESP32 mit 2 × 74HC595",
+   "chip": "ESP32",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/relay-release-komplett.json",
+     "update": "m/relay-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "shunt",
+   "sec": "sat",
+   "name": "SmartShunt-Satellit",
+   "desc": "ESP32-C3 Super Mini + INA228 (Beta)",
+   "chip": "ESP32-C3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/shunt-release-komplett.json",
+     "update": "m/shunt-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "satcyd",
+   "sec": "sat",
+   "name": "CYD-Satellit 2,8\"",
+   "desc": "ESP32-2432S028R mit Anzeige",
+   "chip": "ESP32",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/satcyd-release-komplett.json",
+     "update": "m/satcyd-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "rdcyd",
+   "sec": "sat",
+   "name": "Zusatzdisplay CYD 2,8\"",
+   "desc": "zeigt Kacheln des Hauptpanels",
+   "chip": "ESP32",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/rdcyd-release-komplett.json",
+     "update": "m/rdcyd-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "rdrund",
+   "sec": "sat",
+   "name": "Zusatzdisplay rund 1,46\"",
+   "desc": "CrowPanel 1,46\" als Zusatzdisplay",
+   "chip": "ESP32-S3",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/rdrund-release-komplett.json",
+     "update": "m/rdrund-release-update.json"
+    }
+   ]
+  },
+  {
+   "id": "h2",
+   "sec": "sat",
+   "name": "Zigbee-Funkmodul ESP32-H2",
+   "desc": "Steckmodul für den P4 bzw. das runde Panel (eigener USB-Anschluss)",
+   "chip": "ESP32-H2",
+   "src": [
+    {
+     "key": "release",
+     "label": "Aktuelle Version",
+     "version": "0.2.6",
+     "komplett": "m/h2-release-komplett.json"
+    }
+   ]
+  }
+ ]
+}

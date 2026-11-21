@@ -200,7 +200,11 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
 
 ### 🛠 Maintenance and diagnostics
 
-- **Web flasher:** double-click **`flasher.bat`** in the project folder (or `python tools/flasher.py`). It starts a small
+- **⚡ [Online flasher](https://cyclemat.github.io/simple-open-camper/flasher/) (easiest):** open it in the browser (Chrome or Edge on a PC), connect the device via USB,
+  pick the firmware – no download, no installation. Sections **Panels** and **Satellites and accessories**, per device
+  **"Firmware only (update)"** (settings stay) or **"Complete (set up anew)"**; for the P4 also the test build from
+  `release/test/`.
+- **Web flasher on your own computer:** double-click **`flasher.bat`** in the project folder (or `python tools/flasher.py`). It starts a small
   web server for this computer only and opens **http://localhost:8765/flasher/** with the sections **Panels** and
   **Satellites and accessories**. Per device: firmware from the **GitHub release** or the **locally built** one, and
   **"Nur Firmware (Update)"** (settings stay) or **"Komplett (neu einrichten)"** (everything erased). Chrome or Edge.

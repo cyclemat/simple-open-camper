@@ -14,7 +14,12 @@
 
 ### 📁 Fertige Firmware ohne neu zu bauen
 
-**Web-Flasher (am einfachsten):** Doppelklick auf **`flasher.bat`** im Projektordner (bzw. `python tools/flasher.py`).
+**⚡ [Online-Flasher](https://cyclemat.github.io/simple-open-camper/flasher/) (am einfachsten):** im Browser öffnen (Chrome oder Edge am PC), Gerät per USB anschließen,
+Firmware wählen – ohne Download und ohne Installation. Bereiche **Panels** und **Satelliten und Zubehör**, je Gerät
+**„Nur Firmware (Update)“** (Einstellungen bleiben) oder **„Komplett (neu einrichten)“**; beim P4 zusätzlich die
+Testfassung aus `release/test/`.
+
+**Web-Flasher auf dem eigenen Rechner:** Doppelklick auf **`flasher.bat`** im Projektordner (bzw. `python tools/flasher.py`).
 Das startet einen kleinen Webserver nur für diesen Rechner und öffnet **http://localhost:8765/flasher/** – mit den
 Bereichen **Panels** und **Satelliten und Zubehör**. Je Gerät wählbar: Firmware aus dem **GitHub-Release** oder die
 hier **lokal gebaute** (neuester Stand), und **„Nur Firmware (Update)“** (Einstellungen bleiben) oder **„Komplett (neu

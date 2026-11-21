@@ -171,6 +171,8 @@ def main():
         fh.write('\n'.join(L) + '\n')
     shutil.rmtree(tmp, ignore_errors=True)
     print('release/ aktualisiert.')
+    # Online-Flasher (GitHub Pages) auf die neuen Dateien zeigen lassen
+    subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'make_flasher.py')], cwd=ROOT)
 
 
 if __name__ == '__main__':

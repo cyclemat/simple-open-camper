@@ -18,6 +18,11 @@ import shutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEN = os.path.join(ROOT, 'flasher', 'gen')
+ONLINE = os.path.join(ROOT, 'flasher', 'online')   # fuer GitHub Pages (im Repo), nur Release- und Testdateien
+# Testfassungen in release/test/: Geraet -> (komplett, update, Bezeichnung)
+TESTS = {
+    'p4': ('panel-crowpanel-p4-HA-Addon-Test.bin', 'panel-crowpanel-p4-HA-Addon-Test-update.bin', 'Testfassung „HA Addon Test“'),
+}
 
 # id, Bereich, Name, Beschreibung, Chip (ESP Web Tools), Datei im Release, Umgebung (lokal), Updater bei 0x2F0000
 DEVICES = [
@@ -74,6 +79,60 @@ def manifest(name, version, chip, parts, erase):
     }
 
 
+def test_source(did, chip, name, up, boot_path):
+    """Testfassung aus release/test/ als eigene Quelle (oder None)."""
+    if did not in TESTS:
+        return None
+    full, upd, label = TESTS[did]
+    if not os.path.exists(os.path.join(ROOT, 'release', 'test', full)):
+        return None
+    return full, upd, label
+
+
+def build_online(rel, boot):
+    """Geraeteliste + Manifeste fuer den Online-Flasher (GitHub Pages): https://<user>.github.io/<repo>/flasher/"""
+    if os.path.isdir(ONLINE):
+        shutil.rmtree(ONLINE)
+    os.makedirs(os.path.join(ONLINE, 'm'))
+    have_boot = os.path.exists(boot)
+    if have_boot:
+        shutil.copyfile(boot, os.path.join(ONLINE, 'boot_app0.bin'))
+    up = '../../../'   # von flasher/online/m/ zum Repo-Wurzelordner
+    boot_part = [(up + 'flasher/online/boot_app0.bin', OTADATA_OFFSET)] if have_boot else []
+    out = []
+    for did, sec, name, desc, chip, relf, env, updater in DEVICES:
+        dev = {'id': did, 'sec': sec, 'name': name, 'desc': desc, 'chip': chip, 'src': []}
+        if relf and os.path.exists(os.path.join(ROOT, 'release', relf)):
+            v = rel.get(relf, '?')
+            s = {'key': 'release', 'label': 'Aktuelle Version', 'version': v}
+            mk = 'm/%s-release-komplett.json' % did
+            json.dump(manifest(name, v, chip, [(up + 'release/' + relf, 0)], True), open(os.path.join(ONLINE, mk), 'w'))
+            s['komplett'] = mk
+            if os.path.exists(os.path.join(ROOT, 'release', 'ota', relf)) and did != 'h2':
+                mk = 'm/%s-release-update.json' % did
+                json.dump(manifest(name, v, chip, boot_part + [(up + 'release/ota/' + relf, APP_OFFSET)], False),
+                          open(os.path.join(ONLINE, mk), 'w'))
+                s['update'] = mk
+            dev['src'].append(s)
+        t = test_source(did, chip, name, up, None)
+        if t:
+            full, upd, label = t
+            s = {'key': 'test', 'label': label, 'version': 'Test'}
+            mk = 'm/%s-test-komplett.json' % did
+            json.dump(manifest(name + ' (Test)', 'Test', chip, [(up + 'release/test/' + full, 0)], True), open(os.path.join(ONLINE, mk), 'w'))
+            s['komplett'] = mk
+            if os.path.exists(os.path.join(ROOT, 'release', 'test', upd)):
+                mk = 'm/%s-test-update.json' % did
+                json.dump(manifest(name + ' (Test)', 'Test', chip, boot_part + [(up + 'release/test/' + upd, APP_OFFSET)], False),
+                          open(os.path.join(ONLINE, mk), 'w'))
+                s['update'] = mk
+            dev['src'].append(s)
+        if dev['src']:
+            out.append(dev)
+    json.dump({'devices': out}, open(os.path.join(ONLINE, 'geraete.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    print('Online-Flasher: %d Geräte (flasher/online/)' % len(out))
+
+
 def main():
     if os.path.isdir(GEN):
         shutil.rmtree(GEN)
@@ -127,6 +186,7 @@ def main():
     json.dump({'devices': out}, open(os.path.join(GEN, 'geraete.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     n = sum(1 for d in out if d['src'])
     print('Flasher: %d von %d Geräten mit Firmware (flasher/gen/)' % (n, len(out)))
+    build_online(rel, boot)
 
 
 if __name__ == '__main__':

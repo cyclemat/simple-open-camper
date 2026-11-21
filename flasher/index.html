@@ -39,7 +39,8 @@ h1{font-size:24px;margin:0 0 4px}
 <body>
 <div class="wrap">
   <h1>Simple Open Camper – Flasher</h1>
-  <p class="sub">Firmware per USB direkt aus dem Browser aufspielen (Chrome oder Edge am PC).</p>
+  <p class="sub">Firmware per USB direkt aus dem Browser aufspielen (Chrome oder Edge am PC).
+    <a href="https://github.com/cyclemat/simple-open-camper" style="color:var(--ac)">Projekt auf GitHub</a></p>
   <div class="note">
     <b>Komplett</b> = Gerät neu einrichten: Bootloader, Partitionen und Firmware – <b>alle Einstellungen gehen verloren</b>
     (WLAN, Passwörter, gekoppelte Geräte). <b>Nur Firmware</b> = Update: Einstellungen und Kacheln bleiben.
@@ -56,13 +57,16 @@ h1{font-size:24px;margin:0 0 4px}
 'use strict';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+// Online (GitHub Pages): feste Liste aus flasher/online/ (nur veroeffentlichte Dateien); lokal: flasher/gen/ (flasher.bat)
+const ONLINE = /\.github\.io$/.test(location.hostname);
+const BASE = ONLINE ? 'online/' : 'gen/';
 let DEV = [], SEC = 'panel';
 const pick = {};   // Geraet -> gewaehlte Quelle
 try { SEC = localStorage.getItem('socflash.sec') || 'panel'; } catch (e) {}
 
 function btn(manifest, label, primary) {
   if (!manifest) return '';
-  return `<esp-web-install-button manifest="gen/${esc(manifest)}">
+  return `<esp-web-install-button manifest="${BASE}${esc(manifest)}">
     <button slot="activate" class="btn ${primary ? 'p' : ''}">${esc(label)}</button>
     <span slot="unsupported" class="hint err">Dieser Browser kann kein USB-Flashen – bitte Chrome oder Edge am PC.</span>
     <span slot="not-allowed" class="hint err">Nur über http://localhost bzw. https möglich (Startskript flasher.bat benutzen).</span>
@@ -75,8 +79,8 @@ function render() {
   $('#grid').innerHTML = list.map(d => {
     if (!d.src.length) return `<div class="card"><h2>${esc(d.name)}<span class="chip">${esc(d.chip)}</span></h2><p class="d">${esc(d.desc)}</p>
       <p class="none">Noch keine Firmware-Datei – im GitHub-Release fehlt sie und hier wurde sie nicht gebaut.</p></div>`;
-    // Vorgabe: lokal gebaut, wenn vorhanden (neuester Stand), sonst Release
-    const key = pick[d.id] || (d.src.find(s => s.key === 'lokal') || d.src[0]).key;
+    // Vorgabe: lokal gebaut, wenn vorhanden (neuester Stand), sonst aktuelle Version (nie von selbst die Testfassung)
+    const key = pick[d.id] || (d.src.find(s => s.key === 'lokal') || d.src.find(s => s.key === 'release') || d.src[0]).key;
     const s = d.src.find(x => x.key === key) || d.src[0];
     const srcs = d.src.length > 1 ? `<div class="src">${d.src.map(x => `<label><input type="radio" name="src-${esc(d.id)}" value="${esc(x.key)}" ${x.key === s.key ? 'checked' : ''}>
         ${esc(x.label)} <b>${esc(x.version)}</b>${x.when ? ' · ' + esc(x.when) : ''}</label>`).join('')}</div>`
@@ -100,8 +104,9 @@ $('#grid').addEventListener('change', e => {
   pick[r.closest('.card').dataset.id] = r.value;
   render();
 });
-fetch('gen/geraete.json', {cache: 'no-store'}).then(r => r.json()).then(j => { DEV = j.devices || []; render(); })
-  .catch(() => { $('#grid').innerHTML = '<p class="none err">Geräteliste fehlt – bitte über das Startskript <b>flasher.bat</b> öffnen.</p>'; });
+fetch(BASE + 'geraete.json', {cache: 'no-store'}).then(r => r.json()).then(j => { DEV = j.devices || []; render(); })
+  .catch(() => { $('#grid').innerHTML = ONLINE ? '<p class="none err">Geräteliste konnte nicht geladen werden – Seite neu laden.</p>'
+    : '<p class="none err">Geräteliste fehlt – bitte über das Startskript <b>flasher.bat</b> öffnen.</p>'; });
 </script>
 </body>
 </html>

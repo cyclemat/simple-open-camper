@@ -1,0 +1,1 @@
+{"name": "Zusatzdisplay rund 1,46\"", "version": "0.2.6", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-S3", "parts": [{"path": "../../../release/zusatzdisplay-146.bin", "offset": 0}]}]}
