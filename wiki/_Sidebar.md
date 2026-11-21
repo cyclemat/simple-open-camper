@@ -19,6 +19,7 @@
 - [Victron-Display (eigene Firmware)](Victron-Display)
 
 **Bedienen und Fernzugriff**
+- [App „S.O.C. Live“ (Android)](App)
 - [Live-Ansicht](Live-Ansicht)
 - [Tailscale – Fernzugriff](Tailscale)
 - [Home Assistant](Home-Assistant)

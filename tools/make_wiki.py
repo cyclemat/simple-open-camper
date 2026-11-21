@@ -28,6 +28,7 @@ PAGES = [
     ('Heizung-und-Kuehlbox', 'Heizung und Kühlbox', ['Truma-Heizung', 'Alde', 'Dieselheizung', 'Kühlbox']),
     ('Fahrzeug', 'Fahrzeug: Hymer und Hobby', ['Hymer Connect', 'Hobby']),
     ('Kabelanschluesse', 'Kabelanschlüsse (LIN, CI-BUS, Zigbee-Modul)', ['Kabelanschlüsse']),
+    ('App', 'App „S.O.C. Live“ (Android)', ['App S.O.C. Live']),
     ('Live-Ansicht', 'Live-Ansicht', ['Live-Ansicht']),
     ('Tailscale', 'Tailscale – Fernzugriff', ['Tailscale']),
     ('Startbild-und-WLED', 'Startbild und WLED', ['Startbild', 'WLED']),
@@ -43,7 +44,7 @@ PAGES = [
 GROUPS = [('Start', ['Funktionen', 'Panels-und-Voraussetzungen', 'Installation', 'Konfiguration']),
           ('Geräte', ['Gas-und-Tanks', 'Akkus-und-Victron', 'Sensoren', 'Heizung-und-Kuehlbox', 'Fahrzeug', 'Startbild-und-WLED']),
           ('Satelliten und Displays', ['Satelliten', 'Victron-Display']),
-          ('Bedienen und Fernzugriff', ['Live-Ansicht', 'Tailscale', 'Home-Assistant']),
+          ('Bedienen und Fernzugriff', ['App', 'Live-Ansicht', 'Tailscale', 'Home-Assistant']),
           ('Technik', ['Kabelanschluesse', 'Fehlersuche', 'REST-API']),
           ('Projekt', ['Quellen-und-Lizenzen', 'Mitmachen'])]
 

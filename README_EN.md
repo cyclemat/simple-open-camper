@@ -100,6 +100,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 📡 **BTHome** *(beta)* – Shelly BLU (door, motion, button, H&T), Xiaomi with pvvx firmware and more, also encrypted
 - 🐝 **Zigbee direct** *(beta, P4 and round panel)* – with the ESP32-H2 radio module, no Zigbee2MQTT needed: pair devices, lights,
   sockets (with power and energy), switches and sensors as tiles
+- 📲 **App "S.O.C. Live"** *(beta, Android)* – the panel on your phone, Tailscale built in: tiles like on the panel, tap switches or shows all values
 - 📱 **Live view** – operate the panel in the browser or on the phone (`/live`), password protected
 - 🔐 **Tailscale** *(beta, P4 and round panel)* – editor and web interface from anywhere, no open port and no cloud:
   log the panel into your own tailnet via a link
@@ -556,13 +557,37 @@ Elecrow's schematic – measure before soldering. **Never connect 5 V or 5 V log
 - Protected by the **access password** (like the editor). On the phone "Add to Home screen" – it then starts like an app;
   held sideways the panel gets bigger. With **Tailscale** also from anywhere (`http://<name-in-tailnet>/live`).
 - Costs the panel only processing time while someone is watching; switching uses the same paths as the screen.
-- **Android app "S.O.C. Live"** *(beta)*: download [`release/soc-live.apk`](release/soc-live.apk) to the phone and
-  install it (allow installs from unknown sources). **Tailscale is built in** – the Tailscale app is not needed: on first
-  start tap "Sign in with Tailscale" (browser), then the app finds the panel in the tailnet and connects (Tailscale must
-  be on at the panel, same account). Without Tailscale: enter the address on the Wi-Fi. The panel asks for its password
-  once; the app remembers it. The app shows the tiles exactly like the panel (landscape, full screen); tapping switches,
-  or for readings shows all values (e.g. battery with cells). Long-press the back button = settings.
-  <p><img src="assets/app/live.png" width="49%" alt="S.O.C. Live – live view"> <img src="assets/app/detail.png" width="49%" alt="S.O.C. Live – all values of a battery"></p>
+
+### 📲 App "S.O.C. Live" (Android) *(beta)*
+
+The panel on your phone – at home, at the campsite and on the road over mobile data. The app shows the tiles **exactly
+as the panel computes them** (values, colours, levels), landscape across the whole screen.
+
+<p><img src="assets/app/live.png" width="49%" alt="S.O.C. Live – tiles like on the panel"> <img src="assets/app/detail.png" width="49%" alt="S.O.C. Live – all values of a battery"></p>
+
+- **Tap** switches lights and sockets; for readings (battery, Victron, gas, heating, sensors) a window with **all
+  values** opens – for a battery e.g. state of charge, voltage, current, power, temperature and cells.
+- **Long press** on a dimmable light: brightness.
+- **Tailscale is built in** – no Tailscale app needed, no open port on the router.
+- You enter the panel's access password once; the app remembers it (only on the phone).
+
+**Install and set up**
+
+1. Download [`release/soc-live.apk`](release/soc-live.apk) to the phone and open it (Android 7 or newer, 64-bit;
+   allow "install unknown apps" once).
+2. Read and accept the notes.
+3. **"Sign in with Tailscale"** – the browser opens the Tailscale sign-in, the phone shows up as **soc-live** in your
+   tailnet. No account yet? **"Create Tailscale account"** (free for personal use).
+4. The app **searches the panel in the tailnet** and connects; with several panels you tap one.
+   Requirement: Tailscale is on at the panel, same account (see [Tailscale](#-tailscale--remote-access-from-anywhere-p4-and-round-panel-beta)).
+5. The first time, the panel asks for its access password – done.
+
+**Without Tailscale** (only on the panel's Wi-Fi or the same network): on first start choose "Without Tailscale – only
+on the panel's Wi-Fi" and enter the address (panel Wi-Fi: `192.168.4.1`, otherwise the IP from Settings → Network).
+
+**Settings:** **long-press** the back button – address, Tailscale on/off, search panel again, auth key (instead of the
+browser sign-in), keep screen on, full screen, delete saved password, sign out of Tailscale.
+Tailscale only runs while the app is used (off after 2 min in the background).
 
 ### 🔐 Tailscale – remote access from anywhere (P4 and round panel) *(beta)*
 
