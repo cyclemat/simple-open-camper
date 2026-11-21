@@ -44,6 +44,9 @@ ENVS = [
 ]
 WITH_UPDATER = {'esp32-cyd-victron', 'esp32-cyd-victron-en', 'esp32-cyd-remote'}
 ESPTOOL = os.path.join(ROOT, 'satellite', '.pio', 'packages', 'tool-esptoolpy', 'esptool.py')
+# esptool braucht seine Module (rich_click …) – die hat das Python von PlatformIO
+_PIO_PY = os.path.join(os.path.expanduser('~'), '.platformio', 'penv', 'Scripts', 'python.exe')
+PY = _PIO_PY if os.path.exists(_PIO_PY) else sys.executable
 
 
 def run(*a):
@@ -51,7 +54,7 @@ def run(*a):
 
 
 def merge(chip, out, parts):
-    args = [sys.executable, ESPTOOL, '--chip', chip, 'merge_bin', '-o', out]
+    args = [PY, ESPTOOL, '--chip', chip, 'merge-bin', '-o', out]
     for off, f in parts:
         args += [off, f]
     subprocess.run(args, check=True, capture_output=True)
