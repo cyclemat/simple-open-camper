@@ -10,6 +10,10 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   erscheinen auf dem Panel wie Satelliten (eine Gruppe je Gerät): Sensoren, Binärsensoren, Schalter, Lampen (ein/aus).
   Ohne Home Assistant, mit dem eingebauten Broker. Eigene Satelliten und Zigbee2MQTT werden übergangen. Einstellungen →
   MQTT, ab Werk aus. P4, rundes Panel, Waveshare. Getestet am P4 mit einem Gerät im ESPHome-Format.
+- 🏠 **Home Assistant** *(Beta)* – Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration)
+  (MIT, HACS): HA verbindet sich per WebSocket mit dem Panel (`/api/ha`, Zugangscode, auch über Tailscale). HA übernimmt
+  nur ausgewählte Panel-Werte, das Panel zeigt nur ausgewählte HA-Entitäten (wie ein Satellit „Home Assistant“). Am Panel:
+  Einstellungen → Netzwerk → Home Assistant. Testfassung für den P4 in `release/test/`.
 
 ## 0.2.6 – 2026-11-21
 

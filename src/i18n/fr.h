@@ -404,6 +404,14 @@
 {"Kein WLAN – zuerst mit dem Netz des GX verbinden.", ""},  // src/gx_find.cpp:279
 {"Suche …", ""},  // src/gx_find.cpp:284
 {"Suche konnte nicht starten (Speicher).", ""},  // src/gx_find.cpp:287
+{"Zigbee (eingebaut)", ""},  // src/ha_link.cpp:206
+{"Shelly (Bluetooth)", ""},  // src/ha_link.cpp:207
+{"Zigbee2MQTT", "Zigbee2MQTT"},  // src/ha_link.cpp:210
+{"{\"t\":\"err\",\"e\":\"Zugangscode falsch oder Verbindung am Panel aus\"}", ""},  // src/ha_link.cpp:333
+{"offline", "hors ligne"},  // src/ha_link.cpp:596
+{"Home Assistant ist nicht verbunden.", ""},  // src/ha_link.cpp:615
+{"Home Assistant", ""},  // src/ha_link.cpp:635
+{"HA", ""},  // src/ha_link.h:26
 {"Deckenlicht", ""},  // src/hobby.cpp:45
 {"Wandlicht", ""},  // src/hobby.cpp:46
 {"Bettlicht links", ""},  // src/hobby.cpp:47
@@ -603,15 +611,15 @@
 {"TLS: SCU meldet Fehler %d", ""},  // src/hymer_tls.cpp:321
 {"TLS: Nachricht zu groß", ""},  // src/hymer_tls.cpp:332
 {"TLS: Datenstrom kaputt", ""},  // src/hymer_tls.cpp:358
-{"MQTT ", ""},  // src/main.cpp:102
-{" · Cerbo ", ""},  // src/main.cpp:103
-{" · Hobby ", ""},  // src/main.cpp:105
-{" · Hymer ", ""},  // src/main.cpp:108
-{" · Zigbee-Modul ", ""},  // src/main.cpp:111
-{" · Panel-WLAN ", ""},  // src/main.cpp:115
-{" Teilnehmer", ""},  // src/main.cpp:115
-{"nach 10 s", ""},  // src/main.cpp:206
-{"nach 60 s", ""},  // src/main.cpp:207
+{"MQTT ", ""},  // src/main.cpp:103
+{" · Cerbo ", ""},  // src/main.cpp:104
+{" · Hobby ", ""},  // src/main.cpp:106
+{" · Hymer ", ""},  // src/main.cpp:109
+{" · Zigbee-Modul ", ""},  // src/main.cpp:112
+{" · Panel-WLAN ", ""},  // src/main.cpp:116
+{" Teilnehmer", ""},  // src/main.cpp:116
+{"nach 10 s", ""},  // src/main.cpp:208
+{"nach 60 s", ""},  // src/main.cpp:209
 {"11 kg (Europa)", "11 kg (Europe)"},  // src/mopeka.cpp:34
 {"6 kg (Europa)", "6 kg (Europe)"},  // src/mopeka.cpp:35
 {"14 kg (Europa)", "14 kg (Europe)"},  // src/mopeka.cpp:36
@@ -654,7 +662,6 @@
 {"Sensor nicht gefunden", "Capteur introuvable"},  // src/mopeka.cpp:580
 {"MQTT-Gerät", ""},  // src/mqtt_disco.cpp:265
 {"OFF", ""},  // src/mqtt_disco.cpp:276
-{"offline", "hors ligne"},  // src/mqtt_disco.cpp:476
 {"Nicht verbunden.", ""},  // src/mqtt_disco.cpp:498
 {"Internet", "Internet"},  // src/net.cpp:113
 {"Uhrenchip", "Puce RTC"},  // src/net.cpp:135
@@ -670,31 +677,32 @@
 {"Netz %s nicht gefunden", "Réseau %s introuvable"},  // src/net.cpp:284
 {"Browser", "Navigateur"},  // src/net.cpp:451
 {"von Hand", "manuellement"},  // src/net.cpp:460
-{"Tank %d", "Réservoir %d"},  // src/panelsat.cpp:154
-{"Temperatur %d", "Température %d"},  // src/panelsat.cpp:155
-{"Analog %d", "Analogique %d"},  // src/panelsat.cpp:156
-{"Neigung längs", "Inclinaison longitudinale"},  // src/panelsat.cpp:157
-{"Neigung quer", "Inclinaison transversale"},  // src/panelsat.cpp:157
-{"Eingang %d", "Entrée %d"},  // src/panelsat.cpp:158
-{"Schalter %d", "Interrupteur %d"},  // src/panelsat.cpp:159
-{"Sensor", "Capteur"},  // src/panelsat.cpp:160
-{"Satellit", "Satellite"},  // src/panelsat.cpp:432
-{"UDP", "UDP"},  // src/panelsat.cpp:585
-{", UDP", ", UDP"},  // src/panelsat.cpp:585
-{"Bluetooth", "Bluetooth"},  // src/panelsat.cpp:586
-{", Bluetooth", ", Bluetooth"},  // src/panelsat.cpp:586
-{"Schalter nicht gefunden.", "Interrupteur introuvable."},  // src/panelsat.cpp:671
-{"Satellit unbekannt.", "Satellite inconnu."},  // src/panelsat.cpp:676
-{"Der Satellit ist gerade nicht erreichbar.", "Le satellite est actuellement injoignable."},  // src/panelsat.cpp:695
-{"Senden fehlgeschlagen.", "Échec de l'envoi."},  // src/panelsat.cpp:710
-{"GX", ""},  // src/panelsat.cpp:814
-{"Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).", ""},  // src/panelsat.cpp:927
-{"Der GX ist nicht verbunden oder das Relais steht nicht auf „manuell“.", ""},  // src/panelsat.cpp:933
-{"Hymer ist gerade nicht verbunden.", ""},  // src/panelsat.cpp:940
-{" (MQTT)", ""},  // src/panelsat.cpp:953
-{"Victron GX (MQTT)", ""},  // src/panelsat.cpp:955
-{"Hymer Connect (Bluetooth)", ""},  // src/panelsat.cpp:956
-{"Hobby (Bluetooth/CI-BUS)", ""},  // src/panelsat.cpp:957
+{"Tank %d", "Réservoir %d"},  // src/panelsat.cpp:155
+{"Temperatur %d", "Température %d"},  // src/panelsat.cpp:156
+{"Analog %d", "Analogique %d"},  // src/panelsat.cpp:157
+{"Neigung längs", "Inclinaison longitudinale"},  // src/panelsat.cpp:158
+{"Neigung quer", "Inclinaison transversale"},  // src/panelsat.cpp:158
+{"Eingang %d", "Entrée %d"},  // src/panelsat.cpp:159
+{"Schalter %d", "Interrupteur %d"},  // src/panelsat.cpp:160
+{"Sensor", "Capteur"},  // src/panelsat.cpp:161
+{"Satellit", "Satellite"},  // src/panelsat.cpp:433
+{"UDP", "UDP"},  // src/panelsat.cpp:586
+{", UDP", ", UDP"},  // src/panelsat.cpp:586
+{"Bluetooth", "Bluetooth"},  // src/panelsat.cpp:587
+{", Bluetooth", ", Bluetooth"},  // src/panelsat.cpp:587
+{"Schalter nicht gefunden.", "Interrupteur introuvable."},  // src/panelsat.cpp:672
+{"Satellit unbekannt.", "Satellite inconnu."},  // src/panelsat.cpp:677
+{"Der Satellit ist gerade nicht erreichbar.", "Le satellite est actuellement injoignable."},  // src/panelsat.cpp:696
+{"Senden fehlgeschlagen.", "Échec de l'envoi."},  // src/panelsat.cpp:711
+{"GX", ""},  // src/panelsat.cpp:815
+{"Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).", ""},  // src/panelsat.cpp:954
+{"Der GX ist nicht verbunden oder das Relais steht nicht auf „manuell“.", ""},  // src/panelsat.cpp:960
+{"Hymer ist gerade nicht verbunden.", ""},  // src/panelsat.cpp:967
+{" (HA)", ""},  // src/panelsat.cpp:980
+{" (MQTT)", ""},  // src/panelsat.cpp:987
+{"Victron GX (MQTT)", ""},  // src/panelsat.cpp:989
+{"Hymer Connect (Bluetooth)", ""},  // src/panelsat.cpp:990
+{"Hobby (Bluetooth/CI-BUS)", ""},  // src/panelsat.cpp:991
 {"WLAN ist am Panel aus – Satelliten lassen sich nur mit WLAN einrichten.", ""},  // src/panelsat_pair.cpp:117
 {"Am Panel ist noch kein Camp-WLAN eingerichtet.", ""},  // src/panelsat_pair.cpp:119
 {"Es wird gerade schon ein Satellit eingerichtet.", ""},  // src/panelsat_pair.cpp:149
@@ -1200,70 +1208,70 @@
 {"ABC", "ABC"},  // src/ui/ui_input.cpp:11
 {"Abbrechen", "Annuler"},  // src/ui/ui_input.cpp:143
 {"Übernehmen", "Appliquer"},  // src/ui/ui_input.cpp:145
-{"Zigbee-Modul nicht verbunden", ""},  // src/ui/ui_main.cpp:34
-{"Unbekanntes Gerät", "Appareil inconnu"},  // src/ui/ui_main.cpp:97
-{"nicht erreichbar", "injoignable"},  // src/ui/ui_main.cpp:132
-{"Sensor nicht eingerichtet", "Capteur non configuré"},  // src/ui/ui_main.cpp:176
-{"misst …", "mesure …"},  // src/ui/ui_main.cpp:198
-{"nicht eingerichtet", "non configuré"},  // src/ui/ui_main.cpp:212
-{"in der Firmware ausgeschaltet", "désactivé dans le firmware"},  // src/ui/ui_main.cpp:244
-{"Sonden %d/%d", "Sondes %d/%d"},  // src/ui/ui_main.cpp:287
-{"Sonden unplausibel", "Sondes incohérentes"},  // src/ui/ui_main.cpp:289
-{"Der Satellit meldet diesen Anschluss gerade nicht.", "Le satellite ne signale pas cette connexion pour le moment."},  // src/ui/ui_main.cpp:386
-{"Keine Verbindung zum MQTT-Broker.", "Pas de connexion au broker MQTT."},  // src/ui/ui_main.cpp:512
-{"Noch keine Geräte – zuerst Victron, Cerbo GX, Gas oder Akkus einrichten.", ""},  // src/ui/ui_main.cpp:631
-{"Noch keine Verbindung zum MQTT-Broker.", "Pas encore de connexion au broker MQTT."},  // src/ui/ui_main.cpp:633
-{"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Les appareils ont été répartis. Peaufinez dans l'éditeur du navigateur."},  // src/ui/ui_main.cpp:638
-{"Willkommen", "Bienvenue"},  // src/ui/ui_main.cpp:661
-{"Verbinde das Panel mit deinem WLAN (dort, wo auch der Cerbo GX ist). Victron-Geräte, Gasflaschen und Akkus per Bluetooth laufen auch ohne WLAN.", ""},  // src/ui/ui_main.cpp:663
-{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connectez le panneau à votre Wi-Fi domestique – ou laissez-le ouvrir son propre Wi-Fi pour votre hub Zigbee en mode routeur."},  // src/ui/ui_main.cpp:666
-{"Kein MQTT-Broker eingerichtet", ""},  // src/ui/ui_main.cpp:672
-{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen, den eingebauten Broker einschalten oder MQTT ausschalten, wenn du es nicht brauchst.", ""},  // src/ui/ui_main.cpp:675
-{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen oder MQTT ausschalten, wenn du es nicht brauchst.", ""},  // src/ui/ui_main.cpp:678
-{"Panel-WLAN ist bereit", "Le Wi-Fi du panneau est prêt"},  // src/ui/ui_main.cpp:685
-{"Verbinde den SMHUB Nano im WLAN-Menü mit „%s“, Passwort %s. Das Panel findet den MQTT-Broker darauf von selbst. Stand: %s", "Connectez le SMHUB Nano dans son menu Wi-Fi à « %s », mot de passe %s. Le panneau y trouve le broker MQTT tout seul. État : %s"},  // src/ui/ui_main.cpp:687
-{"Noch keine Geräte auf dem Panel", "Pas encore d'appareils sur le panneau"},  // src/ui/ui_main.cpp:694
-{"Richte Victron-Geräte, den Cerbo GX, Gasflaschen oder Akkus ein – sobald sie Werte liefern, erscheinen ihre Kacheln von selbst. Anordnen geht im Browser-Editor.", ""},  // src/ui/ui_main.cpp:697
-{"Ordne sie im Browser an: http://%s/ – oder lass alle Lampen und Schalter automatisch verteilen.", "Disposez-les dans le navigateur : http://%s/ – ou laissez répartir automatiquement toutes les lampes et tous les interrupteurs."},  // src/ui/ui_main.cpp:700
-{"Diese Seite ist leer", "Cette page est vide"},  // src/ui/ui_main.cpp:707
-{"Zieh im Editor unter http://%s/ Geräte auf diese Seite.", "Faites glisser des appareils sur cette page dans l'éditeur sous http://%s/."},  // src/ui/ui_main.cpp:708
-{"Netzwerk einrichten", "Configurer le réseau"},  // src/ui/ui_main.cpp:724
-{"Status", "État"},  // src/ui/ui_main.cpp:725
-{"MQTT einrichten", "Configurer MQTT"},  // src/ui/ui_main.cpp:726
-{"Akkus", ""},  // src/ui/ui_main.cpp:731
-{"Automatisch anordnen", "Disposer automatiquement"},  // src/ui/ui_main.cpp:733
-{"Adresse anzeigen", "Afficher l'adresse"},  // src/ui/ui_main.cpp:734
-{"Füllstand", ""},  // src/ui/ui_main.cpp:799
-{"Sensor-Batterie", ""},  // src/ui/ui_main.cpp:808
-{"%d von 3", ""},  // src/ui/ui_main.cpp:809
-{"Verbindung", "Connexion"},  // src/ui/ui_main.cpp:824
-{"Modell", ""},  // src/ui/ui_main.cpp:833
-{"WLAN: ", ""},  // src/ui/ui_main.cpp:914
-{"Passwort: ", ""},  // src/ui/ui_main.cpp:914
-{"Einrichten im Browser:", ""},  // src/ui/ui_main.cpp:921
-{"Tailscale: ", ""},  // src/ui/ui_main.cpp:928
-{"MQTT verbunden", ""},  // src/ui/ui_main.cpp:932
-{"MQTT nicht verbunden", ""},  // src/ui/ui_main.cpp:932
-{"MQTT aus", ""},  // src/ui/ui_main.cpp:932
-{"  ·  raus ", ""},  // src/ui/ui_main.cpp:1043
-{"E%d", ""},  // src/ui/ui_main.cpp:1053
-{"Fehler – nur Ausschalten", ""},  // src/ui/ui_main.cpp:1057
-{"Soll rechts (antippen: links)", ""},  // src/ui/ui_main.cpp:1058
-{"Soll links (antippen: rechts)", ""},  // src/ui/ui_main.cpp:1058
-{"innen ", ""},  // src/ui/ui_main.cpp:1061
-{"jetzt ", ""},  // src/ui/ui_main.cpp:1062
-{"Ausschalten", ""},  // src/ui/ui_main.cpp:1066
-{"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", ""},  // src/ui/ui_main.cpp:1082
-{"Wird geschaltet …", ""},  // src/ui/ui_main.cpp:1115
-{"Das ging nicht.", ""},  // src/ui/ui_main.cpp:1115
-{"Geste %s, Datenseiten %d, Seite %d", ""},  // src/ui/ui_main.cpp:1298
-{"Kein WLAN: %s  –  antippen, um ein Netz zu wählen", "Pas de Wi-Fi : %s  –  toucher pour choisir un réseau"},  // src/ui/ui_main.cpp:1477
-{"Kein Schalter.", ""},  // src/ui/ui_main.cpp:1681
-{"Nur Anzeige.", ""},  // src/ui/ui_main.cpp:1689
-{"Gerät nicht gefunden.", ""},  // src/ui/ui_main.cpp:1694
-{"Neues Zigbee-Gerät – Kachel angelegt.", ""},  // src/ui/ui_main.cpp:1909
-{"Neue Zigbee-Geräte – Kacheln angelegt.", ""},  // src/ui/ui_main.cpp:1909
-{"Dieses Gerät ist gerade nicht verfügbar.", ""},  // src/ui/ui_main.cpp:2024
+{"Zigbee-Modul nicht verbunden", ""},  // src/ui/ui_main.cpp:35
+{"Unbekanntes Gerät", "Appareil inconnu"},  // src/ui/ui_main.cpp:98
+{"nicht erreichbar", "injoignable"},  // src/ui/ui_main.cpp:133
+{"Sensor nicht eingerichtet", "Capteur non configuré"},  // src/ui/ui_main.cpp:177
+{"misst …", "mesure …"},  // src/ui/ui_main.cpp:199
+{"nicht eingerichtet", "non configuré"},  // src/ui/ui_main.cpp:213
+{"in der Firmware ausgeschaltet", "désactivé dans le firmware"},  // src/ui/ui_main.cpp:245
+{"Sonden %d/%d", "Sondes %d/%d"},  // src/ui/ui_main.cpp:288
+{"Sonden unplausibel", "Sondes incohérentes"},  // src/ui/ui_main.cpp:290
+{"Der Satellit meldet diesen Anschluss gerade nicht.", "Le satellite ne signale pas cette connexion pour le moment."},  // src/ui/ui_main.cpp:387
+{"Keine Verbindung zum MQTT-Broker.", "Pas de connexion au broker MQTT."},  // src/ui/ui_main.cpp:513
+{"Noch keine Geräte – zuerst Victron, Cerbo GX, Gas oder Akkus einrichten.", ""},  // src/ui/ui_main.cpp:632
+{"Noch keine Verbindung zum MQTT-Broker.", "Pas encore de connexion au broker MQTT."},  // src/ui/ui_main.cpp:634
+{"Geräte wurden verteilt. Feinschliff im Browser-Editor.", "Les appareils ont été répartis. Peaufinez dans l'éditeur du navigateur."},  // src/ui/ui_main.cpp:639
+{"Willkommen", "Bienvenue"},  // src/ui/ui_main.cpp:662
+{"Verbinde das Panel mit deinem WLAN (dort, wo auch der Cerbo GX ist). Victron-Geräte, Gasflaschen und Akkus per Bluetooth laufen auch ohne WLAN.", ""},  // src/ui/ui_main.cpp:664
+{"Verbinde das Panel mit deinem Camp-WLAN – oder lass es im Router-Modus ein eigenes WLAN für deinen Zigbee-Hub öffnen.", "Connectez le panneau à votre Wi-Fi domestique – ou laissez-le ouvrir son propre Wi-Fi pour votre hub Zigbee en mode routeur."},  // src/ui/ui_main.cpp:667
+{"Kein MQTT-Broker eingerichtet", ""},  // src/ui/ui_main.cpp:673
+{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen, den eingebauten Broker einschalten oder MQTT ausschalten, wenn du es nicht brauchst.", ""},  // src/ui/ui_main.cpp:676
+{"MQTT ist eingeschaltet, aber es ist noch kein Broker eingerichtet. Unter Einstellungen → MQTT die Adresse eintragen oder MQTT ausschalten, wenn du es nicht brauchst.", ""},  // src/ui/ui_main.cpp:679
+{"Panel-WLAN ist bereit", "Le Wi-Fi du panneau est prêt"},  // src/ui/ui_main.cpp:686
+{"Verbinde den SMHUB Nano im WLAN-Menü mit „%s“, Passwort %s. Das Panel findet den MQTT-Broker darauf von selbst. Stand: %s", "Connectez le SMHUB Nano dans son menu Wi-Fi à « %s », mot de passe %s. Le panneau y trouve le broker MQTT tout seul. État : %s"},  // src/ui/ui_main.cpp:688
+{"Noch keine Geräte auf dem Panel", "Pas encore d'appareils sur le panneau"},  // src/ui/ui_main.cpp:695
+{"Richte Victron-Geräte, den Cerbo GX, Gasflaschen oder Akkus ein – sobald sie Werte liefern, erscheinen ihre Kacheln von selbst. Anordnen geht im Browser-Editor.", ""},  // src/ui/ui_main.cpp:698
+{"Ordne sie im Browser an: http://%s/ – oder lass alle Lampen und Schalter automatisch verteilen.", "Disposez-les dans le navigateur : http://%s/ – ou laissez répartir automatiquement toutes les lampes et tous les interrupteurs."},  // src/ui/ui_main.cpp:701
+{"Diese Seite ist leer", "Cette page est vide"},  // src/ui/ui_main.cpp:708
+{"Zieh im Editor unter http://%s/ Geräte auf diese Seite.", "Faites glisser des appareils sur cette page dans l'éditeur sous http://%s/."},  // src/ui/ui_main.cpp:709
+{"Netzwerk einrichten", "Configurer le réseau"},  // src/ui/ui_main.cpp:725
+{"Status", "État"},  // src/ui/ui_main.cpp:726
+{"MQTT einrichten", "Configurer MQTT"},  // src/ui/ui_main.cpp:727
+{"Akkus", ""},  // src/ui/ui_main.cpp:732
+{"Automatisch anordnen", "Disposer automatiquement"},  // src/ui/ui_main.cpp:734
+{"Adresse anzeigen", "Afficher l'adresse"},  // src/ui/ui_main.cpp:735
+{"Füllstand", ""},  // src/ui/ui_main.cpp:800
+{"Sensor-Batterie", ""},  // src/ui/ui_main.cpp:809
+{"%d von 3", ""},  // src/ui/ui_main.cpp:810
+{"Verbindung", "Connexion"},  // src/ui/ui_main.cpp:825
+{"Modell", ""},  // src/ui/ui_main.cpp:834
+{"WLAN: ", ""},  // src/ui/ui_main.cpp:915
+{"Passwort: ", ""},  // src/ui/ui_main.cpp:915
+{"Einrichten im Browser:", ""},  // src/ui/ui_main.cpp:922
+{"Tailscale: ", ""},  // src/ui/ui_main.cpp:929
+{"MQTT verbunden", ""},  // src/ui/ui_main.cpp:933
+{"MQTT nicht verbunden", ""},  // src/ui/ui_main.cpp:933
+{"MQTT aus", ""},  // src/ui/ui_main.cpp:933
+{"  ·  raus ", ""},  // src/ui/ui_main.cpp:1044
+{"E%d", ""},  // src/ui/ui_main.cpp:1054
+{"Fehler – nur Ausschalten", ""},  // src/ui/ui_main.cpp:1058
+{"Soll rechts (antippen: links)", ""},  // src/ui/ui_main.cpp:1059
+{"Soll links (antippen: rechts)", ""},  // src/ui/ui_main.cpp:1059
+{"innen ", ""},  // src/ui/ui_main.cpp:1062
+{"jetzt ", ""},  // src/ui/ui_main.cpp:1063
+{"Ausschalten", ""},  // src/ui/ui_main.cpp:1067
+{"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", ""},  // src/ui/ui_main.cpp:1083
+{"Wird geschaltet …", ""},  // src/ui/ui_main.cpp:1116
+{"Das ging nicht.", ""},  // src/ui/ui_main.cpp:1116
+{"Geste %s, Datenseiten %d, Seite %d", ""},  // src/ui/ui_main.cpp:1299
+{"Kein WLAN: %s  –  antippen, um ein Netz zu wählen", "Pas de Wi-Fi : %s  –  toucher pour choisir un réseau"},  // src/ui/ui_main.cpp:1478
+{"Kein Schalter.", ""},  // src/ui/ui_main.cpp:1682
+{"Nur Anzeige.", ""},  // src/ui/ui_main.cpp:1690
+{"Gerät nicht gefunden.", ""},  // src/ui/ui_main.cpp:1695
+{"Neues Zigbee-Gerät – Kachel angelegt.", ""},  // src/ui/ui_main.cpp:1910
+{"Neue Zigbee-Geräte – Kacheln angelegt.", ""},  // src/ui/ui_main.cpp:1910
+{"Dieses Gerät ist gerade nicht verfügbar.", ""},  // src/ui/ui_main.cpp:2026
 {"Sonntag", "Dimanche"},  // src/ui/ui_saver.cpp:33
 {"Montag", "Lundi"},  // src/ui/ui_saver.cpp:33
 {"Dienstag", "Mardi"},  // src/ui/ui_saver.cpp:33
@@ -1447,9 +1455,6 @@
 {"Alles neu anordnen", "Tout redisposer"},  // src/ui/ui_settings.cpp:1076
 {"Noch keine Shellys gefunden.", ""},  // src/ui/ui_settings.cpp:1084
 {"Shellys: unter „Shelly (MQTT)“ einschalten.", ""},  // src/ui/ui_settings.cpp:1085
-{"Zigbee2MQTT", "Zigbee2MQTT"},  // src/ui/ui_settings.cpp:1087
-{"Zigbee (eingebaut)", ""},  // src/ui/ui_settings.cpp:1096
-{"Shelly (Bluetooth)", ""},  // src/ui/ui_settings.cpp:1096
 {"Dieser Sensor ist schon eingerichtet.", "Ce capteur est déjà configuré."},  // src/ui/ui_settings.cpp:1140
 {"Name der Gasflasche", "Nom de la bouteille"},  // src/ui/ui_settings.cpp:1144
 {"Bluetooth-Adresse ", "Adresse Bluetooth"},  // src/ui/ui_settings.cpp:1145

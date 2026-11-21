@@ -18,6 +18,7 @@
 #endif
 #include "panelsat.h"
 #include "mqtt_disco.h"
+#include "ha_link.h"
 #include "panelsat_pair.h"
 #include "mopeka.h"
 #include "power.h"
@@ -185,6 +186,7 @@ static esp_err_t h_info(httpd_req_t *req) {
   d["screen"]["h"] = LCD_V_RES;
   d["screen"]["topbar"] = UI_TOPBAR_H;
   // Was die Firmware kann – der Editor zeigt nur passende Einstellungsseiten
+  d["feat"]["ha"] = (bool)WITH_HA_LINK;
   d["feat"]["rules"] = (bool)WITH_RULES;
   d["feat"]["zbd"] = (bool)WITH_ZB_DIRECT;
   d["feat"]["hymer"] = (bool)WITH_HYMER;
@@ -1622,6 +1624,41 @@ static esp_err_t h_live_get(httpd_req_t *req) {
   return send_json(req, s.empty() ? std::string("{\"v\":0,\"t\":{}}") : s);
 }
 
+static volatile uint32_t s_last_req = 0;   // letzte Anfrage (Webinterface "nur bei Bedarf")
+
+// Home Assistant: WebSocket (Anmeldung mit Zugangscode im ersten Rahmen, nicht per Cookie)
+static esp_err_t h_ha_ws(httpd_req_t *req) {
+  s_last_req = millis();
+  return (esp_err_t)ha_link_ws(req);
+}
+// GET: Stand; POST {"on":bool} | {"newtoken":true}
+static esp_err_t h_halink_get(httpd_req_t *req) {
+  HaLinkInfo i = ha_link_info();
+  JsonDocument d(&s_ps);
+  d["avail"] = (bool)WITH_HA_LINK;
+  d["on"] = i.on;
+  d["token"] = i.token;
+  d["connected"] = i.connected;
+  d["ha"] = i.ha_name;
+  d["subs"] = i.subs;
+  d["imports"] = i.imports;
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+static esp_err_t h_halink_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 256, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>()) ha_link_set_enabled(d["on"].as<bool>());
+  if (d["newtoken"] | false) ha_link_new_token();
+  return h_halink_get(req);
+}
+
 static esp_err_t h_live_post(httpd_req_t *req) {
   size_t len;
   char *body = read_body(req, 512, len);
@@ -2066,7 +2103,6 @@ static esp_err_t h_ota(httpd_req_t *req) {
 
 // ---------------------------------------------------------------- Start
 static const uint32_t WEB_IDLE_MS = 15UL * 60 * 1000;   // "bei Bedarf": so lange ohne Zugriff, dann aus
-static volatile uint32_t s_last_req = 0;
 typedef esp_err_t (*WebHandler)(httpd_req_t *);
 
 // ---------------------------------------------------------------- Zugangspasswort
@@ -2245,6 +2281,7 @@ bool web_busy() { return s_srv && millis() - s_last_req < 10000; }
 
 void web_stop() {
   if (!s_srv) return;
+  ha_link_server(nullptr);
   httpd_stop(s_srv);
   s_srv = nullptr;
   log_i("Webinterface beendet");
@@ -2266,7 +2303,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 60;
+  cfg.max_uri_handlers = 66;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -2284,6 +2321,7 @@ void web_start() {
     return;
   }
   log_i("Webinterface gestartet");
+  ha_link_server(s_srv);
   reg("/", HTTP_GET, h_index);
   reg("/index.html", HTTP_GET, h_index);
   reg("/live", HTTP_GET, h_index);   // Live-Ansicht: derselbe Editor im Bedien-Modus
@@ -2315,6 +2353,19 @@ void web_start() {
 #endif
   reg("/api/live", HTTP_POST, h_live_post);
   reg("/api/live", HTTP_GET, h_live_get);
+#if WITH_HA_LINK
+  {
+    httpd_uri_t u;
+    memset(&u, 0, sizeof(u));
+    u.uri = "/api/ha";
+    u.method = HTTP_GET;
+    u.handler = h_ha_ws;
+    u.is_websocket = true;
+    httpd_register_uri_handler(s_srv, &u);
+  }
+  reg("/api/halink", HTTP_GET, h_halink_get);
+  reg("/api/halink", HTTP_POST, h_halink_post);
+#endif
 #if WITH_SHELLY_BLE
   reg("/api/shb", HTTP_GET, h_shb_get);
   reg("/api/shb", HTTP_POST, h_shb_post);

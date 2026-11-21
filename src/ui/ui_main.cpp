@@ -27,6 +27,7 @@
 #include "../shelly.h"
 #include "../wled.h"
 #include "../shelly_ble.h"
+#include "../ha_link.h"
 #include "../tailscale.h"
 #include "../mqtt_broker.h"   // WITH_BROKER
 // Victron-Edition: kein Zigbee-Text im Programm (Funktion dort nicht eingebaut)
@@ -1912,6 +1913,7 @@ static void zb_auto_tiles() {
 
 void ui_loop() {
   ui_live_tick();   // Schaltbefehle der Live-Ansicht (Browser/App)
+  ha_link_tick();   // Home Assistant: Katalog, Werte, Befehle
 #if WITH_ZB_DIRECT
   zb_auto_tiles();
 #endif

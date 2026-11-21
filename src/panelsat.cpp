@@ -1,6 +1,7 @@
 #include "app_config.h"
 #include "panelsat.h"
 #include "mqtt_disco.h"
+#include "ha_link.h"
 #include "sat_proto.h"
 #include "hymer.h"
 #include "hobby.h"
@@ -837,6 +838,18 @@ static SatPoint mq_local(SatPoint p) {
   return p;
 }
 
+// ---------------------------------------------------------------- Home Assistant (bereitgestellte Entitaeten)
+static const std::string &ha_prefix() {
+  static const std::string p = std::string(SATIO_KEY_PREFIX) + HA_SAT_ID + "/";
+  return p;
+}
+static bool ha_key(const std::string &k) { return WITH_HA_LINK && k.rfind(ha_prefix(), 0) == 0; }
+static SatPoint ha_local(SatPoint p) {
+  p.sat = HA_SAT_ID;
+  p.key = ha_prefix() + p.id;
+  return p;
+}
+
 // ---------------------------------------------------------------- Hobby (HobbyConnect-Box bzw. CI-BUS am LSG)
 // Werte wie die Anschluesse eines Satelliten "Hobby": Schluessel "satio:Hobby/<punkt>"; Bordbatterie "hobby:bat".
 static const std::string &hb_prefix() {
@@ -864,7 +877,7 @@ std::vector<VictronInfo> panelsat_victron_list() {
 
 uint32_t panelsat_version() {
   return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0) +
-         hobby_version() * 7919 + mqd_version() * 104729;
+         hobby_version() * 7919 + mqd_version() * 104729 + ha_link_version() * 1299709;
 }
 
 std::vector<SatPoint> panelsat_point_list() {
@@ -875,10 +888,19 @@ std::vector<SatPoint> panelsat_point_list() {
     for (auto &p : cerbo_points()) r.push_back(gx_local(p));
   for (auto &p : hobby_points()) r.push_back(hb_local(p));
   for (auto &p : mqd_points()) r.push_back(mq_local(p));
+  for (auto &p : ha_link_points()) r.push_back(ha_local(p));
   return r;
 }
 
 bool panelsat_point_get(const std::string &key, SatPoint &out) {
+  if (ha_key(key)) {
+    for (auto &p : ha_link_points())
+      if (ha_prefix() + p.id == key) {
+        out = ha_local(p);
+        return true;
+      }
+    return false;
+  }
   if (mq_key(key)) {
     for (auto &p : mqd_points())
       if (mq_prefix() + p.id == key) {
@@ -917,6 +939,11 @@ bool panelsat_point_get(const std::string &key, SatPoint &out) {
 bool panelsat_switch(const std::string &key, bool on, std::string *err) {
   SatPointKind k;
   uint8_t idx;
+  if (ha_key(key)) {
+    if (sat_point_parse(key.substr(ha_prefix().size()), k, idx) && k == SP_SWITCH) return ha_link_switch(idx, on, err);
+    if (err) *err = tr("Home Assistant ist nicht verbunden.");
+    return false;
+  }
   if (mq_key(key)) {
     if (sat_point_parse(key.substr(mq_prefix().size()), k, idx) && k == SP_SWITCH) return mqd_switch(idx, on, err);
     if (err) *err = tr("Nicht verbunden.");
@@ -945,6 +972,13 @@ bool panelsat_switch(const std::string &key, bool on, std::string *err) {
 }
 
 std::string panelsat_via_text(const std::string &key) {
+  if (ha_key(key)) {
+    SatPointKind k;
+    uint8_t idx;
+    std::string dn;
+    if (sat_point_parse(key.substr(ha_prefix().size()), k, idx)) dn = ha_link_device_name(idx);
+    return dn.empty() ? std::string("Home Assistant") : dn + " (HA)";
+  }
   if (mq_key(key)) {
     SatPointKind k;
     uint8_t idx;
