@@ -773,8 +773,30 @@ as a **control panel for Home Assistant**.
 |---|---|---|
 | **Satellites → HA** | All satellites register themselves via MQTT discovery: tank probes, temperatures, relays (switchable), inputs, level, extra sensors and their Bluetooth sensors | ✅ working |
 | **Zigbee2MQTT → HA** | as usual through Zigbee2MQTT itself | ✅ working |
-| **Panel → HA** | The panel reports its **local** devices via MQTT discovery: gas bottles (Truma LevelControl, Mopeka), Victron via Bluetooth, batteries and power stations, Zigbee devices on the H2 radio module, heating (iNet X, CP Plus, Alde), Hymer, rules (on/off) | 🚧 in progress |
-| **HA → Panel** | The panel as HA control panel: lights, switches, scenes, scripts and sensors from Home Assistant as tiles – via the HA API with an access token, usable in rules too | 🚧 in progress |
+| **Panel → HA** | Via the integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): selected panel values (lights, switches, batteries, Victron, gas, satellite tanks and temperatures …) as sensors, switches and lights in HA | 🧪 beta |
+| **HA → Panel** | Via the same integration: selected HA entities (lights, switches, sensors …) appear on the panel like a satellite "Home Assistant" – as tiles, in rules, the app and the live view | 🧪 beta |
+
+### 🔌 "Simple Open Camper" integration for Home Assistant *(beta)*
+
+Home Assistant connects to the panel itself – **one** WebSocket connection, local or over Tailscale, no MQTT broker.
+In the integration you choose **which panel values HA gets** and **which HA entities the panel shows**; each side only
+gets what is selected.
+
+1. **Panel:** browser editor → **Settings → Network → Home Assistant** → switch on "Allow Home Assistant to connect" and
+   copy the **access code**. (Firmware: for the P4 until the next version use the test build from
+   [`release/test/`](release/test/), afterwards any regular version.)
+2. **HA – install:** HACS → ⋮ → **Custom repositories** → `https://github.com/cyclemat/simple-open-camper-HA-Integration`,
+   type **Integration** → download → restart HA. (Without HACS: copy `custom_components/simple_open_camper` to
+   `config/custom_components/`.)
+3. **HA – set up:** Settings → Devices & services → **Add integration → Simple Open Camper** → enter the panel's address
+   (LAN IP, Tailscale IP or tailnet name) and the access code.
+4. **HA – choose:** on the integration **Configure** →
+   step 1 "Take over from the panel": tick panel values (show up in HA, grouped like on the panel) →
+   step 2 "Provide to the panel": pick HA entities (show up in the panel's device list, one group per area).
+
+If the panel is not on the same network as HA (e.g. in the camper on the road), put both into your tailnet: on the panel
+[Tailscale](#-tailscale--remote-access-from-anywhere-p4-and-round-panel-beta), in HA the Tailscale add-on – then use the
+panel's 100.x address.
 
 ### 🔁 No data loop
 
