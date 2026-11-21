@@ -35,3 +35,6 @@ flasher/gen/
 # Android-App: Quellcode bleibt vorerst privat (nur die fertige APK in release/)
 /app/
 /tools/build_apk.py
+# Private Arbeitsnotizen (eigenes privates Repo)
+/CLAUDE.md
+/docs/claude-notizen.md
