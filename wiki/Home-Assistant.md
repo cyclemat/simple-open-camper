@@ -9,20 +9,17 @@ Das Panel braucht kein Home Assistant – arbeitet aber gut mit ihm zusammen. We
 |---|---|---|
 | **Satelliten → HA** | Alle Satelliten melden sich per MQTT-Discovery selbst an: Tanksonden, Temperaturen, Relais (schaltbar), Eingänge, Wasserwaage, Zusatzsensoren und ihre Bluetooth-Sensoren | ✅ funktioniert |
 | **Zigbee2MQTT → HA** | wie gewohnt über Zigbee2MQTT selbst | ✅ funktioniert |
-| **Panel → HA** | Über die Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): ausgewählte Panel-Werte (Lampen, Schalter, Akkus, Victron, Gas, Satelliten-Tanks und -Temperaturen …) als Sensoren, Schalter und Lampen in HA | 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/) (P4)* |
-| **HA → Panel** | Über dieselbe Integration: ausgewählte HA-Entitäten (Lampen, Schalter, Sensoren …) erscheinen auf dem Panel wie ein Satellit „Home Assistant“ – als Kacheln, in Regeln, App und Live-Ansicht | 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/) (P4)* |
+| **Panel → HA** | Über die Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): ausgewählte Panel-Werte (Lampen, Schalter, Akkus, Victron, Gas, Satelliten-Tanks und -Temperaturen …) als Sensoren, Schalter und Lampen in HA | *(Beta)* – P4, rundes Panel, Waveshare |
+| **HA → Panel** | Über dieselbe Integration: ausgewählte HA-Entitäten (Lampen, Schalter, Sensoren …) erscheinen auf dem Panel wie ein Satellit „Home Assistant“ – als Kacheln, in Regeln, App und Live-Ansicht | *(Beta)* – P4, rundes Panel, Waveshare |
 
 ### 🔌 Integration „Simple Open Camper“ für Home Assistant *(Beta)*
-
-> 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/) (P4)* – kommt mit der nächsten regulären Version für alle Panels.
 
 Home Assistant verbindet sich selbst mit dem Panel – **eine** WebSocket-Verbindung, lokal oder über Tailscale, ohne
 MQTT-Broker. In der Integration wählst du, **welche Panel-Werte HA bekommt** und **welche HA-Entitäten das Panel zeigt**;
 jede Seite bekommt nur das Ausgewählte.
 
 1. **Panel:** Browser-Editor → **Einstellungen → Netzwerk → Home Assistant** → „Home Assistant darf sich verbinden“
-   einschalten und den **Zugangscode** kopieren. (Firmware: P4 bis zur nächsten Version die Testfassung aus
-   [`release/test/`](https://github.com/cyclemat/simple-open-camper/blob/main/release/test/), danach jede reguläre Version.)
+   einschalten und den **Zugangscode** kopieren. (Ab Firmware 0.2.7 auf P4, rundem Panel und Waveshare.)
 2. **HA – installieren:** HACS → ⋮ → **Benutzerdefinierte Repositories** →
    `https://github.com/cyclemat/simple-open-camper-HA-Integration`, Typ **Integration** → herunterladen → HA neu starten.
    (Ohne HACS: den Ordner `custom_components/simple_open_camper` nach `config/custom_components/` kopieren.)

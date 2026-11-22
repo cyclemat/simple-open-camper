@@ -16,8 +16,14 @@
 
 **⚡ [Online-Flasher](https://cyclemat.github.io/simple-open-camper/flasher/) (am einfachsten):** im Browser öffnen (Chrome oder Edge am PC), Gerät per USB anschließen,
 Firmware wählen – ohne Download und ohne Installation. Bereiche **Panels** und **Satelliten und Zubehör**, je Gerät
-**„Nur Firmware (Update)“** (Einstellungen bleiben) oder **„Komplett (neu einrichten)“**; beim P4 zusätzlich die
-Testfassung aus `release/test/`.
+**„Nur Firmware (Update)“** (Einstellungen bleiben) oder **„Komplett (neu einrichten)“**; P4 und rundes Panel
+zusätzlich auf **Español** und **Français**.
+
+> ⚠️ **P4 ab 0.2.7: neue Speicheraufteilung** (2 × 6 MB Programm statt 2 × 4 MB, die Firmware passte nicht mehr).
+> Einmal mit dem Online-Flasher **„Nur Firmware (Update)“** aufspielen – das schreibt die neue Aufteilung mit,
+> die **Einstellungen bleiben** (WLAN, Geräte, Passwörter). Das **Dateisystem ist danach leer**: Kachel-Anordnung,
+> Regeln, Hintergrund- und Logo-Bilder vorher sichern (Einstellungen → Sicherung auf SD) und danach zurückspielen.
+> Ein Update über die Weboberfläche lehnt ein P4 mit alter Aufteilung mit „Datei zu groß“ ab – dann einmal per USB.
 
 **Web-Flasher auf dem eigenen Rechner:** Doppelklick auf **`flasher.bat`** im Projektordner (bzw. `python tools/flasher.py`).
 Das startet einen kleinen Webserver nur für diesen Rechner und öffnet **http://localhost:8765/flasher/** – mit den
