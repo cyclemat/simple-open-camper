@@ -1,1 +1,0 @@
-{"name": "CrowPanel Advanced 7\" (Test)", "version": "Test", "new_install_prompt_erase": false, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-P4", "parts": [{"path": "../../../flasher/online/boot_app0.bin", "offset": 57344}, {"path": "../../../release/test/panel-crowpanel-p4-HA-Addon-Test-update.bin", "offset": 65536}]}]}

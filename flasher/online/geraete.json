@@ -4,22 +4,29 @@
    "id": "p4",
    "sec": "panel",
    "name": "CrowPanel Advanced 7\"",
-   "desc": "ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale)",
+   "desc": "ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale, Home Assistant Beta). Ab 0.2.7 neue Speicheraufteilung: einmal „Nur Firmware“ – Einstellungen bleiben, Kachel-Anordnung und Regeln vorher auf SD sichern",
    "chip": "ESP32-P4",
    "src": [
     {
      "key": "release",
-     "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "label": "Deutsch",
+     "version": "0.2.7",
      "komplett": "m/p4-release-komplett.json",
      "update": "m/p4-release-update.json"
     },
     {
-     "key": "test",
-     "label": "Testfassung „HA Addon Test“",
-     "version": "Test",
-     "komplett": "m/p4-test-komplett.json",
-     "update": "m/p4-test-update.json"
+     "key": "release-es",
+     "label": "Español (Spanisch)",
+     "version": "0.2.7",
+     "komplett": "m/p4-release-es-komplett.json",
+     "update": "m/p4-release-es-update.json"
+    },
+    {
+     "key": "release-fr",
+     "label": "Français (Französisch)",
+     "version": "0.2.7",
+     "komplett": "m/p4-release-fr-komplett.json",
+     "update": "m/p4-release-fr-update.json"
     }
    ]
   },
@@ -33,7 +40,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/ws7-release-komplett.json",
      "update": "m/ws7-release-update.json"
     }
@@ -43,15 +50,29 @@
    "id": "rund",
    "sec": "panel",
    "name": "CrowPanel 1,46\" rund",
-   "desc": "ESP32-S3, 360 × 360 mit Drehknopf",
+   "desc": "ESP32-S3, 360 × 360 mit Drehknopf (inkl. Home Assistant Beta)",
    "chip": "ESP32-S3",
    "src": [
     {
      "key": "release",
-     "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "label": "Deutsch",
+     "version": "0.2.7",
      "komplett": "m/rund-release-komplett.json",
      "update": "m/rund-release-update.json"
+    },
+    {
+     "key": "release-es",
+     "label": "Español (Spanisch)",
+     "version": "0.2.7",
+     "komplett": "m/rund-release-es-komplett.json",
+     "update": "m/rund-release-es-update.json"
+    },
+    {
+     "key": "release-fr",
+     "label": "Français (Französisch)",
+     "version": "0.2.7",
+     "komplett": "m/rund-release-fr-komplett.json",
+     "update": "m/rund-release-fr-update.json"
     }
    ]
   },
@@ -65,7 +86,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/sat32-release-komplett.json",
      "update": "m/sat32-release-update.json"
     }
@@ -81,7 +102,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/satc3-release-komplett.json",
      "update": "m/satc3-release-update.json"
     }
@@ -97,7 +118,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/satc3o-release-komplett.json",
      "update": "m/satc3o-release-update.json"
     }
@@ -113,7 +134,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/satc6-release-komplett.json",
      "update": "m/satc6-release-update.json"
     }
@@ -129,7 +150,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/sats3-release-komplett.json",
      "update": "m/sats3-release-update.json"
     }
@@ -145,7 +166,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/relay-release-komplett.json",
      "update": "m/relay-release-update.json"
     }
@@ -161,7 +182,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/shunt-release-komplett.json",
      "update": "m/shunt-release-update.json"
     }
@@ -177,7 +198,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/satcyd-release-komplett.json",
      "update": "m/satcyd-release-update.json"
     }
@@ -193,7 +214,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/rdcyd-release-komplett.json",
      "update": "m/rdcyd-release-update.json"
     }
@@ -209,7 +230,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/rdrund-release-komplett.json",
      "update": "m/rdrund-release-update.json"
     }
@@ -225,7 +246,7 @@
     {
      "key": "release",
      "label": "Aktuelle Version",
-     "version": "0.2.6",
+     "version": "0.2.7",
      "komplett": "m/h2-release-komplett.json"
     }
    ]

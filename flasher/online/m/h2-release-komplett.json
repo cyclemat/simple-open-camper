@@ -1,1 +1,1 @@
-{"name": "Zigbee-Funkmodul ESP32-H2", "version": "0.2.6", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-H2", "parts": [{"path": "../../../release/zigbee-modul-h2.bin", "offset": 0}]}]}
+{"name": "Zigbee-Funkmodul ESP32-H2", "version": "0.2.7", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-H2", "parts": [{"path": "../../../release/zigbee-modul-h2.bin", "offset": 0}]}]}

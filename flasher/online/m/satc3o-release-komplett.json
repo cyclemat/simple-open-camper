@@ -1,1 +1,1 @@
-{"name": "Satellit ESP32-C3 mit OLED", "version": "0.2.6", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-C3", "parts": [{"path": "../../../release/satellit-esp32-c3-oled.bin", "offset": 0}]}]}
+{"name": "Satellit ESP32-C3 mit OLED", "version": "0.2.7", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-C3", "parts": [{"path": "../../../release/satellit-esp32-c3-oled.bin", "offset": 0}]}]}

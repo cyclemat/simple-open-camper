@@ -1,0 +1,1 @@
+{"name": "CrowPanel 1,46\" rund", "version": "0.2.7", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-S3", "parts": [{"path": "../../../release/panel-crowpanel-146-fr.bin", "offset": 0}]}]}
