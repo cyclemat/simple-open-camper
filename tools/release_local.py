@@ -4,6 +4,7 @@
 
   python tools/release_local.py            # aus den Build-Ordnern (.pio/build/<env>) aller Teilprojekte
   python tools/release_local.py --dry      # nur anzeigen, nichts kopieren
+  python tools/release_local.py --ohne-vorher   # release/vorher/ loeschen statt die alten Dateien dorthin zu legen
 
 Vorher alle Umgebungen bauen und den Code committen: die Dateien bekommen "Version (Commit)" des aktuellen HEAD.
 Pro Board: release/<name>.bin = Komplettdatei (USB, Adresse 0x0, loescht Einstellungen), release/ota/<name>.bin = App
@@ -22,12 +23,17 @@ from datetime import datetime, timezone
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REL = os.path.join(ROOT, 'release')
 DRY = '--dry' in sys.argv
+NO_PREV = '--ohne-vorher' in sys.argv
 
 # Umgebung -> (Teilprojekt, Dateiname in release/) – Namen wie in build.yml
 ENVS = [
     ('waveshare-7b', '.', 'panel-waveshare-7b'),
     ('crowpanel-p4', 'p4', 'panel-crowpanel-p4'),
+    ('crowpanel-p4-es', 'p4', 'panel-crowpanel-p4-es'),
+    ('crowpanel-p4-fr', 'p4', 'panel-crowpanel-p4-fr'),
     ('crowpanel-146', 'crowpanel146', 'panel-crowpanel-146'),
+    ('crowpanel-146-es', 'crowpanel146', 'panel-crowpanel-146-es'),
+    ('crowpanel-146-fr', 'crowpanel146', 'panel-crowpanel-146-fr'),
     ('crowpanel-146-remote', 'crowpanel146', 'zusatzdisplay-146'),
     # Victron-Display (esp32-cyd-victron/-en) bewusst nicht: liegt nur im Beta-Repo
     ('esp32', 'satellite', 'satellit-esp32'),
@@ -42,6 +48,7 @@ ENVS = [
     ('zigbee-h2', 'h2', 'zigbee-modul-h2'),
 ]
 WITH_UPDATER = {'esp32-cyd-remote'}
+P4_BOOT, P4_PART = 'p4-bootloader.bin', 'p4-partitionen.bin'   # in release/ota/
 ESPTOOL = os.path.join(ROOT, 'satellite', '.pio', 'packages', 'tool-esptoolpy', 'esptool.py')
 # esptool braucht seine Module (rich_click …) – die hat das Python von PlatformIO
 _PIO_PY = os.path.join(os.path.expanduser('~'), '.platformio', 'penv', 'Scripts', 'python.exe')
@@ -108,9 +115,17 @@ def main():
             shutil.copyfile(fac, out)
     if upd:
         shutil.copyfile(upd, os.path.join(new, 'ota', 'updater-esp32.bin'))
+    # P4 (eigene Aufteilung seit 0.2.7): Bootloader + Partitionstabelle fuer den Umstieg ohne Einstellungsverlust
+    # (Online-Flasher "Nur Firmware": 0x2000 Bootloader, 0x8000 Partitionen, 0xe000 boot_app0, 0x10000 App)
+    d = os.path.join(ROOT, 'p4', '.pio', 'build', 'crowpanel-p4')
+    for src, dst in (('bootloader.bin', P4_BOOT), ('partitions.bin', P4_PART)):
+        if os.path.exists(os.path.join(d, src)):
+            shutil.copyfile(os.path.join(d, src), os.path.join(new, 'ota', dst))
     if missing:
         print('Nicht gebaut (bleiben wie sie sind):', ', '.join(missing))
 
+    if NO_PREV and not DRY:
+        shutil.rmtree(os.path.join(REL, 'vorher'), ignore_errors=True)
     cur = read_versions(os.path.join(REL, 'versionen.txt'))
     prev = read_versions(os.path.join(REL, 'vorher', 'versionen.txt'))
     changed = []
@@ -125,7 +140,9 @@ def main():
             changed.append(k)
             if DRY:
                 continue
-            if os.path.exists(dst):
+            if os.path.exists(dst) and NO_PREV:
+                os.remove(dst)
+            elif os.path.exists(dst):
                 os.makedirs(os.path.join(REL, 'vorher', sub), exist_ok=True)
                 shutil.move(dst, os.path.join(REL, 'vorher', sub, f))
                 prev[k] = cur.get(k, 'unbekannt')
@@ -137,14 +154,15 @@ def main():
         return
     with open(os.path.join(REL, 'versionen.txt'), 'w', encoding='utf-8', newline='\n') as fh:
         fh.writelines(f'{k} {cur[k]}\n' for k in sorted(cur))
-    with open(os.path.join(REL, 'vorher', 'versionen.txt'), 'w', encoding='utf-8', newline='\n') as fh:
-        fh.writelines(f'{k} {prev[k]}\n' for k in sorted(prev))
+    if not NO_PREV:
+        with open(os.path.join(REL, 'vorher', 'versionen.txt'), 'w', encoding='utf-8', newline='\n') as fh:
+            fh.writelines(f'{k} {prev[k]}\n' for k in sorted(prev))
 
     def kb(p):
         return f'{os.path.getsize(p) // 1024} KB' if os.path.exists(p) else '–'
     L = [f'# Fertige Firmware – Version {ver}', '',
          f'Gebaut aus Commit {sha} ({datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC).',
-         'Die jeweils vorige Fassung liegt in [`vorher/`](vorher/).', '',
+         *(['Die jeweils vorige Fassung liegt in [`vorher/`](vorher/).', ''] if os.path.isdir(os.path.join(REL, 'vorher')) else ['']),
          '**Per USB (komplett, Adresse 0x0):** die Datei des Boards in diesem Ordner, z. B.',
          '`esptool.py write_flash 0x0 panel-waveshare-7b.bin` – fuer neue Geraete. **Achtung: loescht die Einstellungen**',
          '(WLAN, Geraete, Kacheln), weil die Datei auch den Einstellungsbereich enthaelt.', '',
@@ -153,13 +171,17 @@ def main():
          '**Ueber die Weboberflaeche (Update):** die gleichnamige Datei in `ota/`.', '',
          '| Board | Version | Komplett (USB) | Update (Weboberflaeche) | vorige Fassung |', '|---|---|---|---|---|']
     for f in sorted(os.listdir(os.path.join(REL, 'ota'))):
-        if not f.endswith('.bin'):
+        if not f.endswith('.bin') or f in (P4_BOOT, P4_PART):
             continue
         b = f[:-4]
         full = f'[{b}.bin]({b}.bin) ({kb(os.path.join(REL, b + ".bin"))})' if os.path.exists(os.path.join(REL, b + '.bin')) else '–'
         pv = (f'{prev.get("ota/" + f, "?")}: [komplett](vorher/{b}.bin), [Update](vorher/ota/{b}.bin)'
               if os.path.exists(os.path.join(REL, 'vorher', 'ota', f)) else '–')
         L.append(f'| {b} | {cur.get("ota/" + f, "?")} | {full} | [ota/{f}](ota/{f}) ({kb(os.path.join(REL, "ota", f))}) | {pv} |')
+    if os.path.exists(os.path.join(REL, 'ota', P4_BOOT)):
+        L += ['', '**P4 – neue Speicheraufteilung seit 0.2.7** (2 x 6 MB Programm): Umstieg ohne Einstellungsverlust per USB',
+              f'`esptool.py --chip esp32p4 write_flash 0x2000 ota/{P4_BOOT} 0x8000 ota/{P4_PART} 0x10000 ota/panel-crowpanel-p4.bin`',
+              '(bzw. Online-Flasher "Nur Firmware (Update)"). Das Dateisystem (Kachel-Anordnung, Regeln, Bilder) ist danach leer.']
     if zbd:
         L += ['', f'**Zigbee-Modul (ESP32-H2):** [zb_drivers.bin](zb_drivers.bin) ({kb(zbd)}) = Geraetetreiber allein,',
               'per USB nach `0x1F0000` – das Programm (`ota/zigbee-modul-h2.bin` nach `0x10000`) bleibt dabei unberuehrt.']

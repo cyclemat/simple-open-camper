@@ -20,18 +20,27 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEN = os.path.join(ROOT, 'flasher', 'gen')
 ONLINE = os.path.join(ROOT, 'flasher', 'online')   # fuer GitHub Pages (im Repo), nur Release- und Testdateien
 # Testfassungen in release/test/: Geraet -> (komplett, update, Bezeichnung)
-TESTS = {
-    'p4': ('panel-crowpanel-p4-HA-Addon-Test.bin', 'panel-crowpanel-p4-HA-Addon-Test-update.bin', 'Testfassung „HA Addon Test“'),
+# Testfassungen aus release/test/ (je Geraet beliebig viele): Schluessel, Komplettdatei, Update-Datei, Bezeichnung
+TESTS = {}
+
+# Sprachvarianten aus release/ (eigene Quelle je Sprache): Geraet -> [(Kuerzel, Datei, Bezeichnung)]
+LANGS = {
+    'p4': [('es', 'panel-crowpanel-p4-es.bin', 'Español (Spanisch)'), ('fr', 'panel-crowpanel-p4-fr.bin', 'Français (Französisch)')],
+    'rund': [('es', 'panel-crowpanel-146-es.bin', 'Español (Spanisch)'), ('fr', 'panel-crowpanel-146-fr.bin', 'Français (Französisch)')],
 }
+# P4 seit 0.2.7 mit eigener Aufteilung: "Nur Firmware" schreibt Bootloader + Partitionstabelle mit (Einstellungen bleiben)
+P4_UPD_EXTRA = [('p4-bootloader.bin', 0x2000), ('p4-partitionen.bin', 0x8000)]
 
 # id, Bereich, Name, Beschreibung, Chip (ESP Web Tools), Datei im Release, Umgebung (lokal), Updater bei 0x2F0000
 DEVICES = [
-    ('p4', 'panel', 'CrowPanel Advanced 7"', 'ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale)',
+    ('p4', 'panel', 'CrowPanel Advanced 7"', 'ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale, '
+     'Home Assistant Beta). Ab 0.2.7 neue Speicheraufteilung: einmal „Nur Firmware“ – Einstellungen bleiben, Kachel-Anordnung '
+     'und Regeln vorher auf SD sichern',
      'ESP32-P4', 'panel-crowpanel-p4.bin', 'crowpanel-p4', False),
     ('ws7', 'panel', 'Waveshare 7" (7B)', 'ESP32-S3, 1024 × 600', 'ESP32-S3', 'panel-waveshare-7b.bin', 'waveshare-7b', False),
     ('ws7v', 'panel', 'Waveshare 7" – Victron-Edition', 'ESP32-S3, nur Victron/Gas/Akkus/Shelly (Beta)', 'ESP32-S3', None,
      'waveshare-7b-victron', False),
-    ('rund', 'panel', 'CrowPanel 1,46" rund', 'ESP32-S3, 360 × 360 mit Drehknopf', 'ESP32-S3', 'panel-crowpanel-146.bin',
+    ('rund', 'panel', 'CrowPanel 1,46" rund', 'ESP32-S3, 360 × 360 mit Drehknopf (inkl. Home Assistant Beta)', 'ESP32-S3', 'panel-crowpanel-146.bin',
      'crowpanel-146', False),
     ('sat32', 'sat', 'Satellit ESP32', 'ESP32 (z. B. DevKit, WROOM)', 'ESP32', 'satellit-esp32.bin', 'esp32', False),
     ('satc3', 'sat', 'Satellit ESP32-C3', 'ESP32-C3 (z. B. Super Mini)', 'ESP32-C3', 'satellit-esp32-c3.bin', 'esp32-c3', False),
@@ -79,14 +88,9 @@ def manifest(name, version, chip, parts, erase):
     }
 
 
-def test_source(did, chip, name, up, boot_path):
-    """Testfassung aus release/test/ als eigene Quelle (oder None)."""
-    if did not in TESTS:
-        return None
-    full, upd, label = TESTS[did]
-    if not os.path.exists(os.path.join(ROOT, 'release', 'test', full)):
-        return None
-    return full, upd, label
+def test_sources(did):
+    """Vorhandene Testfassungen aus release/test/ fuer dieses Geraet."""
+    return [x for x in TESTS.get(did, []) if os.path.exists(os.path.join(ROOT, 'release', 'test', x[1]))]
 
 
 def build_online(rel, boot):
@@ -102,27 +106,33 @@ def build_online(rel, boot):
     out = []
     for did, sec, name, desc, chip, relf, env, updater in DEVICES:
         dev = {'id': did, 'sec': sec, 'name': name, 'desc': desc, 'chip': chip, 'src': []}
-        if relf and os.path.exists(os.path.join(ROOT, 'release', relf)):
-            v = rel.get(relf, '?')
-            s = {'key': 'release', 'label': 'Aktuelle Version', 'version': v}
-            mk = 'm/%s-release-komplett.json' % did
-            json.dump(manifest(name, v, chip, [(up + 'release/' + relf, 0)], True), open(os.path.join(ONLINE, mk), 'w'))
+        def rel_src(key, label, f):
+            if not f or not os.path.exists(os.path.join(ROOT, 'release', f)):
+                return
+            v = rel.get(f, '?')
+            s = {'key': key, 'label': label, 'version': v}
+            mk = 'm/%s-%s-komplett.json' % (did, key)
+            json.dump(manifest(name, v, chip, [(up + 'release/' + f, 0)], True), open(os.path.join(ONLINE, mk), 'w'))
             s['komplett'] = mk
-            if os.path.exists(os.path.join(ROOT, 'release', 'ota', relf)) and did != 'h2':
-                mk = 'm/%s-release-update.json' % did
-                json.dump(manifest(name, v, chip, boot_part + [(up + 'release/ota/' + relf, APP_OFFSET)], False),
+            if os.path.exists(os.path.join(ROOT, 'release', 'ota', f)) and did != 'h2':
+                extra = []
+                if did == 'p4' and all(os.path.exists(os.path.join(ROOT, 'release', 'ota', x)) for x, _ in P4_UPD_EXTRA):
+                    extra = [(up + 'release/ota/' + x, o) for x, o in P4_UPD_EXTRA]
+                mk = 'm/%s-%s-update.json' % (did, key)
+                json.dump(manifest(name, v, chip, extra + boot_part + [(up + 'release/ota/' + f, APP_OFFSET)], False),
                           open(os.path.join(ONLINE, mk), 'w'))
                 s['update'] = mk
             dev['src'].append(s)
-        t = test_source(did, chip, name, up, None)
-        if t:
-            full, upd, label = t
-            s = {'key': 'test', 'label': label, 'version': 'Test'}
-            mk = 'm/%s-test-komplett.json' % did
+        rel_src('release', 'Deutsch' if did in LANGS else 'Aktuelle Version', relf)
+        for lk, lf, ll in LANGS.get(did, []):
+            rel_src('release-' + lk, ll, lf)
+        for key, full, upd, label in test_sources(did):
+            s = {'key': key, 'label': label, 'version': 'Test'}
+            mk = 'm/%s-%s-komplett.json' % (did, key)
             json.dump(manifest(name + ' (Test)', 'Test', chip, [(up + 'release/test/' + full, 0)], True), open(os.path.join(ONLINE, mk), 'w'))
             s['komplett'] = mk
             if os.path.exists(os.path.join(ROOT, 'release', 'test', upd)):
-                mk = 'm/%s-test-update.json' % did
+                mk = 'm/%s-%s-update.json' % (did, key)
                 json.dump(manifest(name + ' (Test)', 'Test', chip, boot_part + [(up + 'release/test/' + upd, APP_OFFSET)], False),
                           open(os.path.join(ONLINE, mk), 'w'))
                 s['update'] = mk

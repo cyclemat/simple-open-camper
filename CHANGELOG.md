@@ -3,17 +3,28 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
-## In Arbeit (nächste Version)
+## 0.2.7 – 2026-11-22
 
 **Neu**
-- 🧩 **ESPHome, Tasmota & Co.** (MQTT-Discovery) 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – Geräte, die sich per Home-Assistant-Discovery am Broker melden,
+- 🧩 **ESPHome, Tasmota & Co.** (MQTT-Discovery) *(Beta)* – Geräte, die sich per Home-Assistant-Discovery am Broker melden,
   erscheinen auf dem Panel wie Satelliten (eine Gruppe je Gerät): Sensoren, Binärsensoren, Schalter, Lampen (ein/aus).
   Ohne Home Assistant, mit dem eingebauten Broker. Eigene Satelliten und Zigbee2MQTT werden übergangen. Einstellungen →
   MQTT, ab Werk aus. P4, rundes Panel, Waveshare. Getestet am P4 mit einem Gerät im ESPHome-Format.
-- 🏠 **Home Assistant** *(Beta)* 🧪 *Test – nur in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration)
+- 🏠 **Home Assistant** *(Beta)* – Integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration)
   (MIT, HACS): HA verbindet sich per WebSocket mit dem Panel (`/api/ha`, Zugangscode, auch über Tailscale). HA übernimmt
   nur ausgewählte Panel-Werte, das Panel zeigt nur ausgewählte HA-Entitäten (wie ein Satellit „Home Assistant“). Am Panel:
-  Einstellungen → Netzwerk → Home Assistant. Testfassung für den P4 in `release/test/`.
+  Einstellungen → Netzwerk → Home Assistant. P4, rundes Panel, Waveshare.
+
+**Verbessert**
+- 🌍 Spanisch und Französisch für die Panel-Oberfläche vollständig (1603 Texte, auch Shelly per Bluetooth, Zigbee,
+  Regeln, Sensoren, Heizung/Kühlbox, Hobby, Debug-Log). Veraltete Einträge aus den Wörterbüchern entfernt.
+- 🌍 **P4 und rundes Panel auch auf Spanisch und Französisch** als fertige Firmware (Online-Flasher: Español /
+  Français). Der Web-Editor ist bei diesen Sprachen englisch. Umgebungen `crowpanel-p4-es/-fr`, `crowpanel-146-es/-fr`.
+- 💾 **P4: neue Speicheraufteilung** (`partitions_p4.csv`: 2 × 6 MB Programm statt 2 × 4 MB, Dateisystem 3,9 MB) – die
+  Firmware passte nicht mehr in 4 MB. Umstieg einmal per Online-Flasher „Nur Firmware (Update)“: Einstellungen bleiben,
+  Dateisystem (Kachel-Anordnung, Regeln, Bilder) ist danach leer – vorher auf SD sichern. Update über die Weboberfläche
+  geht erst nach dem Umstieg (vorher „Datei zu groß“).
+- 🧹 Testfassungen (`release/test/`) und ältere Firmware-Dateien (`release/vorher/`) entfernt.
 
 ## 0.2.6 – 2026-11-21
 

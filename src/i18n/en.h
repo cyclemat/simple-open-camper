@@ -296,85 +296,6 @@
 {"Unbekannt", "Unknown"},  // src/cerbo.cpp:1067
 {"Landstrom", "Shore power"},  // src/cerbo.cpp:1070
 {"nicht verbunden", "not connected"},  // src/cerbo.cpp:1071
-{"+%lus ", ""},  // src/dbglog.cpp:111
-{"Einschalten", "Switch on"},  // src/dbglog.cpp:118
-{"Neustart per Software", ""},  // src/dbglog.cpp:119
-{"ABSTURZ (Panic)", ""},  // src/dbglog.cpp:120
-{"WATCHDOG (Interrupt)", ""},  // src/dbglog.cpp:121
-{"WATCHDOG (Task)", ""},  // src/dbglog.cpp:122
-{"SPANNUNGSEINBRUCH (Brownout)", ""},  // src/dbglog.cpp:124
-{"Aufwachen", ""},  // src/dbglog.cpp:125
-{"Reset-Taste", ""},  // src/dbglog.cpp:126
-{"Zustand: Laufzeit %luh%02lum, intern frei %u KB (min %u, Block %u)", ""},  // src/dbglog.cpp:135
-{", PSRAM %u KB", ""},  // src/dbglog.cpp:142
-{", WLAN %d dBm %s", ""},  // src/dbglog.cpp:145
-{", WLAN getrennt", ""},  // src/dbglog.cpp:147
-{", %lu Zeichen verloren", ""},  // src/dbglog.cpp:149
-{"Uhrzeit unbekannt", ""},  // src/dbglog.cpp:213
-{"===== Debug-Log an – Simple Open Camper %s, %s, letzter Start: %s, Laufzeit %lu s =====", ""},  // src/dbglog.cpp:219
-{"Debug-Log eingeschaltet", ""},  // src/dbglog.cpp:386
-{"Debug-Log ausgeschaltet", ""},  // src/dbglog.cpp:388
-{"Interner RAM beim Start (frei nach dem Schritt, Verbrauch des Schritts, Tiefstwert bis dahin):", ""},  // src/debug_cmd.cpp:56
-{"  %6lu ms  %-14s frei %4u KB  Verbrauch %6ld B  Tiefstwert %4u KB  PSRAM-Tiefstwert %5u KB", ""},  // src/debug_cmd.cpp:61
-{"  jetzt              frei %4u KB, Tiefstwert %u KB", ""},  // src/debug_cmd.cpp:66
-{"  %-16s Prio %2u  Kern %2d  Reserve %6u", ""},  // src/debug_cmd.cpp:80
-{"Kein Bildspeicher", ""},  // src/debug_cmd.cpp:109
-{"SOCSHOT %d %d RGB565", ""},  // src/debug_cmd.cpp:113
-{"Screenshot %s (%lu ms)", ""},  // src/debug_cmd.cpp:119
-{"Datei %s nicht gefunden (SD-Karte eingesteckt?)", ""},  // src/debug_cmd.cpp:129
-{"Funkchip nicht bereit", ""},  // src/debug_cmd.cpp:144
-{"Funkchip-Update aus %s (%ld Byte) ...", ""},  // src/debug_cmd.cpp:148
-{"  %ld %%", ""},  // src/debug_cmd.cpp:158
-{"Funkchip-Update fertig – Panel startet neu.", ""},  // src/debug_cmd.cpp:165
-{"Funkchip-Update fehlgeschlagen.", ""},  // src/debug_cmd.cpp:165
-{"  %-8s frei %5u KB, Tiefstwert %5u KB, groesster Block %5u KB, gesamt %5u KB", ""},  // src/debug_cmd.cpp:175
-{"Neustart (Software)", ""},  // src/debug_cmd.cpp:183
-{"Absturz", ""},  // src/debug_cmd.cpp:184
-{"Watchdog", ""},  // src/debug_cmd.cpp:187
-{"Unterspannung", ""},  // src/debug_cmd.cpp:188
-{"Tiefschlaf", ""},  // src/debug_cmd.cpp:189
-{"===== %s %s - Status =====", ""},  // src/debug_cmd.cpp:196
-{"Laufzeit %luh %02lum %02lus, letzter Start: %s", ""},  // src/debug_cmd.cpp:197
-{"Speicher:", ""},  // src/debug_cmd.cpp:199
-{"DMA", ""},  // src/debug_cmd.cpp:201
-{"Netz: %s, WLAN \"%s\" %d dBm, IP %s", ""},  // src/debug_cmd.cpp:203
-{"Panel-WLAN: %s \"%s\", Kanal %u, %d Teilnehmer, %s", ""},  // src/debug_cmd.cpp:204
-{"MQTT: %s (%s), %u Geraete", ""},  // src/debug_cmd.cpp:206
-{"Bluetooth-Protokolle:%s%s%s%s%s%s", ""},  // src/debug_cmd.cpp:207
-{" Truma", ""},  // src/debug_cmd.cpp:207
-{" Mopeka", ""},  // src/debug_cmd.cpp:207
-{" Victron", ""},  // src/debug_cmd.cpp:208
-{" iNetX", ""},  // src/debug_cmd.cpp:208
-{" Satelliten", ""},  // src/debug_cmd.cpp:212
-{" Hymer", ""},  // src/debug_cmd.cpp:212
-{"Hymer: %s", ""},  // src/debug_cmd.cpp:214
-{"Cerbo GX: %s – %s", ""},  // src/debug_cmd.cpp:215
-{"Funkchip %s: Firmware %u.%u.%u, passend zum P4 waere %u.%u.%u%s", ""},  // src/debug_cmd.cpp:222
-{" – Update verfuegbar (Befehl c6update)", ""},  // src/debug_cmd.cpp:223
-{"Akku: %.2f V", ""},  // src/debug_cmd.cpp:227
-{"Hintergrundbeleuchtung: %u %%%s", ""},  // src/debug_cmd.cpp:228
-{" (Ruhezustand)", ""},  // src/debug_cmd.cpp:228
-{"  %s %s", ""},  // src/debug_cmd.cpp:241
-{"Lauf %d: Rueckgaben %d %d %d %d %d, a*B == b*A: %s, a*G == A: %s", ""},  // src/debug_cmd.cpp:262
-{"a*B", ""},  // src/debug_cmd.cpp:266
-{"b*A", ""},  // src/debug_cmd.cpp:267
-{"A.x", ""},  // src/debug_cmd.cpp:268
-{"a*G", ""},  // src/debug_cmd.cpp:269
-{"ERGEBNIS: Schluesselrechnung FEHLERHAFT (%d von 3)", ""},  // src/debug_cmd.cpp:272
-{"ERGEBNIS: Schluesselrechnung in Ordnung", ""},  // src/debug_cmd.cpp:272
-{"Zaehle Bluetooth-Geraete 20 s lang ...", ""},  // src/debug_cmd.cpp:284
-{"Touch: 20 s lang Rohwerte und Gesten ausgeben - jetzt wischen/tippen", ""},  // src/debug_cmd.cpp:294
-{"Funkchip-Update: lade %s ...", ""},  // src/debug_cmd.cpp:303
-{"Funkchip-Update nicht moeglich (siehe oben).", ""},  // src/debug_cmd.cpp:305
-{"Zugangspasswort der Weboberflaeche ist wieder \"panelsat\" - beim naechsten Oeffnen ein neues festlegen.", ""},  // src/debug_cmd.cpp:323
-{"Neustart ...", ""},  // src/debug_cmd.cpp:325
-{"Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s%s", ""},  // src/debug_cmd.cpp:329
-{", hymer", ""},  // src/debug_cmd.cpp:330
-{", hobby", ""},  // src/debug_cmd.cpp:330
-{", screenshot (tools/screenshot.py)", ""},  // src/debug_cmd.cpp:330
-{", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)", ""},  // src/debug_cmd.cpp:331
-{"Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb refresh, zb trace, zb diag, zb raw {\"c\":\"info\"}", ""},  // src/debug_cmd.cpp:333
-{"Unbekannter Befehl \"%s\" - help zeigt die Befehle", ""},  // src/debug_cmd.cpp:336
 {"Ungueltiges JSON", "Invalid JSON"},  // src/devsetup.cpp:72
 {"Set-Cookie", ""},  // src/devsetup.cpp:83
 {"; Path=/; HttpOnly; SameSite=Strict", ""},  // src/devsetup.cpp:83
@@ -556,6 +477,7 @@
 {"Suche SCU …", ""},  // src/hymer.cpp:958
 {"Hymer getrennt", ""},  // src/hymer.cpp:983
 {"Kopplung läuft – an der SCU „CONNECTION“ drücken", ""},  // src/hymer.cpp:1027
+{"Hymer: %s", ""},  // src/hymer.cpp:1066
 {"  gekoppelt: %s  Identitaet %s  wirbt als %s", ""},  // src/hymer.cpp:1067
 {"  Kopplung laeuft: %s, verbunden: %s, TLS/Werte: %s", ""},  // src/hymer.cpp:1069
 {"  Ziel beim Koppeln: %s, letzter Bonding-Status der SCU: %d", ""},  // src/hymer.cpp:1071
@@ -939,196 +861,6 @@
 {"Zigbee: Diagnose im Modul %s (Ausgabe mit \"zb\" unter log)", ""},  // src/zb_direct.cpp:897
 {"raw ", ""},  // src/zb_direct.cpp:900
 {"Zigbee: gesendet %s", ""},  // src/zb_direct.cpp:902
-{"PLL 240", ""},  // src/p4test/p4test.cpp:177
-{"PLL 160", ""},  // src/p4test/p4test.cpp:177
-{"uECC_WORD_SIZE must be 1 for AVR", ""},  // src/third_party/micro-ecc/types.h:51
-{"uECC_WORD_SIZE must be 4 for ARM", ""},  // src/third_party/micro-ecc/types.h:59
-{" net_io", ""},  // src/third_party/microlink/src/microlink.c:229
-{" derp_tx", ""},  // src/third_party/microlink/src/microlink.c:230
-{" coord", ""},  // src/third_party/microlink/src/microlink.c:231
-{" wg_mgr", ""},  // src/third_party/microlink/src/microlink.c:232
-{"stop: begin", ""},  // src/third_party/microlink/src/microlink.c:885
-{"stop: config UI detached", ""},  // src/third_party/microlink/src/microlink.c:888
-{"stop: tasks joined", ""},  // src/third_party/microlink/src/microlink.c:924
-{"stop: run resources freed", ""},  // src/third_party/microlink/src/microlink.c:938
-{"ETH", ""},  // src/third_party/microlink/src/microlink.c:988
-{"AT", ""},  // src/third_party/microlink/src/ml_at_validate.c:140
-{"GMI", ""},  // src/third_party/microlink/src/ml_at_validate.c:174
-{"GMM", ""},  // src/third_party/microlink/src/ml_at_validate.c:175
-{"GMR", ""},  // src/third_party/microlink/src/ml_at_validate.c:176
-{"GSN", ""},  // src/third_party/microlink/src/ml_at_validate.c:177
-{"CSQ", ""},  // src/third_party/microlink/src/ml_at_validate.c:184
-{"CBC", ""},  // src/third_party/microlink/src/ml_at_validate.c:199
-{"+CPIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CPIN2=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CPWD=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CLCK=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CGAUTH=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CSIM=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CRSM=", ""},  // src/third_party/microlink/src/ml_at_validate.c:273
-{"+CPINR=", ""},  // src/third_party/microlink/src/ml_at_validate.c:274
-{"+SPIC=", ""},  // src/third_party/microlink/src/ml_at_validate.c:274
-{"+CFTPLOGIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
-{"+CFTPSLOGIN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
-{"+CFTPUN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
-{"+CFTPPW=", ""},  // src/third_party/microlink/src/ml_at_validate.c:276
-{"+CMQTTCONNECT=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
-{"+CMQTTACCQ=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
-{"+SMCONF=", ""},  // src/third_party/microlink/src/ml_at_validate.c:277
-{"+HTTPPARA=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
-{"+CSSLCFG=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
-{"+SMTPAUTH=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
-{"+POP3IN=", ""},  // src/third_party/microlink/src/ml_at_validate.c:278
-{"+CIPRXGET:", ""},  // src/third_party/microlink/src/ml_at_validate.c:399
-{"POST /ts2021 HTTP/1.1\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"Host: %s\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"Upgrade: tailscale-control-protocol\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"Connection: Upgrade\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"User-Agent: Tailscale\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"X-Tailscale-Handshake: %s\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"Content-Length: 0\r", ""},  // src/third_party/microlink/src/ml_coord.c:581
-{"HTTP/1.1 101", ""},  // src/third_party/microlink/src/ml_coord.c:615
-{"nodeKeyChallenge", ""},  // src/third_party/microlink/src/ml_coord.c:883
-{"Hostname", ""},  // src/third_party/microlink/src/ml_coord.c:1051
-{"OS", ""},  // src/third_party/microlink/src/ml_coord.c:1052
-{"OSVersion", ""},  // src/third_party/microlink/src/ml_coord.c:1053
-{"ESP-IDF", ""},  // src/third_party/microlink/src/ml_coord.c:1053
-{"GoArch", ""},  // src/third_party/microlink/src/ml_coord.c:1054
-{"PreferredDERP", ""},  // src/third_party/microlink/src/ml_coord.c:1058
-{"MappingVariesByDestIP", ""},  // src/third_party/microlink/src/ml_coord.c:1060
-{"NetInfo", ""},  // src/third_party/microlink/src/ml_coord.c:1062
-{"RoutableIPs", ""},  // src/third_party/microlink/src/ml_coord.c:1085
-{"Hostinfo", ""},  // src/third_party/microlink/src/ml_coord.c:1089
-{"Version", ""},  // src/third_party/microlink/src/ml_coord.c:1099
-{"NodeKey", ""},  // src/third_party/microlink/src/ml_coord.c:1106
-{"Followup", ""},  // src/third_party/microlink/src/ml_coord.c:1114
-{"AuthKey", ""},  // src/third_party/microlink/src/ml_coord.c:1117
-{"Auth", ""},  // src/third_party/microlink/src/ml_coord.c:1118
-{"NodeKeyChallengeResponse", ""},  // src/third_party/microlink/src/ml_coord.c:1142
-{"Error", ""},  // src/third_party/microlink/src/ml_coord.c:1354
-{"MachineAuthorized", ""},  // src/third_party/microlink/src/ml_coord.c:1361
-{"AuthURL", ""},  // src/third_party/microlink/src/ml_coord.c:1366
-{"Node", ""},  // src/third_party/microlink/src/ml_coord.c:1398
-{"Addresses", ""},  // src/third_party/microlink/src/ml_coord.c:1400
-{"HomeDERP", ""},  // src/third_party/microlink/src/ml_coord.c:1416
-{"Key", ""},  // src/third_party/microlink/src/ml_coord.c:1439
-{"Peers", ""},  // src/third_party/microlink/src/ml_coord.c:1471
-{"PeersChanged", ""},  // src/third_party/microlink/src/ml_coord.c:1476
-{"ID", ""},  // src/third_party/microlink/src/ml_coord.c:1509
-{"Name", "Name"},  // src/third_party/microlink/src/ml_coord.c:1515
-{"DiscoKey", ""},  // src/third_party/microlink/src/ml_coord.c:1543
-{"Online", ""},  // src/third_party/microlink/src/ml_coord.c:1567
-{"Endpoints", ""},  // src/third_party/microlink/src/ml_coord.c:1586
-{"PeersRemoved", ""},  // src/third_party/microlink/src/ml_coord.c:1646
-{"PeersChangedPatch", ""},  // src/third_party/microlink/src/ml_coord.c:1689
-{"NodeID", ""},  // src/third_party/microlink/src/ml_coord.c:1695
-{"DERPRegion", ""},  // src/third_party/microlink/src/ml_coord.c:1730
-{"EndpointTypes", ""},  // src/third_party/microlink/src/ml_coord.c:1786
-{"KeyExpiry", ""},  // src/third_party/microlink/src/ml_coord.c:1911
-{"Expired", ""},  // src/third_party/microlink/src/ml_coord.c:1938
-{"DERPMap", ""},  // src/third_party/microlink/src/ml_coord.c:1952
-{"Regions", ""},  // src/third_party/microlink/src/ml_coord.c:1954
-{"RegionID", ""},  // src/third_party/microlink/src/ml_coord.c:1964
-{"RegionCode", ""},  // src/third_party/microlink/src/ml_coord.c:1967
-{"Avoid", ""},  // src/third_party/microlink/src/ml_coord.c:1972
-{"Nodes", ""},  // src/third_party/microlink/src/ml_coord.c:1976
-{"HostName", ""},  // src/third_party/microlink/src/ml_coord.c:1984
-{"IPv4", ""},  // src/third_party/microlink/src/ml_coord.c:1989
-{"IPv6", ""},  // src/third_party/microlink/src/ml_coord.c:1994
-{"STUNPort", ""},  // src/third_party/microlink/src/ml_coord.c:1999
-{"DERPPort", ""},  // src/third_party/microlink/src/ml_coord.c:2002
-{"STUNOnly", ""},  // src/third_party/microlink/src/ml_coord.c:2005
-{" [avoid]", ""},  // src/third_party/microlink/src/ml_coord.c:2014
-{" stun-only", ""},  // src/third_party/microlink/src/ml_coord.c:2022
-{"Stream", ""},  // src/third_party/microlink/src/ml_coord.c:2070
-{"KeepAlive", ""},  // src/third_party/microlink/src/ml_coord.c:2071
-{"Compress", ""},  // src/third_party/microlink/src/ml_coord.c:2072
-{"OmitPeers", ""},  // src/third_party/microlink/src/ml_coord.c:2401
-{"Health", ""},  // src/third_party/microlink/src/ml_coord.c:2486
-{"MBEDTLS_CERTIFICATE_BUNDLE is disabled: the control plane TLS certificate will not be verified (ML_CTRL_TLS_VERIFY_CERT unavailable)", ""},  // src/third_party/microlink/src/ml_coord_tls.c:29
-{"CONFIG_ML_CTRL_TLS_VERIFY_CERT=n", ""},  // src/third_party/microlink/src/ml_coord_tls.c:89
-{"CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n", ""},  // src/third_party/microlink/src/ml_coord_tls.c:91
-{"MBEDTLS_CERTIFICATE_BUNDLE is disabled: DERP relay TLS certificates will not be verified (ML_DERP_VERIFY_CERT unavailable)", ""},  // src/third_party/microlink/src/ml_derp.c:38
-{"derp_tx: exit begin", ""},  // src/third_party/microlink/src/ml_derp.c:766
-{"derp_tx: TLS + socket freed", ""},  // src/third_party/microlink/src/ml_derp.c:768
-{"CONFIG_ML_DERP_VERIFY_CERT=n", ""},  // src/third_party/microlink/src/ml_derp.c:941
-{"GET /derp HTTP/1.1\r", ""},  // src/third_party/microlink/src/ml_derp.c:1025
-{"Upgrade: DERP\r", ""},  // src/third_party/microlink/src/ml_derp.c:1025
-{"{\"Version\":2,\"CanAckPings\":true,\"IsProber\":false}", ""},  // src/third_party/microlink/src/ml_derp.c:1170
-{"DstPorts", ""},  // src/third_party/microlink/src/ml_filter.c:224
-{"SrcIPs", ""},  // src/third_party/microlink/src/ml_filter.c:240
-{"IP", ""},  // src/third_party/microlink/src/ml_filter.c:245
-{"Ports", ""},  // src/third_party/microlink/src/ml_filter.c:281
-{"First", ""},  // src/third_party/microlink/src/ml_filter.c:283
-{"IPProto", ""},  // src/third_party/microlink/src/ml_filter.c:305
-{"Too many packet filter sets; \"%s\" ignored", ""},  // src/third_party/microlink/src/ml_filter.c:337
-{"Packet filter set \"%s\" rejected (invalid or more than %d entries): it allows nothing", ""},  // src/third_party/microlink/src/ml_filter.c:408
-{"PacketFilter", ""},  // src/third_party/microlink/src/ml_filter.c:417
-{"PacketFilters", ""},  // src/third_party/microlink/src/ml_filter.c:418
-{"Packet filter updated: %u rule(s)%s", ""},  // src/third_party/microlink/src/ml_filter.c:454
-{" (log-only mode)", ""},  // src/third_party/microlink/src/ml_filter.c:455
-{"drop proto=%u to %u.%u.%u.%u: destination not local", ""},  // src/third_party/microlink/src/ml_filter.c:652
-{"no rule", ""},  // src/third_party/microlink/src/ml_filter.c:662
-{"icmp reply/error", ""},  // src/third_party/microlink/src/ml_filter.c:669
-{"tcp non-syn", ""},  // src/third_party/microlink/src/ml_filter.c:675
-{"udp reply", ""},  // src/third_party/microlink/src/ml_filter.c:684
-{"drop proto=%u %u.%u.%u.%u -> port %u (%s)%s", ""},  // src/third_party/microlink/src/ml_filter.c:694
-{" [log-only]", ""},  // src/third_party/microlink/src/ml_filter.c:696
-{"PRI * HTTP/2.0\r", ""},  // src/third_party/microlink/src/ml_h2.c:41
-{"SM\r", ""},  // src/third_party/microlink/src/ml_h2.c:41
-{"WG", ""},  // src/third_party/microlink/src/ml_net_io.c:66
-{"UNK", ""},  // src/third_party/microlink/src/ml_net_io.c:66
-{"Noise_IK_25519_ChaChaPoly_BLAKE2s", ""},  // src/third_party/microlink/src/ml_noise.c:40
-{"Tailscale Control Protocol v%d", ""},  // src/third_party/microlink/src/ml_noise.c:182
-{"wg_mgr: netif teardown begin", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:476
-{"wg_mgr: netif + device freed", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:500
-{"MISMATCH!", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:735
-{"KEY_MISMATCH!", ""},  // src/third_party/microlink/src/ml_wg_mgr.c:1095
-{"expand 32-byte k", ""},  // src/third_party/microlink/src/nacl_box.c:95
-{"Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguard.c:47
-{"WireGuard v1 zx2c4 Jason@zx2c4.com", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguard.c:48
-{"[WG] link %s post dropped (tcpip mailbox full), will retry", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:151
-{"[WG] update_peer_addr: skipping DERP (0.0.0.0)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:195
-{"[WG] update_peer_addr: refusing non-underlay endpoint %s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:199
-{"[WG] update_peer_addr: %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:202
-{"[WG_OUT] peer_output: endpoint=%s:%u, tot_len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:240
-{"[WG_OUT] No direct endpoint or force_derp, checking DERP", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:248
-{"[WG_OUT] DERP mem_malloc failed!", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:259
-{"[WG_OUT] No DERP callback, returning ERR_RTE", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:264
-{"[WG_OUT] Using magicsock callback", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:277
-{"[WG_OUT] mem_malloc OK, copying pbuf", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:282
-{"[WG_OUT] Calling udp_output_fn, dest_ip=0x%08lx port=%u len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:287
-{"[WG_OUT] udp_output_fn returned %d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:291
-{"[WG_OUT] mem_malloc FAILED for magicsock!", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:296
-{"[WG_OUT] Using direct udp_sendto", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:301
-{"[WG_TX] Sending encrypted DATA packet: %u bytes, remote_idx=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:439
-{"[WG_TX] peer_output result=%d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:443
-{"[WG_OUTPUT] Looking up peer for dest %s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:472
-{"[WG_OUTPUT] Found peer, peer_index=%d, valid=%d", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:477
-{"[WG_OUTPUT] NO PEER FOUND for %s! Dumping all peers:", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:482
-{"  peer[%d]: valid=%d, curr_keypair.valid=%d, last_rx=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:486
-{"    allowed[%d]: %s/%s", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:490
-{"[WG] Processing handshake response from %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:523
-{"[WG_DECRYPT] result=%d, src_len=%u, nonce=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:639
-{"[WG_RX_IP] DROPPED: v%u inner source not routed to this peer (or malformed)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:716
-{"[WG_RX_IP] DROPPED: header_len=%u > tot_len=%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:719
-{"[WG_RX_IP] DROPPED by packet filter", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:724
-{"[WG_RX_IP] Passing %u bytes to IP layer", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:729
-{"[WG_RX_IP] netif->input() failed: %d, dropping", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:735
-{"[WG_RX] DROPPED: replayed or too old, nonce=%lu", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:744
-{"wireguardif_network_rx: invalid arg", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:907
-{"wireguardif_network_rx: invalid pbuf", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:908
-{"[WG_RX] type=%d (%s) len=%u from %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:924
-{"Initiation MAC check passed", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:938
-{"Response MAC check passed", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:990
-{"[WG_TX] Starting handshake to %s:%u", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1061
-{"netif != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1079
-{"state != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1080
-{"p != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1240
-{"[WG] Socket binding disabled - using magicsock mode", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1492
-{"peer != NULL", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1596
-{"[WG] UDP output callback registered (magicsock mode)", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1638
-{"[WG] zero-copy UDP output callback registered", ""},  // src/third_party/microlink/wireguard_lwip/src/wireguardif.c:1649
 {"Nicht erreichbar", "Not reachable"},  // src/ui/ui_detail.cpp:174
 {"  ·  Kanal ", "  ·  Channel"},  // src/ui/ui_detail.cpp:261
 {"Helligkeit", "Brightness"},  // src/ui/ui_detail.cpp:300
@@ -1261,6 +993,7 @@
 {"innen ", "inside "},  // src/ui/ui_main.cpp:1062
 {"jetzt ", "now "},  // src/ui/ui_main.cpp:1063
 {"Ausschalten", "Switch off"},  // src/ui/ui_main.cpp:1067
+{"Einschalten", "Switch on"},  // src/ui/ui_main.cpp:1067
 {"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", "The heater reports an error – it can only be switched off."},  // src/ui/ui_main.cpp:1083
 {"Wird geschaltet …", "Switching …"},  // src/ui/ui_main.cpp:1116
 {"Das ging nicht.", "That did not work."},  // src/ui/ui_main.cpp:1116
@@ -1354,6 +1087,7 @@
 {"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "New operating mode is saved and takes effect after the restart."},  // src/ui/ui_settings.cpp:395
 {"Panel-WLAN", "Panel Wi-Fi"},  // src/ui/ui_settings.cpp:399
 {" (folgt dem Camp-WLAN)", " (follows the camp Wi-Fi)"},  // src/ui/ui_settings.cpp:403
+{"Name", "Name"},  // src/ui/ui_settings.cpp:404
 {"Passwort", "Password"},  // src/ui/ui_settings.cpp:405
 {"Kanal", "Channel"},  // src/ui/ui_settings.cpp:406
 {"Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.", ""},  // src/ui/ui_settings.cpp:408
@@ -1872,191 +1606,23 @@
 {"Gerät meldet Fehler ", "Device reports fault"},  // src/ui/ui_victron.cpp:959
 {" – Details in VictronConnect.", " – details in VictronConnect."},  // src/ui/ui_victron.cpp:959
 {"Dieses Victron-Gerät ist nicht mehr eingerichtet.", "This Victron device is no longer set up."},  // src/ui/ui_victron.cpp:974
-{"Bereit", ""},  // src/updater/updater_main.cpp:15
-{"{\"error\":\"Keine gültige Firmware vorhanden – bitte zuerst eine hochladen.\"}", ""},  // src/updater/updater_main.cpp:51
-{"Upload unvollständig", ""},  // src/updater/updater_main.cpp:61
-{"Datei zu groß", ""},  // src/updater/updater_main.cpp:80
-{"Schreibe …", ""},  // src/updater/updater_main.cpp:83
-{"Fertig – starte neu", ""},  // src/updater/updater_main.cpp:91
-{"Abgebrochen", ""},  // src/updater/updater_main.cpp:94
-{"SOC-Update-%02X%02X", ""},  // src/updater/updater_main.cpp:112
-{"text/html; charset=utf-8", ""},  // src/updater/updater_main.cpp:133
-{"HTML(<!doctype html><html lang=", ""},  // src/updater/updater_page.h:5
-{"><head><meta charset=", ""},  // src/updater/updater_page.h:5
-{"Geht gerade nicht - Cerbo verbunden und Wert einstellbar?", "Not possible right now - Cerbo connected and value adjustable?"},  // src/vicdisp/vd_main.cpp:536
-{"Das ging nicht", ""},  // src/vicdisp/vd_main.cpp:613
-{"Dieses Gerät lässt sich nicht schalten", "This device cannot be switched"},  // src/vicdisp/vd_main.cpp:618
-{"Suche fehlgeschlagen - bitte nochmal.", "Search failed - please try again."},  // src/vicdisp/vd_main.cpp:698
-{"Update fehlgeschlagen", "Update failed"},  // src/vicdisp/vd_main.cpp:740
-{"SOC-Victron-%02X%02X%02X", ""},  // src/vicdisp/vd_main.cpp:812
-{"Segoe UI", ""},  // src/vicdisp/vd_page.h:10
-{"hName", ""},  // src/vicdisp/vd_page.h:38
-{"hSub", ""},  // src/vicdisp/vd_page.h:38
-{"authCard", ""},  // src/vicdisp/vd_page.h:41
-{"authT", ""},  // src/vicdisp/vd_page.h:41
-{"authH", ""},  // src/vicdisp/vd_page.h:41
-{"pwSetup", ""},  // src/vicdisp/vd_page.h:42
-{"pOld", ""},  // src/vicdisp/vd_page.h:42
-{"pNew", ""},  // src/vicdisp/vd_page.h:43
-{"pNew2", ""},  // src/vicdisp/vd_page.h:44
-{"pwLogin", ""},  // src/vicdisp/vd_page.h:45
-{"pLogin", ""},  // src/vicdisp/vd_page.h:45
-{"bAuth", ""},  // src/vicdisp/vd_page.h:46
-{"cName", ""},  // src/vicdisp/vd_page.h:50
-{"cSsid", ""},  // src/vicdisp/vd_page.h:51
-{"cWpass", ""},  // src/vicdisp/vd_page.h:52
-{"unverändert", ""},  // src/vicdisp/vd_page.h:52
-{"netList", ""},  // src/vicdisp/vd_page.h:53
-{"bScanW", ""},  // src/vicdisp/vd_page.h:54
-{"bSaveW", ""},  // src/vicdisp/vd_page.h:54
-{"apName", ""},  // src/vicdisp/vd_page.h:55
-{"apSsid", ""},  // src/vicdisp/vd_page.h:57
-{"apOn", ""},  // src/vicdisp/vd_page.h:58
-{"apPwRow", ""},  // src/vicdisp/vd_page.h:59
-{"apPw", ""},  // src/vicdisp/vd_page.h:59
-{"apOpenHint", ""},  // src/vicdisp/vd_page.h:60
-{"bApSave", ""},  // src/vicdisp/vd_page.h:61
-{"bPw", ""},  // src/vicdisp/vd_page.h:61
-{"cbOn", ""},  // src/vicdisp/vd_page.h:66
-{"cbBox", ""},  // src/vicdisp/vd_page.h:67
-{"cbStatus", ""},  // src/vicdisp/vd_page.h:68
-{"cbAuto", ""},  // src/vicdisp/vd_page.h:69
-{"cbHost", ""},  // src/vicdisp/vd_page.h:70
-{"cbUser", ""},  // src/vicdisp/vd_page.h:71
-{"cbPass", ""},  // src/vicdisp/vd_page.h:72
-{"bSaveC", ""},  // src/vicdisp/vd_page.h:74
-{"cbCtl", ""},  // src/vicdisp/vd_page.h:75
-{"trList", ""},  // src/vicdisp/vd_page.h:79
-{"trInt", ""},  // src/vicdisp/vd_page.h:80
-{"bTrScan", ""},  // src/vicdisp/vd_page.h:81
-{"bTrMeasure", ""},  // src/vicdisp/vd_page.h:81
-{"trFound", ""},  // src/vicdisp/vd_page.h:82
-{"mpList", ""},  // src/vicdisp/vd_page.h:86
-{"bMpScan", ""},  // src/vicdisp/vd_page.h:87
-{"mpFound", ""},  // src/vicdisp/vd_page.h:88
-{"tpCard", ""},  // src/vicdisp/vd_page.h:90
-{"tpList", ""},  // src/vicdisp/vd_page.h:92
-{"bTpScan", ""},  // src/vicdisp/vd_page.h:93
-{"tpFound", ""},  // src/vicdisp/vd_page.h:94
-{"bmCard", ""},  // src/vicdisp/vd_page.h:96
-{"bmList", ""},  // src/vicdisp/vd_page.h:98
-{"bBmScan", ""},  // src/vicdisp/vd_page.h:99
-{"efBox", ""},  // src/vicdisp/vd_page.h:100
-{"efState", ""},  // src/vicdisp/vd_page.h:100
-{"efMail", ""},  // src/vicdisp/vd_page.h:100
-{"efPw", ""},  // src/vicdisp/vd_page.h:100
-{"bEfLogin", ""},  // src/vicdisp/vd_page.h:100
-{"bmFound", ""},  // src/vicdisp/vd_page.h:101
-{"bmLog", ""},  // src/vicdisp/vd_page.h:102
-{"snCard", ""},  // src/vicdisp/vd_page.h:104
-{"bmSS", ""},  // src/vicdisp/vd_page.h:106
-{"snList", ""},  // src/vicdisp/vd_page.h:107
-{"bSnScan", ""},  // src/vicdisp/vd_page.h:108
-{"snFound", ""},  // src/vicdisp/vd_page.h:109
-{"htCard", ""},  // src/vicdisp/vd_page.h:111
-{"htList", ""},  // src/vicdisp/vd_page.h:113
-{"bHtScan", ""},  // src/vicdisp/vd_page.h:114
-{"htFound", ""},  // src/vicdisp/vd_page.h:115
-{"viList", ""},  // src/vicdisp/vd_page.h:119
-{"bViScan", ""},  // src/vicdisp/vd_page.h:120
-{"viFound", ""},  // src/vicdisp/vd_page.h:121
-{"ledMode", ""},  // src/vicdisp/vd_page.h:125
-{"ledNow", ""},  // src/vicdisp/vd_page.h:126
-{"bLedSave", ""},  // src/vicdisp/vd_page.h:127
-{"dpCard", ""},  // src/vicdisp/vd_page.h:129
-{"dpEd", ""},  // src/vicdisp/vd_page.h:132
-{"dpSel", ""},  // src/vicdisp/vd_page.h:132
-{"dpHid", ""},  // src/vicdisp/vd_page.h:132
-{"dpPer", ""},  // src/vicdisp/vd_page.h:134
-{"dpBright", ""},  // src/vicdisp/vd_page.h:135
-{"dpDim", ""},  // src/vicdisp/vd_page.h:136
-{"dpAuto", ""},  // src/vicdisp/vd_page.h:137
-{"dpNight", ""},  // src/vicdisp/vd_page.h:138
-{"dpThr", ""},  // src/vicdisp/vd_page.h:139
-{"ldrNow", ""},  // src/vicdisp/vd_page.h:140
-{"bDpSave", ""},  // src/vicdisp/vd_page.h:142
-{"bTcal", ""},  // src/vicdisp/vd_page.h:142
-{"dbCard", ""},  // src/vicdisp/vd_page.h:145
-{"dbOn", ""},  // src/vicdisp/vd_page.h:146
-{"dbInfo", ""},  // src/vicdisp/vd_page.h:147
-{"dbBtns", ""},  // src/vicdisp/vd_page.h:148
-{"bDbView", ""},  // src/vicdisp/vd_page.h:148
-{"dbPre", ""},  // src/vicdisp/vd_page.h:149
-{"display:none;max-height:50vh;overflow:auto;font-size:11px;line-height:1.35;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0", ""},  // src/vicdisp/vd_page.h:149
-{"dbFiles", ""},  // src/vicdisp/vd_page.h:150
-{"fwInfo", ""},  // src/vicdisp/vd_page.h:152
-{"bUpd", ""},  // src/vicdisp/vd_page.h:155
-{"bReboot", ""},  // src/vicdisp/vd_page.h:155
-{"fwFile", ""},  // src/vicdisp/vd_page.h:157
-{"bFw", ""},  // src/vicdisp/vd_page.h:157
-{"chip ${x[0]}", ""},  // src/vicdisp/vd_page.h:183
-{"t mono", ""},  // src/vicdisp/vd_page.h:192
-{"width:5em;padding:4px 6px", ""},  // src/vicdisp/vd_page.h:197
-{"width:7em;padding:4px 8px", ""},  // src/vicdisp/vd_page.h:212
-{"hint mono", ""},  // src/vicdisp/vd_page.h:242
-{"dN", ""},  // src/vicdisp/vd_page.h:243
-{"dQ", ""},  // src/vicdisp/vd_page.h:244
-{"dPl", ""},  // src/vicdisp/vd_page.h:245
-{"dP", ""},  // src/vicdisp/vd_page.h:245
-{"dC", ""},  // src/vicdisp/vd_page.h:246
-{"dO", ""},  // src/vicdisp/vd_page.h:246
-{"tl${sel?' sel':''}", ""},  // src/vicdisp/vd_page.h:355
-{"tl em", ""},  // src/vicdisp/vd_page.h:355
-{"s d", ""},  // src/vicdisp/vd_page.h:356
-{"scr n${pg.n}", ""},  // src/vicdisp/vd_page.h:356
-{"dpAdd", ""},  // src/vicdisp/vd_page.h:357
-{"margin:0 0 12px", ""},  // src/vicdisp/vd_page.h:357
-{"dpName", ""},  // src/vicdisp/vd_page.h:359
-{"dpHide", ""},  // src/vicdisp/vd_page.h:359
-{"dpDone", ""},  // src/vicdisp/vd_page.h:359
-{"noch nicht geprueft", ""},  // src/zb_h2/zb_h2.cpp:77
-{"Bereich zbdrv fehlt (alte Speicheraufteilung – Modul komplett neu aufspielen)", ""},  // src/zb_h2/zb_h2.cpp:83
-{"Bereich zbdrv nicht lesbar", ""},  // src/zb_h2/zb_h2.cpp:87
-{"leer – Treiberliste noch nicht aufgespielt (zb_drivers.bin nach 0x1F0000)", ""},  // src/zb_h2/zb_h2.cpp:91
-{"Treiberliste hat ein anderes Format – passende zb_drivers.bin aufspielen", ""},  // src/zb_h2/zb_h2.cpp:95
-{"Treiberliste beschaedigt", ""},  // src/zb_h2/zb_h2.cpp:100
-{"Treiberliste laesst sich nicht einblenden", ""},  // src/zb_h2/zb_h2.cpp:106
-{"Pruefsumme der Treiberliste falsch", ""},  // src/zb_h2/zb_h2.cpp:111
-{"Kein Treiber fuer \"%s\" / \"%s\" – nur Standardwerte", ""},  // src/zb_h2/zb_h2.cpp:533
-{"Abfrage %s fertig: %u Endpunkt(e), %s %s", ""},  // src/zb_h2/zb_h2.cpp:534
-{"Endpunkt %u: keine Beschreibung (Status %d)", ""},  // src/zb_h2/zb_h2.cpp:587
-{"Endpunkte nicht abfragbar (Status %d) – Geraet schlaeft? Taste am Geraet druecken.", ""},  // src/zb_h2/zb_h2.cpp:610
-{"Geraeteliste voll (%d)", ""},  // src/zb_h2/zb_h2.cpp:639
-{"Roh: 0x%04x ep%u -> ep%u, Cluster 0x%04x, Befehl 0x%02x %s%s, %u Byte: %s", ""},  // src/zb_h2/zb_h2.cpp:672
-{"Cluster", ""},  // src/zb_h2/zb_h2.cpp:673
-{" (an Client)", ""},  // src/zb_h2/zb_h2.cpp:673
-{"Befehl 0x%02x im Cluster 0x%04x von 0x%04x nicht ausgewertet", ""},  // src/zb_h2/zb_h2.cpp:745
-{"Zigbee-Start fehlgeschlagen (%s), neuer Versuch", ""},  // src/zb_h2/zb_h2.cpp:784
-{"Neues Zigbee-Netz wird gebildet ...", ""},  // src/zb_h2/zb_h2.cpp:787
-{"Zigbee-Netz bereit: PAN 0x%04x, Kanal %d", ""},  // src/zb_h2/zb_h2.cpp:791
-{"Zigbee-Netz gebildet: PAN 0x%04x, Kanal %d", ""},  // src/zb_h2/zb_h2.cpp:797
-{"Netzbildung fehlgeschlagen (%s), neuer Versuch", ""},  // src/zb_h2/zb_h2.cpp:799
-{"ieee fehlt oder ungueltig", ""},  // src/zb_h2/zb_h2.cpp:843
-{"kein JSON: %.60s", ""},  // src/zb_h2/zb_h2.cpp:888
-{"Zigbee-Stack beschaeftigt", ""},  // src/zb_h2/zb_h2.cpp:893
-{"Netz noch nicht bereit", ""},  // src/zb_h2/zb_h2.cpp:900
-{"Geraet unbekannt", ""},  // src/zb_h2/zb_h2.cpp:1014
-{"Diagnose %s", ""},  // src/zb_h2/zb_h2.cpp:1058
-{"Treiberliste: %s", ""},  // src/zb_h2/zb_h2.cpp:1064
-{"Zigbee-Netz wird zurueckgesetzt – alle Geraete muessen neu angelernt werden", ""},  // src/zb_h2/zb_h2.cpp:1072
-{"unbekannter Befehl \"%s\"", ""},  // src/zb_h2/zb_h2.cpp:1080
 // --- nicht mehr im Quelltext gefunden ---
+{"Geht gerade nicht - Cerbo verbunden und Wert einstellbar?", "Not possible right now - Cerbo connected and value adjustable?"},
+{"Dieses Gerät lässt sich nicht schalten", "This device cannot be switched"},
+{"Suche fehlgeschlagen - bitte nochmal.", "Search failed - please try again."},
+{"Update fehlgeschlagen", "Update failed"},
 {"Wie in der Zigbee-Bridge unter mqtt.base_topic – meistens zigbee2mqtt.", "As in the Zigbee bridge under mqtt.base_topic – usually zigbee2mqtt."},
-{"Derselbe Broker, den auch die Zigbee-Bridge benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", ""},
 {"Name in der Zigbee-Bridge: ", "Name in the Zigbee bridge: "},
 {"). Das Umbenennen in der Zigbee-Bridge betrifft das ganze Gerät.", "). Renaming in the Zigbee bridge affects the whole device."},
 {"Auch in der Zigbee-Bridge umbenennen", "Also rename in the Zigbee bridge"},
 {"Umbenennung an die Zigbee-Bridge gesendet.", "Rename sent to the Zigbee bridge."},
 {"Noch keine Geräte von der Zigbee-Bridge empfangen.", "No devices received from the Zigbee bridge yet."},
 {"Zigbee (MQTT)", "Zigbee (MQTT)"},
-{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee-Bridge und ohne Broker.", ""},
 {"MQTT-Broker eintragen", "Enter MQTT broker"},
 {"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "The panel talks directly to Zigbee2MQTT. It needs the address of your MQTT broker."},
 {"Achtung: UART3 benutzt das Zigbee-Modul – bitte eine andere wählen.", "Caution: UART3 is used by the Zigbee module – please choose another one."},
 {"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte wie die eines Satelliten „Hobby“, die Bordbatterie als Batteriewächter.", "Switches and lights: tap the row. In the editor the values appear like those of a satellite “Hobby”, the leisure battery as a battery monitor."},
 {"Es sind höchstens sechs Geräte möglich", "At most six devices are possible"},
-{"Es sind schon sechs Geräte eingerichtet.", ""},
-{"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer, Power Stations – Akkus nur lesen", ""},
 {"Satellit offline", "Satellite offline"},
 {"Simply-Open-Camper-%04X", "Simply-Open-Camper-%04X"},
 {"Dieses Gerät ist in Zigbee2MQTT nicht vorhanden.", "This device does not exist in Zigbee2MQTT."},
@@ -2074,13 +1640,6 @@
 {"Das Panel wertet dieses Victron-Gerät dann nicht mehr aus. Die Kachel bleibt leer, bis du sie im Editor entfernst.", "The panel will no longer read this Victron device. The tile stays empty until you remove it in the editor."},
 {"TD40/TD200", "TD40/TD200"},
 {"Gas/Heizung", "Gas/Heating"},
-{"VBat", ""},
-{"System", ""},
-{"Temperature", ""},
-{"GasBtl", ""},
-{"SystemTime", ""},
-{"MobileIdentity", ""},
-{"ünde", ""},
 {"vor ", "ago"},
 {"Einrichten", "Set up"},
 {"Antippen", "Tap"},

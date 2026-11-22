@@ -1,0 +1,11 @@
+# Speicheraufteilung CrowPanel Advanced 7" ESP32-P4 (16 MB), ab 0.2.7:
+# 2 x 6 MB Programm (Update ueber die Weboberflaeche in den jeweils anderen Bereich), 3,9 MB Dateisystem.
+# Einstellungen (nvs) an derselben Stelle wie in partitions.csv -> beim Umstieg bleiben sie erhalten,
+# das Dateisystem (Kachel-Anordnung, Regeln, Bilder) liegt neu und ist danach leer.
+# Name,   Type, SubType,  Offset,   Size,     Flags
+nvs,      data, nvs,      0x9000,   0x5000,
+otadata,  data, ota,      0xe000,   0x2000,
+app0,     app,  ota_0,    0x10000,  0x600000,
+app1,     app,  ota_1,    0x610000, 0x600000,
+spiffs,   data, spiffs,   0xC10000, 0x3E0000,
+coredump, data, coredump, 0xFF0000, 0x10000,

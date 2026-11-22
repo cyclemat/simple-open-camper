@@ -79,7 +79,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 **Devices**
 - 🐝 **Zigbee2MQTT** – lights and switches, large networks too
 - 🔌 **Shelly** (Gen1 and Gen2+) on the same broker
-- 🧩 **ESPHome, Tasmota & co.** 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – devices with MQTT discovery show up by themselves, like satellites (sensors, switches, lights)
+- 🧩 **ESPHome, Tasmota & co.** *(beta)* – devices with MQTT discovery show up by themselves, like satellites (sensors, switches, lights)
 - 🌈 **WLED** on the same broker – on/off, brightness, colour
 - ⛽ **Truma LevelControl** over Bluetooth – up to two gas bottles
 - 🛢️ **Mopeka** over Bluetooth – up to four gas and tank sensors
@@ -202,8 +202,13 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
 
 - **⚡ [Online flasher](https://cyclemat.github.io/simple-open-camper/flasher/) (easiest):** open it in the browser (Chrome or Edge on a PC), connect the device via USB,
   pick the firmware – no download, no installation. Sections **Panels** and **Satellites and accessories**, per device
-  **"Firmware only (update)"** (settings stay) or **"Complete (set up anew)"**; for the P4 also the test build from
-  `release/test/`.
+  **"Firmware only (update)"** (settings stay) or **"Complete (set up anew)"**; P4 and round panel also in
+  **Español** and **Français**.
+- ⚠️ **P4 from 0.2.7: new flash layout** (2 × 6 MB program instead of 2 × 4 MB, the firmware no longer fitted). Flash
+  **"Firmware only (update)"** once with the online flasher – it writes the new layout too, **settings stay** (Wi-Fi,
+  devices, passwords). The **file system is empty afterwards**: back up the tile layout, rules, background and logo
+  images first (Settings → Backup to SD) and restore them afterwards. An update via the web interface is rejected by a
+  P4 with the old layout ("file too large") – then once via USB.
 - **Web flasher on your own computer:** double-click **`flasher.bat`** in the project folder (or `python tools/flasher.py`). It starts a small
   web server for this computer only and opens **http://localhost:8765/flasher/** with the sections **Panels** and
   **Satellites and accessories**. Per device: firmware from the **GitHub release** or the **locally built** one, and
@@ -636,8 +641,6 @@ by 1/2, 1/4 or 1/8.
 
 ### 🧩 ESPHome, Tasmota & co. (MQTT discovery)
 
-> 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – coming with the next regular version for all panels.
-
 Devices that announce themselves on the broker via **Home Assistant discovery** are shown on the panel automatically –
 without Home Assistant. Each device appears in the device list **like a satellite** (its own group with its name);
 drag tiles onto the panel from there. Supported: **sensors** (value + unit), **binary sensors** (door, motion, water …),
@@ -779,20 +782,17 @@ as a **control panel for Home Assistant**.
 |---|---|---|
 | **Satellites → HA** | All satellites register themselves via MQTT discovery: tank probes, temperatures, relays (switchable), inputs, level, extra sensors and their Bluetooth sensors | ✅ working |
 | **Zigbee2MQTT → HA** | as usual through Zigbee2MQTT itself | ✅ working |
-| **Panel → HA** | Via the integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): selected panel values (lights, switches, batteries, Victron, gas, satellite tanks and temperatures …) as sensors, switches and lights in HA | 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* |
-| **HA → Panel** | Via the same integration: selected HA entities (lights, switches, sensors …) appear on the panel like a satellite "Home Assistant" – as tiles, in rules, the app and the live view | 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* |
+| **Panel → HA** | Via the integration [simple-open-camper-HA-Integration](https://github.com/cyclemat/simple-open-camper-HA-Integration): selected panel values (lights, switches, batteries, Victron, gas, satellite tanks and temperatures …) as sensors, switches and lights in HA | *(beta)* – P4, round panel, Waveshare |
+| **HA → Panel** | Via the same integration: selected HA entities (lights, switches, sensors …) appear on the panel like a satellite "Home Assistant" – as tiles, in rules, the app and the live view | *(beta)* – P4, round panel, Waveshare |
 
 ### 🔌 "Simple Open Camper" integration for Home Assistant *(beta)*
-
-> 🧪 *Testing – only in [`panel-crowpanel-p4-HA-Addon-Test.bin`](release/test/) (P4)* – coming with the next regular version for all panels.
 
 Home Assistant connects to the panel itself – **one** WebSocket connection, local or over Tailscale, no MQTT broker.
 In the integration you choose **which panel values HA gets** and **which HA entities the panel shows**; each side only
 gets what is selected.
 
 1. **Panel:** browser editor → **Settings → Network → Home Assistant** → switch on "Allow Home Assistant to connect" and
-   copy the **access code**. (Firmware: for the P4 until the next version use the test build from
-   [`release/test/`](release/test/), afterwards any regular version.)
+   copy the **access code**. (From firmware 0.2.7 on the P4, round panel and Waveshare.)
 2. **HA – install:** HACS → ⋮ → **Custom repositories** → `https://github.com/cyclemat/simple-open-camper-HA-Integration`,
    type **Integration** → download → restart HA. (Without HACS: copy `custom_components/simple_open_camper` to
    `config/custom_components/`.)

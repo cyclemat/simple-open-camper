@@ -19,9 +19,12 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'src')
 I18N = os.path.join(SRC, 'i18n')
-SKIP_DIRS = {'fonts', 'generated', 'i18n', 'sat'}
+# third_party = fremder Code, zb_h2 = Firmware des Zigbee-Moduls, vicdisp = Victron-Display (eigenes Woerterbuch,
+# tools/i18n/vicdisp_en.json), p4test/updater = Testfirmware bzw. Updater – nichts davon erscheint auf einem Panel
+SKIP_DIRS = {'fonts', 'generated', 'i18n', 'sat', 'third_party', 'zb_h2', 'vicdisp', 'p4test', 'updater'}
 # Texte dieser Dateien erscheinen nicht auf dem Panel (Browser-Editor, Konfiguration)
-SKIP_FILES = {'webserver.cpp', 'app_config.h', 'backup.cpp', 'layout.cpp', 'sat_proto.cpp'}
+SKIP_FILES = {'webserver.cpp', 'app_config.h', 'backup.cpp', 'layout.cpp', 'sat_proto.cpp',
+              'debug_cmd.cpp', 'dbglog.cpp'}   # serielle Diagnose bzw. Debug-Log: nur Deutsch
 
 STR = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 ENTRY = re.compile(r'^\s*\{\s*"((?:[^"\\]|\\.)*)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\},?\s*(//.*)?$')
@@ -138,7 +141,7 @@ def write_lang(code, path, keys, where, old):
         v = old.get(k, '')
         lines.append('{"%s", "%s"},  // %s' % (k, v, where.get(k, '')))
     # Eintraege, deren Text im Code nicht mehr vorkommt, bleiben erhalten (falls noch gebraucht)
-    gone = [k for k in old if k not in where]
+    gone = [k for k in old if k not in where and old[k]]   # leere Altlasten weglassen
     if gone:
         lines.append('// --- nicht mehr im Quelltext gefunden ---')
         for k in gone:
