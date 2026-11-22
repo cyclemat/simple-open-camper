@@ -146,6 +146,12 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 Beide große Panels haben 7 Zoll und 1024 × 600 Bildpunkte und laufen mit derselben Firmware und demselben Editor.
 Der Unterschied liegt im Chip – und damit darin, wie viel gleichzeitig laufen kann.
 
+> ℹ️ **Elecrow CrowPanel Advanced 9" und 10,1" (ESP32-P4): noch nicht getestet.** Beide haben laut Elecrow ebenfalls
+> 1024 × 600 Bildpunkte, denselben Chip (ESP32-P4 + Funkchip ESP32-C6) und dieselbe Beschaltung wie das 7"-Modell.
+> Ich gehe deshalb davon aus, dass die **7"-Firmware** (`panel-crowpanel-p4.bin`, im Online-Flasher „CrowPanel
+> Advanced 7"“) auch darauf läuft. Wer eins hat: bitte ausprobieren und als
+> [GitHub-Issue](https://github.com/cyclemat/simple-open-camper/issues) melden (Bild, Touch, WLAN, Bluetooth, SD-Karte).
+
 | | **Elecrow CrowPanel Advanced 7" (ESP32-P4)** (EC-P4-7-V1.2) | **Waveshare ESP32-S3-Touch-LCD-7B** (WS-S3-7B) |
 |---|---|---|
 | Chip | ESP32-P4, 2 Kerne RISC-V, 400 MHz | ESP32-S3, 2 Kerne Xtensa LX7, 240 MHz |
@@ -155,7 +161,7 @@ Der Unterschied liegt im Chip – und damit darin, wie viel gleichzeitig laufen 
 | WLAN / Bluetooth | eigener Funkchip **ESP32-C6** (WLAN 6, BLE 5) – entlastet den Hauptchip | im Chip selbst – WLAN und Bluetooth teilen sich RAM und Antenne mit allem anderen |
 | Display | IPS, MIPI-DSI, Grafikbeschleuniger (DMA2D, Hardware-JPEG) | paralleles RGB, das Bild wird ständig aus dem PSRAM gelesen |
 | Akku | kein Messpunkt am P4 – nur über eigenen Spannungsteiler (2 × 100 kΩ an GPIO 49) | Akkuanschluss mit Spannungsmessung |
-| Firmware-Größe | ~78 % des App-Bereichs | ~75 % des App-Bereichs |
+| Firmware-Größe | ~66 % des App-Bereichs (6 MB seit 0.2.7) | ~75 % des App-Bereichs |
 | Bauen | ~1–2 min (fertige Framework-Bibliotheken) | erster Build 10–20 min (Framework wird neu gebaut) |
 | Umgebung | `crowpanel-p4` (Ordner `p4/`) | `waveshare-7b` |
 | Bezugsquelle | [bei Amazon](https://link.amazon/B04j2pDnV) | [bei Amazon](https://www.amazon.de/dp/B0FDQXKFJ5) |

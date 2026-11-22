@@ -147,6 +147,12 @@ only where it matters for the firmware).
 Both large panels are 7 inch with 1024 × 600 pixels and run the same firmware and the same editor. The difference is
 the chip – and therefore how much can run at the same time.
 
+> ℹ️ **Elecrow CrowPanel Advanced 9" and 10.1" (ESP32-P4): not tested yet.** According to Elecrow both also have
+> 1024 × 600 pixels, the same chip (ESP32-P4 + ESP32-C6 radio chip) and the same wiring as the 7" model. I therefore
+> expect the **7" firmware** (`panel-crowpanel-p4.bin`, in the online flasher "CrowPanel Advanced 7"") to run on them
+> as well. If you have one: please try it and report as a
+> [GitHub issue](https://github.com/cyclemat/simple-open-camper/issues) (display, touch, Wi-Fi, Bluetooth, SD card).
+
 | | **Elecrow CrowPanel Advanced 7" (ESP32-P4)** (EC-P4-7-V1.2) | **Waveshare ESP32-S3-Touch-LCD-7B** (WS-S3-7B) |
 |---|---|---|
 | Chip | ESP32-P4, 2 RISC-V cores, 400 MHz | ESP32-S3, 2 Xtensa LX7 cores, 240 MHz |
@@ -156,7 +162,7 @@ the chip – and therefore how much can run at the same time.
 | Wi-Fi / Bluetooth | separate **ESP32-C6** radio chip (Wi-Fi 6, BLE 5) – takes load off the main chip | on the chip itself – Wi-Fi and Bluetooth share RAM and antenna with everything else |
 | Display | IPS, MIPI-DSI, graphics acceleration (DMA2D, hardware JPEG) | parallel RGB, the image is constantly read from PSRAM |
 | Battery | no measuring point on the P4 – only with your own voltage divider (2 × 100 kΩ to GPIO 49) | battery connector with voltage measurement |
-| Firmware size | ~78 % of the app partition | ~75 % of the app partition |
+| Firmware size | ~66 % of the app partition (6 MB since 0.2.7) | ~75 % of the app partition |
 | Build | ~1–2 min (pre-built framework libraries) | first build 10–20 min (framework is rebuilt) |
 | Environment | `crowpanel-p4` (folder `p4/`) | `waveshare-7b` |
 | Where to buy | [on Amazon](https://link.amazon/B04j2pDnV) | [on Amazon](https://www.amazon.de/dp/B0FDQXKFJ5) |
