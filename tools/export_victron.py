@@ -19,6 +19,8 @@ FILES = [
     "src/cerbo.cpp", "src/cerbo.h", "src/devsetup.cpp", "src/devsetup.h", "src/gx_find.cpp", "src/gx_find.h", "src/bms.cpp", "src/bms.h",
     "src/truma.cpp", "src/truma.h", "src/mopeka.cpp", "src/mopeka.h", "src/truma_inetx.cpp", "src/truma_inetx.h",
     "src/hymer.cpp", "src/hymer.h", "src/hobby.h", "src/hymer_tls.cpp", "src/hymer_tls.h", "src/settings.h", "src/sat_proto.h", "src/app.h", "src/web_server.h", "src/hymer_cloud.h", "src/truma_heat.h", "src/victron.cpp", "src/victron.h", "src/net.h",
+    # Orion per Bluetooth bedienen; votronic.h nur als leere Kopfdatei (truma.cpp bindet sie ein, im Display aus)
+    "src/victron_ctl.cpp", "src/victron_ctl.h", "src/votronic.h", "src/shelly_ble.h", "src/z2m.h",
     "src/i18n/i18n.cpp", "src/i18n/i18n.h", "src/i18n/en.h", "src/dbglog.cpp", "src/dbglog.h",
     "src/fonts/fonts.h", "src/fonts/icons.h", "src/fonts/font_ui_16.c", "src/fonts/font_ui_20.c",
     "src/fonts/font_ui_26.c", "src/fonts/font_ui_40.c",
@@ -38,7 +40,7 @@ FILES = [
 ]
 
 PLATFORMIO_INI = """\
-; Simple Open Camper – Victron-Display (Beta)
+; Simple Open Camper – Victron Edition
 ; Eigene, schlanke Firmware fuer das Mini-Display ESP32-2432S028R ("Cheap Yellow Display", 2,8" 320x240):
 ; Cerbo GX per WLAN (MQTT im LAN) und Victron-Geraete direkt per Bluetooth (Instant Readout), alles als Kacheln.
 ;
@@ -104,6 +106,7 @@ build_flags =
     -DSAT_DISPLAY=1
     -DSAT_BOARD_CYD=1
     -DSAT_VICTRON_ONLY=1
+    -DWITH_VICTRON_CTL=1
     -DDBGLOG_CYD_SD=1
     -DSAT_BIG_FONT=1
     -DWITH_BMS=1
@@ -325,10 +328,10 @@ def write_flasher():
     os.makedirs(os.path.join(DST, "assets"), exist_ok=True)
     shutil.copyfile(os.path.join(ROOT, "assets", "splash.jpg"), os.path.join(DST, "assets", "flasher_bg.jpg"))
     # je Sprache ein Manifest; die Seite schaltet zwischen beiden um (Knopf Deutsch | English)
-    for fname, title, binf in (("manifest.json", "Victron-Display (Simple Open Camper)", "victron-display-cyd.bin"),
-                               ("manifest-en.json", "Victron display (Simple Open Camper, English)",
+    for fname, title, binf in (("manifest.json", "Simple Open Camper – Victron Edition (CYD 2,8\")", "victron-display-cyd.bin"),
+                               ("manifest-en.json", "Simple Open Camper – Victron Edition (CYD 2.8\", English)",
                                 "victron-display-cyd-en.bin"),
-                               ("manifest-ws7.json", "Victron-Display 7\" (Waveshare ESP32-S3)", "victron-display-ws7.bin")):
+                               ("manifest-ws7.json", "Simple Open Camper – Victron Edition 7\" (Waveshare ESP32-S3)", "victron-display-ws7.bin")):
         manifest = {
             "name": title,
             "version": ver,

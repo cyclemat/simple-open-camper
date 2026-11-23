@@ -27,6 +27,8 @@
 #include "hymer.h"
 #include "hymer_cloud.h"
 #include "hobby.h"
+#include "votronic.h"
+#include "victron_ctl.h"
 #include "shelly_ble.h"
 #include "dbglog.h"
 #include "tailscale.h"
@@ -191,6 +193,9 @@ static esp_err_t h_info(httpd_req_t *req) {
   d["feat"]["zbd"] = (bool)WITH_ZB_DIRECT;
   d["feat"]["hymer"] = (bool)WITH_HYMER;
   d["feat"]["hobby"] = (bool)WITH_HOBBY;
+#if WITH_VOTRONIC
+  d["feat"]["votronic"] = true;
+#endif
   d["feat"]["bms"] = (bool)WITH_BMS;
   d["feat"]["sats"] = (bool)WITH_SATELLITES;
   d["feat"]["ts"] = (bool)WITH_TAILSCALE;
@@ -544,7 +549,11 @@ static esp_err_t h_devices(httpd_req_t *req) {
       auto it = lay.names.find(v.key);
       o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : v.name;
       o["model"] = victron_kind_text(v.kind);
+#if WITH_VOTRONIC
+      o["vendor"] = v.key.rfind("vot:", 0) == 0 ? "Votronic" : "Victron";
+#else
       o["vendor"] = "Victron";
+#endif
       o["kind"] = "victron";
       o["vtype"] = vic_type(v.kind);
       o["sat"] = panelsat_via_text(v.key);
@@ -1249,6 +1258,7 @@ static esp_err_t h_victron_get(httpd_req_t *req) {
     o["name"] = v.name;
     o["vtype"] = vic_type(v.kind);
     o["kind_text"] = victron_kind_text(v.kind);
+    if (vctl_supported(v.record)) o["pin"] = vctl_pin(v.mac);   // Orion: per Bluetooth schaltbar (PIN aus VictronConnect)
     vic_state(o["state"].to<JsonObject>(), v);
   }
   JsonArray fa = d["found"].to<JsonArray>();
@@ -1769,6 +1779,93 @@ static esp_err_t h_hobby_post(httpd_req_t *req) {
 }
 #endif
 
+#if WITH_VOTRONIC
+// Votronic (S-BC per Bluetooth, Display-Link per Kabel): Einstellungen, Stand, gefundene S-BC, Werte
+static esp_err_t h_votronic_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  VotronicCfg c = votronic_cfg();
+  d["ble_on"] = c.ble_on;
+  d["mac"] = c.mac;
+  d["pin"] = c.pin;
+  d["uart_on"] = c.uart_on;
+  d["uart"] = c.uart;
+  d["rx"] = c.rx;
+  d["uart_n"] = votronic_uart_count();
+#if WITH_ZB_DIRECT
+  d["zb_uart"] = zbd_enabled() ? (int)ZBD_UART : 0;
+#else
+  d["zb_uart"] = 0;
+#endif
+  d["status"] = votronic_status();
+  d["uart_status"] = votronic_uart_status();
+  if (c.ble_on && c.mac.empty()) votronic_search(30000);   // solange die Seite offen ist, weiter suchen
+  JsonArray ca = d["cands"].to<JsonArray>();
+  for (auto &x : votronic_candidates()) {
+    JsonObject o = ca.add<JsonObject>();
+    o["mac"] = x.mac;
+    o["name"] = x.name;
+    o["type"] = x.type;
+    o["rssi"] = x.rssi;
+  }
+  JsonArray ra = d["rows"].to<JsonArray>();
+  for (auto &r : votronic_rows()) {
+    JsonObject o = ra.add<JsonObject>();
+    o["dev"] = r.dev;
+    o["name"] = r.name;
+    o["value"] = r.value;
+  }
+  JsonArray ka = d["keys"].to<JsonArray>();
+  for (auto &v : votronic_list()) {
+    JsonObject o = ka.add<JsonObject>();
+    o["key"] = v.key;
+    o["name"] = v.name;
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"ble_on","uart_on","uart","rx","pin"} | {"sbc":{"mac","type"}} | {"forget":true}
+static esp_err_t h_votronic_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  VotronicCfg c = votronic_cfg();
+  if (d["ble_on"].is<bool>()) c.ble_on = d["ble_on"];
+  if (d["uart_on"].is<bool>()) c.uart_on = d["uart_on"];
+  if (d["uart"].is<int>()) {
+    int u = d["uart"];
+    if (u < 1 || u >= votronic_uart_count()) return send_err(req, "400 Bad Request", "Ungültige Schnittstelle");
+    c.uart = (int8_t)u;
+  }
+  if (d["rx"].is<int>()) c.rx = (int8_t)constrain((int)d["rx"], -1, 60);
+  if (d["pin"].is<const char *>()) {
+    std::string p = d["pin"] | "";
+    for (char ch : p)
+      if (ch < '0' || ch > '9') return send_err(req, "400 Bad Request", "Die PIN besteht nur aus Ziffern");
+    if (p.size() > 6) return send_err(req, "400 Bad Request", "Die PIN hat höchstens 6 Ziffern");
+    c.pin = p.empty() ? VOTRONIC_PIN_DEFAULT : p;
+  }
+  if (d["sbc"].is<JsonObject>()) {
+    std::string m = d["sbc"]["mac"] | "";
+    for (auto &ch : m) ch = (char)tolower((unsigned char)ch);
+    if (m.size() != 17) return send_err(req, "400 Bad Request", "Adresse im Format aa:bb:cc:dd:ee:ff");
+    c.mac = m;
+    c.mac_type = d["sbc"]["type"] | 0;
+  }
+  if (d["forget"] | false) {
+    c.mac.clear();
+    c.mac_type = 0;
+  }
+  votronic_set_cfg(c);
+  return send_ok(req);
+}
+#endif
+
 #if WITH_RULES
 // Regel-Engine: Regeln + Blockly-Arbeitsbereich, Zustand, Auswahl (Zigbee-Geraete, Kacheln)
 static esp_err_t h_rules_get(httpd_req_t *req) {
@@ -1828,6 +1925,13 @@ static esp_err_t h_victron_post(httpd_req_t *req) {
   }
   if (d["remove"].is<const char *>()) victron_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) victron_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (!d["pin"].isNull()) {   // {"pin":{"mac","pin"}}: PIN zum Schalten per Bluetooth (6 Ziffern, leer = 000000)
+    std::string pin = d["pin"]["pin"] | "";
+    for (char ch : pin)
+      if (ch < '0' || ch > '9') return send_err(req, "400 Bad Request", "Die PIN besteht nur aus Ziffern");
+    if (pin.size() > 6) return send_err(req, "400 Bad Request", "Die PIN hat höchstens 6 Ziffern");
+    vctl_set_pin(d["pin"]["mac"] | "", pin);
+  }
   return send_ok(req);
 }
 
@@ -2379,6 +2483,10 @@ void web_start() {
 #if WITH_HOBBY
   reg("/api/hobby", HTTP_GET, h_hobby_get);
   reg("/api/hobby", HTTP_POST, h_hobby_post);
+#endif
+#if WITH_VOTRONIC
+  reg("/api/votronic", HTTP_GET, h_votronic_get);
+  reg("/api/votronic", HTTP_POST, h_votronic_post);
 #endif
   reg("/api/mopeka", HTTP_GET, h_mopeka_get);
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);

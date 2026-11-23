@@ -30,6 +30,7 @@
 #include "truma_inetx.h"
 #include "hymer.h"
 #include "hobby.h"
+#include "votronic.h"
 #include "shelly_ble.h"
 #include "alde.h"
 #include "sdcard.h"
@@ -104,6 +105,9 @@ static std::string dbg_status() {
   if (cerbo_configured()) s += " · Cerbo " + cerbo_status();
 #if WITH_HOBBY
   if (hobby_active()) s += " · Hobby " + hobby_status() + " / " + hobby_uart_status();
+#endif
+#if WITH_VOTRONIC
+  if (votronic_active()) s += " · Votronic " + votronic_status() + " / " + votronic_uart_status();
 #endif
 #if WITH_HYMER && !SOC_VICTRON_EDITION
   if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) s += " · Hymer " + hymer_status();   // nur wenn eingeschaltet
@@ -187,6 +191,7 @@ void setup() {
   cpplus_begin();      // Truma CP Plus (LIN-Bus) – nur mit WITH_TRUMA_CPPLUS, sonst leer
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
   hobby_begin();
+  votronic_begin();    // Votronic (S-BC per Bluetooth / Display-Link per Kabel) – ab Werk aus
   shb_begin();         // Shelly per Bluetooth (Gen2+, ab Werk aus)       // Hobby (HobbyConnect-Box / CI-BUS) – ab Werk aus, nur Einstellungen laden
   bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)

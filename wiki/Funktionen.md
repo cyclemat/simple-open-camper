@@ -25,6 +25,7 @@
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
 - ⚖️ **Senso4s** *(Beta)* – Gasflaschen-Waage Basic/Plus per Bluetooth, Füllstand in % und kg
 - ☀️ **Victron** per Bluetooth („Instant Readout“) – Solarregler, Batteriemonitor, Ladebooster
+- ⚡ **Votronic** *(Beta)* – Batteriecomputer/Smart Shunt, Solarregler, Ladegeräte und Ladebooster per Bluetooth (S-BC) oder Kabel (Display-Link)
 - 🔋 **Victron Cerbo GX** (Venus OS) per MQTT – Solar, Netz/Landstrom, Ladegerät, Batterie (SOC) und DC-System
 - 🔥 **Truma-Heizung** (Combi/VarioHeat) – über **CP Plus** (LIN-Bus) oder **iNet X** (Bluetooth)
 - ♨️ **Alde-Warmwasserheizung** (Compact 3020, 3030, 3030 Plus) über den LIN-Bus

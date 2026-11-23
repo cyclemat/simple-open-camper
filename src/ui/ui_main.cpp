@@ -11,6 +11,7 @@
 #include "../settings.h"
 #include "../z2m.h"
 #include "../truma.h"
+#include "../victron_ctl.h"
 #include "../victron.h"
 #include "../panelsat.h"
 #include "../power.h"
@@ -1008,12 +1009,21 @@ static int s_rc_want = -1000;             // eingestellter, noch nicht gesendete
 static uint32_t s_rc_ms = 0, s_rc_act = 0;
 static lv_obj_t *s_rc_val = nullptr, *s_rc_sub = nullptr, *s_rc_cap = nullptr, *s_rc_btn[2] = {nullptr, nullptr};
 
+// Victron-Geraet mit Schalter/Begrenzung (MultiPlus/Ladegeraet ueber den GX, Orion ueber den GX oder per Bluetooth)
+static bool rc_vic(const VictronInfo &v) {
+  return !v.bms && (v.can_mode || v.can_limit) && v.kind != VIC_PSTATION && v.kind != VIC_HEATER && v.kind != VIC_FRIDGE;
+}
+
 static bool round_ctl_kind(const VictronInfo &v) {
-  return v.kind == VIC_HEATER || v.kind == VIC_FRIDGE || (v.kind == VIC_PSTATION && (v.can_ac || v.can_dc));
+  return v.kind == VIC_HEATER || v.kind == VIC_FRIDGE || (v.kind == VIC_PSTATION && (v.can_ac || v.can_dc)) || rc_vic(v);
 }
 
 // Einstellbarer Wert: Heizung Stufe (Modus Stufe) bzw. Soll-°C (Modus Temperatur), Kuehlbox Soll der Zone
 static int rc_cur(const VictronInfo &v, int &what, int &lo, int &hi) {
+  if (rc_vic(v)) {   // Begrenzung in ganzen Ampere (Orion 1–50 A, MultiPlus/Ladegeraet 0–100 A)
+    what = 3, lo = v.kind == VIC_DCDC ? 1 : 0, hi = v.kind == VIC_DCDC ? 50 : 100;
+    return isnan(v.ac_limit) ? -1000 : (int)lroundf(v.ac_limit);
+  }
   if (v.kind == VIC_HEATER) {
     if (v.ht_mode == 2) {
       what = 2, lo = 8, hi = 36;
@@ -1047,6 +1057,22 @@ static void rc_paint() {
     rc_btn_style(s_rc_btn[1], v.dc_on == 1, C_AMBER);
     return;
   }
+  if (rc_vic(v)) {
+    int what, lo, hi;
+    int cur = s_rc_want > -1000 ? s_rc_want : rc_cur(v, what, lo, hi);
+    if (v.can_limit) snprintf(b, sizeof(b), "%s", cur > -1000 ? (std::to_string(cur) + "\xE2\x80\xAF" "A").c_str() : "…");
+    else snprintf(b, sizeof(b), "%s", v.mode == 4 ? tr("Aus") : tr("Ein"));
+    (lv_label_set_text)(s_rc_val, b);
+    lv_label_set_text(s_rc_cap, v.can_limit ? (v.kind == VIC_DCDC ? "Ladestrom (max.)" : "Netzstrom-Begrenzung") : "Schalter");
+    std::string sub = tr(victron_state_text(v.state));
+    float w = victron_dc_watt(v);
+    if (!isnan(w)) sub += "  ·  " + ui_num(w, 0, "W");
+    (lv_label_set_text)(s_rc_sub, sub.c_str());
+    lv_obj_t *l = s_rc_btn[0] ? lv_obj_get_child(s_rc_btn[0], 0) : nullptr;
+    if (l) lv_label_set_text(l, v.mode == 4 ? "Einschalten" : "Ausschalten");
+    rc_btn_style(s_rc_btn[0], v.mode != 4 && v.mode >= 0, C_AMBER);
+    return;
+  }
   bool heat = v.kind == VIC_HEATER;
   int what, lo, hi;
   int cur = s_rc_want > -1000 ? s_rc_want : rc_cur(v, what, lo, hi);
@@ -1077,7 +1103,7 @@ static void rc_close() {
 // Wert um d aendern (Drehknopf, −/+); gesendet wird gesammelt in round_ctl_tick
 static void rc_step(int d) {
   VictronInfo v;
-  if (!ui_vic_get(s_rc_key, v) || v.kind == VIC_PSTATION) return;
+  if (!ui_vic_get(s_rc_key, v) || v.kind == VIC_PSTATION || (rc_vic(v) && !v.can_limit)) return;
   s_rc_act = millis();
   if (v.kind == VIC_HEATER && v.ht_err) {
     ui_toast("Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.");
@@ -1086,6 +1112,7 @@ static void rc_step(int d) {
   int what, lo, hi;
   int cur = s_rc_want > -1000 ? s_rc_want : rc_cur(v, what, lo, hi);
   rc_cur(v, what, lo, hi);
+  if (cur <= -1000) return;   // Begrenzung noch nicht gelesen
   s_rc_want = std::max(lo, std::min(hi, cur + d));
   s_rc_ms = millis();
   rc_paint();
@@ -1110,7 +1137,8 @@ static void rc_btn_cb(lv_event_t *e) {
     return;
   }
   bool ok;
-  if (v.kind == VIC_PSTATION) ok = bms_set_output(v.mac, x == 0, !((x == 0 ? v.ac_on : v.dc_on) == 1));
+  if (rc_vic(v)) ok = v.can_mode && ui_vic_set_mode(s_rc_key, v.mode == 4 ? (v.mode_set == 0 ? 3 : 1) : 4);
+  else if (v.kind == VIC_PSTATION) ok = bms_set_output(v.mac, x == 0, !((x == 0 ? v.ac_on : v.dc_on) == 1));
   else if (v.kind == VIC_HEATER) ok = bms_heater_cmd(v.mac, 0, v.ht_on == 1 ? 0 : 1);
   else ok = bms_fridge_cmd(v.mac, 0, v.fr_on == 1 ? 0 : 1);
   ui_toast(ok ? "Wird geschaltet …" : "Das ging nicht.");
@@ -1173,6 +1201,15 @@ static void round_ctl_build(const std::string &name) {
     if (v.can_dc) s_rc_btn[1] = rc_button(pg, "DC", 104, 56, 1, F_BODY);
     if (s_rc_btn[0]) lv_obj_align(s_rc_btn[0], LV_ALIGN_CENTER, s_rc_btn[1] ? -58 : 0, 82);
     if (s_rc_btn[1]) lv_obj_align(s_rc_btn[1], LV_ALIGN_CENTER, s_rc_btn[0] ? 58 : 0, 82);
+  } else if (rc_vic(v)) {
+    if (v.can_limit) {
+      lv_obj_align(rc_button(pg, "−", 60, 60, 10, F_TITLE), LV_ALIGN_CENTER, -118, -20);
+      lv_obj_align(rc_button(pg, "+", 60, 60, 11, F_TITLE), LV_ALIGN_CENTER, 118, -20);
+    }
+    if (v.can_mode) {
+      s_rc_btn[0] = rc_button(pg, "Einschalten", 190, 54, 0, F_BODY);
+      lv_obj_align(s_rc_btn[0], LV_ALIGN_CENTER, 0, 82);
+    }
   } else {
     lv_obj_align(rc_button(pg, "−", 60, 60, 10, F_TITLE), LV_ALIGN_CENTER, -118, -20);
     lv_obj_align(rc_button(pg, "+", 60, 60, 11, F_TITLE), LV_ALIGN_CENTER, 118, -20);
@@ -1194,7 +1231,8 @@ static void round_ctl_tick() {
     bool ok = false;
     if (ui_vic_get(s_rc_key, v)) {
       rc_cur(v, what, lo, hi);
-      ok = v.kind == VIC_HEATER ? bms_heater_cmd(v.mac, what, s_rc_want) : bms_fridge_cmd(v.mac, what, s_rc_want);
+      if (rc_vic(v)) ok = ui_vic_set_limit(s_rc_key, (float)s_rc_want);
+      else ok = v.kind == VIC_HEATER ? bms_heater_cmd(v.mac, what, s_rc_want) : bms_fridge_cmd(v.mac, what, s_rc_want);
     }
     if (!ok) ui_toast("Das ging nicht.");
     s_rc_want = -1000;
@@ -1206,6 +1244,7 @@ static void round_ctl_tick() {
 void round_ctl_open(const std::string &key) {
   VictronInfo v;
   if (!ui_vic_get(key, v) || !round_ctl_kind(v)) return;
+  if (!v.gx && vctl_supported(v.record) && key.rfind(VICTRON_KEY_PREFIX, 0) == 0) vctl_refresh(v.mac);   // Stand lesen
   s_rc_key = key;
   s_rc_zone = 0;
   s_rc_want = -1000;
@@ -1591,11 +1630,11 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
     m.accent = rgb_of(tt.accent);
     m.fill = tt.fill;
     m.dim = tt.stale;
-    if (v.gx && v.can_mode) {   // ueber den GX schaltbar: Bedienfenster am Zusatzdisplay
+    if (v.can_mode) {   // ueber den GX oder per Bluetooth schaltbar: Bedienfenster am Zusatzdisplay
       m.vset = v.mode_set == 0 ? 1 : 2;
       m.vmode = v.mode;
     }
-    if (v.gx && v.can_limit && !isnan(v.ac_limit)) m.vlim = (int)lroundf(v.ac_limit * 10);
+    if (v.can_limit && !isnan(v.ac_limit)) m.vlim = (int)lroundf(v.ac_limit * 10);
     return true;
   }
   if (truma_heat_is_key(key)) {
@@ -1649,9 +1688,9 @@ bool ui_tile_set(const std::string &key, char what, int value) {
 #if WITH_CERBO
   if (victron_is_key(key)) {   // MultiPlus/Ladegeraet ueber den GX (nur was der GX als einstellbar meldet)
     VictronInfo vi;
-    if (!ui_vic_get(key, vi) || !vi.gx) return false;
-    if (what == 'm' && vi.can_mode) return cerbo_set_mode(key, value);
-    if (what == 'l' && vi.can_limit) return cerbo_set_limit(key, std::max(0, std::min(1000, value)) / 10.f);
+    if (!ui_vic_get(key, vi)) return false;
+    if (what == 'm' && vi.can_mode) return ui_vic_set_mode(key, value);
+    if (what == 'l' && vi.can_limit) return ui_vic_set_limit(key, std::max(0, std::min(1000, value)) / 10.f);
     return false;
   }
 #endif
@@ -1973,6 +2012,7 @@ void ui_loop() {
     if (panelsat_version() != s_seen_sat) {   // Satelliten (MQTT/UDP/Bluetooth), Hymer Connect
       s_seen_sat = panelsat_version();
       ui_settings_tick_hobby();
+      ui_settings_tick_votronic();
       ui_settings_tick_hymer();                // Status, Kopplung und Werte von Hymer Connect
       tiles_update(false);
       ui_gas_update();

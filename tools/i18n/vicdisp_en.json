@@ -260,5 +260,7 @@
 ["textContent='Log ausblenden'", "textContent='Hide log'"],
 ["textContent='Log ansehen'", "textContent='View log'"],
 ["'Noch nichts mitgeschrieben.'", "'Nothing recorded yet.'"],
-["confirm('Datei '+b.dataset.dbdel+' löschen?')", "confirm('Delete file '+b.dataset.dbdel+'?')"]
+["confirm('Datei '+b.dataset.dbdel+' löschen?')", "confirm('Delete file '+b.dataset.dbdel+'?')"],
+["'PIN aus VictronConnect zum Schalten (ab Werk 000000)'", "'PIN from VictronConnect for switching (default 000000)'"],
+["'PIN gespeichert.'", "'PIN saved.'"]
 ]

@@ -7,6 +7,7 @@
 #include "../cerbo.h"
 #include "../bms.h"
 #include "../panelsat.h"
+#include "../victron_ctl.h"
 #include <Arduino.h>
 #include <math.h>
 
@@ -19,7 +20,19 @@ bool ui_vic_get(const std::string &key, VictronInfo &out) {
 
 // Nicht am Panel eingerichtet (Cerbo GX, Satellit): kein Schluessel/Entfernen, Name nur fuer das Panel
 static bool remote(const std::string &key, const VictronInfo &v) {
-  return v.gx || key == "hobby:bat" || !panelsat_sat_of(key).empty();   // Hobby-Bordbatterie: aus hobby.cpp
+  return v.gx || key == "hobby:bat" || key.rfind("vot:", 0) == 0 || !panelsat_sat_of(key).empty();   // Hobby/Votronic: eigene Module
+}
+
+// Schalter/Begrenzung senden: ueber den Cerbo GX oder per Bluetooth direkt (Orion, victron_ctl.cpp)
+bool ui_vic_set_mode(const std::string &key, int mode) {
+  if (cerbo_is_key(key)) return cerbo_set_mode(key, mode);
+  if (key.rfind(VICTRON_KEY_PREFIX, 0) == 0) return vctl_set_mode(key.substr(strlen(VICTRON_KEY_PREFIX)), mode);
+  return false;
+}
+bool ui_vic_set_limit(const std::string &key, float amps) {
+  if (cerbo_is_key(key)) return cerbo_set_limit(key, amps);
+  if (key.rfind(VICTRON_KEY_PREFIX, 0) == 0) return vctl_set_limit(key.substr(strlen(VICTRON_KEY_PREFIX)), amps);
+  return false;
 }
 
 std::string ui_num(float v, int decimals, const char *unit) {
@@ -331,7 +344,7 @@ static void v_delete_cb(lv_event_t *e) {
   if (d == s_v) s_v = nullptr;
   if (d->lim_timer) {   // noch nicht gesendete Begrenzung jetzt senden
     lv_timer_del(d->lim_timer);
-    if (!isnan(d->lim_val)) cerbo_set_limit(d->key, d->lim_val);
+    if (!isnan(d->lim_val)) ui_vic_set_limit(d->key, d->lim_val);
   }
   delete d;
 }
@@ -355,7 +368,8 @@ static void ctl_send_cb(lv_timer_t *t) {
   VicDlg *d = (VicDlg *)t->user_data;
   d->lim_timer = nullptr;
   lv_timer_del(t);
-  if (!isnan(d->lim_val) && !cerbo_set_limit(d->key, d->lim_val)) ui_toast("Der GX nimmt die Begrenzung gerade nicht an.");
+  if (!isnan(d->lim_val) && !ui_vic_set_limit(d->key, d->lim_val))
+    ui_toast(cerbo_is_key(d->key) ? "Der GX nimmt die Begrenzung gerade nicht an." : "Gerade nicht möglich – bitte gleich noch einmal.");
   d->edit_ms = lv_tick_get();
 }
 
@@ -363,7 +377,8 @@ static void ctl_step_cb(lv_event_t *e) {
   if (!s_v || isnan(s_v->lim_val)) return;
   int dir = (int)(intptr_t)lv_event_get_user_data(e);
   float v = roundf(s_v->lim_val) + dir;   // ganze Ampere
-  s_v->lim_val = v < 0 ? 0 : v > 100 ? 100 : v;
+  float lo = s_v->kind == VIC_DCDC ? 1 : 0, hi = s_v->kind == VIC_DCDC ? 50 : 100;   // Orion XS: 1–50 A
+  s_v->lim_val = v < lo ? lo : v > hi ? hi : v;
   s_v->edit_ms = lv_tick_get();
   ctl_show_limit();
   if (s_v->lim_timer) lv_timer_reset(s_v->lim_timer);
@@ -375,8 +390,8 @@ static void ctl_mode_cb(lv_event_t *e) {
   int i = (int)(intptr_t)lv_event_get_user_data(e);
   if (i < 0 || i >= s_v->nmode) return;
   s_v->edit_ms = lv_tick_get();
-  if (cerbo_set_mode(s_v->key, s_v->mode_val[i])) ctl_show_mode(s_v->mode_val[i]);
-  else ui_toast("Der GX nimmt den Schalter gerade nicht an.");
+  if (ui_vic_set_mode(s_v->key, s_v->mode_val[i])) ctl_show_mode(s_v->mode_val[i]);
+  else ui_toast(cerbo_is_key(s_v->key) ? "Der GX nimmt den Schalter gerade nicht an." : "Gerade nicht möglich – bitte gleich noch einmal.");
 }
 
 static lv_obj_t *ctl_btn(lv_obj_t *parent, const char *txt, int w, lv_event_cb_t cb, intptr_t ud) {
@@ -402,7 +417,7 @@ static void ctl_build(lv_obj_t *card, const VictronInfo &v) {
     lv_obj_t *r = lv_obj_create(card);
     ui_plain(r);
     lv_obj_set_size(r, lv_pct(100), 60);
-    lv_obj_t *t = ui_label(r, "Netzstrom-Begrenzung", F_BODY, C_TEXT2);
+    lv_obj_t *t = ui_label(r, v.kind == VIC_DCDC ? "Ladestrom (max.)" : "Netzstrom-Begrenzung", F_BODY, C_TEXT2);
     lv_obj_align(t, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_t *plus = ctl_btn(r, "+", 72, ctl_step_cb, 1);
     lv_obj_align(plus, LV_ALIGN_RIGHT_MID, 0, 0);
@@ -622,6 +637,24 @@ static void v_key_cb(lv_event_t *) {
   ui_input_open(o);
 }
 
+
+// PIN aus VictronConnect (zum Schalten per Bluetooth; ab Werk 000000, neuere Geraete: PIN auf dem Aufkleber)
+static void v_pin_cb(lv_event_t *) {
+  if (!s_v) return;
+  std::string mac = s_v->mac;
+  InputOptions o;
+  o.title = "PIN zum Schalten";
+  o.hint = "Die PIN aus VictronConnect (ab Werk 000000, bei neueren Geräten steht sie auf dem Aufkleber). Nur zum Schalten nötig.";
+  o.initial = vctl_pin(mac);
+  o.numeric = true;
+  o.max_len = 6;
+  o.on_ok = [mac](const std::string &t, bool) {
+    vctl_set_pin(mac, t);
+    ui_toast("PIN gespeichert.");
+  };
+  ui_vic_close();
+  ui_input_open(o);
+}
 
 static void v_remove_cb(lv_event_t *) {
   if (!s_v) return;
@@ -979,6 +1012,7 @@ void ui_vic_open(const std::string &key) {
   d->key = key;
   d->mac = v.mac;
   d->kind = v.kind;
+  if (!v.gx && vctl_supported(v.record) && key.rfind(VICTRON_KEY_PREFIX, 0) == 0) vctl_refresh(v.mac);
 
   d->ov = lv_obj_create(lv_layer_top());
   ui_plain(d->ov);
@@ -1095,7 +1129,7 @@ void ui_vic_open(const std::string &key) {
   d->status = ui_label(card, "", F_SMALL, C_TEXT2);
   lv_label_set_long_mode(d->status, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(d->status, lv_pct(100));
-  if (v.gx && (v.can_limit || v.can_mode)) ctl_build(card, v);   // MultiPlus/Ladegeraet ueber den GX bedienen
+  if (v.can_limit || v.can_mode) ctl_build(card, v);   // MultiPlus/Ladegeraet/Orion ueber den GX oder per Bluetooth bedienen
   if (v.bms && v.kind == VIC_PSTATION && (v.can_ac || v.can_dc)) ps_build(card, v);   // Power Station: Ausgaenge
   if (v.bms && (v.kind == VIC_HEATER || v.kind == VIC_FRIDGE)) hf_build(card, v);   // Heizung/Kuehlbox bedienen
 
@@ -1109,6 +1143,7 @@ void ui_vic_open(const std::string &key) {
     lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
   } else {
     ui_button(row, ICON_LOCK, "Schlüssel ändern", false, v_key_cb, nullptr);
+    if (vctl_supported(v.record)) ui_button(row, ICON_LINK, "PIN", false, v_pin_cb, nullptr);
     lv_obj_t *rm = ui_button(row, ICON_CLOSE, "Entfernen", false, v_remove_cb, nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_cnt(rm); i++) lv_obj_set_style_text_color(lv_obj_get_child(rm, i), C_RED, 0);
   }

@@ -242,60 +242,60 @@
 {"ELECROW CrowPanel Advanced 7\" (V1.0)", "ELECROW CrowPanel Advanced 7\" (V1.0)"},  // src/board_p4_boards.cpp:25
 {"ELECROW CrowPanel Advanced 7\" (V1.1)", "ELECROW CrowPanel Advanced 7\" (V1.1)"},  // src/board_p4_boards.cpp:26
 {"ELECROW CrowPanel Advanced 7\" (V1.2)", "ELECROW CrowPanel Advanced 7\" (V1.2)"},  // src/board_p4_boards.cpp:27
-{"Nicht eingerichtet", "Sin configurar"},  // src/cerbo.cpp:170
-{"Verbunden, warte auf Daten …", "Conectado, esperando datos …"},  // src/cerbo.cpp:466
-{"Getrennt, verbinde neu …", "Desconectado, reconectando …"},  // src/cerbo.cpp:477
-{"Netz/TCP, errno %d", "Red/TCP, errno %d"},  // src/cerbo.cpp:483
-{"vom GX abgelehnt (%d)", "rechazado por el GX (%d)"},  // src/cerbo.cpp:485
-{"MQTT-Fehler %d", "Error MQTT %d"},  // src/cerbo.cpp:487
-{"Zugang abgelehnt – Passwort prüfen", "Acceso denegado – revisa la contraseña"},  // src/cerbo.cpp:489
-{"GX %s nicht erreichbar – MQTT am GX eingeschaltet?", "GX %s no accesible – ¿MQTT activado en el GX?"},  // src/cerbo.cpp:492
-{"MQTT-Client konnte nicht starten", "No se pudo iniciar el cliente MQTT"},  // src/cerbo.cpp:548
-{"Verbinde mit %s …", "Conectando a %s …"},  // src/cerbo.cpp:554
-{"Verbunden, warte auf die Portal-ID des GX …", "Conectado, esperando el ID de portal del GX …"},  // src/cerbo.cpp:602
-{"Cerbo GX ", "Cerbo GX "},  // src/cerbo.cpp:653
-{"Ladegerät", "Cargador"},  // src/cerbo.cpp:707
-{"Wechselrichter", "Inversor"},  // src/cerbo.cpp:734
-{"DC-System", "Sistema CC"},  // src/cerbo.cpp:751
-{"Solarregler", "Regulador solar"},  // src/cerbo.cpp:774
-{"Lichtmaschinenregler", "Regulador de alternador"},  // src/cerbo.cpp:801
-{"DC-DC-Lader", "Cargador DC-DC"},  // src/cerbo.cpp:801
-{"{\"value\": ", "{\"value\": "},  // src/cerbo.cpp:865
-{"Livewell", "Vivero"},  // src/cerbo.cpp:926
-{"Öl", "Aceite"},  // src/cerbo.cpp:926
-{"Benzin", "Gasolina"},  // src/cerbo.cpp:926
-{"Diesel", "Diésel"},  // src/cerbo.cpp:927
-{"Flüssiggas", "GLP"},  // src/cerbo.cpp:927
-{"LNG", "GNL"},  // src/cerbo.cpp:927
-{"Hydrauliköl", "Aceite hidráulico"},  // src/cerbo.cpp:927
-{"Rohwasser", "Agua bruta"},  // src/cerbo.cpp:927
-{"Tank", "Depósito"},  // src/cerbo.cpp:928
-{"Kühlschrank", "Nevera"},  // src/cerbo.cpp:931
-{"Raum", "Habitáculo"},  // src/cerbo.cpp:931
-{"Außen", "Exterior"},  // src/cerbo.cpp:931
-{"Warmwasser", "Agua caliente"},  // src/cerbo.cpp:931
-{"Gefrierfach", "Congelador"},  // src/cerbo.cpp:931
-{"Tür", "Puerta"},  // src/cerbo.cpp:935
-{"Bilgepumpe", "Bomba de achique"},  // src/cerbo.cpp:935
-{"Bilgealarm", "Alarma de sentina"},  // src/cerbo.cpp:935
-{"Einbruchalarm", "Alarma antirrobo"},  // src/cerbo.cpp:935
-{"Rauchmelder", "Detector de humo"},  // src/cerbo.cpp:935
-{"Feueralarm", "Alarma de incendio"},  // src/cerbo.cpp:935
-{"CO2-Alarm", "Alarma de CO2"},  // src/cerbo.cpp:936
-{"Generator", "Generador"},  // src/cerbo.cpp:936
-{"Digitaleingang", "Entrada digital"},  // src/cerbo.cpp:937
-{"GX nicht verbunden", "GX no conectado"},  // src/cerbo.cpp:957
-{"Relais ", "Relé "},  // src/cerbo.cpp:964
-{" Feuchte", " humedad"},  // src/cerbo.cpp:994
-{"keine Trennung seit dem Start", "sin desconexiones desde el arranque"},  // src/cerbo.cpp:1028
-{"ohne Fehlermeldung", "sin mensaje de error"},  // src/cerbo.cpp:1031
-{"Nur Laden", "Solo cargador"},  // src/cerbo.cpp:1057
-{"Nur Wechselrichter", "Solo inversor"},  // src/cerbo.cpp:1058
-{"Ein", "Encendido"},  // src/cerbo.cpp:1059
-{"Aus", "Apagado"},  // src/cerbo.cpp:1060
-{"Unbekannt", "Desconocido"},  // src/cerbo.cpp:1067
-{"Landstrom", "Toma de puerto"},  // src/cerbo.cpp:1070
-{"nicht verbunden", "no conectado"},  // src/cerbo.cpp:1071
+{"Nicht eingerichtet", "Sin configurar"},  // src/cerbo.cpp:172
+{"Verbunden, warte auf Daten …", "Conectado, esperando datos …"},  // src/cerbo.cpp:469
+{"Getrennt, verbinde neu …", "Desconectado, reconectando …"},  // src/cerbo.cpp:480
+{"Netz/TCP, errno %d", "Red/TCP, errno %d"},  // src/cerbo.cpp:486
+{"vom GX abgelehnt (%d)", "rechazado por el GX (%d)"},  // src/cerbo.cpp:488
+{"MQTT-Fehler %d", "Error MQTT %d"},  // src/cerbo.cpp:490
+{"Zugang abgelehnt – Passwort prüfen", "Acceso denegado – revisa la contraseña"},  // src/cerbo.cpp:492
+{"GX %s nicht erreichbar – MQTT am GX eingeschaltet?", "GX %s no accesible – ¿MQTT activado en el GX?"},  // src/cerbo.cpp:495
+{"MQTT-Client konnte nicht starten", "No se pudo iniciar el cliente MQTT"},  // src/cerbo.cpp:551
+{"Verbinde mit %s …", "Conectando a %s …"},  // src/cerbo.cpp:557
+{"Verbunden, warte auf die Portal-ID des GX …", "Conectado, esperando el ID de portal del GX …"},  // src/cerbo.cpp:605
+{"Cerbo GX ", "Cerbo GX "},  // src/cerbo.cpp:656
+{"Ladegerät", "Cargador"},  // src/cerbo.cpp:710
+{"Wechselrichter", "Inversor"},  // src/cerbo.cpp:737
+{"DC-System", "Sistema CC"},  // src/cerbo.cpp:754
+{"Solarregler", "Regulador solar"},  // src/cerbo.cpp:777
+{"Lichtmaschinenregler", "Regulador de alternador"},  // src/cerbo.cpp:804
+{"DC-DC-Lader", "Cargador DC-DC"},  // src/cerbo.cpp:804
+{"{\"value\": ", "{\"value\": "},  // src/cerbo.cpp:873
+{"Livewell", "Vivero"},  // src/cerbo.cpp:946
+{"Öl", "Aceite"},  // src/cerbo.cpp:946
+{"Benzin", "Gasolina"},  // src/cerbo.cpp:946
+{"Diesel", "Diésel"},  // src/cerbo.cpp:947
+{"Flüssiggas", "GLP"},  // src/cerbo.cpp:947
+{"LNG", "GNL"},  // src/cerbo.cpp:947
+{"Hydrauliköl", "Aceite hidráulico"},  // src/cerbo.cpp:947
+{"Rohwasser", "Agua bruta"},  // src/cerbo.cpp:947
+{"Tank", "Depósito"},  // src/cerbo.cpp:948
+{"Kühlschrank", "Nevera"},  // src/cerbo.cpp:951
+{"Raum", "Habitáculo"},  // src/cerbo.cpp:951
+{"Außen", "Exterior"},  // src/cerbo.cpp:951
+{"Warmwasser", "Agua caliente"},  // src/cerbo.cpp:951
+{"Gefrierfach", "Congelador"},  // src/cerbo.cpp:951
+{"Tür", "Puerta"},  // src/cerbo.cpp:955
+{"Bilgepumpe", "Bomba de achique"},  // src/cerbo.cpp:955
+{"Bilgealarm", "Alarma de sentina"},  // src/cerbo.cpp:955
+{"Einbruchalarm", "Alarma antirrobo"},  // src/cerbo.cpp:955
+{"Rauchmelder", "Detector de humo"},  // src/cerbo.cpp:955
+{"Feueralarm", "Alarma de incendio"},  // src/cerbo.cpp:955
+{"CO2-Alarm", "Alarma de CO2"},  // src/cerbo.cpp:956
+{"Generator", "Generador"},  // src/cerbo.cpp:956
+{"Digitaleingang", "Entrada digital"},  // src/cerbo.cpp:957
+{"GX nicht verbunden", "GX no conectado"},  // src/cerbo.cpp:977
+{"Relais ", "Relé "},  // src/cerbo.cpp:984
+{" Feuchte", " humedad"},  // src/cerbo.cpp:1014
+{"keine Trennung seit dem Start", "sin desconexiones desde el arranque"},  // src/cerbo.cpp:1048
+{"ohne Fehlermeldung", "sin mensaje de error"},  // src/cerbo.cpp:1051
+{"Nur Laden", "Solo cargador"},  // src/cerbo.cpp:1077
+{"Nur Wechselrichter", "Solo inversor"},  // src/cerbo.cpp:1078
+{"Ein", "Encendido"},  // src/cerbo.cpp:1079
+{"Aus", "Apagado"},  // src/cerbo.cpp:1080
+{"Unbekannt", "Desconocido"},  // src/cerbo.cpp:1087
+{"Landstrom", "Toma de puerto"},  // src/cerbo.cpp:1090
+{"nicht verbunden", "no conectado"},  // src/cerbo.cpp:1091
 {"Ungueltiges JSON", "JSON no válido"},  // src/devsetup.cpp:72
 {"Set-Cookie", "Set-Cookie"},  // src/devsetup.cpp:83
 {"; Path=/; HttpOnly; SameSite=Strict", "; Path=/; HttpOnly; SameSite=Strict"},  // src/devsetup.cpp:83
@@ -533,15 +533,16 @@
 {"TLS: SCU meldet Fehler %d", "TLS: la SCU informa del error %d"},  // src/hymer_tls.cpp:321
 {"TLS: Nachricht zu groß", "TLS: mensaje demasiado grande"},  // src/hymer_tls.cpp:332
 {"TLS: Datenstrom kaputt", "TLS: flujo de datos dañado"},  // src/hymer_tls.cpp:358
-{"MQTT ", "MQTT "},  // src/main.cpp:103
-{" · Cerbo ", " · Cerbo "},  // src/main.cpp:104
-{" · Hobby ", " · Hobby "},  // src/main.cpp:106
-{" · Hymer ", " · Hymer "},  // src/main.cpp:109
-{" · Zigbee-Modul ", " · Módulo Zigbee "},  // src/main.cpp:112
-{" · Panel-WLAN ", " · WiFi del panel "},  // src/main.cpp:116
-{" Teilnehmer", " participantes"},  // src/main.cpp:116
-{"nach 10 s", "tras 10 s"},  // src/main.cpp:208
-{"nach 60 s", "tras 60 s"},  // src/main.cpp:209
+{"MQTT ", "MQTT "},  // src/main.cpp:104
+{" · Cerbo ", " · Cerbo "},  // src/main.cpp:105
+{" · Hobby ", " · Hobby "},  // src/main.cpp:107
+{" · Votronic ", " · Votronic "},  // src/main.cpp:110
+{" · Hymer ", " · Hymer "},  // src/main.cpp:113
+{" · Zigbee-Modul ", " · Módulo Zigbee "},  // src/main.cpp:116
+{" · Panel-WLAN ", " · WiFi del panel "},  // src/main.cpp:120
+{" Teilnehmer", " participantes"},  // src/main.cpp:120
+{"nach 10 s", "tras 10 s"},  // src/main.cpp:213
+{"nach 60 s", "tras 60 s"},  // src/main.cpp:214
 {"11 kg (Europa)", "11 kg (Europa)"},  // src/mopeka.cpp:34
 {"6 kg (Europa)", "6 kg (Europa)"},  // src/mopeka.cpp:35
 {"14 kg (Europa)", "14 kg (Europa)"},  // src/mopeka.cpp:36
@@ -599,32 +600,32 @@
 {"Netz %s nicht gefunden", "Red %s no encontrada"},  // src/net.cpp:284
 {"Browser", "Navegador"},  // src/net.cpp:451
 {"von Hand", "a mano"},  // src/net.cpp:460
-{"Tank %d", "Depósito %d"},  // src/panelsat.cpp:155
-{"Temperatur %d", "Temperatura %d"},  // src/panelsat.cpp:156
-{"Analog %d", "Analógico %d"},  // src/panelsat.cpp:157
-{"Neigung längs", "Inclinación longitudinal"},  // src/panelsat.cpp:158
-{"Neigung quer", "Inclinación transversal"},  // src/panelsat.cpp:158
-{"Eingang %d", "Entrada %d"},  // src/panelsat.cpp:159
-{"Schalter %d", "Interruptor %d"},  // src/panelsat.cpp:160
-{"Sensor", "Sensor"},  // src/panelsat.cpp:161
-{"Satellit", "Satélite"},  // src/panelsat.cpp:433
-{"UDP", "UDP"},  // src/panelsat.cpp:586
-{", UDP", ", UDP"},  // src/panelsat.cpp:586
-{"Bluetooth", "Bluetooth"},  // src/panelsat.cpp:587
-{", Bluetooth", ", Bluetooth"},  // src/panelsat.cpp:587
-{"Schalter nicht gefunden.", "Interruptor no encontrado."},  // src/panelsat.cpp:672
-{"Satellit unbekannt.", "Satélite desconocido."},  // src/panelsat.cpp:677
-{"Der Satellit ist gerade nicht erreichbar.", "El satélite no está accesible en este momento."},  // src/panelsat.cpp:696
-{"Senden fehlgeschlagen.", "Error al enviar."},  // src/panelsat.cpp:711
-{"GX", "GX"},  // src/panelsat.cpp:815
-{"Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).", "Hobby no está conectado ahora (interruptor principal solo por cable)."},  // src/panelsat.cpp:954
-{"Der GX ist nicht verbunden oder das Relais steht nicht auf „manuell“.", "El GX no está conectado o el relé no está en «manual»."},  // src/panelsat.cpp:960
-{"Hymer ist gerade nicht verbunden.", "Hymer no está conectado ahora."},  // src/panelsat.cpp:967
-{" (HA)", " (HA)"},  // src/panelsat.cpp:980
-{" (MQTT)", " (MQTT)"},  // src/panelsat.cpp:987
-{"Victron GX (MQTT)", "Victron GX (MQTT)"},  // src/panelsat.cpp:989
-{"Hymer Connect (Bluetooth)", "Hymer Connect (Bluetooth)"},  // src/panelsat.cpp:990
-{"Hobby (Bluetooth/CI-BUS)", "Hobby (Bluetooth/CI-BUS)"},  // src/panelsat.cpp:991
+{"Tank %d", "Depósito %d"},  // src/panelsat.cpp:156
+{"Temperatur %d", "Temperatura %d"},  // src/panelsat.cpp:157
+{"Analog %d", "Analógico %d"},  // src/panelsat.cpp:158
+{"Neigung längs", "Inclinación longitudinal"},  // src/panelsat.cpp:159
+{"Neigung quer", "Inclinación transversal"},  // src/panelsat.cpp:159
+{"Eingang %d", "Entrada %d"},  // src/panelsat.cpp:160
+{"Schalter %d", "Interruptor %d"},  // src/panelsat.cpp:161
+{"Sensor", "Sensor"},  // src/panelsat.cpp:162
+{"Satellit", "Satélite"},  // src/panelsat.cpp:434
+{"UDP", "UDP"},  // src/panelsat.cpp:587
+{", UDP", ", UDP"},  // src/panelsat.cpp:587
+{"Bluetooth", "Bluetooth"},  // src/panelsat.cpp:588
+{", Bluetooth", ", Bluetooth"},  // src/panelsat.cpp:588
+{"Schalter nicht gefunden.", "Interruptor no encontrado."},  // src/panelsat.cpp:673
+{"Satellit unbekannt.", "Satélite desconocido."},  // src/panelsat.cpp:678
+{"Der Satellit ist gerade nicht erreichbar.", "El satélite no está accesible en este momento."},  // src/panelsat.cpp:697
+{"Senden fehlgeschlagen.", "Error al enviar."},  // src/panelsat.cpp:712
+{"GX", "GX"},  // src/panelsat.cpp:816
+{"Hobby ist gerade nicht verbunden (Hauptschalter nur über das Kabel).", "Hobby no está conectado ahora (interruptor principal solo por cable)."},  // src/panelsat.cpp:959
+{"Der GX ist nicht verbunden oder das Relais steht nicht auf „manuell“.", "El GX no está conectado o el relé no está en «manual»."},  // src/panelsat.cpp:965
+{"Hymer ist gerade nicht verbunden.", "Hymer no está conectado ahora."},  // src/panelsat.cpp:972
+{" (HA)", " (HA)"},  // src/panelsat.cpp:985
+{" (MQTT)", " (MQTT)"},  // src/panelsat.cpp:992
+{"Victron GX (MQTT)", "Victron GX (MQTT)"},  // src/panelsat.cpp:994
+{"Hymer Connect (Bluetooth)", "Hymer Connect (Bluetooth)"},  // src/panelsat.cpp:995
+{"Hobby (Bluetooth/CI-BUS)", "Hobby (Bluetooth/CI-BUS)"},  // src/panelsat.cpp:996
 {"WLAN ist am Panel aus – Satelliten lassen sich nur mit WLAN einrichten.", "El WiFi del panel está apagado – los satélites solo se pueden configurar con WiFi."},  // src/panelsat_pair.cpp:117
 {"Am Panel ist noch kein Camp-WLAN eingerichtet.", "En el panel aún no hay WiFi de camping configurado."},  // src/panelsat_pair.cpp:119
 {"Es wird gerade schon ein Satellit eingerichtet.", "Ya se está configurando un satélite."},  // src/panelsat_pair.cpp:149
@@ -721,34 +722,34 @@
 {"vorne rechts", "delantera derecha"},  // src/tpms.cpp:299
 {"hinten links", "trasera izquierda"},  // src/tpms.cpp:300
 {"hinten rechts", "trasera derecha"},  // src/tpms.cpp:301
-{"Warte auf erste Messung …", "Esperando la primera medición …"},  // src/truma.cpp:56
-{"Verbindung fehlgeschlagen – ist die App verbunden?", "Conexión fallida – ¿está conectada la app?"},  // src/truma.cpp:199
-{"Unbekanntes Gerät (Dienst fehlt)", "Dispositivo desconocido (falta el servicio)"},  // src/truma.cpp:206
-{"Passwort nicht lesbar", "Contraseña ilegible"},  // src/truma.cpp:210
-{"Messung läuft …", "Midiendo …"},  // src/truma.cpp:215
-{"Unplausibler Messwert", "Medición no plausible"},  // src/truma.cpp:230
-{"Kein Messwert erhalten", "No se recibió ninguna medición"},  // src/truma.cpp:232
-{"Apple", "Apple"},  // src/truma.cpp:322
-{"Microsoft", "Microsoft"},  // src/truma.cpp:323
-{"Samsung", "Samsung"},  // src/truma.cpp:324
-{"Google", "Google"},  // src/truma.cpp:325
-{"Victron", "Victron"},  // src/truma.cpp:326
-{"Nordic", "Nordic"},  // src/truma.cpp:327
-{"Garmin", "Garmin"},  // src/truma.cpp:328
-{"Huami", "Huami"},  // src/truma.cpp:329
-{"===== Bluetooth in Reichweite (%lu s, aktive Suche) =====", "===== Bluetooth al alcance (%lu s, búsqueda activa) ====="},  // src/truma.cpp:337
-{" – Liste voll", " – lista llena"},  // src/truma.cpp:339
-{"Nach Hersteller:", "Por fabricante:"},  // src/truma.cpp:350
-{" %s %d,", " %s %d,"},  // src/truma.cpp:353
-{" 0x%04X %d,", " 0x%04X %d,"},  // src/truma.cpp:354
-{"Staerkste Sender:", "Emisores más fuertes:"},  // src/truma.cpp:356
-{"0x%04X", "0x%04X"},  // src/truma.cpp:361
-{"  %s %4d dBm %5lu Pakete  %-9s %s", "  %s %4d dBm %5lu paquetes  %-9s %s"},  // src/truma.cpp:362
-{"Kein Speicher fuer die Zaehlung", "Sin memoria para el recuento"},  // src/truma.cpp:374
-{"SOC-Panel", "SOC-Panel"},  // src/truma.cpp:458
-{"Nicht gefunden – außer Reichweite?", "No encontrado – ¿fuera de alcance?"},  // src/truma.cpp:565
-{"Es sind höchstens vier Gasflaschen möglich", "Se admiten como máximo cuatro bombonas de gas"},  // src/truma.cpp:771
-{"Gasflasche ", "Bombona de gas"},  // src/truma.cpp:775
+{"Warte auf erste Messung …", "Esperando la primera medición …"},  // src/truma.cpp:58
+{"Verbindung fehlgeschlagen – ist die App verbunden?", "Conexión fallida – ¿está conectada la app?"},  // src/truma.cpp:201
+{"Unbekanntes Gerät (Dienst fehlt)", "Dispositivo desconocido (falta el servicio)"},  // src/truma.cpp:208
+{"Passwort nicht lesbar", "Contraseña ilegible"},  // src/truma.cpp:212
+{"Messung läuft …", "Midiendo …"},  // src/truma.cpp:217
+{"Unplausibler Messwert", "Medición no plausible"},  // src/truma.cpp:232
+{"Kein Messwert erhalten", "No se recibió ninguna medición"},  // src/truma.cpp:234
+{"Apple", "Apple"},  // src/truma.cpp:324
+{"Microsoft", "Microsoft"},  // src/truma.cpp:325
+{"Samsung", "Samsung"},  // src/truma.cpp:326
+{"Google", "Google"},  // src/truma.cpp:327
+{"Victron", "Victron"},  // src/truma.cpp:328
+{"Nordic", "Nordic"},  // src/truma.cpp:329
+{"Garmin", "Garmin"},  // src/truma.cpp:330
+{"Huami", "Huami"},  // src/truma.cpp:331
+{"===== Bluetooth in Reichweite (%lu s, aktive Suche) =====", "===== Bluetooth al alcance (%lu s, búsqueda activa) ====="},  // src/truma.cpp:339
+{" – Liste voll", " – lista llena"},  // src/truma.cpp:341
+{"Nach Hersteller:", "Por fabricante:"},  // src/truma.cpp:352
+{" %s %d,", " %s %d,"},  // src/truma.cpp:355
+{" 0x%04X %d,", " 0x%04X %d,"},  // src/truma.cpp:356
+{"Staerkste Sender:", "Emisores más fuertes:"},  // src/truma.cpp:358
+{"0x%04X", "0x%04X"},  // src/truma.cpp:363
+{"  %s %4d dBm %5lu Pakete  %-9s %s", "  %s %4d dBm %5lu paquetes  %-9s %s"},  // src/truma.cpp:364
+{"Kein Speicher fuer die Zaehlung", "Sin memoria para el recuento"},  // src/truma.cpp:376
+{"SOC-Panel", "SOC-Panel"},  // src/truma.cpp:463
+{"Nicht gefunden – außer Reichweite?", "No encontrado – ¿fuera de alcance?"},  // src/truma.cpp:570
+{"Es sind höchstens vier Gasflaschen möglich", "Se admiten como máximo cuatro bombonas de gas"},  // src/truma.cpp:794
+{"Gasflasche ", "Bombona de gas"},  // src/truma.cpp:798
 {"CP Plus hat den Befehl abgelehnt (Code %u)", "El CP Plus rechazó la orden (código %u)"},  // src/truma_cpplus.cpp:229
 {"Keine Rückmeldung vom CP Plus", "Sin respuesta del CP Plus"},  // src/truma_cpplus.cpp:345
 {"Truma CP Plus", "Truma CP Plus"},  // src/truma_cpplus.cpp:456
@@ -771,41 +772,117 @@
 {"Dieses Gerät hat noch die alte Speicheraufteilung – einmal per USB neu aufspielen.", "Este dispositivo aún tiene la distribución de memoria antigua – vuelva a flashearlo una vez por USB."},  // src/updater_link.cpp:25
 {"Kein Updater vorhanden – einmal per USB aufspielen (Umgebung …-updater).", "No hay actualizador – flashéelo una vez por USB (entorno …-updater)."},  // src/updater_link.cpp:26
 {"Der Updater lässt sich nicht starten.", "No se puede iniciar el actualizador."},  // src/updater_link.cpp:33
-{"Warte auf Daten …", "Esperando datos …"},  // src/victron.cpp:115
-{"Schlüssel passt nicht", "La clave no coincide"},  // src/victron.cpp:347
-{"Gerätetyp 0x%02X wird nicht unterstützt", "El tipo de dispositivo 0x%02X no es compatible"},  // src/victron.cpp:359
-{"Der Schlüssel muss 32 Zeichen lang sein (0–9, a–f)", "La clave debe tener 32 caracteres (0–9, a–f)"},  // src/victron.cpp:561
-{"Es sind höchstens sechs Victron-Geräte möglich", "Se admiten como máximo seis dispositivos Victron"},  // src/victron.cpp:566
-{"Windgenerator", "Generador eólico"},  // src/victron.cpp:629
-{"Wellengenerator", "Generador de eje"},  // src/victron.cpp:630
-{"Lichtmaschine", "Alternador"},  // src/victron.cpp:631
-{"Brennstoffzelle", "Pila de combustible"},  // src/victron.cpp:632
-{"Wassergenerator", "Hidrogenerador"},  // src/victron.cpp:633
-{"DC/DC-Ladegerät", "Cargador DC/DC"},  // src/victron.cpp:634
-{"AC-Ladegerät", "Cargador AC"},  // src/victron.cpp:635
-{"Quelle", "Fuente"},  // src/victron.cpp:636
-{"Verbraucher", "Consumidor"},  // src/victron.cpp:637
-{"Elektroantrieb", "Propulsión eléctrica"},  // src/victron.cpp:638
-{"Batteriemonitor", "Monitor de batería"},  // src/victron.cpp:652
-{"Ladebooster", "Cargador CC-CC"},  // src/victron.cpp:653
-{"Power Station", "Power Station"},  // src/victron.cpp:658
-{"BatteryProtect", "BatteryProtect"},  // src/victron.cpp:659
-{"Lithium-Akku", "Batería de litio"},  // src/victron.cpp:660
-{"Victron-Gerät", "Dispositivo Victron"},  // src/victron.cpp:661
-{"Sparbetrieb", "Bajo consumo"},  // src/victron.cpp:668
-{"Bulk", "Bulk"},  // src/victron.cpp:670
-{"Absorption", "Absorción"},  // src/victron.cpp:671
-{"Erhaltung", "Flotación"},  // src/victron.cpp:672
-{"Lagerung", "Almacenamiento"},  // src/victron.cpp:673
-{"Ausgleichsladung", "Ecualización"},  // src/victron.cpp:674
-{"Durchleitung", "Paso directo"},  // src/victron.cpp:675
-{"Power Assist", "Power Assist"},  // src/victron.cpp:677
-{"Netzteil", "Fuente de alimentación"},  // src/victron.cpp:678
-{"Startet", "Arrancando"},  // src/victron.cpp:679
-{"Wiederholte Absorption", "Absorción repetida"},  // src/victron.cpp:680
-{"Auto-Ausgleich", "Ecualización automática"},  // src/victron.cpp:681
-{"BatterySafe", "BatterySafe"},  // src/victron.cpp:682
-{"Externe Steuerung", "Control externo"},  // src/victron.cpp:683
+{"Warte auf Daten …", "Esperando datos …"},  // src/victron.cpp:116
+{"Schlüssel passt nicht", "La clave no coincide"},  // src/victron.cpp:348
+{"Gerätetyp 0x%02X wird nicht unterstützt", "El tipo de dispositivo 0x%02X no es compatible"},  // src/victron.cpp:360
+{"Der Schlüssel muss 32 Zeichen lang sein (0–9, a–f)", "La clave debe tener 32 caracteres (0–9, a–f)"},  // src/victron.cpp:563
+{"Es sind höchstens sechs Victron-Geräte möglich", "Se admiten como máximo seis dispositivos Victron"},  // src/victron.cpp:568
+{"Windgenerator", "Generador eólico"},  // src/victron.cpp:631
+{"Wellengenerator", "Generador de eje"},  // src/victron.cpp:632
+{"Lichtmaschine", "Alternador"},  // src/victron.cpp:633
+{"Brennstoffzelle", "Pila de combustible"},  // src/victron.cpp:634
+{"Wassergenerator", "Hidrogenerador"},  // src/victron.cpp:635
+{"DC/DC-Ladegerät", "Cargador DC/DC"},  // src/victron.cpp:636
+{"AC-Ladegerät", "Cargador AC"},  // src/victron.cpp:637
+{"Quelle", "Fuente"},  // src/victron.cpp:638
+{"Verbraucher", "Consumidor"},  // src/victron.cpp:639
+{"Elektroantrieb", "Propulsión eléctrica"},  // src/victron.cpp:640
+{"Batteriemonitor", "Monitor de batería"},  // src/victron.cpp:654
+{"Ladebooster", "Cargador CC-CC"},  // src/victron.cpp:655
+{"Power Station", "Power Station"},  // src/victron.cpp:660
+{"BatteryProtect", "BatteryProtect"},  // src/victron.cpp:661
+{"Lithium-Akku", "Batería de litio"},  // src/victron.cpp:662
+{"Victron-Gerät", "Dispositivo Victron"},  // src/victron.cpp:663
+{"Sparbetrieb", "Bajo consumo"},  // src/victron.cpp:670
+{"Bulk", "Bulk"},  // src/victron.cpp:672
+{"Absorption", "Absorción"},  // src/victron.cpp:673
+{"Erhaltung", "Flotación"},  // src/victron.cpp:674
+{"Lagerung", "Almacenamiento"},  // src/victron.cpp:675
+{"Ausgleichsladung", "Ecualización"},  // src/victron.cpp:676
+{"Durchleitung", "Paso directo"},  // src/victron.cpp:677
+{"Power Assist", "Power Assist"},  // src/victron.cpp:679
+{"Netzteil", "Fuente de alimentación"},  // src/victron.cpp:680
+{"Startet", "Arrancando"},  // src/victron.cpp:681
+{"Wiederholte Absorption", "Absorción repetida"},  // src/victron.cpp:682
+{"Auto-Ausgleich", "Ecualización automática"},  // src/victron.cpp:683
+{"BatterySafe", "BatterySafe"},  // src/victron.cpp:684
+{"Externe Steuerung", "Control externo"},  // src/victron.cpp:685
+{"[victron-ctl] %s", "[victron-ctl] %s"},  // src/victron_ctl.cpp:69
+{"Geraet verlangt PIN – gebe sie ein (%s)", "El aparato pide el PIN – introduciéndolo (%s)"},  // src/victron_ctl.cpp:105
+{"getrennt (Grund %d)", "desconectado (motivo %d)"},  // src/victron_ctl.cpp:108
+{"Wird geschaltet …", "Conmutando …"},  // src/victron_ctl.cpp:208
+{"Wird eingestellt …", "Ajustando …"},  // src/victron_ctl.cpp:222
+{"Victron-Steuerung: %u Auftraege offen", "Control Victron: %u tareas pendientes"},  // src/victron_ctl.cpp:262
+{"  %s Typ %u Modus %d Strom %.1f A – %s", "  %s tipo %u modo %d corriente %.1f A – %s"},  // src/victron_ctl.cpp:264
+{"Kopplung abgelehnt – PIN aus VictronConnect prüfen", "Emparejamiento rechazado – revise el PIN de VictronConnect"},  // src/victron_ctl.cpp:308
+{"Gerät antwortet nicht wie erwartet", "El aparato no responde como se esperaba"},  // src/victron_ctl.cpp:321
+{"Nicht erreichbar – VictronConnect getrennt? In Reichweite?", "No accesible – ¿VictronConnect desconectado? ¿Al alcance?"},  // src/victron_ctl.cpp:325
+{"Gerät hat den Schalter nicht bestätigt", "El aparato no ha confirmado el interruptor"},  // src/victron_ctl.cpp:360
+{"Gerät hat den Ladestrom nicht bestätigt", "El aparato no ha confirmado la corriente de carga"},  // src/victron_ctl.cpp:377
+{"Gerät liefert keine Werte – PIN/Firmware prüfen", "El aparato no entrega valores – revise PIN/firmware"},  // src/victron_ctl.cpp:406
+{"Votronic Batterie", "Votronic batería"},  // src/votronic.cpp:31
+{"Votronic Solar", "Votronic solar"},  // src/votronic.cpp:31
+{"Votronic Ladegerät", "Votronic cargador"},  // src/votronic.cpp:31
+{"Votronic Ladebooster", "Votronic cargador DC-DC"},  // src/votronic.cpp:31
+{"[votronic] %s", "[votronic] %s"},  // src/votronic.cpp:77
+{"Standby", "Standby"},  // src/votronic.cpp:225
+{"U3 (Erhaltung)", "U3 (flotación)"},  // src/votronic.cpp:226
+{"I (Hauptladung)", "I (carga principal)"},  // src/votronic.cpp:229
+{"Blei-Säure", "Plomo-ácido"},  // src/votronic.cpp:235
+{"Blei-Gel", "Plomo-gel"},  // src/votronic.cpp:236
+{"AGM 14,4 V", "AGM 14,4 V"},  // src/votronic.cpp:237
+{"AGM 14,7–14,8 V", "AGM 14,7–14,8 V"},  // src/votronic.cpp:238
+{"LiFePO4 13,9 V", "LiFePO4 13,9 V"},  // src/votronic.cpp:239
+{"LiFePO4 14,2 V", "LiFePO4 14,2 V"},  // src/votronic.cpp:240
+{"LiFePO4 14,4 V", "LiFePO4 14,4 V"},  // src/votronic.cpp:241
+{"LiFePO4 14,6 V", "LiFePO4 14,6 V"},  // src/votronic.cpp:242
+{"LiFePO4 14,8 V", "LiFePO4 14,8 V"},  // src/votronic.cpp:243
+{"lädt Batterie 1", "carga batería 1"},  // src/votronic.cpp:258
+{"lädt Batterie 2", "carga batería 2"},  // src/votronic.cpp:259
+{"Netzleistung begrenzt", "potencia de red limitada"},  // src/votronic.cpp:261
+{"AES aktiv", "AES activo"},  // src/votronic.cpp:265
+{"Votronic", "Votronic"},  // src/votronic.cpp:276
+{"keine Daten mehr", "sin datos"},  // src/votronic.cpp:282
+{"Kabel: UART%d RX %d, 1000 Baud", "Cable: UART%d RX %d, 1000 baudios"},  // src/votronic.cpp:363
+{"Keine Daten mehr – Kabel prüfen", "Ya no llegan datos – revise el cable"},  // src/votronic.cpp:373
+{"Empfange Daten, aber keine gültigen Rahmen – RX-Pin/Pegel prüfen", "Llegan datos, pero ninguna trama válida – revise el pin RX/nivel"},  // src/votronic.cpp:374
+{"RX-Pin und UART einstellen", "Ajuste el pin RX y el UART"},  // src/votronic.cpp:416
+{"S-BC getrennt (Grund %d)", "S-BC desconectado (motivo %d)"},  // src/votronic.cpp:437
+{"Kopplung abgelehnt – PIN prüfen, Taste am S-BC kurz drücken", "Emparejamiento rechazado – revise el PIN, pulse brevemente la tecla del S-BC"},  // src/votronic.cpp:438
+{"S-BC verlangt PIN – gebe sie ein (%s)", "El S-BC pide el PIN – introduciéndolo (%s)"},  // src/votronic.cpp:448
+{"Kopplung %s (authentifiziert %d, gespeichert %d)", "Emparejamiento %s (autenticado %d, guardado %d)"},  // src/votronic.cpp:452
+{"Kein S-BC gewählt", "Ningún S-BC elegido"},  // src/votronic.cpp:541
+{"Suche S-BC …", "Buscando S-BC …"},  // src/votronic.cpp:543
+{"Restkapazität", "Capacidad restante"},  // src/votronic.cpp:596
+{"Ah", "Ah"},  // src/votronic.cpp:596
+{"Nennkapazität", "Capacidad nominal"},  // src/votronic.cpp:597
+{"PV-Leistung", "Potencia FV"},  // src/votronic.cpp:601
+{"PV-Spannung", "Tensión FV"},  // src/votronic.cpp:602
+{"PV-Strom", "Corriente FV"},  // src/votronic.cpp:603
+{"Batteriespannung", "Tensión de batería"},  // src/votronic.cpp:604
+{"Regler", "Regulador"},  // src/votronic.cpp:606
+{"Reglertemperatur", "Temperatura del regulador"},  // src/votronic.cpp:607
+{"Geladen (seit Zurücksetzen)", "Cargado (desde el reinicio)"},  // src/votronic.cpp:608
+{"Energie (seit Zurücksetzen)", "Energía (desde el reinicio)"},  // src/votronic.cpp:609
+{"kWh", "kWh"},  // src/votronic.cpp:609
+{"Lademodus", "Modo de carga"},  // src/votronic.cpp:610
+{"Batterie 2", "Batería 2"},  // src/votronic.cpp:614
+{"Auslastung", "Carga"},  // src/votronic.cpp:617
+{"%s, vor %lu s", "%s, hace %lu s"},  // src/votronic.cpp:626
+{"Kabel", "Cable"},  // src/votronic.cpp:626
+{"Empfang", "Recepción"},  // src/votronic.cpp:627
+{"Votronic: nicht gestartet", "Votronic: no iniciado"},  // src/votronic.cpp:648
+{"Votronic: Bluetooth %s (S-BC %s) – %s", "Votronic: Bluetooth %s (S-BC %s) – %s"},  // src/votronic.cpp:652
+{"Votronic: Kabel %s (UART%d RX %d) – %s, %lu Rahmen, %lu verworfen, letzter Typ %02X", "Votronic: cable %s (UART%d RX %d) – %s, %lu tramas, %lu descartadas, último tipo %02X"},  // src/votronic.cpp:654
+{"  %-22s %-28s %s", "  %-22s %-28s %s"},  // src/votronic.cpp:656
+{"S-BC %s: Kopplung fehlgeschlagen, Fehler %d", "S-BC %s: error de emparejamiento %d"},  // src/votronic.cpp:744
+{"S-BC %s: kein Batteriecomputer angeschlossen?", "S-BC %s: ¿no hay ordenador de batería conectado?"},  // src/votronic.cpp:754
+{"S-BC %s: kein Solarregler angeschlossen?", "S-BC %s: ¿no hay regulador solar conectado?"},  // src/votronic.cpp:755
+{"S-BC %s: Dienst fehlt", "S-BC %s: falta el servicio"},  // src/votronic.cpp:757
+{"S-BC nicht erreichbar – in Reichweite? App getrennt?", "S-BC no accesible – ¿al alcance? ¿App desconectada?"},  // src/votronic.cpp:769
+{"S-BC antwortet nicht wie erwartet", "El S-BC no responde como se esperaba"},  // src/votronic.cpp:771
+{"S-BC %s: Verbindung fehlgeschlagen", "S-BC %s: conexión fallida"},  // src/votronic.cpp:772
+{"S-BC %s verbunden", "S-BC %s conectado"},  // src/votronic.cpp:780
 {"WLED ", "WLED "},  // src/wled.cpp:188
 {"Noch keine Geräteliste empfangen", "Aún no se ha recibido la lista de dispositivos"},  // src/z2m.cpp:78
 {"Geräteliste empfangen (%u KB), wird ausgewertet …", "Lista de dispositivos recibida (%u KB), procesando …"},  // src/z2m.cpp:211
@@ -853,7 +930,6 @@
 {"trocken", "seco"},  // src/zb_direct.cpp:473
 {"Werte", "Valores"},  // src/zb_direct.cpp:519
 {"Netz wird neu gebildet", "Se está formando la red de nuevo"},  // src/zb_direct.cpp:591
-{"kWh", "kWh"},  // src/zb_direct.cpp:742
 {"Zigbee: Anlernen %d s angefordert", "Zigbee: emparejamiento de %d s solicitado"},  // src/zb_direct.cpp:877
 {"Zigbee: Anlernen schliessen", "Zigbee: cerrar emparejamiento"},  // src/zb_direct.cpp:877
 {"Zigbee: Zustaende angefordert", "Zigbee: estados solicitados"},  // src/zb_direct.cpp:882
@@ -995,7 +1071,6 @@
 {"Ausschalten", "Apagar"},  // src/ui/ui_main.cpp:1067
 {"Einschalten", "Encender"},  // src/ui/ui_main.cpp:1067
 {"Die Heizung meldet einen Fehler – nur Ausschalten ist möglich.", "La calefacción informa de un error – solo se puede apagar."},  // src/ui/ui_main.cpp:1083
-{"Wird geschaltet …", "Conmutando …"},  // src/ui/ui_main.cpp:1116
 {"Das ging nicht.", "No funcionó."},  // src/ui/ui_main.cpp:1116
 {"Geste %s, Datenseiten %d, Seite %d", "Gesto %s, páginas de datos %d, página %d"},  // src/ui/ui_main.cpp:1299
 {"Kein WLAN: %s  –  antippen, um ein Netz zu wählen", "Sin Wi-Fi: %s  –  toque para elegir una red"},  // src/ui/ui_main.cpp:1478
@@ -1004,7 +1079,7 @@
 {"Gerät nicht gefunden.", "Dispositivo no encontrado."},  // src/ui/ui_main.cpp:1695
 {"Neues Zigbee-Gerät – Kachel angelegt.", "Nuevo dispositivo Zigbee – mosaico creado."},  // src/ui/ui_main.cpp:1910
 {"Neue Zigbee-Geräte – Kacheln angelegt.", "Nuevos dispositivos Zigbee – mosaicos creados."},  // src/ui/ui_main.cpp:1910
-{"Dieses Gerät ist gerade nicht verfügbar.", "Este dispositivo no está disponible ahora."},  // src/ui/ui_main.cpp:2026
+{"Dieses Gerät ist gerade nicht verfügbar.", "Este dispositivo no está disponible ahora."},  // src/ui/ui_main.cpp:2027
 {"Sonntag", "Domingo"},  // src/ui/ui_saver.cpp:33
 {"Montag", "Lunes"},  // src/ui/ui_saver.cpp:33
 {"Dienstag", "Martes"},  // src/ui/ui_saver.cpp:33
@@ -1029,583 +1104,605 @@
 {"Tippen zum Starten", "Toque para empezar"},  // src/ui/ui_saver.cpp:340
 {"Links gewinnt!", "¡Gana la izquierda!"},  // src/ui/ui_saver.cpp:402
 {"Rechts gewinnt!", "¡Gana la derecha!"},  // src/ui/ui_saver.cpp:402
-{"Verbinde mit ", "Conectar con"},  // src/ui/ui_settings.cpp:132
-{"Passwort für ", "Contraseña de"},  // src/ui/ui_settings.cpp:137
-{"WLAN-Passwort eingeben. Mit dem Auge-Symbol wird es sichtbar.", "Introduzca la contraseña Wi-Fi. El icono del ojo la hace visible."},  // src/ui/ui_settings.cpp:138
-{"Die Suche hat nicht geklappt. Bitte noch einmal auf „Netzwerke suchen“ tippen.", "La búsqueda no funcionó. Toque de nuevo «Buscar redes»."},  // src/ui/ui_settings.cpp:158
-{"Keine Netze gefunden. Das Panel unterstützt nur 2,4 GHz.", "No se encontraron redes. El panel solo admite 2,4 GHz."},  // src/ui/ui_settings.cpp:159
-{"Suche nach Netzen …", "Buscando redes …"},  // src/ui/ui_settings.cpp:187
-{"Netzname (SSID)", "Nombre de red (SSID)"},  // src/ui/ui_settings.cpp:193
-{"Name des verborgenen Netzes, genau wie im Router eingetragen.", "Nombre de la red oculta, exactamente como en el router."},  // src/ui/ui_settings.cpp:194
-{"Panel startet neu …", "El panel se reinicia …"},  // src/ui/ui_settings.cpp:209
-{"Netzwerk", "Red"},  // src/ui/ui_settings.cpp:213
-{"Router", "Router"},  // src/ui/ui_settings.cpp:213
-{"Kombi", "Combinado"},  // src/ui/ui_settings.cpp:213
-{"WLAN aus", "WiFi apagado"},  // src/ui/ui_settings.cpp:213
-{"Das Panel hängt im WLAN – z. B. dort, wo auch der Cerbo GX ist.", "El panel está en el WiFi – p. ej. donde también está el Cerbo GX."},  // src/ui/ui_settings.cpp:215
-{"Das Panel öffnet ein eigenes WLAN – Editor per Handy, kein Heimnetz nötig.", "El panel abre su propio WiFi – editor desde el móvil, sin red doméstica."},  // src/ui/ui_settings.cpp:216
-{"Eigenes WLAN plus Camp-WLAN mit Internet-Weiterleitung.", "WiFi propio más WiFi de camping con reenvío a Internet."},  // src/ui/ui_settings.cpp:217
-{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein Cerbo, kein Editor.", "Sin WiFi: más memoria, el Bluetooth funciona sin interferencias. Sin Cerbo, sin editor."},  // src/ui/ui_settings.cpp:218
-{"Panel und Hub hängen beide im Camp-WLAN.", "El panel y el hub están en el Wi-Fi de casa."},  // src/ui/ui_settings.cpp:220
-{"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "El panel abre su propio Wi-Fi para el hub. No se necesita red doméstica."},  // src/ui/ui_settings.cpp:221
-{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Wi-Fi propio para el hub más Wi-Fi de casa con reenvío a internet."},  // src/ui/ui_settings.cpp:222
-{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor.", "Sin WiFi: más memoria, el Bluetooth funciona sin interferencias. Sin MQTT, sin editor."},  // src/ui/ui_settings.cpp:223
-{"Das Panel wechselt in den %s-Modus und startet dafür neu.", "El panel cambia al modo %s y se reinicia."},  // src/ui/ui_settings.cpp:232
-{"Betriebsart wechseln?", "¿Cambiar modo de funcionamiento?"},  // src/ui/ui_settings.cpp:233
-{"Wechseln und neu starten", "Cambiar y reiniciar"},  // src/ui/ui_settings.cpp:233
-{"Name des Panel-WLANs", "Nombre del Wi-Fi del panel"},  // src/ui/ui_settings.cpp:245
-{"Unter diesem Namen findest du das Panel im WLAN. Änderung gilt nach einem Neustart.", "Con este nombre encontrará el panel en el WiFi. El cambio se aplica tras un reinicio."},  // src/ui/ui_settings.cpp:247
-{"Unter diesem Namen findet der Hub das Panel. Änderung gilt nach einem Neustart.", "Con este nombre el hub encuentra el panel. El cambio se aplica tras reiniciar."},  // src/ui/ui_settings.cpp:249
-{"Passwort des Panel-WLANs", "Contraseña del Wi-Fi del panel"},  // src/ui/ui_settings.cpp:254
-{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart.", "De 8 a 63 caracteres. El cambio se aplica tras un reinicio."},  // src/ui/ui_settings.cpp:256
-{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart – der Hub muss dann neu verbunden werden.", "De 8 a 63 caracteres. El cambio se aplica tras reiniciar – el hub debe volver a conectarse."},  // src/ui/ui_settings.cpp:258
-{"Funkkanal (1–13)", "Canal de radio (1–13)"},  // src/ui/ui_settings.cpp:263
-{"Funkkanal des Panel-WLANs (1–13).", "Canal de radio del WiFi del panel (1–13)."},  // src/ui/ui_settings.cpp:265
-{"Möglichst weit weg vom Zigbee-Kanal: bei Zigbee 11 eignet sich WLAN 13, bei Zigbee 25 WLAN 1.", "Lo más lejos posible del canal Zigbee: con Zigbee 11 conviene Wi-Fi 13, con Zigbee 25 Wi-Fi 1."},  // src/ui/ui_settings.cpp:267
-{"Das Passwort braucht mindestens 8 Zeichen.", "La contraseña necesita al menos 8 caracteres."},  // src/ui/ui_settings.cpp:282
-{"Bitte einen Kanal zwischen 1 und 13 wählen.", "Elija un canal entre 1 y 13."},  // src/ui/ui_settings.cpp:289
-{"Zugangspasswort zurücksetzen?", "¿Restablecer la contraseña de acceso?"},  // src/ui/ui_settings.cpp:310
-{"Das Passwort für Editor und Weboberfläche ist danach wieder „panelsat“. Beim nächsten Öffnen im Browser muss ein neues festgelegt werden. Angemeldete Browser werden abgemeldet.", "La contraseña del editor y la interfaz web vuelve a ser «panelsat». Al abrirla de nuevo en el navegador hay que fijar una nueva. Los navegadores conectados se desconectan."},  // src/ui/ui_settings.cpp:311
-{"Zurücksetzen", "Restablecer"},  // src/ui/ui_settings.cpp:313
-{"Zurückgesetzt – im Browser ein neues Passwort festlegen.", "Restablecida – fije una nueva contraseña en el navegador."},  // src/ui/ui_settings.cpp:315
-{"Aus (WLAN ausgeschaltet)", "Apagado (WiFi desactivado)"},  // src/ui/ui_settings.cpp:325
-{"Aus – zum Bearbeiten freigeben", "Apagado – habilitar para editar"},  // src/ui/ui_settings.cpp:326
-{"Läuft", "En marcha"},  // src/ui/ui_settings.cpp:328
-{"Läuft, aus in %lu min ohne Zugriff", "En marcha, se apaga en %lu min sin acceso"},  // src/ui/ui_settings.cpp:330
-{"Webinterface (Editor)", "Interfaz web (editor)"},  // src/ui/ui_settings.cpp:337
-{"Webinterface", "Interfaz web"},  // src/ui/ui_settings.cpp:338
-{"Immer an", "Siempre activa"},  // src/ui/ui_settings.cpp:338
-{"Nur bei Bedarf", "Solo cuando se necesite"},  // src/ui/ui_settings.cpp:338
-{"Zugangspasswort", "Contraseña de acceso"},  // src/ui/ui_settings.cpp:342
-{"festgelegt – antippen zum Zurücksetzen", "establecida – tocar para restablecer"},  // src/ui/ui_settings.cpp:342
-{"noch nicht festgelegt (beim ersten Öffnen im Browser)", "aún no establecida (al abrirla por primera vez en el navegador)"},  // src/ui/ui_settings.cpp:342
-{"Webinterface beenden", "Cerrar interfaz web"},  // src/ui/ui_settings.cpp:346
-{"Webinterface freigeben", "Habilitar interfaz web"},  // src/ui/ui_settings.cpp:346
-{"„Nur bei Bedarf“ spart internen Speicher: Der Editor ist erst nach „freigeben“ erreichbar und schaltet sich nach 15 Minuten ohne Zugriff wieder ab.", "«Solo cuando se necesite» ahorra memoria interna: el editor solo es accesible tras «habilitar» y se apaga tras 15 minutos sin acceso."},  // src/ui/ui_settings.cpp:350
-{"Tailscale (Beta)", "Tailscale (beta)"},  // src/ui/ui_settings.cpp:357
-{"Adresse im Tailnet", "Dirección en el tailnet"},  // src/ui/ui_settings.cpp:359
-{"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "El nuevo modo está guardado y se aplica tras el reinicio."},  // src/ui/ui_settings.cpp:395
-{"Panel-WLAN", "Wi-Fi del panel"},  // src/ui/ui_settings.cpp:399
-{" (folgt dem Camp-WLAN)", " (sigue al Wi-Fi de casa)"},  // src/ui/ui_settings.cpp:403
-{"Name", "Nombre"},  // src/ui/ui_settings.cpp:404
-{"Passwort", "Contraseña"},  // src/ui/ui_settings.cpp:405
-{"Kanal", "Canal"},  // src/ui/ui_settings.cpp:406
-{"Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.", "Elija este WiFi con el móvil – el editor estará en http://192.168.4.1/."},  // src/ui/ui_settings.cpp:408
-{"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "En el SMHUB Nano elija esta red en Ajustes > Wi-Fi (2,4 GHz). El editor estará en http://192.168.4.1/ si su móvil también está conectado."},  // src/ui/ui_settings.cpp:412
-{"Camp-WLAN", "Wi-Fi de casa"},  // src/ui/ui_settings.cpp:420
-{"Netzwerke suchen", "Buscar redes"},  // src/ui/ui_settings.cpp:430
-{"Verborgenes Netz", "Red oculta"},  // src/ui/ui_settings.cpp:431
-{"nicht gesetzt", "sin definir"},  // src/ui/ui_settings.cpp:446
-{"IP-Adresse oder Hostname des Brokers, z. B. 192.168.1.10 oder homeassistant.local", "Dirección IP o nombre del bróker, p. ej. 192.168.1.10 o homeassistant.local"},  // src/ui/ui_settings.cpp:460
-{"Standard ist 1883.", "El valor por defecto es 1883."},  // src/ui/ui_settings.cpp:464
-{"Leer lassen, wenn der Broker ohne Anmeldung arbeitet.", "Dejar vacío si el bróker funciona sin inicio de sesión."},  // src/ui/ui_settings.cpp:470
-{"Wie in Zigbee2MQTT unter mqtt.base_topic – meistens zigbee2mqtt.", "Como en Zigbee2MQTT en mqtt.base_topic – normalmente zigbee2mqtt."},  // src/ui/ui_settings.cpp:480
-{"Gespeichert – verbinde mit dem Broker …", "Guardado – conectando con el bróker …"},  // src/ui/ui_settings.cpp:510
-{"Eingebauter Broker an (Port 1883).", "Broker integrado activado (puerto 1883)."},  // src/ui/ui_settings.cpp:523
-{"Eingebauter Broker aus.", "Broker integrado desactivado."},  // src/ui/ui_settings.cpp:523
-{"Geräte aus MQTT-Discovery werden gesucht.", "Buscando dispositivos de MQTT Discovery."},  // src/ui/ui_settings.cpp:546
-{"MQTT-Discovery ist aus.", "MQTT Discovery está desactivado."},  // src/ui/ui_settings.cpp:546
-{"ESPHome, Tasmota & Co.", "ESPHome, Tasmota y otros"},  // src/ui/ui_settings.cpp:549
-{"Geräte aus MQTT-Discovery anzeigen", "Mostrar dispositivos de MQTT Discovery"},  // src/ui/ui_settings.cpp:553
-{"Geräte, die sich am Broker per Home-Assistant-Discovery melden (ESPHome mit „mqtt:“, Tasmota …), erscheinen wie Satelliten in der Geräteliste – eigene Gruppe je Gerät.", "Los dispositivos que se anuncian en el broker con Home Assistant Discovery (ESPHome con «mqtt:», Tasmota …) aparecen como satélites en la lista de dispositivos – un grupo por dispositivo."},  // src/ui/ui_settings.cpp:561
-{" Gefunden: %u Werte von %u Geräten.", " Encontrados: %u valores de %u dispositivos."},  // src/ui/ui_settings.cpp:566
-{"Shelly (MQTT)", "Shelly (MQTT)"},  // src/ui/ui_settings.cpp:579
-{"Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche MQTT einschalten und denselben Broker eintragen – die Shellys erscheinen dann als Geräte.", "Interruptores y reguladores Shelly mediante un broker MQTT. Active MQTT en la app o interfaz web de Shelly e introduzca el mismo broker – los Shellys aparecen entonces como dispositivos."},  // src/ui/ui_settings.cpp:579
-{"MQTT-Broker", "Bróker MQTT"},  // src/ui/ui_settings.cpp:582
-{"Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", "El mismo bróker que usa Zigbee2MQTT – en el SMHUB Nano el Mosquitto integrado. Active allí «Allow External» en MQTT para que el panel pueda conectarse."},  // src/ui/ui_settings.cpp:582
-{"MQTT verwenden", "Usar MQTT"},  // src/ui/ui_settings.cpp:590
-{"Eingebauter Broker (dieses Panel)", "Broker integrado (este panel)"},  // src/ui/ui_settings.cpp:604
-{"Shellys mit diesem Panel verbinden: Server %s, Port 1883%s.", "Conecte los Shellys a este panel: servidor %s, puerto 1883%s."},  // src/ui/ui_settings.cpp:616
-{", Benutzer und Passwort wie im Editor", ", usuario y contraseña como en el editor"},  // src/ui/ui_settings.cpp:617
-{"Geräte mit diesem Panel verbinden: Server %s, Port 1883%s.", "Conecte los dispositivos a este panel: servidor %s, puerto 1883%s."},  // src/ui/ui_settings.cpp:619
-{"MQTT ist aus: keine Shellys. Victron, Cerbo GX, Gas und Akkus laufen weiter.", "MQTT está apagado: sin Shellys. Victron, Cerbo GX, gas y baterías siguen funcionando."},  // src/ui/ui_settings.cpp:633
-{"MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.", "MQTT está apagado: sin dispositivos Zigbee, sin Cerbo por el broker. Los dispositivos Bluetooth y los satélites por UDP/Bluetooth siguen funcionando. Ahorra memoria y tiempo de radio."},  // src/ui/ui_settings.cpp:637
-{"Broker im Panel-WLAN automatisch finden", "Buscar bróker en el Wi-Fi del panel automáticamente"},  // src/ui/ui_settings.cpp:649
-{"Speichern und verbinden", "Guardar y conectar"},  // src/ui/ui_settings.cpp:665
-{"Display aus", "Pantalla apagada"},  // src/ui/ui_settings.cpp:691
-{"Gerätename im Netzwerk", "Nombre del dispositivo en la red"},  // src/ui/ui_settings.cpp:718
-{"Erreichbar als <name>.local. Erlaubt sind a–z, 0–9 und Bindestrich. Gilt nach einem Neustart.", "Accesible como <name>.local. Se permiten a–z, 0–9 y guion. Se aplica tras reiniciar."},  // src/ui/ui_settings.cpp:719
-{"Wird nach dem nächsten Neustart übernommen.", "Se aplicará tras el próximo reinicio."},  // src/ui/ui_settings.cpp:733
-{"Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.", "El panel sigue visible atenuado. Una pantalla LCD puede quedar marcada si la imagen no cambia nunca."},  // src/ui/ui_settings.cpp:762
-{"Bild schwarz, Beleuchtung aus. Schont das Display am meisten.", "Imagen negra, retroiluminación apagada. Lo que más protege la pantalla."},  // src/ui/ui_settings.cpp:763
-{"Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.", "Hora y fecha, atenuadas. El reloj salta a otra posición cada minuto."},  // src/ui/ui_settings.cpp:764
-{"Ein Abzeichen mit Uhrzeit hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Ein eigenes Logo lädst du im Browser-Editor hoch.", "Una insignia con la hora rebota por la pantalla y cambia de color en cada borde. Su propio logo se sube en el editor del navegador."},  // src/ui/ui_settings.cpp:765
-{"Zwei Schläger spielen von selbst Ball gegeneinander, oben steht der Punktestand.", "Dos palas juegan solas a la pelota, arriba se ve el marcador."},  // src/ui/ui_settings.cpp:767
-{"nicht gestellt", "sin ajustar"},  // src/ui/ui_settings.cpp:808
-{"Diesen Tag gibt es in dem Monat nicht.", "Ese día no existe en ese mes."},  // src/ui/ui_settings.cpp:855
-{"Uhrzeit gestellt.", "Hora ajustada."},  // src/ui/ui_settings.cpp:860
-{"Datum und Uhrzeit", "Fecha y hora"},  // src/ui/ui_settings.cpp:888
-{"Jan.", "ene."},  // src/ui/ui_settings.cpp:906
-{"Feb.", "feb."},  // src/ui/ui_settings.cpp:906
-{"Aug.", "ago."},  // src/ui/ui_settings.cpp:906
-{"Sep.", "sep."},  // src/ui/ui_settings.cpp:906
-{"Okt.", "oct."},  // src/ui/ui_settings.cpp:906
-{"Nov.", "nov."},  // src/ui/ui_settings.cpp:906
-{"Dez.", "dic."},  // src/ui/ui_settings.cpp:906
-{"Anzeige", "Pantalla"},  // src/ui/ui_settings.cpp:925
-{"Ruhezustand", "Reposo"},  // src/ui/ui_settings.cpp:931
-{"Starten nach", "Empezar tras"},  // src/ui/ui_settings.cpp:935
-{"Nie", "Nunca"},  // src/ui/ui_settings.cpp:935
-{"30 Sekunden", "30 segundos"},  // src/ui/ui_settings.cpp:935
-{"1 Minute", "1 minuto"},  // src/ui/ui_settings.cpp:935
-{"2 Minuten", "2 minutos"},  // src/ui/ui_settings.cpp:935
-{"5 Minuten", "5 minutos"},  // src/ui/ui_settings.cpp:935
-{"10 Minuten", "10 minutos"},  // src/ui/ui_settings.cpp:935
-{"30 Minuten", "30 minutos"},  // src/ui/ui_settings.cpp:935
-{"Abdunkeln", "Atenuar"},  // src/ui/ui_settings.cpp:939
-{"Schwarz", "Negro"},  // src/ui/ui_settings.cpp:939
-{"Dunkle Uhr", "Reloj oscuro"},  // src/ui/ui_settings.cpp:939
-{"Hüpfendes Logo", "Logo rebotando"},  // src/ui/ui_settings.cpp:939
-{"Ball-Duell", "Duelo de pelota"},  // src/ui/ui_settings.cpp:939
-{"Helligkeit im Ruhezustand", "Brillo en reposo"},  // src/ui/ui_settings.cpp:945
-{"Helligkeit von Uhr und Logo", "Brillo del reloj y del logo"},  // src/ui/ui_settings.cpp:945
-{"Eigenes Logo beim Abprallen umfärben", "Cambiar el color del logo propio al rebotar"},  // src/ui/ui_settings.cpp:953
-{"Vorschau", "Vista previa"},  // src/ui/ui_settings.cpp:963
-{"Uhrzeit", "Hora"},  // src/ui/ui_settings.cpp:965
-{"Mit Internet stellt sich die Uhr selbst. Ohne Internet hier von Hand stellen – der Uhrenchip der Platine behält die Zeit auch ohne Strom.", "Con internet el reloj se ajusta solo. Sin internet, ajústelo aquí a mano – el reloj RTC de la placa conserva la hora sin corriente."},  // src/ui/ui_settings.cpp:970
-{"Mit Internet stellt sich die Uhr selbst, ebenso beim Öffnen des Editors im Browser. Ohne beides hier von Hand stellen. Ohne Uhrenchip geht die Zeit nach einem Stromausfall verloren.", "Con internet el reloj se ajusta solo, también al abrir el editor en el navegador. Si no hay ninguno de los dos, ajústelo aquí a mano. Sin reloj RTC la hora se pierde tras un corte de corriente."},  // src/ui/ui_settings.cpp:972
-{"Netzwerkname", "Nombre de red"},  // src/ui/ui_settings.cpp:978
-{"Gerät umbenennen", "Renombrar dispositivo"},  // src/ui/ui_settings.cpp:989
-{"Name in Zigbee2MQTT: ", "Nombre en Zigbee2MQTT:"},  // src/ui/ui_settings.cpp:991
-{" (Kanal ", " (canal"},  // src/ui/ui_settings.cpp:992
-{"). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät.", "). El cambio de nombre en Zigbee2MQTT afecta a todo el dispositivo."},  // src/ui/ui_settings.cpp:992
-{"Auch in Zigbee2MQTT umbenennen", "Renombrar también en Zigbee2MQTT"},  // src/ui/ui_settings.cpp:993
-{"Shelly ", "Shelly "},  // src/ui/ui_settings.cpp:998
-{"). Der Name gilt nur für dieses Panel.", "). El nombre solo vale para este panel."},  // src/ui/ui_settings.cpp:998
-{"Shelly per Bluetooth ", "Shelly por Bluetooth "},  // src/ui/ui_settings.cpp:1001
-{". Der Name gilt nur für dieses Panel.", ". El nombre solo es válido para este panel."},  // src/ui/ui_settings.cpp:1001
-{"WLED „", "WLED «"},  // src/ui/ui_settings.cpp:1004
-{"Zigbee-Gerät ", "Dispositivo Zigbee "},  // src/ui/ui_settings.cpp:1009
-{"Umbenennung an Zigbee2MQTT gesendet.", "Cambio de nombre enviado a Zigbee2MQTT."},  // src/ui/ui_settings.cpp:1028
-{"Noch keine Geräte mit Werten.", "Aún no hay dispositivos con valores."},  // src/ui/ui_settings.cpp:1050
-{"Noch keine Geräte von Zigbee2MQTT empfangen.", "Aún no se han recibido dispositivos de Zigbee2MQTT."},  // src/ui/ui_settings.cpp:1052
-{"Fehlende Geräte wurden ergänzt.", "Se añadieron los dispositivos que faltaban."},  // src/ui/ui_settings.cpp:1057
-{"Alles neu anordnen?", "¿Reordenar todo?"},  // src/ui/ui_settings.cpp:1061
-{"Alle Kacheln werden neu verteilt. Eigene Positionen und Größen gehen dabei verloren, Namen bleiben erhalten.", "Todos los mosaicos se redistribuyen. Se pierden las posiciones y tamaños propios, los nombres se mantienen."},  // src/ui/ui_settings.cpp:1062
-{"Neu anordnen", "Reordenar"},  // src/ui/ui_settings.cpp:1063
-{"Kacheln wurden neu verteilt.", "Mosaicos redistribuidos."},  // src/ui/ui_settings.cpp:1066
-{"Tippe auf ein Gerät, um seinen Namen zu ändern. Anordnen, Icons und Größen gehen bequemer im Browser-Editor.", "Toque un dispositivo para cambiar su nombre. Ordenar, iconos y tamaños es más cómodo en el editor del navegador."},  // src/ui/ui_settings.cpp:1073
-{"Fehlende ergänzen", "Añadir los que faltan"},  // src/ui/ui_settings.cpp:1075
-{"Alles neu anordnen", "Reordenar todo"},  // src/ui/ui_settings.cpp:1076
-{"Noch keine Shellys gefunden.", "Aún no se han encontrado Shellys."},  // src/ui/ui_settings.cpp:1084
-{"Shellys: unter „Shelly (MQTT)“ einschalten.", "Shellys: activar en «Shelly (MQTT)»."},  // src/ui/ui_settings.cpp:1085
-{"Dieser Sensor ist schon eingerichtet.", "Este sensor ya está configurado."},  // src/ui/ui_settings.cpp:1140
-{"Name der Gasflasche", "Nombre de la bombona"},  // src/ui/ui_settings.cpp:1144
-{"Bluetooth-Adresse ", "Dirección Bluetooth"},  // src/ui/ui_settings.cpp:1145
-{". Zum Beispiel „Flasche links“ oder „Reserve“.", ". Por ejemplo «Bombona izquierda» o «Reserva»."},  // src/ui/ui_settings.cpp:1145
-{"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Configurado. La primera medición llega en cuanto el sensor informe."},  // src/ui/ui_settings.cpp:1150
-{"Es sind schon vier Gasflaschen eingerichtet.", "Ya hay cuatro bombonas configuradas."},  // src/ui/ui_settings.cpp:1159
-{"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Buscando. El sensor solo emite cada pocos minutos – tenga paciencia."},  // src/ui/ui_settings.cpp:1163
-{"Messung angefordert.", "Medición solicitada."},  // src/ui/ui_settings.cpp:1168
-{"Name des Tanks", "Nombre del depósito"},  // src/ui/ui_settings.cpp:1194
-{". Den Flaschentyp wählst du danach in der Detailansicht.", ". El tipo de bombona se elige después en la vista de detalle."},  // src/ui/ui_settings.cpp:1195
-{"Tank ", "Depósito"},  // src/ui/ui_settings.cpp:1196
-{"Eingerichtet. Antippen, um den Flaschentyp zu wählen (vorgegeben: 11 kg).", "Configurado. Toque para elegir el tipo de bombona (por defecto: 11 kg)."},  // src/ui/ui_settings.cpp:1203
-{"Es sind schon vier Mopeka-Sensoren eingerichtet.", "Ya hay cuatro sensores Mopeka configurados."},  // src/ui/ui_settings.cpp:1213
-{"Suche läuft. Am Sensor kurz die Sync-Taste drücken, dann ist er leicht zu erkennen.", "Buscando. Pulse brevemente el botón de sincronización del sensor para reconocerlo fácilmente."},  // src/ui/ui_settings.cpp:1217
-{"Pro Check, Pro Plus, Pro Universal, H2O, TD40 und die älteren Standard-Sensoren. Sie senden ihre Werte laufend – das Panel hört nur mit, die Mopeka-App bleibt nutzbar.", "Pro Check, Pro Plus, Pro Universal, H2O, TD40 y los antiguos sensores Standard. Envían sus valores continuamente – el panel solo escucha, la app de Mopeka sigue funcionando."},  // src/ui/ui_settings.cpp:1250
-{"Noch kein Mopeka-Sensor eingerichtet.", "Aún no hay ningún sensor Mopeka configurado."},  // src/ui/ui_settings.cpp:1257
-{"Suche läuft …", "Buscando …"},  // src/ui/ui_settings.cpp:1265
-{"Mopeka suchen", "Buscar Mopeka"},  // src/ui/ui_settings.cpp:1265
-{"Gefundene Mopeka-Sensoren (Suche läuft …)", "Sensores Mopeka encontrados (buscando …)"},  // src/ui/ui_settings.cpp:1269
-{"Gefundene Mopeka-Sensoren", "Sensores Mopeka encontrados"},  // src/ui/ui_settings.cpp:1269
-{"Noch nichts gefunden. Sync-Taste am Sensor drücken.", "Nada encontrado todavía. Pulse el botón de sincronización del sensor."},  // src/ui/ui_settings.cpp:1271
-{"Taste gedrückt, ", "botón pulsado,"},  // src/ui/ui_settings.cpp:1276
-{"eingerichtet, ", "configurado,"},  // src/ui/ui_settings.cpp:1276
-{"Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.", "Pulse ahora «CONNECTION» en la unidad de control del vehículo – tiene 3 minutos."},  // src/ui/ui_settings.cpp:1293
-{"Kopplung lösen?", "¿Desemparejar?"},  // src/ui/ui_settings.cpp:1296
-{"Das Panel trennt sich von der Hymer-SCU. Zum erneuten Verbinden musst du neu koppeln.", "El panel se desconecta de la SCU de Hymer. Para volver a conectar hay que emparejar de nuevo."},  // src/ui/ui_settings.cpp:1296
-{"Lösen", "Desemparejar"},  // src/ui/ui_settings.cpp:1296
-{"Jetzt am iNet X „Gerät hinzufügen“ öffnen – du hast 3 Minuten.", "Abra ahora «Añadir dispositivo» en el iNet X – tiene 3 minutos."},  // src/ui/ui_settings.cpp:1307
-{"Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.", "El panel se desconecta del iNet X. Para volver a conectar hay que emparejar de nuevo."},  // src/ui/ui_settings.cpp:1310
-{"Die Uhrzeit geht beim nächsten Abruf ans CP Plus.", "La hora se envía al CP Plus en su próxima consulta."},  // src/ui/ui_settings.cpp:1315
-{"Das Panel kennt die Uhrzeit noch nicht.", "El panel aún no conoce la hora."},  // src/ui/ui_settings.cpp:1315
-{"Truma CP Plus (LIN-Bus)", "Truma CP Plus (bus LIN)"},  // src/ui/ui_settings.cpp:1327
-{" (LIN-Bus)", " (bus LIN)"},  // src/ui/ui_settings.cpp:1327
-{"Truma iNet X (Bluetooth)", "Truma iNet X (Bluetooth)"},  // src/ui/ui_settings.cpp:1327
-{"Uhr ans CP Plus", "Hora al CP Plus"},  // src/ui/ui_settings.cpp:1332
-{"Kopplung läuft …", "Emparejando …"},  // src/ui/ui_settings.cpp:1334
-{"iNet X neu koppeln", "Volver a emparejar iNet X"},  // src/ui/ui_settings.cpp:1335
-{"iNet X koppeln", "Emparejar iNet X"},  // src/ui/ui_settings.cpp:1335
-{"Kopplung lösen", "Desemparejar"},  // src/ui/ui_settings.cpp:1336
-{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: tras conectarlo, ejecute una vez «PR SET» > Init en el CP Plus para que registre el panel como iNet Box."},  // src/ui/ui_settings.cpp:1339
-{"Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ", "Alde: cable LIN a la toma RJ12 amarilla (pin 4, masa pin 2). Modelo, pines y baudios se ajustan en platformio.ini en [alde]."},  // src/ui/ui_settings.cpp:1340
-{"iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.", "iNet X: toque primero aquí «Emparejar» y luego abra «Añadir dispositivo» en el panel de control. El iNet X recuerda como máximo cuatro dispositivos."},  // src/ui/ui_settings.cpp:1341
-{"%s · %u Gerät(e) · %s", "%s · %u dispositivo(s) · %s"},  // src/ui/ui_settings.cpp:1439
-{"online", "en línea"},  // src/ui/ui_settings.cpp:1439
-{"Weboberfläche: http://", "Interfaz web: http://"},  // src/ui/ui_settings.cpp:1462
-{"Per Bluetooth verbunden (ohne IP). Seine Weboberfläche: WLAN „SOC-Satellite-…“, dann 4.3.2.1.", "Conectado por Bluetooth (sin IP). Su interfaz web: WiFi «SOC-Satellite-…», luego 4.3.2.1."},  // src/ui/ui_settings.cpp:1463
-{"Keine IP gemeldet – Weboberfläche über sein eigenes WLAN „SOC-Satellite-…“.", "No se ha comunicado IP – interfaz web por su propio WiFi «SOC-Satellite-…»."},  // src/ui/ui_settings.cpp:1464
-{"Entfernen nimmt ihn aus der Liste, seine Kacheln bleiben leer. Sendet er weiter, taucht er wieder auf – dann am Satelliten die Sendewege abschalten oder ein anderes Bluetooth-Passwort setzen.", "Quitar lo elimina de la lista, sus mosaicos quedan vacíos. Si sigue enviando, vuelve a aparecer – entonces desactive en el satélite las vías de envío o ponga otra contraseña Bluetooth."},  // src/ui/ui_settings.cpp:1465
-{"%s · %u Kachel(n)%s%s", "%s · %u mosaico(s)%s%s"},  // src/ui/ui_settings.cpp:1507
-{"verbunden", "conectado"},  // src/ui/ui_settings.cpp:1507
-{"Noch keine IP gemeldet.", "Aún no se ha comunicado IP."},  // src/ui/ui_settings.cpp:1517
-{"Welche Kacheln es zeigt: im Editor dieses Panels (Reiter Zusatzdisplays) oder in seiner eigenen Weboberfläche. Entfernen nimmt es aus der Liste – solange es läuft, meldet es sich wieder an.", "Qué mosaicos muestra: en el editor de este panel (pestaña Pantallas adicionales) o en su propia interfaz web. Quitar lo elimina de la lista – mientras funcione, se vuelve a registrar."},  // src/ui/ui_settings.cpp:1518
-{"Bluetooth-Passwort der Satelliten", "Contraseña Bluetooth de los satélites"},  // src/ui/ui_settings.cpp:1529
-{"Gilt für alle Satelliten. Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen – nur dann nimmt das Panel ihn per Bluetooth auf.", "Vale para todos los satélites. Introduce la misma contraseña en la interfaz web del satélite – solo así el panel lo acepta por Bluetooth."},  // src/ui/ui_settings.cpp:1530
-{"Passwort gespeichert.", "Contraseña guardada."},  // src/ui/ui_settings.cpp:1536
-{"Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.", "Los satélites necesitan WiFi – en el panel está ajustado «WiFi apagado»."},  // src/ui/ui_settings.cpp:1544
-{"Suche läuft – noch %u:%02u. Am Satelliten die BOOT-Taste 3 s halten (oder 3× schnell aus/ein).", "Búsqueda en curso – quedan %u:%02u. En el satélite mantenga la tecla BOOT 3 s (o apague/encienda 3× rápido)."},  // src/ui/ui_settings.cpp:1554
-{"Satelliten", "Satélites"},  // src/ui/ui_settings.cpp:1561
-{"Eigene ESP32 mit Sensoren und Relais im Fahrzeug. Sie senden per UDP im WLAN direkt ans Panel (oder über einen MQTT-Broker) – ihre Geräte erscheinen hier und im Editor wie eigene.", "ESP32 propios con sensores y relés en el vehículo. Envían por UDP en el WiFi directamente al panel (o mediante un broker MQTT) – sus dispositivos aparecen aquí y en el editor como propios."},  // src/ui/ui_settings.cpp:1563
-{"Satelliten-Passwort", "Contraseña de satélites"},  // src/ui/ui_settings.cpp:1570
-{"Noch kein Satellit gehört.", "Aún no se ha detectado ningún satélite."},  // src/ui/ui_settings.cpp:1571
-{"Zusatzdisplays", "Pantallas adicionales"},  // src/ui/ui_settings.cpp:1579
-{"Neuen Satelliten hinzufügen", "Añadir nuevo satélite"},  // src/ui/ui_settings.cpp:1594
-{"%d dBm · antippen zum Einrichten", "%d dBm · tocar para configurar"},  // src/ui/ui_settings.cpp:1600
-{"Stand", "Estado"},  // src/ui/ui_settings.cpp:1605
-{"Suche", "Buscar"},  // src/ui/ui_settings.cpp:1605
-{"Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", "En el panel está ajustado «WiFi apagado» – los satélites necesitan WiFi."},  // src/ui/ui_settings.cpp:1608
-{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "El sensor solo admite una conexión a la vez: si la app Truma o el Victron GX están conectados, el panel mide en la siguiente pasada."},  // src/ui/ui_settings.cpp:1637
-{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "El sensor solo permite una conexión a la vez: si la app de Truma, Home Assistant o el Victron GX están conectados, el panel mide en la siguiente ronda."},  // src/ui/ui_settings.cpp:1640
-{"Noch keine Gasflasche eingerichtet.", "Aún no hay ninguna bombona configurada."},  // src/ui/ui_settings.cpp:1648
-{"Truma suchen", "Buscar Truma"},  // src/ui/ui_settings.cpp:1656
-{"Alle jetzt messen", "Medir todo ahora"},  // src/ui/ui_settings.cpp:1657
-{"Gefundene Sensoren (Suche läuft …)", "Sensores encontrados (buscando …)"},  // src/ui/ui_settings.cpp:1661
-{"Gefundene Sensoren", "Sensores encontrados"},  // src/ui/ui_settings.cpp:1661
-{"Noch nichts gefunden. Der Sensor muss in Reichweite sein.", "Nada encontrado todavía. El sensor debe estar al alcance."},  // src/ui/ui_settings.cpp:1663
-{"LevelControl ", "LevelControl "},  // src/ui/ui_settings.cpp:1669
-{"Messen", "Medición"},  // src/ui/ui_settings.cpp:1673
-{"Abfrage alle", "Consultar cada"},  // src/ui/ui_settings.cpp:1677
-{"15 Minuten", "15 minutos"},  // src/ui/ui_settings.cpp:1677
-{"60 Minuten", "60 minutos"},  // src/ui/ui_settings.cpp:1677
-{"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Medir con más frecuencia gasta más la batería del sensor."},  // src/ui/ui_settings.cpp:1678
-{"Hymer Connect", "Hymer Connect"},  // src/ui/ui_settings.cpp:1702
-{"Licht, Batterie, Tanks und Schalter direkt von der SCU im Fahrzeug (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – per Bluetooth, ohne Cloud.", "Luz, batería, depósitos e interruptores directamente de la SCU del vehículo (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – por Bluetooth, sin nube."},  // src/ui/ui_settings.cpp:1702
-{"SCU im Fahrzeug suchen und verbinden", "Buscar y conectar la SCU del vehículo"},  // src/ui/ui_settings.cpp:1704
-{"SCU (Bluetooth)", "SCU (Bluetooth)"},  // src/ui/ui_settings.cpp:1708
-{"Neu koppeln", "Emparejar de nuevo"},  // src/ui/ui_settings.cpp:1711
-{"Hymer koppeln", "Emparejar Hymer"},  // src/ui/ui_settings.cpp:1711
-{"Erst hier „Hymer koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). Die Werte stehen danach im Editor wie die eines Satelliten namens „Hymer“ und lassen sich aufs Panel ziehen.", "Primero toque aquí «Emparejar Hymer», luego pulse «CONNECTION» en la unidad de control del vehículo (3 minutos). Los valores aparecerán en el editor como los de un satélite llamado «Hymer» y se pueden arrastrar al panel."},  // src/ui/ui_settings.cpp:1714
-{"Gefundene Geräte", "Dispositivos encontrados"},  // src/ui/ui_settings.cpp:1724
-{"Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.", "Búsqueda en curso … La SCU debe estar al alcance y encendida."},  // src/ui/ui_settings.cpp:1727
-{" · Hymer", " · Hymer"},  // src/ui/ui_settings.cpp:1732
-{"Gerät antippen, dann am Bedienteil „CONNECTION“ drücken.", "Toque el dispositivo y luego pulse «CONNECTION» en la unidad de control."},  // src/ui/ui_settings.cpp:1737
-{"Schalter und Lichter: Zeile antippen zum Umschalten.", "Interruptores y luces: toque la línea para conmutar."},  // src/ui/ui_settings.cpp:1752
-{"Box gewählt – verbinde …", "Caja elegida – conectando …"},  // src/ui/ui_settings.cpp:1860
-{"Andere Box wählen", "Elegir otra caja"},  // src/ui/ui_settings.cpp:1864
-{"Die gemerkte HobbyConnect-Box vergessen und neu suchen?", "¿Olvidar la caja HobbyConnect guardada y buscar de nuevo?"},  // src/ui/ui_settings.cpp:1864
-{"Vergessen", "Olvidar"},  // src/ui/ui_settings.cpp:1864
-{"RX-Pin (GPIO)", "Pin RX (GPIO)"},  // src/ui/ui_settings.cpp:1879
-{"TX-Pin (GPIO)", "Pin TX (GPIO)"},  // src/ui/ui_settings.cpp:1879
-{"GPIO, an dem die Sendeleitung des RS232-Wandlers (TXD) hängt; leer = keiner", "GPIO al que está conectada la línea de emisión del convertidor RS232 (TXD); vacío = ninguno"},  // src/ui/ui_settings.cpp:1880
-{"GPIO zur Empfangsleitung des RS232-Wandlers (RXD); leer = keiner", "GPIO de la línea de recepción del convertidor RS232 (RXD); vacío = ninguno"},  // src/ui/ui_settings.cpp:1881
-{"Gerade nicht schaltbar (nicht verbunden; Hauptschalter nur über das Kabel).", "No se puede conmutar ahora (no conectado; interruptor principal solo por cable)."},  // src/ui/ui_settings.cpp:1900
-{"Noch keine Werte – erst verbinden.", "Aún no hay valores – conecte primero."},  // src/ui/ui_settings.cpp:1920
-{"Kacheln angelegt (vorhandene bleiben).", "Mosaicos creados (los existentes se mantienen)."},  // src/ui/ui_settings.cpp:1924
-{"Wohnwagen und Reisemobile von Hobby: Licht, Bordbatterie, Wasser, Heizung, Kühlschrank und Klima – per Bluetooth über die HobbyConnect-Box oder per Kabel direkt am Steuergerät (LSG, CI-BUS).", "Caravanas y autocaravanas Hobby: luz, batería de servicio, agua, calefacción, nevera y clima – por Bluetooth mediante la caja HobbyConnect o por cable directamente en la centralita (LSG, CI-BUS)."},  // src/ui/ui_settings.cpp:1932
-{"HobbyConnect-Box", "Caja HobbyConnect"},  // src/ui/ui_settings.cpp:1934
-{"Box im Fahrzeug per Bluetooth verbinden", "Conectar la caja del vehículo por Bluetooth"},  // src/ui/ui_settings.cpp:1934
-{"Box (Bluetooth)", "Caja (Bluetooth)"},  // src/ui/ui_settings.cpp:1937
-{"Adresse", "Dirección"},  // src/ui/ui_settings.cpp:1939
-{"Suche läuft … Die Box muss eingeschaltet und in Reichweite sein; die Hobby-App auf dem Handy vorher trennen.", "Búsqueda en curso … La caja debe estar encendida y al alcance; desconecte antes la app Hobby del móvil."},  // src/ui/ui_settings.cpp:1944
-{"HobbyConnect", "HobbyConnect"},  // src/ui/ui_settings.cpp:1954
-{"CI-BUS am LSG (Kabel)", "CI-BUS en la centralita (cable)"},  // src/ui/ui_settings.cpp:1960
-{"Ersetzt die Box: RS232-Wandler an einer seriellen Schnittstelle", "Sustituye la caja: convertidor RS232 en una interfaz serie"},  // src/ui/ui_settings.cpp:1960
-{"UART%d", "UART%d"},  // src/ui/ui_settings.cpp:1965
-{"Schnittstelle", "Interfaz"},  // src/ui/ui_settings.cpp:1966
-{"GPIO ", "GPIO "},  // src/ui/ui_settings.cpp:1967
-{"RX-Pin", "Pin RX"},  // src/ui/ui_settings.cpp:1969
-{"TX-Pin", "Pin TX"},  // src/ui/ui_settings.cpp:1970
-{"Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte holt das Panel selbst vom LSG.", "La centralita habla RS232 (±12 V): conéctela solo mediante un convertidor RS232-TTL (p. ej. MAX3232, 3,3 V), 115200 baudios. Waveshare 7\": regleta UART (GPIO 15/16). Los números de los valores los obtiene el panel de la centralita."},  // src/ui/ui_settings.cpp:1972
-{"Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen.", "Atención: UART%d lo usa el módulo Zigbee – elija otro."},  // src/ui/ui_settings.cpp:1981
-{"Kacheln anlegen", "Crear mosaicos"},  // src/ui/ui_settings.cpp:1997
-{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", "Interruptores y luces: toque la línea. En el editor los valores están en la lista de dispositivos bajo «Hobby», la batería de servicio como monitor de batería."},  // src/ui/ui_settings.cpp:1998
-{"nicht gestartet", "no iniciado"},  // src/ui/ui_settings.cpp:2031
-{"nicht gefunden – Modul gesteckt und aufgespielt?", "no encontrado – ¿módulo insertado y flasheado?"},  // src/ui/ui_settings.cpp:2032
-{" · Firmware ", " · Firmware "},  // src/ui/ui_settings.cpp:2033
-{"wird gebildet …", "formándose …"},  // src/ui/ui_settings.cpp:2037
-{"PAN 0x%04X · %s %d", "PAN 0x%04X · %s %d"},  // src/ui/ui_settings.cpp:2039
-{"geschlossen", "cerrado"},  // src/ui/ui_settings.cpp:2043
-{"offen, noch %d s", "abierto, quedan %d s"},  // src/ui/ui_settings.cpp:2045
-{"Noch keine Meldungen.", "Aún no hay mensajes."},  // src/ui/ui_settings.cpp:2053
-{"wird abgefragt …", "consultando …"},  // src/ui/ui_settings.cpp:2056
-{"noch keine Werte", "aún no hay valores"},  // src/ui/ui_settings.cpp:2057
-{"Ausgeschaltet – wirkt nach dem nächsten Neustart des Panels.", "Desactivado – surte efecto tras el próximo reinicio del panel."},  // src/ui/ui_settings.cpp:2066
-{"Anlernen beendet.", "Emparejamiento finalizado."},  // src/ui/ui_settings.cpp:2072
-{"Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.", "Emparejamiento abierto 3 minutos – ponga ahora el dispositivo en modo de emparejamiento."},  // src/ui/ui_settings.cpp:2075
-{"' && json.back() == '", "' && json.back() == '"},  // src/ui/ui_settings.cpp:2097
-{"Änderungen verwerfen?", "¿Descartar los cambios?"},  // src/ui/ui_settings.cpp:2128
-{"Die geänderten Einstellungen wurden noch nicht gespeichert.", "Los ajustes modificados aún no se han guardado."},  // src/ui/ui_settings.cpp:2128
-{"Verwerfen", "Descartar"},  // src/ui/ui_settings.cpp:2128
-{"Zigbee-Modul nicht verbunden.", "Módulo Zigbee no conectado."},  // src/ui/ui_settings.cpp:2144
-{"Gesendet – das Gerät übernimmt die Einstellungen.", "Enviado – el dispositivo aplica los ajustes."},  // src/ui/ui_settings.cpp:2148
-{"Name des Geräts", "Nombre del dispositivo"},  // src/ui/ui_settings.cpp:2162
-{"z. B. „Bewegung Flur“ oder „Taster Bett“. Leer lassen = Modellname.", "p. ej. «Movimiento pasillo» o «Pulsador cama». Vacío = nombre del modelo."},  // src/ui/ui_settings.cpp:2163
-{"Das Gerät ", "El dispositivo "},  // src/ui/ui_settings.cpp:2174
-{" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.", " se da de baja y se olvida. Para volver a usarlo, emparéjelo de nuevo."},  // src/ui/ui_settings.cpp:2174
-{"Gerät entfernen?", "¿Quitar dispositivo?"},  // src/ui/ui_settings.cpp:2175
-{"Gerät entfernt.", "Dispositivo eliminado."},  // src/ui/ui_settings.cpp:2178
-{"Wert von %g bis %g%s%s", "Valor de %g a %g%s%s"},  // src/ui/ui_settings.cpp:2196
-{"Wert außerhalb des erlaubten Bereichs.", "Valor fuera del rango permitido."},  // src/ui/ui_settings.cpp:2207
-{"Zurück zur Liste", "Volver a la lista"},  // src/ui/ui_settings.cpp:2245
-{"Aktuelle Werte", "Valores actuales"},  // src/ui/ui_settings.cpp:2252
-{"Noch keine Werte – das Gerät meldet sich bei der nächsten Änderung.", "Aún no hay valores – el dispositivo informa en el próximo cambio."},  // src/ui/ui_settings.cpp:2255
-{"Einstellungen", "Ajustes"},  // src/ui/ui_settings.cpp:2261
-{"Werden vom Funkmodul geladen …", "Cargando desde el módulo de radio …"},  // src/ui/ui_settings.cpp:2264
-{"Dieses Gerät hat keine Einstellungen.", "Este dispositivo no tiene ajustes."},  // src/ui/ui_settings.cpp:2266
-{"Mit * markiert: geändert, noch nicht gespeichert.", "Marcado con *: cambiado, aún sin guardar."},  // src/ui/ui_settings.cpp:2288
-{"Speichern", "Guardar"},  // src/ui/ui_settings.cpp:2293
-{"Gerät entfernen", "Eliminar dispositivo"},  // src/ui/ui_settings.cpp:2295
-{"Zigbee-Netz neu bilden?", "¿Formar de nuevo la red Zigbee?"},  // src/ui/ui_settings.cpp:2298
-{"Alle Geräte verlieren die Verbindung und müssen neu angelernt werden. Nur bei Störungen nötig.", "Todos los dispositivos pierden la conexión y hay que emparejarlos de nuevo. Solo necesario en caso de fallos."},  // src/ui/ui_settings.cpp:2299
-{"Neu bilden", "Formar de nuevo"},  // src/ui/ui_settings.cpp:2299
-{"Netz wird neu gebildet …", "Formando la red de nuevo …"},  // src/ui/ui_settings.cpp:2302
-{"Zigbee", "Zigbee"},  // src/ui/ui_settings.cpp:2317
-{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee2MQTT und ohne Broker.", "Dispositivos Zigbee (lámparas, enchufes, sensores) directamente en el panel – mediante el módulo de radio ESP32-H2 en la ranura trasera, sin Zigbee2MQTT y sin broker."},  // src/ui/ui_settings.cpp:2317
-{"Zigbee-Modul", "Módulo Zigbee"},  // src/ui/ui_settings.cpp:2326
-{"Funkmodul im Steckplatz verwenden", "Usar el módulo de radio de la ranura"},  // src/ui/ui_settings.cpp:2327
-{"Funkmodul", "Módulo de radio"},  // src/ui/ui_settings.cpp:2337
-{"Modul", "Módulo"},  // src/ui/ui_settings.cpp:2339
-{"Zigbee-Netz", "Red Zigbee"},  // src/ui/ui_settings.cpp:2340
-{"Anlernen", "Emparejar"},  // src/ui/ui_settings.cpp:2341
-{"Anlernen beenden", "Finalizar emparejamiento"},  // src/ui/ui_settings.cpp:2344
-{"Gerät anlernen", "Emparejar dispositivo"},  // src/ui/ui_settings.cpp:2344
-{"„Gerät anlernen“ öffnet das Netz für 3 Minuten. Dann das Gerät in den Kopplungsmodus bringen (meist Taste lange drücken oder Lampe mehrmals aus- und einschalten). Das Modul fragt neue Geräte selbst ab und richtet die Meldungen ein.", "«Emparejar dispositivo» abre la red durante 3 minutos. Luego ponga el dispositivo en modo de emparejamiento (normalmente mantener pulsada la tecla o apagar y encender la lámpara varias veces). El módulo consulta los dispositivos nuevos y configura los avisos."},  // src/ui/ui_settings.cpp:2347
-{"Noch keine Geräte angelernt.", "Aún no hay dispositivos emparejados."},  // src/ui/ui_settings.cpp:2357
-{"Ohne Funkmodul keine Geräte.", "Sin módulo de radio no hay dispositivos."},  // src/ui/ui_settings.cpp:2357
-{"Gerät antippen: Werte, Einstellungen, Name, Entfernen.", "Toque un dispositivo: valores, ajustes, nombre, eliminar."},  // src/ui/ui_settings.cpp:2368
-{"Meldungen des Moduls", "Mensajes del módulo"},  // src/ui/ui_settings.cpp:2373
-{"Netz neu bilden", "Formar de nuevo la red"},  // src/ui/ui_settings.cpp:2379
-{"Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Nivel de llenado por Bluetooth. Elija qué dispositivos debe evaluar el panel – lo que está apagado no se busca y no carga la radio ni el WiFi."},  // src/ui/ui_settings.cpp:2423
-{"Gas und Heizung", "Gas y calefacción"},  // src/ui/ui_settings.cpp:2426
-{"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Niveles y calefacción por Bluetooth. Elija qué dispositivos debe leer el panel – los desactivados no se buscan y no cargan la radio ni el Wi-Fi."},  // src/ui/ui_settings.cpp:2426
-{"Gasflaschen, bis zu vier", "Bombonas de gas, hasta cuatro"},  // src/ui/ui_settings.cpp:2429
-{"Gas- und Tanksensoren, bis zu vier", "Sensores de gas y depósito, hasta cuatro"},  // src/ui/ui_settings.cpp:2430
-{"Heizung, Boiler und Klima über das Bedienteil", "Calefacción, calentador y climatización mediante el panel de control"},  // src/ui/ui_settings.cpp:2431
-{"Kachel anlegen?", "¿Crear mosaico?"},  // src/ui/ui_settings.cpp:2470
-{"Soll „", "¿Debe «"},  // src/ui/ui_settings.cpp:2470
-{"“ als Kachel auf den Hauptbildschirm?", "» ir como mosaico a la pantalla principal?"},  // src/ui/ui_settings.cpp:2470
-{"Kachel anlegen", "Crear mosaico"},  // src/ui/ui_settings.cpp:2471
-{"Kachel angelegt. Position und Größe änderst du im Editor.", "Mosaico creado. La posición y el tamaño se cambian en el editor."},  // src/ui/ui_settings.cpp:2476
-{"Dieses Gerät ist schon eingerichtet.", "Este dispositivo ya está configurado."},  // src/ui/ui_settings.cpp:2518
-{"Schlüssel für ", "Clave para"},  // src/ui/ui_settings.cpp:2522
-{"32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "32 caracteres de VictronConnect: Ajustes > Información del producto > Instant Readout > Mostrar detalles."},  // src/ui/ui_settings.cpp:2523
-{"Eingerichtet. Die Werte erscheinen in wenigen Sekunden.", "Configurado. Los valores aparecen en pocos segundos."},  // src/ui/ui_settings.cpp:2527
-{"Es sind schon sechs Victron-Geräte eingerichtet.", "Ya hay seis dispositivos Victron configurados."},  // src/ui/ui_settings.cpp:2537
-{"Suche läuft. Victron-Geräte erscheinen meist nach wenigen Sekunden.", "Buscando. Los dispositivos Victron suelen aparecer en pocos segundos."},  // src/ui/ui_settings.cpp:2541
-{"Kopplungs-PIN", "PIN de emparejamiento"},  // src/ui/ui_settings.cpp:2586
-{"Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.", "Super B pide un PIN al emparejar – está en la batería o en el manual."},  // src/ui/ui_settings.cpp:2588
-{"Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen. Später änderbar: Akku antippen > PIN.", "Solo necesario si la batería pide un PIN al emparejar (está en la batería o en el manual). Normalmente déjelo vacío. Se puede cambiar después: tocar la batería > PIN."},  // src/ui/ui_settings.cpp:2589
-{"Eingerichtet – das Panel verbindet sich gleich.", "Configurado – el panel se conecta en seguida."},  // src/ui/ui_settings.cpp:2596
-{"Eingerichtet – das Panel koppelt gleich mit PIN.", "Configurado – el panel se empareja en seguida con PIN."},  // src/ui/ui_settings.cpp:2597
-{"Name der Power Station", "Nombre de la Power Station"},  // src/ui/ui_settings.cpp:2614
-{"Name des Sensors", "Nombre del sensor"},  // src/ui/ui_settings.cpp:2614
-{"Name des Akkus", "Nombre de la batería"},  // src/ui/ui_settings.cpp:2615
-{"Zum Beispiel „Kühlschrank“ oder „Frischwasser“.", "Por ejemplo «Nevera» o «Agua limpia»."},  // src/ui/ui_settings.cpp:2616
-{"Zum Beispiel „Standheizung“. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem Gerät.", "Por ejemplo «Calefactor estacionario». Cierre antes la app del fabricante – el dispositivo solo habla con un aparato."},  // src/ui/ui_settings.cpp:2617
-{"Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.", "Por ejemplo «Batería de servicio». Cierre antes la app del fabricante – la batería solo habla con un aparato."},  // src/ui/ui_settings.cpp:2618
-{"Kein Platz mehr – es sind schon so viele Bluetooth-Geräte eingerichtet, wie möglich sind.", "No queda espacio – ya están configurados todos los dispositivos Bluetooth posibles."},  // src/ui/ui_settings.cpp:2637
-{"Suche läuft (1 Minute). Die App des Herstellers vorher schließen.", "Búsqueda en curso (1 minuto). Cierre antes la app del fabricante."},  // src/ui/ui_settings.cpp:2641
-{"EcoFlow-Benutzer-ID", "ID de usuario de EcoFlow"},  // src/ui/ui_settings.cpp:2646
-{"Die Benutzer-ID des EcoFlow-Kontos, an das die Power Station gebunden ist. Bequemer: im Editor unter „Power Stations“ mit E-Mail und Passwort anmelden – dann wird sie automatisch eingetragen. Leer = löschen.", "El ID de usuario de la cuenta EcoFlow a la que está vinculada la Power Station. Más cómodo: inicie sesión en el editor en «Power Stations» con correo y contraseña – se introduce automáticamente. Vacío = borrar."},  // src/ui/ui_settings.cpp:2647
-{"Benutzer-ID gelöscht.", "ID de usuario borrado."},  // src/ui/ui_settings.cpp:2653
-{"Benutzer-ID gespeichert.", "ID de usuario guardado."},  // src/ui/ui_settings.cpp:2653
-{"Power Stations", "Power Stations"},  // src/ui/ui_settings.cpp:2664
-{"Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.", "Bluetti, Allpowers, Anker SOLIX y EcoFlow por Bluetooth – sin probar. Cierre antes la app del fabricante; Anker: al conectar por primera vez quizá haya que pulsar la tecla de la Power Station. Tocar muestra todos los valores; allí se pueden encender y apagar las salidas AC y DC."},  // src/ui/ui_settings.cpp:2664
-{"Sensoren", "Sensores"},  // src/ui/ui_settings.cpp:2668
-{"Bluetooth-Sensoren – ungetestet: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi mit pvvx-Firmware …), Simarine STRx und SuperSense-Tankmodul. Sie senden nur, das Panel hört zu. Verschlüsselte BTHome- und Simarine-Sensoren brauchen den Schlüssel (32 Zeichen) als PIN.", "Sensores Bluetooth – sin probar: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi con firmware pvvx …), Simarine STRx y módulo de depósito SuperSense. Solo emiten, el panel escucha. Los sensores BTHome y Simarine cifrados necesitan la clave (32 caracteres) como PIN."},  // src/ui/ui_settings.cpp:2668
-{"Dieselheizung und Kühlbox", "Calefactor diésel y nevera portátil"},  // src/ui/ui_settings.cpp:2672
-{"Akkus (BMS)", "Baterías (BMS)"},  // src/ui/ui_settings.cpp:2674
-{"Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.", "Baterías con BMS Bluetooth propio. Cierre antes la app del fabricante – la batería solo habla con un aparato. El panel solo lee valores y no conmuta nada en la batería."},  // src/ui/ui_settings.cpp:2674
-{"China-Dieselheizungen (Vevor, Hcalory, HeaterCC/AirHeater) und Kompressor-Kühlboxen (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – ungetestet. Bedienen im Fenster der Kachel.", "Calefactores diésel chinos (Vevor, Hcalory, HeaterCC/AirHeater) y neveras de compresor (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – sin probar. Manejo en la ventana del mosaico."},  // src/ui/ui_settings.cpp:2677
-{"Akkus auswerten", "Evaluar baterías"},  // src/ui/ui_settings.cpp:2683
-{"Bluetooth-Geräte auswerten", "Evaluar dispositivos Bluetooth"},  // src/ui/ui_settings.cpp:2683
-{"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer – nur lesen", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (también reguladores de carga, cargadores DC-DC, inversores, shunt), Eco-Worthy, ANT, Vatrer – solo lectura"},  // src/ui/ui_settings.cpp:2684
-{"Ein Schalter für Akkus, Power Stations, Sensoren, Heizung und Kühlbox", "Un interruptor para baterías, Power Stations, sensores, calefacción y nevera"},  // src/ui/ui_settings.cpp:2686
-{"Noch keine Power Station eingerichtet.", "Aún no hay ninguna Power Station configurada."},  // src/ui/ui_settings.cpp:2704
-{"Noch kein Sensor eingerichtet.", "Aún no hay ningún sensor configurado."},  // src/ui/ui_settings.cpp:2704
-{"Noch keine Heizung oder Kühlbox eingerichtet.", "Aún no hay calefactor ni nevera configurados."},  // src/ui/ui_settings.cpp:2705
-{"Noch kein Akku eingerichtet.", "Aún no hay ninguna batería configurada."},  // src/ui/ui_settings.cpp:2705
-{"gespeichert ", "guardado "},  // src/ui/ui_settings.cpp:2709
-{"nicht eingetragen", "no introducido"},  // src/ui/ui_settings.cpp:2709
-{"Power Stations suchen", "Buscar Power Stations"},  // src/ui/ui_settings.cpp:2715
-{"Sensoren suchen", "Buscar sensores"},  // src/ui/ui_settings.cpp:2715
-{"Heizung/Kühlbox suchen", "Buscar calefacción/nevera"},  // src/ui/ui_settings.cpp:2716
-{"Akkus suchen", "Buscar baterías"},  // src/ui/ui_settings.cpp:2716
-{"Gefunden (Suche läuft …)", "Encontrado (búsqueda en curso …)"},  // src/ui/ui_settings.cpp:2722
-{"Gefunden", "Encontrado"},  // src/ui/ui_settings.cpp:2722
-{"Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?", "Aún no se ha encontrado nada. ¿Power Station encendida, Bluetooth activado, cerca?"},  // src/ui/ui_settings.cpp:2725
-{"Noch nichts gefunden. Sensor in der Nähe? Manche senden nur alle paar Sekunden.", "Aún no se ha encontrado nada. ¿Sensor cerca? Algunos solo emiten cada pocos segundos."},  // src/ui/ui_settings.cpp:2726
-{"Noch nichts gefunden. Gerät eingeschaltet und in der Nähe? App des Herstellers geschlossen?", "Aún no se ha encontrado nada. ¿Dispositivo encendido y cerca? ¿App del fabricante cerrada?"},  // src/ui/ui_settings.cpp:2727
-{"Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", "Aún no se ha encontrado nada. ¿Batería encendida y cerca?"},  // src/ui/ui_settings.cpp:2728
-{"Suche den Cerbo GX im Netz … (bis etwa 20 Sekunden)", "Buscando el Cerbo GX en la red … (hasta unos 20 segundos)"},  // src/ui/ui_settings.cpp:2749
-{"Suche läuft schon.", "La búsqueda ya está en curso."},  // src/ui/ui_settings.cpp:2750
-{"Adresse des Cerbo GX", "Dirección del Cerbo GX"},  // src/ui/ui_settings.cpp:2755
-{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen > Dienste > MQTT einschalten.", "Dirección IP o nombre, p. ej. 192.168.1.50. Vacío = Cerbo GX desactivado. En el GX: Ajustes > Servicios > activar MQTT."},  // src/ui/ui_settings.cpp:2756
-{"Cerbo GX ausgeschaltet.", "Cerbo GX desactivado."},  // src/ui/ui_settings.cpp:2765
-{"Gespeichert, verbinde …", "Guardado, conectando …"},  // src/ui/ui_settings.cpp:2765
-{"Passwort des Cerbo GX", "Contraseña del Cerbo GX"},  // src/ui/ui_settings.cpp:2773
-{"Nur nötig, wenn am GX ein Passwort für das lokale Netz gesetzt ist. Leer = kein Passwort.", "Solo es necesario si el GX tiene una contraseña para la red local. Vacío = sin contraseña."},  // src/ui/ui_settings.cpp:2774
-{"Gespeichert, verbinde neu …", "Guardado, reconectando …"},  // src/ui/ui_settings.cpp:2781
-{"Cerbo GX (MQTT)", "Cerbo GX (MQTT)"},  // src/ui/ui_settings.cpp:2794
-{"im Netz suchen und eintragen", "buscar en la red e introducir"},  // src/ui/ui_settings.cpp:2799
-{"Automatisch suchen", "Buscar automáticamente"},  // src/ui/ui_settings.cpp:2800
-{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen > Dienste > MQTT einschalten, dann „Automatisch suchen“ oder die IP-Adresse von Hand eintragen. Die Kacheln setzt du danach im Editor.", "Solar, red, cargador, batería y sistema DC del Cerbo GX (Venus OS). En el GX active Ajustes > Servicios > MQTT, luego «Buscar automáticamente» o introduzca la IP a mano. Los mosaicos se colocan después en el editor."},  // src/ui/ui_settings.cpp:2810
-{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "SmartSolar, SmartShunt, BMV y Orion por Bluetooth («Instant Readout»). El panel solo escucha – VictronConnect y un GX no se ven afectados. Para cada dispositivo necesita la clave de VictronConnect: Ajustes > Información del producto > Instant Readout > Mostrar detalles."},  // src/ui/ui_settings.cpp:2822
-{"Bluetooth (Instant Readout)", "Bluetooth (Instant Readout)"},  // src/ui/ui_settings.cpp:2827
-{"Victron auswerten", "Leer Victron"},  // src/ui/ui_settings.cpp:2829
-{"Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", "Apagado = el panel no busca ni escucha dispositivos Victron"},  // src/ui/ui_settings.cpp:2829
-{"Noch kein Victron-Gerät eingerichtet.", "Aún no hay ningún dispositivo Victron configurado."},  // src/ui/ui_settings.cpp:2837
-{"Geräte suchen", "Buscar dispositivos"},  // src/ui/ui_settings.cpp:2842
-{"Gefundene Geräte (Suche läuft …)", "Dispositivos encontrados (buscando …)"},  // src/ui/ui_settings.cpp:2846
-{"Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?", "Nada encontrado todavía. ¿Está activado el Bluetooth en el dispositivo?"},  // src/ui/ui_settings.cpp:2848
-{"Firmware", "Firmware"},  // src/ui/ui_settings.cpp:2902
-{"IP-Adresse", "Dirección IP"},  // src/ui/ui_settings.cpp:2902
-{"WLAN-Signal", "Señal Wi-Fi"},  // src/ui/ui_settings.cpp:2902
-{"Geräteliste", "Lista de dispositivos"},  // src/ui/ui_settings.cpp:2902
-{"Touch", "Táctil"},  // src/ui/ui_settings.cpp:2903
-{"Freier Speicher", "Memoria libre"},  // src/ui/ui_settings.cpp:2903
-{"Laufzeit", "Tiempo activo"},  // src/ui/ui_settings.cpp:2903
-{"Aus – zum Einschalten antippen. Ab Werk aus.", "Apagado – tocar para encender. Apagado de fábrica."},  // src/ui/ui_settings.cpp:2910
-{"Schreibt auf die SD-Karte: ", "Escribe en la tarjeta SD: "},  // src/ui/ui_settings.cpp:2911
-{"An – SD-Karte wird eingebunden …", "Encendido – montando la tarjeta SD …"},  // src/ui/ui_settings.cpp:2912
-{"An – keine SD-Karte, nur die letzten 64 KB im Arbeitsspeicher (im Editor unter Info ansehen).", "Encendido – sin tarjeta SD, solo los últimos 64 KB en la memoria de trabajo (ver en el editor en Info)."},  // src/ui/ui_settings.cpp:2913
-{"Debug-Log läuft – alle Meldungen werden mitgeschrieben.", "Registro de depuración activo – se registran todos los mensajes."},  // src/ui/ui_settings.cpp:2919
-{"Debug-Log ist aus.", "El registro de depuración está apagado."},  // src/ui/ui_settings.cpp:2919
-{"aus (einschalten im Editor unter Netzwerk)", "apagado (activar en el editor en Red)"},  // src/ui/ui_settings.cpp:2928
-{"oder http://%s.local/", "o http://%s.local/"},  // src/ui/ui_settings.cpp:2939
-{" (Bridge offline)", " (Bridge offline)"},  // src/ui/ui_settings.cpp:2947
-{"Zustände werden neu abgefragt.", "Se vuelven a consultar los estados."},  // src/ui/ui_settings.cpp:2968
-{"Panel neu starten?", "¿Reiniciar el panel?"},  // src/ui/ui_settings.cpp:2972
-{"Das dauert etwa zehn Sekunden.", "Tarda unos diez segundos."},  // src/ui/ui_settings.cpp:2972
-{"Neu starten", "Reiniciar"},  // src/ui/ui_settings.cpp:2972
-{"Info", "Info"},  // src/ui/ui_settings.cpp:2979
-{"Layout-Editor im Browser", "Editor de diseño en el navegador"},  // src/ui/ui_settings.cpp:2986
-{"Zustände neu abfragen", "Volver a consultar estados"},  // src/ui/ui_settings.cpp:2995
-{"Fehlersuche (Debug-Log)", "Diagnóstico (registro de depuración)"},  // src/ui/ui_settings.cpp:2998
-{"Debug-Log auf die SD-Karte schreiben", "Escribir el registro de depuración en la tarjeta SD"},  // src/ui/ui_settings.cpp:3003
-{"Alle Meldungen mit Uhrzeit, alle 60 s Speicher, WLAN und Verbindungen. Dateien je bis 1 MB, die letzten 10. Ansehen und herunterladen im Editor unter Einstellungen → Info.", "Todos los mensajes con hora, cada 60 s memoria, WiFi y conexiones. Archivos de hasta 1 MB cada uno, los 10 últimos. Ver y descargar en el editor en Ajustes → Info."},  // src/ui/ui_settings.cpp:3014
-{"Projekt auf GitHub", "Proyecto en GitHub"},  // src/ui/ui_settings.cpp:3027
-{"Unterstütze das Projekt", "Apoya el proyecto"},  // src/ui/ui_settings.cpp:3028
-{"Gefällt dir das Panel? Über eine kleine Spende freue ich mich:", "¿Te gusta el panel? Me alegraría una pequeña donación:"},  // src/ui/ui_settings.cpp:3035
-{"Suche läuft (2 Minuten). Bluetooth muss am Shelly an sein (Shelly-App > Einstellungen > Bluetooth).", "Búsqueda en curso (2 minutos). El Bluetooth debe estar activado en el Shelly (app Shelly > Ajustes > Bluetooth)."},  // src/ui/ui_settings.cpp:3064
-{"Noch keine Kanäle – die erste Verbindung zum Shelly steht noch aus.", "Aún no hay canales – falta la primera conexión con el Shelly."},  // src/ui/ui_settings.cpp:3073
-{"Kacheln angelegt.", "Mosaicos creados."},  // src/ui/ui_settings.cpp:3077
-{"Passwort des Shelly", "Contraseña del Shelly"},  // src/ui/ui_settings.cpp:3091
-{"Nur nötig, wenn am Shelly ein Passwort gesetzt ist (Shelly-App > Einstellungen > Authentifizierung). Meist leer lassen. Später änderbar: Shelly antippen.", "Solo necesario si el Shelly tiene contraseña (app Shelly > Ajustes > Autenticación). Normalmente déjelo vacío. Se puede cambiar después: tocar el Shelly."},  // src/ui/ui_settings.cpp:3092
-{"Eingerichtet – das Panel verbindet sich gleich. Danach „Kacheln anlegen“.", "Configurado – el panel se conecta en seguida. Después «Crear mosaicos»."},  // src/ui/ui_settings.cpp:3098
-{"Dieser Shelly ist schon eingerichtet.", "Este Shelly ya está configurado."},  // src/ui/ui_settings.cpp:3109
-{"Name des Shelly", "Nombre del Shelly"},  // src/ui/ui_settings.cpp:3113
-{"Zum Beispiel „Außenlicht“ oder „Wasserpumpe“.", "Por ejemplo «Luz exterior» o «Bomba de agua»."},  // src/ui/ui_settings.cpp:3114
-{"Shelly umbenennen", "Renombrar Shelly"},  // src/ui/ui_settings.cpp:3127
-{"Diesen Shelly entfernen", "Eliminar este Shelly"},  // src/ui/ui_settings.cpp:3130
-{"Entfernt.", "Eliminado."},  // src/ui/ui_settings.cpp:3134
-{"Wie in der Shelly-App unter Authentifizierung. Leer = kein Passwort.", "Como en la app Shelly en Autenticación. Vacío = sin contraseña."},  // src/ui/ui_settings.cpp:3146
-{"Gespeichert – das Panel meldet sich gleich neu an.", "Guardado – el panel vuelve a iniciar sesión en seguida."},  // src/ui/ui_settings.cpp:3151
-{"noch nicht verbunden", "aún no conectado"},  // src/ui/ui_settings.cpp:3158
-{" %.0f W", " %.0f W"},  // src/ui/ui_settings.cpp:3167
-{"keine Kanäle", "sin canales"},  // src/ui/ui_settings.cpp:3171
-{"Shelly per Bluetooth (Beta)", "Shelly por Bluetooth (Beta)"},  // src/ui/ui_settings.cpp:3175
-{"Shelly Gen2, Gen3 und Gen4 (Plus, Pro, Mini …) ohne WLAN schalten – das Panel verbindet sich kurz per Bluetooth (Stand alle 30 s, Schalten sofort, dauert 1–2 s). Gen1 hat kein Bluetooth: dafür Shelly über MQTT.", "Conmutar Shelly Gen2, Gen3 y Gen4 (Plus, Pro, Mini …) sin WiFi – el panel se conecta brevemente por Bluetooth (estado cada 30 s, conmutación inmediata, tarda 1–2 s). Gen1 no tiene Bluetooth: para ellos, Shelly por MQTT."},  // src/ui/ui_settings.cpp:3176
-{"Shellys per Bluetooth", "Shellys por Bluetooth"},  // src/ui/ui_settings.cpp:3182
-{"Shellys suchen", "Buscar Shellys"},  // src/ui/ui_settings.cpp:3194
-{"Eingerichtet", "Configurado"},  // src/ui/ui_settings.cpp:3198
-{"gesetzt – antippen zum Ändern", "establecida – tocar para cambiar"},  // src/ui/ui_settings.cpp:3205
-{"VERLANGT – antippen zum Eintragen", "REQUERIDA – tocar para introducir"},  // src/ui/ui_settings.cpp:3205
-{"Gefundene Shellys (Suche läuft)", "Shellys encontrados (búsqueda en curso)"},  // src/ui/ui_settings.cpp:3211
-{"Gefundene Shellys", "Shellys encontrados"},  // src/ui/ui_settings.cpp:3211
-{"Noch keiner gefunden … Shelly in der Nähe und Bluetooth an?", "Aún no se ha encontrado ninguno … ¿Shelly cerca y Bluetooth activado?"},  // src/ui/ui_settings.cpp:3213
-{" · schon eingerichtet", " · ya configurado"},  // src/ui/ui_settings.cpp:3217
-{"Sicherung läuft …", "Copia de seguridad en curso …"},  // src/ui/ui_settings.cpp:3259
-{"Sicherung liegt auf der SD-Karte.", "La copia de seguridad está en la tarjeta SD."},  // src/ui/ui_settings.cpp:3262
-{"Diese Sicherung ist unvollständig.", "Esta copia de seguridad está incompleta."},  // src/ui/ui_settings.cpp:3272
-{"Layout, Einstellungen und Hintergründe werden durch den Stand vom ", "El diseño, los ajustes y los fondos se sustituyen por el estado del"},  // src/ui/ui_settings.cpp:3276
-{" ersetzt. Danach startet das Panel neu.", ". Después el panel se reinicia."},  // src/ui/ui_settings.cpp:3277
-{"Sicherung einspielen?", "¿Restaurar copia de seguridad?"},  // src/ui/ui_settings.cpp:3278
-{"Einspielen", "Restaurar"},  // src/ui/ui_settings.cpp:3278
-{"Sicherung wird eingespielt …", "Restaurando copia de seguridad …"},  // src/ui/ui_settings.cpp:3279
-{"Die Sicherung vom ", "La copia de seguridad del"},  // src/ui/ui_settings.cpp:3296
-{" wird von der SD-Karte entfernt.", " se borrará de la tarjeta SD."},  // src/ui/ui_settings.cpp:3296
-{"Sicherung löschen?", "¿Borrar copia de seguridad?"},  // src/ui/ui_settings.cpp:3297
-{"Löschen", "Borrar"},  // src/ui/ui_settings.cpp:3297
-{"Sicherung", "Copia de seguridad"},  // src/ui/ui_settings.cpp:3305
-{"Sichert Layout, Namen, alle Einstellungen, Gasflaschen, Victron-Geräte, Logo und Hintergründe auf die microSD-Karte. Achtung: WLAN- und MQTT-Passwörter stehen dort lesbar.", "Guarda el diseño, los nombres, todos los ajustes, las bombonas, los dispositivos Victron, el logo y los fondos en la tarjeta microSD. Atención: las contraseñas de Wi-Fi y MQTT quedan legibles allí."},  // src/ui/ui_settings.cpp:3306
-{"SD-Karte", "Tarjeta SD"},  // src/ui/ui_settings.cpp:3310
-{"Karte (FAT32 oder exFAT) einstecken und das Panel neu starten.", "Inserte una tarjeta (FAT32 o exFAT) y reinicie el panel."},  // src/ui/ui_settings.cpp:3311
-{" frei von ", " libres de"},  // src/ui/ui_settings.cpp:3317
-{"Jetzt sichern", "Hacer copia ahora"},  // src/ui/ui_settings.cpp:3320
-{"Tippen zum Einspielen", "Toque para restaurar"},  // src/ui/ui_settings.cpp:3322
-{"Noch keine Sicherung auf der Karte.", "Aún no hay ninguna copia en la tarjeta."},  // src/ui/ui_settings.cpp:3326
-{"%d Hintergrund", "%d fondo"},  // src/ui/ui_settings.cpp:3332
-{"%d Hintergründe", "%d fondos"},  // src/ui/ui_settings.cpp:3332
-{"unvollständig", "incompleta"},  // src/ui/ui_settings.cpp:3333
-{"Regel „%s“ ausgeführt", "Regla «%s» ejecutada"},  // src/ui/ui_settings.cpp:3355
-{"Regeln", "Reglas"},  // src/ui/ui_settings.cpp:3361
-{"Automatisch schalten: wenn etwas passiert (Taster, Bewegungsmelder, Gerät, Uhrzeit), und falls eine Bedingung stimmt, dann Aktionen ausführen. Angelegt und bearbeitet werden Regeln im Web-Editor (Einstellungen > Regeln) mit Bausteinen.", "Conmutar automáticamente: cuando ocurre algo (pulsador, detector de movimiento, dispositivo, hora) y se cumple una condición, se ejecutan acciones. Las reglas se crean y editan con bloques en el editor web (Ajustes > Reglas)."},  // src/ui/ui_settings.cpp:3361
-{"Noch keine Regel angelegt.", "Aún no hay ninguna regla."},  // src/ui/ui_settings.cpp:3365
-{"Pfeil: Regel sofort ausführen (ohne Auslöser und Bedingung). Schalter: Regel an/aus.", "Flecha: ejecutar la regla ahora (sin disparador ni condición). Interruptor: regla activada/desactivada."},  // src/ui/ui_settings.cpp:3392
-{"Fahrzeug", "Vehículo"},  // src/ui/ui_settings.cpp:3417
-{"Shelly (BT)", "Shelly (BT)"},  // src/ui/ui_settings.cpp:3417
-{"Zurück", "Atrás"},  // src/ui/ui_settings.cpp:3509
-{"IP-Adresse ", "Dirección IP"},  // src/ui/ui_settings.cpp:3583
-{"Panel-WLAN 192.168.4.1", "Wi-Fi del panel 192.168.4.1"},  // src/ui/ui_settings.cpp:3584
-{"über 10 Tage", "más de 10 días"},  // src/ui/ui_victron.cpp:46
-{"  ·  heute ", "  ·  hoy"},  // src/ui/ui_victron.cpp:97
-{"Batteriefühler", "Sensor de batería"},  // src/ui/ui_victron.cpp:104
-{"  ·  Eingang ", "  ·  entrada"},  // src/ui/ui_victron.cpp:126
-{"  ·  max. ", "  ·  máx. "},  // src/ui/ui_victron.cpp:136
-{"  ·  AC ein", "  ·  AC encendido"},  // src/ui/ui_victron.cpp:163
-{"  ·  AC aus", "  ·  AC apagado"},  // src/ui/ui_victron.cpp:163
-{"  ·  Zellen ", "  ·  Celdas "},  // src/ui/ui_victron.cpp:176
-{"Fehler – Heizung prüfen", "Error – compruebe la calefacción"},  // src/ui/ui_victron.cpp:183
-{"Eingang ", "Entrada "},  // src/ui/ui_victron.cpp:237
-{"  ·  Ausgang ", "  ·  Salida "},  // src/ui/ui_victron.cpp:238
-{"kein Empfang", "sin recepción"},  // src/ui/ui_victron.cpp:252
-{"Ausgang an", "Salida encendida"},  // src/ui/ui_victron.cpp:281
-{"Ausgang aus", "Salida apagada"},  // src/ui/ui_victron.cpp:281
-{", rein ", ", entrada "},  // src/ui/ui_victron.cpp:288
-{", raus ", ", salida "},  // src/ui/ui_victron.cpp:288
-{"Der GX nimmt die Begrenzung gerade nicht an.", "El GX no acepta ahora el límite."},  // src/ui/ui_victron.cpp:358
-{"Der GX nimmt den Schalter gerade nicht an.", "El GX no acepta ahora el interruptor."},  // src/ui/ui_victron.cpp:379
-{"Netzstrom-Begrenzung", "Límite de corriente de red"},  // src/ui/ui_victron.cpp:405
-{"Wird geschaltet – die Power Station meldet den neuen Zustand gleich.", "Conmutando – la Power Station informará en seguida del nuevo estado."},  // src/ui/ui_victron.cpp:459
-{"Dieses Gerät lässt sich nicht schalten.", "Este dispositivo no se puede conmutar."},  // src/ui/ui_victron.cpp:461
-{"Soll rechts", "Consigna derecha"},  // src/ui/ui_victron.cpp:543
-{"Soll links", "Consigna izquierda"},  // src/ui/ui_victron.cpp:543
-{"Der Name gilt nur für dieses Panel. Leer lassen für den Standardnamen.", "El nombre solo se aplica a este panel. Déjalo vacío para el nombre predeterminado."},  // src/ui/ui_victron.cpp:579
-{"Victron-Gerät umbenennen", "Renombrar dispositivo Victron"},  // src/ui/ui_victron.cpp:591
-{"Zum Beispiel „Solar Dach“ oder „Bordbatterie“.", "Por ejemplo «Solar techo» o «Batería de servicio»."},  // src/ui/ui_victron.cpp:592
-{"Schlüssel ändern", "Cambiar clave"},  // src/ui/ui_victron.cpp:614
-{"Schlüssel gespeichert.", "Clave guardada."},  // src/ui/ui_victron.cpp:619
-{"Das Panel wertet dieses Gerät dann nicht mehr aus. Die Kachel bleibt leer, bis du sie im Editor entfernst.", "El panel deja de evaluar este dispositivo. El mosaico queda vacío hasta que lo elimine en el editor."},  // src/ui/ui_victron.cpp:631
-{"Batteriespannung", "Tensión de batería"},  // src/ui/ui_victron.cpp:648
-{"Ertrag heute", "Rendimiento hoy"},  // src/ui/ui_victron.cpp:648
-{"Laststrom", "Corriente de carga externa"},  // src/ui/ui_victron.cpp:648
-{"Empfang", "Recepción"},  // src/ui/ui_victron.cpp:648
-{"Verbraucht", "Consumido"},  // src/ui/ui_victron.cpp:653
-{"Restlaufzeit", "Tiempo restante"},  // src/ui/ui_victron.cpp:653
-{"Zusatzeingang", "Entrada auxiliar"},  // src/ui/ui_victron.cpp:653
-{"Eingang Spannung", "Tensión de entrada"},  // src/ui/ui_victron.cpp:658
-{"Eingang Strom", "Corriente de entrada"},  // src/ui/ui_victron.cpp:658
-{"Ausgang Spannung", "Tensión de salida"},  // src/ui/ui_victron.cpp:658
-{"Ausgang Strom", "Corriente de salida"},  // src/ui/ui_victron.cpp:658
-{"Strombegrenzung", "Límite de corriente"},  // src/ui/ui_victron.cpp:663
-{"Netzstrom (230 V)", "Corriente de red (230 V)"},  // src/ui/ui_victron.cpp:669
-{"Schalter", "Interruptor"},  // src/ui/ui_victron.cpp:673
-{"Eingang gesamt", "Entrada total"},  // src/ui/ui_victron.cpp:683
-{"Ausgang gesamt", "Salida total"},  // src/ui/ui_victron.cpp:683
-{"AC-Eingang (Netz)", "Entrada AC (red)"},  // src/ui/ui_victron.cpp:684
-{"DC-Eingang (Solar/Auto)", "Entrada DC (solar/vehículo)"},  // src/ui/ui_victron.cpp:684
-{"Balancer", "Balanceador"},  // src/ui/ui_victron.cpp:689
-{"Art", "Tipo"},  // src/ui/ui_victron.cpp:710
-{"noch nichts empfangen", "todavía no se ha recibido nada"},  // src/ui/ui_victron.cpp:728
-{"vor %d s", "hace %d s"},  // src/ui/ui_victron.cpp:730
-{"Cerbo GX verbunden", "Cerbo GX conectado"},  // src/ui/ui_victron.cpp:734
-{", Signal ", ", señal"},  // src/ui/ui_victron.cpp:742
-{"Ah", "Ah"},  // src/ui/ui_victron.cpp:760
-{"Starterbatterie ", "Batería de arranque"},  // src/ui/ui_victron.cpp:762
-{"Mittelpunkt ", "Punto medio"},  // src/ui/ui_victron.cpp:763
-{"nicht belegt", "sin usar"},  // src/ui/ui_victron.cpp:765
-{"  ·  ein", "  ·  encendido"},  // src/ui/ui_victron.cpp:812
-{"  ·  aus", "  ·  apagado"},  // src/ui/ui_victron.cpp:812
-{"gleicht aus", "equilibrando"},  // src/ui/ui_victron.cpp:830
-{"ja", "sí"},  // src/ui/ui_victron.cpp:832
-{"nein", "no"},  // src/ui/ui_victron.cpp:832
-{"|Empfang", "|Recepción"},  // src/ui/ui_victron.cpp:932
-{"Gerät meldet Fehler ", "El dispositivo informa del fallo"},  // src/ui/ui_victron.cpp:959
-{" – Details in VictronConnect.", " – detalles en VictronConnect."},  // src/ui/ui_victron.cpp:959
-{"Dieses Victron-Gerät ist nicht mehr eingerichtet.", "Este dispositivo Victron ya no está configurado."},  // src/ui/ui_victron.cpp:974
+{"Verbinde mit ", "Conectar con"},  // src/ui/ui_settings.cpp:133
+{"Passwort für ", "Contraseña de"},  // src/ui/ui_settings.cpp:138
+{"WLAN-Passwort eingeben. Mit dem Auge-Symbol wird es sichtbar.", "Introduzca la contraseña Wi-Fi. El icono del ojo la hace visible."},  // src/ui/ui_settings.cpp:139
+{"Die Suche hat nicht geklappt. Bitte noch einmal auf „Netzwerke suchen“ tippen.", "La búsqueda no funcionó. Toque de nuevo «Buscar redes»."},  // src/ui/ui_settings.cpp:159
+{"Keine Netze gefunden. Das Panel unterstützt nur 2,4 GHz.", "No se encontraron redes. El panel solo admite 2,4 GHz."},  // src/ui/ui_settings.cpp:160
+{"Suche nach Netzen …", "Buscando redes …"},  // src/ui/ui_settings.cpp:188
+{"Netzname (SSID)", "Nombre de red (SSID)"},  // src/ui/ui_settings.cpp:194
+{"Name des verborgenen Netzes, genau wie im Router eingetragen.", "Nombre de la red oculta, exactamente como en el router."},  // src/ui/ui_settings.cpp:195
+{"Panel startet neu …", "El panel se reinicia …"},  // src/ui/ui_settings.cpp:210
+{"Netzwerk", "Red"},  // src/ui/ui_settings.cpp:214
+{"Router", "Router"},  // src/ui/ui_settings.cpp:214
+{"Kombi", "Combinado"},  // src/ui/ui_settings.cpp:214
+{"WLAN aus", "WiFi apagado"},  // src/ui/ui_settings.cpp:214
+{"Das Panel hängt im WLAN – z. B. dort, wo auch der Cerbo GX ist.", "El panel está en el WiFi – p. ej. donde también está el Cerbo GX."},  // src/ui/ui_settings.cpp:216
+{"Das Panel öffnet ein eigenes WLAN – Editor per Handy, kein Heimnetz nötig.", "El panel abre su propio WiFi – editor desde el móvil, sin red doméstica."},  // src/ui/ui_settings.cpp:217
+{"Eigenes WLAN plus Camp-WLAN mit Internet-Weiterleitung.", "WiFi propio más WiFi de camping con reenvío a Internet."},  // src/ui/ui_settings.cpp:218
+{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein Cerbo, kein Editor.", "Sin WiFi: más memoria, el Bluetooth funciona sin interferencias. Sin Cerbo, sin editor."},  // src/ui/ui_settings.cpp:219
+{"Panel und Hub hängen beide im Camp-WLAN.", "El panel y el hub están en el Wi-Fi de casa."},  // src/ui/ui_settings.cpp:221
+{"Panel öffnet ein eigenes WLAN für den Hub. Kein Heimnetz nötig.", "El panel abre su propio Wi-Fi para el hub. No se necesita red doméstica."},  // src/ui/ui_settings.cpp:222
+{"Eigenes WLAN für den Hub plus Camp-WLAN mit Internet-Weiterleitung.", "Wi-Fi propio para el hub más Wi-Fi de casa con reenvío a internet."},  // src/ui/ui_settings.cpp:223
+{"Kein WLAN: mehr Speicher, Bluetooth läuft ungestört. Kein MQTT, kein Editor.", "Sin WiFi: más memoria, el Bluetooth funciona sin interferencias. Sin MQTT, sin editor."},  // src/ui/ui_settings.cpp:224
+{"Das Panel wechselt in den %s-Modus und startet dafür neu.", "El panel cambia al modo %s y se reinicia."},  // src/ui/ui_settings.cpp:233
+{"Betriebsart wechseln?", "¿Cambiar modo de funcionamiento?"},  // src/ui/ui_settings.cpp:234
+{"Wechseln und neu starten", "Cambiar y reiniciar"},  // src/ui/ui_settings.cpp:234
+{"Name des Panel-WLANs", "Nombre del Wi-Fi del panel"},  // src/ui/ui_settings.cpp:246
+{"Unter diesem Namen findest du das Panel im WLAN. Änderung gilt nach einem Neustart.", "Con este nombre encontrará el panel en el WiFi. El cambio se aplica tras un reinicio."},  // src/ui/ui_settings.cpp:248
+{"Unter diesem Namen findet der Hub das Panel. Änderung gilt nach einem Neustart.", "Con este nombre el hub encuentra el panel. El cambio se aplica tras reiniciar."},  // src/ui/ui_settings.cpp:250
+{"Passwort des Panel-WLANs", "Contraseña del Wi-Fi del panel"},  // src/ui/ui_settings.cpp:255
+{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart.", "De 8 a 63 caracteres. El cambio se aplica tras un reinicio."},  // src/ui/ui_settings.cpp:257
+{"8 bis 63 Zeichen. Änderung gilt nach einem Neustart – der Hub muss dann neu verbunden werden.", "De 8 a 63 caracteres. El cambio se aplica tras reiniciar – el hub debe volver a conectarse."},  // src/ui/ui_settings.cpp:259
+{"Funkkanal (1–13)", "Canal de radio (1–13)"},  // src/ui/ui_settings.cpp:264
+{"Funkkanal des Panel-WLANs (1–13).", "Canal de radio del WiFi del panel (1–13)."},  // src/ui/ui_settings.cpp:266
+{"Möglichst weit weg vom Zigbee-Kanal: bei Zigbee 11 eignet sich WLAN 13, bei Zigbee 25 WLAN 1.", "Lo más lejos posible del canal Zigbee: con Zigbee 11 conviene Wi-Fi 13, con Zigbee 25 Wi-Fi 1."},  // src/ui/ui_settings.cpp:268
+{"Das Passwort braucht mindestens 8 Zeichen.", "La contraseña necesita al menos 8 caracteres."},  // src/ui/ui_settings.cpp:283
+{"Bitte einen Kanal zwischen 1 und 13 wählen.", "Elija un canal entre 1 y 13."},  // src/ui/ui_settings.cpp:290
+{"Zugangspasswort zurücksetzen?", "¿Restablecer la contraseña de acceso?"},  // src/ui/ui_settings.cpp:311
+{"Das Passwort für Editor und Weboberfläche ist danach wieder „panelsat“. Beim nächsten Öffnen im Browser muss ein neues festgelegt werden. Angemeldete Browser werden abgemeldet.", "La contraseña del editor y la interfaz web vuelve a ser «panelsat». Al abrirla de nuevo en el navegador hay que fijar una nueva. Los navegadores conectados se desconectan."},  // src/ui/ui_settings.cpp:312
+{"Zurücksetzen", "Restablecer"},  // src/ui/ui_settings.cpp:314
+{"Zurückgesetzt – im Browser ein neues Passwort festlegen.", "Restablecida – fije una nueva contraseña en el navegador."},  // src/ui/ui_settings.cpp:316
+{"Aus (WLAN ausgeschaltet)", "Apagado (WiFi desactivado)"},  // src/ui/ui_settings.cpp:326
+{"Aus – zum Bearbeiten freigeben", "Apagado – habilitar para editar"},  // src/ui/ui_settings.cpp:327
+{"Läuft", "En marcha"},  // src/ui/ui_settings.cpp:329
+{"Läuft, aus in %lu min ohne Zugriff", "En marcha, se apaga en %lu min sin acceso"},  // src/ui/ui_settings.cpp:331
+{"Webinterface (Editor)", "Interfaz web (editor)"},  // src/ui/ui_settings.cpp:338
+{"Webinterface", "Interfaz web"},  // src/ui/ui_settings.cpp:339
+{"Immer an", "Siempre activa"},  // src/ui/ui_settings.cpp:339
+{"Nur bei Bedarf", "Solo cuando se necesite"},  // src/ui/ui_settings.cpp:339
+{"Zugangspasswort", "Contraseña de acceso"},  // src/ui/ui_settings.cpp:343
+{"festgelegt – antippen zum Zurücksetzen", "establecida – tocar para restablecer"},  // src/ui/ui_settings.cpp:343
+{"noch nicht festgelegt (beim ersten Öffnen im Browser)", "aún no establecida (al abrirla por primera vez en el navegador)"},  // src/ui/ui_settings.cpp:343
+{"Webinterface beenden", "Cerrar interfaz web"},  // src/ui/ui_settings.cpp:347
+{"Webinterface freigeben", "Habilitar interfaz web"},  // src/ui/ui_settings.cpp:347
+{"„Nur bei Bedarf“ spart internen Speicher: Der Editor ist erst nach „freigeben“ erreichbar und schaltet sich nach 15 Minuten ohne Zugriff wieder ab.", "«Solo cuando se necesite» ahorra memoria interna: el editor solo es accesible tras «habilitar» y se apaga tras 15 minutos sin acceso."},  // src/ui/ui_settings.cpp:351
+{"Tailscale (Beta)", "Tailscale (beta)"},  // src/ui/ui_settings.cpp:358
+{"Adresse im Tailnet", "Dirección en el tailnet"},  // src/ui/ui_settings.cpp:360
+{"Neue Betriebsart ist gespeichert und gilt nach dem Neustart.", "El nuevo modo está guardado y se aplica tras el reinicio."},  // src/ui/ui_settings.cpp:396
+{"Panel-WLAN", "Wi-Fi del panel"},  // src/ui/ui_settings.cpp:400
+{" (folgt dem Camp-WLAN)", " (sigue al Wi-Fi de casa)"},  // src/ui/ui_settings.cpp:404
+{"Name", "Nombre"},  // src/ui/ui_settings.cpp:405
+{"Passwort", "Contraseña"},  // src/ui/ui_settings.cpp:406
+{"Kanal", "Canal"},  // src/ui/ui_settings.cpp:407
+{"Mit dem Handy dieses WLAN wählen – der Editor ist dann unter http://192.168.4.1/ erreichbar.", "Elija este WiFi con el móvil – el editor estará en http://192.168.4.1/."},  // src/ui/ui_settings.cpp:409
+{"Am SMHUB Nano unter Einstellungen > WLAN dieses Netz wählen (2,4 GHz). Der Editor ist dann unter http://192.168.4.1/ erreichbar, wenn dein Handy ebenfalls verbunden ist.", "En el SMHUB Nano elija esta red en Ajustes > Wi-Fi (2,4 GHz). El editor estará en http://192.168.4.1/ si su móvil también está conectado."},  // src/ui/ui_settings.cpp:413
+{"Camp-WLAN", "Wi-Fi de casa"},  // src/ui/ui_settings.cpp:421
+{"Netzwerke suchen", "Buscar redes"},  // src/ui/ui_settings.cpp:431
+{"Verborgenes Netz", "Red oculta"},  // src/ui/ui_settings.cpp:432
+{"nicht gesetzt", "sin definir"},  // src/ui/ui_settings.cpp:447
+{"IP-Adresse oder Hostname des Brokers, z. B. 192.168.1.10 oder homeassistant.local", "Dirección IP o nombre del bróker, p. ej. 192.168.1.10 o homeassistant.local"},  // src/ui/ui_settings.cpp:461
+{"Standard ist 1883.", "El valor por defecto es 1883."},  // src/ui/ui_settings.cpp:465
+{"Leer lassen, wenn der Broker ohne Anmeldung arbeitet.", "Dejar vacío si el bróker funciona sin inicio de sesión."},  // src/ui/ui_settings.cpp:471
+{"Wie in Zigbee2MQTT unter mqtt.base_topic – meistens zigbee2mqtt.", "Como en Zigbee2MQTT en mqtt.base_topic – normalmente zigbee2mqtt."},  // src/ui/ui_settings.cpp:481
+{"Gespeichert – verbinde mit dem Broker …", "Guardado – conectando con el bróker …"},  // src/ui/ui_settings.cpp:511
+{"Eingebauter Broker an (Port 1883).", "Broker integrado activado (puerto 1883)."},  // src/ui/ui_settings.cpp:524
+{"Eingebauter Broker aus.", "Broker integrado desactivado."},  // src/ui/ui_settings.cpp:524
+{"Geräte aus MQTT-Discovery werden gesucht.", "Buscando dispositivos de MQTT Discovery."},  // src/ui/ui_settings.cpp:547
+{"MQTT-Discovery ist aus.", "MQTT Discovery está desactivado."},  // src/ui/ui_settings.cpp:547
+{"ESPHome, Tasmota & Co.", "ESPHome, Tasmota y otros"},  // src/ui/ui_settings.cpp:550
+{"Geräte aus MQTT-Discovery anzeigen", "Mostrar dispositivos de MQTT Discovery"},  // src/ui/ui_settings.cpp:554
+{"Geräte, die sich am Broker per Home-Assistant-Discovery melden (ESPHome mit „mqtt:“, Tasmota …), erscheinen wie Satelliten in der Geräteliste – eigene Gruppe je Gerät.", "Los dispositivos que se anuncian en el broker con Home Assistant Discovery (ESPHome con «mqtt:», Tasmota …) aparecen como satélites en la lista de dispositivos – un grupo por dispositivo."},  // src/ui/ui_settings.cpp:562
+{" Gefunden: %u Werte von %u Geräten.", " Encontrados: %u valores de %u dispositivos."},  // src/ui/ui_settings.cpp:567
+{"Shelly (MQTT)", "Shelly (MQTT)"},  // src/ui/ui_settings.cpp:580
+{"Shelly-Schalter und -Dimmer über einen MQTT-Broker. In der Shelly-App bzw. Weboberfläche MQTT einschalten und denselben Broker eintragen – die Shellys erscheinen dann als Geräte.", "Interruptores y reguladores Shelly mediante un broker MQTT. Active MQTT en la app o interfaz web de Shelly e introduzca el mismo broker – los Shellys aparecen entonces como dispositivos."},  // src/ui/ui_settings.cpp:580
+{"MQTT-Broker", "Bróker MQTT"},  // src/ui/ui_settings.cpp:583
+{"Derselbe Broker, den auch Zigbee2MQTT benutzt – beim SMHUB Nano der eingebaute Mosquitto. Dort unter MQTT „Allow External“ einschalten, damit das Panel sich verbinden darf.", "El mismo bróker que usa Zigbee2MQTT – en el SMHUB Nano el Mosquitto integrado. Active allí «Allow External» en MQTT para que el panel pueda conectarse."},  // src/ui/ui_settings.cpp:583
+{"MQTT verwenden", "Usar MQTT"},  // src/ui/ui_settings.cpp:591
+{"Eingebauter Broker (dieses Panel)", "Broker integrado (este panel)"},  // src/ui/ui_settings.cpp:605
+{"Shellys mit diesem Panel verbinden: Server %s, Port 1883%s.", "Conecte los Shellys a este panel: servidor %s, puerto 1883%s."},  // src/ui/ui_settings.cpp:617
+{", Benutzer und Passwort wie im Editor", ", usuario y contraseña como en el editor"},  // src/ui/ui_settings.cpp:618
+{"Geräte mit diesem Panel verbinden: Server %s, Port 1883%s.", "Conecte los dispositivos a este panel: servidor %s, puerto 1883%s."},  // src/ui/ui_settings.cpp:620
+{"MQTT ist aus: keine Shellys. Victron, Cerbo GX, Gas und Akkus laufen weiter.", "MQTT está apagado: sin Shellys. Victron, Cerbo GX, gas y baterías siguen funcionando."},  // src/ui/ui_settings.cpp:634
+{"MQTT ist aus: keine Zigbee-Geräte, kein Cerbo über den Broker. Bluetooth-Geräte und Satelliten per UDP/Bluetooth laufen weiter. Spart Speicher und Funkzeit.", "MQTT está apagado: sin dispositivos Zigbee, sin Cerbo por el broker. Los dispositivos Bluetooth y los satélites por UDP/Bluetooth siguen funcionando. Ahorra memoria y tiempo de radio."},  // src/ui/ui_settings.cpp:638
+{"Broker im Panel-WLAN automatisch finden", "Buscar bróker en el Wi-Fi del panel automáticamente"},  // src/ui/ui_settings.cpp:650
+{"Speichern und verbinden", "Guardar y conectar"},  // src/ui/ui_settings.cpp:666
+{"Display aus", "Pantalla apagada"},  // src/ui/ui_settings.cpp:692
+{"Gerätename im Netzwerk", "Nombre del dispositivo en la red"},  // src/ui/ui_settings.cpp:719
+{"Erreichbar als <name>.local. Erlaubt sind a–z, 0–9 und Bindestrich. Gilt nach einem Neustart.", "Accesible como <name>.local. Se permiten a–z, 0–9 y guion. Se aplica tras reiniciar."},  // src/ui/ui_settings.cpp:720
+{"Wird nach dem nächsten Neustart übernommen.", "Se aplicará tras el próximo reinicio."},  // src/ui/ui_settings.cpp:734
+{"Das Dashboard bleibt gedimmt sichtbar. Ein LCD kann bei dauerhaft gleichem Bild einen Abdruck behalten.", "El panel sigue visible atenuado. Una pantalla LCD puede quedar marcada si la imagen no cambia nunca."},  // src/ui/ui_settings.cpp:763
+{"Bild schwarz, Beleuchtung aus. Schont das Display am meisten.", "Imagen negra, retroiluminación apagada. Lo que más protege la pantalla."},  // src/ui/ui_settings.cpp:764
+{"Uhrzeit und Datum, gedimmt. Die Uhr springt jede Minute an eine neue Stelle.", "Hora y fecha, atenuadas. El reloj salta a otra posición cada minuto."},  // src/ui/ui_settings.cpp:765
+{"Ein Abzeichen mit Uhrzeit hüpft über den Bildschirm und wechselt an jedem Rand die Farbe. Ein eigenes Logo lädst du im Browser-Editor hoch.", "Una insignia con la hora rebota por la pantalla y cambia de color en cada borde. Su propio logo se sube en el editor del navegador."},  // src/ui/ui_settings.cpp:766
+{"Zwei Schläger spielen von selbst Ball gegeneinander, oben steht der Punktestand.", "Dos palas juegan solas a la pelota, arriba se ve el marcador."},  // src/ui/ui_settings.cpp:768
+{"nicht gestellt", "sin ajustar"},  // src/ui/ui_settings.cpp:809
+{"Diesen Tag gibt es in dem Monat nicht.", "Ese día no existe en ese mes."},  // src/ui/ui_settings.cpp:856
+{"Uhrzeit gestellt.", "Hora ajustada."},  // src/ui/ui_settings.cpp:861
+{"Datum und Uhrzeit", "Fecha y hora"},  // src/ui/ui_settings.cpp:889
+{"Jan.", "ene."},  // src/ui/ui_settings.cpp:907
+{"Feb.", "feb."},  // src/ui/ui_settings.cpp:907
+{"Aug.", "ago."},  // src/ui/ui_settings.cpp:907
+{"Sep.", "sep."},  // src/ui/ui_settings.cpp:907
+{"Okt.", "oct."},  // src/ui/ui_settings.cpp:907
+{"Nov.", "nov."},  // src/ui/ui_settings.cpp:907
+{"Dez.", "dic."},  // src/ui/ui_settings.cpp:907
+{"Anzeige", "Pantalla"},  // src/ui/ui_settings.cpp:926
+{"Ruhezustand", "Reposo"},  // src/ui/ui_settings.cpp:932
+{"Starten nach", "Empezar tras"},  // src/ui/ui_settings.cpp:936
+{"Nie", "Nunca"},  // src/ui/ui_settings.cpp:936
+{"30 Sekunden", "30 segundos"},  // src/ui/ui_settings.cpp:936
+{"1 Minute", "1 minuto"},  // src/ui/ui_settings.cpp:936
+{"2 Minuten", "2 minutos"},  // src/ui/ui_settings.cpp:936
+{"5 Minuten", "5 minutos"},  // src/ui/ui_settings.cpp:936
+{"10 Minuten", "10 minutos"},  // src/ui/ui_settings.cpp:936
+{"30 Minuten", "30 minutos"},  // src/ui/ui_settings.cpp:936
+{"Abdunkeln", "Atenuar"},  // src/ui/ui_settings.cpp:940
+{"Schwarz", "Negro"},  // src/ui/ui_settings.cpp:940
+{"Dunkle Uhr", "Reloj oscuro"},  // src/ui/ui_settings.cpp:940
+{"Hüpfendes Logo", "Logo rebotando"},  // src/ui/ui_settings.cpp:940
+{"Ball-Duell", "Duelo de pelota"},  // src/ui/ui_settings.cpp:940
+{"Helligkeit im Ruhezustand", "Brillo en reposo"},  // src/ui/ui_settings.cpp:946
+{"Helligkeit von Uhr und Logo", "Brillo del reloj y del logo"},  // src/ui/ui_settings.cpp:946
+{"Eigenes Logo beim Abprallen umfärben", "Cambiar el color del logo propio al rebotar"},  // src/ui/ui_settings.cpp:954
+{"Vorschau", "Vista previa"},  // src/ui/ui_settings.cpp:964
+{"Uhrzeit", "Hora"},  // src/ui/ui_settings.cpp:966
+{"Mit Internet stellt sich die Uhr selbst. Ohne Internet hier von Hand stellen – der Uhrenchip der Platine behält die Zeit auch ohne Strom.", "Con internet el reloj se ajusta solo. Sin internet, ajústelo aquí a mano – el reloj RTC de la placa conserva la hora sin corriente."},  // src/ui/ui_settings.cpp:971
+{"Mit Internet stellt sich die Uhr selbst, ebenso beim Öffnen des Editors im Browser. Ohne beides hier von Hand stellen. Ohne Uhrenchip geht die Zeit nach einem Stromausfall verloren.", "Con internet el reloj se ajusta solo, también al abrir el editor en el navegador. Si no hay ninguno de los dos, ajústelo aquí a mano. Sin reloj RTC la hora se pierde tras un corte de corriente."},  // src/ui/ui_settings.cpp:973
+{"Netzwerkname", "Nombre de red"},  // src/ui/ui_settings.cpp:979
+{"Gerät umbenennen", "Renombrar dispositivo"},  // src/ui/ui_settings.cpp:990
+{"Name in Zigbee2MQTT: ", "Nombre en Zigbee2MQTT:"},  // src/ui/ui_settings.cpp:992
+{" (Kanal ", " (canal"},  // src/ui/ui_settings.cpp:993
+{"). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät.", "). El cambio de nombre en Zigbee2MQTT afecta a todo el dispositivo."},  // src/ui/ui_settings.cpp:993
+{"Auch in Zigbee2MQTT umbenennen", "Renombrar también en Zigbee2MQTT"},  // src/ui/ui_settings.cpp:994
+{"Shelly ", "Shelly "},  // src/ui/ui_settings.cpp:999
+{"). Der Name gilt nur für dieses Panel.", "). El nombre solo vale para este panel."},  // src/ui/ui_settings.cpp:999
+{"Shelly per Bluetooth ", "Shelly por Bluetooth "},  // src/ui/ui_settings.cpp:1002
+{". Der Name gilt nur für dieses Panel.", ". El nombre solo es válido para este panel."},  // src/ui/ui_settings.cpp:1002
+{"WLED „", "WLED «"},  // src/ui/ui_settings.cpp:1005
+{"Zigbee-Gerät ", "Dispositivo Zigbee "},  // src/ui/ui_settings.cpp:1010
+{"Umbenennung an Zigbee2MQTT gesendet.", "Cambio de nombre enviado a Zigbee2MQTT."},  // src/ui/ui_settings.cpp:1029
+{"Noch keine Geräte mit Werten.", "Aún no hay dispositivos con valores."},  // src/ui/ui_settings.cpp:1051
+{"Noch keine Geräte von Zigbee2MQTT empfangen.", "Aún no se han recibido dispositivos de Zigbee2MQTT."},  // src/ui/ui_settings.cpp:1053
+{"Fehlende Geräte wurden ergänzt.", "Se añadieron los dispositivos que faltaban."},  // src/ui/ui_settings.cpp:1058
+{"Alles neu anordnen?", "¿Reordenar todo?"},  // src/ui/ui_settings.cpp:1062
+{"Alle Kacheln werden neu verteilt. Eigene Positionen und Größen gehen dabei verloren, Namen bleiben erhalten.", "Todos los mosaicos se redistribuyen. Se pierden las posiciones y tamaños propios, los nombres se mantienen."},  // src/ui/ui_settings.cpp:1063
+{"Neu anordnen", "Reordenar"},  // src/ui/ui_settings.cpp:1064
+{"Kacheln wurden neu verteilt.", "Mosaicos redistribuidos."},  // src/ui/ui_settings.cpp:1067
+{"Tippe auf ein Gerät, um seinen Namen zu ändern. Anordnen, Icons und Größen gehen bequemer im Browser-Editor.", "Toque un dispositivo para cambiar su nombre. Ordenar, iconos y tamaños es más cómodo en el editor del navegador."},  // src/ui/ui_settings.cpp:1074
+{"Fehlende ergänzen", "Añadir los que faltan"},  // src/ui/ui_settings.cpp:1076
+{"Alles neu anordnen", "Reordenar todo"},  // src/ui/ui_settings.cpp:1077
+{"Noch keine Shellys gefunden.", "Aún no se han encontrado Shellys."},  // src/ui/ui_settings.cpp:1085
+{"Shellys: unter „Shelly (MQTT)“ einschalten.", "Shellys: activar en «Shelly (MQTT)»."},  // src/ui/ui_settings.cpp:1086
+{"Dieser Sensor ist schon eingerichtet.", "Este sensor ya está configurado."},  // src/ui/ui_settings.cpp:1141
+{"Name der Gasflasche", "Nombre de la bombona"},  // src/ui/ui_settings.cpp:1145
+{"Bluetooth-Adresse ", "Dirección Bluetooth"},  // src/ui/ui_settings.cpp:1146
+{". Zum Beispiel „Flasche links“ oder „Reserve“.", ". Por ejemplo «Bombona izquierda» o «Reserva»."},  // src/ui/ui_settings.cpp:1146
+{"Eingerichtet. Die erste Messung folgt, sobald sich der Sensor meldet.", "Configurado. La primera medición llega en cuanto el sensor informe."},  // src/ui/ui_settings.cpp:1151
+{"Es sind schon vier Gasflaschen eingerichtet.", "Ya hay cuatro bombonas configuradas."},  // src/ui/ui_settings.cpp:1160
+{"Suche läuft. Der Sensor sendet nur alle paar Minuten – bitte etwas Geduld.", "Buscando. El sensor solo emite cada pocos minutos – tenga paciencia."},  // src/ui/ui_settings.cpp:1164
+{"Messung angefordert.", "Medición solicitada."},  // src/ui/ui_settings.cpp:1169
+{"Name des Tanks", "Nombre del depósito"},  // src/ui/ui_settings.cpp:1195
+{". Den Flaschentyp wählst du danach in der Detailansicht.", ". El tipo de bombona se elige después en la vista de detalle."},  // src/ui/ui_settings.cpp:1196
+{"Tank ", "Depósito"},  // src/ui/ui_settings.cpp:1197
+{"Eingerichtet. Antippen, um den Flaschentyp zu wählen (vorgegeben: 11 kg).", "Configurado. Toque para elegir el tipo de bombona (por defecto: 11 kg)."},  // src/ui/ui_settings.cpp:1204
+{"Es sind schon vier Mopeka-Sensoren eingerichtet.", "Ya hay cuatro sensores Mopeka configurados."},  // src/ui/ui_settings.cpp:1214
+{"Suche läuft. Am Sensor kurz die Sync-Taste drücken, dann ist er leicht zu erkennen.", "Buscando. Pulse brevemente el botón de sincronización del sensor para reconocerlo fácilmente."},  // src/ui/ui_settings.cpp:1218
+{"Pro Check, Pro Plus, Pro Universal, H2O, TD40 und die älteren Standard-Sensoren. Sie senden ihre Werte laufend – das Panel hört nur mit, die Mopeka-App bleibt nutzbar.", "Pro Check, Pro Plus, Pro Universal, H2O, TD40 y los antiguos sensores Standard. Envían sus valores continuamente – el panel solo escucha, la app de Mopeka sigue funcionando."},  // src/ui/ui_settings.cpp:1251
+{"Noch kein Mopeka-Sensor eingerichtet.", "Aún no hay ningún sensor Mopeka configurado."},  // src/ui/ui_settings.cpp:1258
+{"Suche läuft …", "Buscando …"},  // src/ui/ui_settings.cpp:1266
+{"Mopeka suchen", "Buscar Mopeka"},  // src/ui/ui_settings.cpp:1266
+{"Gefundene Mopeka-Sensoren (Suche läuft …)", "Sensores Mopeka encontrados (buscando …)"},  // src/ui/ui_settings.cpp:1270
+{"Gefundene Mopeka-Sensoren", "Sensores Mopeka encontrados"},  // src/ui/ui_settings.cpp:1270
+{"Noch nichts gefunden. Sync-Taste am Sensor drücken.", "Nada encontrado todavía. Pulse el botón de sincronización del sensor."},  // src/ui/ui_settings.cpp:1272
+{"Taste gedrückt, ", "botón pulsado,"},  // src/ui/ui_settings.cpp:1277
+{"eingerichtet, ", "configurado,"},  // src/ui/ui_settings.cpp:1277
+{"Jetzt am Bedienteil im Fahrzeug „CONNECTION“ drücken – du hast 3 Minuten.", "Pulse ahora «CONNECTION» en la unidad de control del vehículo – tiene 3 minutos."},  // src/ui/ui_settings.cpp:1294
+{"Kopplung lösen?", "¿Desemparejar?"},  // src/ui/ui_settings.cpp:1297
+{"Das Panel trennt sich von der Hymer-SCU. Zum erneuten Verbinden musst du neu koppeln.", "El panel se desconecta de la SCU de Hymer. Para volver a conectar hay que emparejar de nuevo."},  // src/ui/ui_settings.cpp:1297
+{"Lösen", "Desemparejar"},  // src/ui/ui_settings.cpp:1297
+{"Jetzt am iNet X „Gerät hinzufügen“ öffnen – du hast 3 Minuten.", "Abra ahora «Añadir dispositivo» en el iNet X – tiene 3 minutos."},  // src/ui/ui_settings.cpp:1308
+{"Das Panel trennt sich vom iNet X. Zum erneuten Verbinden musst du neu koppeln.", "El panel se desconecta del iNet X. Para volver a conectar hay que emparejar de nuevo."},  // src/ui/ui_settings.cpp:1311
+{"Die Uhrzeit geht beim nächsten Abruf ans CP Plus.", "La hora se envía al CP Plus en su próxima consulta."},  // src/ui/ui_settings.cpp:1316
+{"Das Panel kennt die Uhrzeit noch nicht.", "El panel aún no conoce la hora."},  // src/ui/ui_settings.cpp:1316
+{"Truma CP Plus (LIN-Bus)", "Truma CP Plus (bus LIN)"},  // src/ui/ui_settings.cpp:1328
+{" (LIN-Bus)", " (bus LIN)"},  // src/ui/ui_settings.cpp:1328
+{"Truma iNet X (Bluetooth)", "Truma iNet X (Bluetooth)"},  // src/ui/ui_settings.cpp:1328
+{"Uhr ans CP Plus", "Hora al CP Plus"},  // src/ui/ui_settings.cpp:1333
+{"Kopplung läuft …", "Emparejando …"},  // src/ui/ui_settings.cpp:1335
+{"iNet X neu koppeln", "Volver a emparejar iNet X"},  // src/ui/ui_settings.cpp:1336
+{"iNet X koppeln", "Emparejar iNet X"},  // src/ui/ui_settings.cpp:1336
+{"Kopplung lösen", "Desemparejar"},  // src/ui/ui_settings.cpp:1337
+{"CP Plus: Nach dem Anschließen am CP Plus einmal „PR SET“ > Init ausführen, damit es das Panel als iNet Box anmeldet. ", "CP Plus: tras conectarlo, ejecute una vez «PR SET» > Init en el CP Plus para que registre el panel como iNet Box."},  // src/ui/ui_settings.cpp:1340
+{"Alde: LIN-Leitung an die gelbe RJ12-Buchse (Pin 4, Masse Pin 2). Modell, Pins und Baudrate stehen in platformio.ini unter [alde]. ", "Alde: cable LIN a la toma RJ12 amarilla (pin 4, masa pin 2). Modelo, pines y baudios se ajustan en platformio.ini en [alde]."},  // src/ui/ui_settings.cpp:1341
+{"iNet X: Erst hier „Koppeln“ tippen, dann am Bedienteil „Gerät hinzufügen“ öffnen. Das iNet X merkt sich höchstens vier Geräte.", "iNet X: toque primero aquí «Emparejar» y luego abra «Añadir dispositivo» en el panel de control. El iNet X recuerda como máximo cuatro dispositivos."},  // src/ui/ui_settings.cpp:1342
+{"%s · %u Gerät(e) · %s", "%s · %u dispositivo(s) · %s"},  // src/ui/ui_settings.cpp:1440
+{"online", "en línea"},  // src/ui/ui_settings.cpp:1440
+{"Weboberfläche: http://", "Interfaz web: http://"},  // src/ui/ui_settings.cpp:1463
+{"Per Bluetooth verbunden (ohne IP). Seine Weboberfläche: WLAN „SOC-Satellite-…“, dann 4.3.2.1.", "Conectado por Bluetooth (sin IP). Su interfaz web: WiFi «SOC-Satellite-…», luego 4.3.2.1."},  // src/ui/ui_settings.cpp:1464
+{"Keine IP gemeldet – Weboberfläche über sein eigenes WLAN „SOC-Satellite-…“.", "No se ha comunicado IP – interfaz web por su propio WiFi «SOC-Satellite-…»."},  // src/ui/ui_settings.cpp:1465
+{"Entfernen nimmt ihn aus der Liste, seine Kacheln bleiben leer. Sendet er weiter, taucht er wieder auf – dann am Satelliten die Sendewege abschalten oder ein anderes Bluetooth-Passwort setzen.", "Quitar lo elimina de la lista, sus mosaicos quedan vacíos. Si sigue enviando, vuelve a aparecer – entonces desactive en el satélite las vías de envío o ponga otra contraseña Bluetooth."},  // src/ui/ui_settings.cpp:1466
+{"%s · %u Kachel(n)%s%s", "%s · %u mosaico(s)%s%s"},  // src/ui/ui_settings.cpp:1508
+{"verbunden", "conectado"},  // src/ui/ui_settings.cpp:1508
+{"Noch keine IP gemeldet.", "Aún no se ha comunicado IP."},  // src/ui/ui_settings.cpp:1518
+{"Welche Kacheln es zeigt: im Editor dieses Panels (Reiter Zusatzdisplays) oder in seiner eigenen Weboberfläche. Entfernen nimmt es aus der Liste – solange es läuft, meldet es sich wieder an.", "Qué mosaicos muestra: en el editor de este panel (pestaña Pantallas adicionales) o en su propia interfaz web. Quitar lo elimina de la lista – mientras funcione, se vuelve a registrar."},  // src/ui/ui_settings.cpp:1519
+{"Bluetooth-Passwort der Satelliten", "Contraseña Bluetooth de los satélites"},  // src/ui/ui_settings.cpp:1530
+{"Gilt für alle Satelliten. Am Satelliten dasselbe Passwort in seiner Weboberfläche eintragen – nur dann nimmt das Panel ihn per Bluetooth auf.", "Vale para todos los satélites. Introduce la misma contraseña en la interfaz web del satélite – solo así el panel lo acepta por Bluetooth."},  // src/ui/ui_settings.cpp:1531
+{"Passwort gespeichert.", "Contraseña guardada."},  // src/ui/ui_settings.cpp:1537
+{"Satelliten brauchen WLAN – am Panel ist „WLAN aus“ eingestellt.", "Los satélites necesitan WiFi – en el panel está ajustado «WiFi apagado»."},  // src/ui/ui_settings.cpp:1545
+{"Suche läuft – noch %u:%02u. Am Satelliten die BOOT-Taste 3 s halten (oder 3× schnell aus/ein).", "Búsqueda en curso – quedan %u:%02u. En el satélite mantenga la tecla BOOT 3 s (o apague/encienda 3× rápido)."},  // src/ui/ui_settings.cpp:1555
+{"Satelliten", "Satélites"},  // src/ui/ui_settings.cpp:1562
+{"Eigene ESP32 mit Sensoren und Relais im Fahrzeug. Sie senden per UDP im WLAN direkt ans Panel (oder über einen MQTT-Broker) – ihre Geräte erscheinen hier und im Editor wie eigene.", "ESP32 propios con sensores y relés en el vehículo. Envían por UDP en el WiFi directamente al panel (o mediante un broker MQTT) – sus dispositivos aparecen aquí y en el editor como propios."},  // src/ui/ui_settings.cpp:1564
+{"Satelliten-Passwort", "Contraseña de satélites"},  // src/ui/ui_settings.cpp:1571
+{"Noch kein Satellit gehört.", "Aún no se ha detectado ningún satélite."},  // src/ui/ui_settings.cpp:1572
+{"Zusatzdisplays", "Pantallas adicionales"},  // src/ui/ui_settings.cpp:1580
+{"Neuen Satelliten hinzufügen", "Añadir nuevo satélite"},  // src/ui/ui_settings.cpp:1595
+{"%d dBm · antippen zum Einrichten", "%d dBm · tocar para configurar"},  // src/ui/ui_settings.cpp:1601
+{"Stand", "Estado"},  // src/ui/ui_settings.cpp:1606
+{"Suche", "Buscar"},  // src/ui/ui_settings.cpp:1606
+{"Am Panel ist „WLAN aus“ eingestellt – Satelliten brauchen WLAN.", "En el panel está ajustado «WiFi apagado» – los satélites necesitan WiFi."},  // src/ui/ui_settings.cpp:1609
+{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "El sensor solo admite una conexión a la vez: si la app Truma o el Victron GX están conectados, el panel mide en la siguiente pasada."},  // src/ui/ui_settings.cpp:1638
+{"Der Sensor erlaubt nur eine Verbindung gleichzeitig: Ist gerade die Truma-App, Home Assistant oder der Victron GX verbunden, misst das Panel beim nächsten Durchgang.", "El sensor solo permite una conexión a la vez: si la app de Truma, Home Assistant o el Victron GX están conectados, el panel mide en la siguiente ronda."},  // src/ui/ui_settings.cpp:1641
+{"Noch keine Gasflasche eingerichtet.", "Aún no hay ninguna bombona configurada."},  // src/ui/ui_settings.cpp:1649
+{"Truma suchen", "Buscar Truma"},  // src/ui/ui_settings.cpp:1657
+{"Alle jetzt messen", "Medir todo ahora"},  // src/ui/ui_settings.cpp:1658
+{"Gefundene Sensoren (Suche läuft …)", "Sensores encontrados (buscando …)"},  // src/ui/ui_settings.cpp:1662
+{"Gefundene Sensoren", "Sensores encontrados"},  // src/ui/ui_settings.cpp:1662
+{"Noch nichts gefunden. Der Sensor muss in Reichweite sein.", "Nada encontrado todavía. El sensor debe estar al alcance."},  // src/ui/ui_settings.cpp:1664
+{"LevelControl ", "LevelControl "},  // src/ui/ui_settings.cpp:1670
+{"Messen", "Medición"},  // src/ui/ui_settings.cpp:1674
+{"Abfrage alle", "Consultar cada"},  // src/ui/ui_settings.cpp:1678
+{"15 Minuten", "15 minutos"},  // src/ui/ui_settings.cpp:1678
+{"60 Minuten", "60 minutos"},  // src/ui/ui_settings.cpp:1678
+{"Häufigeres Messen kostet die Batterie des Sensors mehr.", "Medir con más frecuencia gasta más la batería del sensor."},  // src/ui/ui_settings.cpp:1679
+{"Hymer Connect", "Hymer Connect"},  // src/ui/ui_settings.cpp:1703
+{"Licht, Batterie, Tanks und Schalter direkt von der SCU im Fahrzeug (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – per Bluetooth, ohne Cloud.", "Luz, batería, depósitos e interruptores directamente de la SCU del vehículo (Hymer, Bürstner, Dethleffs, Eriba, LMC …) – por Bluetooth, sin nube."},  // src/ui/ui_settings.cpp:1703
+{"SCU im Fahrzeug suchen und verbinden", "Buscar y conectar la SCU del vehículo"},  // src/ui/ui_settings.cpp:1705
+{"SCU (Bluetooth)", "SCU (Bluetooth)"},  // src/ui/ui_settings.cpp:1709
+{"Neu koppeln", "Emparejar de nuevo"},  // src/ui/ui_settings.cpp:1712
+{"Hymer koppeln", "Emparejar Hymer"},  // src/ui/ui_settings.cpp:1712
+{"Erst hier „Hymer koppeln“ tippen, dann am Bedienteil im Fahrzeug „CONNECTION“ drücken (3 Minuten Zeit). Die Werte stehen danach im Editor wie die eines Satelliten namens „Hymer“ und lassen sich aufs Panel ziehen.", "Primero toque aquí «Emparejar Hymer», luego pulse «CONNECTION» en la unidad de control del vehículo (3 minutos). Los valores aparecerán en el editor como los de un satélite llamado «Hymer» y se pueden arrastrar al panel."},  // src/ui/ui_settings.cpp:1715
+{"Gefundene Geräte", "Dispositivos encontrados"},  // src/ui/ui_settings.cpp:1725
+{"Suche läuft … Die SCU muss in Reichweite und eingeschaltet sein.", "Búsqueda en curso … La SCU debe estar al alcance y encendida."},  // src/ui/ui_settings.cpp:1728
+{" · Hymer", " · Hymer"},  // src/ui/ui_settings.cpp:1733
+{"Gerät antippen, dann am Bedienteil „CONNECTION“ drücken.", "Toque el dispositivo y luego pulse «CONNECTION» en la unidad de control."},  // src/ui/ui_settings.cpp:1738
+{"Schalter und Lichter: Zeile antippen zum Umschalten.", "Interruptores y luces: toque la línea para conmutar."},  // src/ui/ui_settings.cpp:1753
+{"Box gewählt – verbinde …", "Caja elegida – conectando …"},  // src/ui/ui_settings.cpp:1861
+{"Andere Box wählen", "Elegir otra caja"},  // src/ui/ui_settings.cpp:1865
+{"Die gemerkte HobbyConnect-Box vergessen und neu suchen?", "¿Olvidar la caja HobbyConnect guardada y buscar de nuevo?"},  // src/ui/ui_settings.cpp:1865
+{"Vergessen", "Olvidar"},  // src/ui/ui_settings.cpp:1865
+{"RX-Pin (GPIO)", "Pin RX (GPIO)"},  // src/ui/ui_settings.cpp:1880
+{"TX-Pin (GPIO)", "Pin TX (GPIO)"},  // src/ui/ui_settings.cpp:1880
+{"GPIO, an dem die Sendeleitung des RS232-Wandlers (TXD) hängt; leer = keiner", "GPIO al que está conectada la línea de emisión del convertidor RS232 (TXD); vacío = ninguno"},  // src/ui/ui_settings.cpp:1881
+{"GPIO zur Empfangsleitung des RS232-Wandlers (RXD); leer = keiner", "GPIO de la línea de recepción del convertidor RS232 (RXD); vacío = ninguno"},  // src/ui/ui_settings.cpp:1882
+{"Gerade nicht schaltbar (nicht verbunden; Hauptschalter nur über das Kabel).", "No se puede conmutar ahora (no conectado; interruptor principal solo por cable)."},  // src/ui/ui_settings.cpp:1901
+{"Noch keine Werte – erst verbinden.", "Aún no hay valores – conecte primero."},  // src/ui/ui_settings.cpp:1921
+{"Kacheln angelegt (vorhandene bleiben).", "Mosaicos creados (los existentes se mantienen)."},  // src/ui/ui_settings.cpp:1925
+{"Wohnwagen und Reisemobile von Hobby: Licht, Bordbatterie, Wasser, Heizung, Kühlschrank und Klima – per Bluetooth über die HobbyConnect-Box oder per Kabel direkt am Steuergerät (LSG, CI-BUS).", "Caravanas y autocaravanas Hobby: luz, batería de servicio, agua, calefacción, nevera y clima – por Bluetooth mediante la caja HobbyConnect o por cable directamente en la centralita (LSG, CI-BUS)."},  // src/ui/ui_settings.cpp:1933
+{"HobbyConnect-Box", "Caja HobbyConnect"},  // src/ui/ui_settings.cpp:1935
+{"Box im Fahrzeug per Bluetooth verbinden", "Conectar la caja del vehículo por Bluetooth"},  // src/ui/ui_settings.cpp:1935
+{"Box (Bluetooth)", "Caja (Bluetooth)"},  // src/ui/ui_settings.cpp:1938
+{"Adresse", "Dirección"},  // src/ui/ui_settings.cpp:1940
+{"Suche läuft … Die Box muss eingeschaltet und in Reichweite sein; die Hobby-App auf dem Handy vorher trennen.", "Búsqueda en curso … La caja debe estar encendida y al alcance; desconecte antes la app Hobby del móvil."},  // src/ui/ui_settings.cpp:1945
+{"HobbyConnect", "HobbyConnect"},  // src/ui/ui_settings.cpp:1955
+{"CI-BUS am LSG (Kabel)", "CI-BUS en la centralita (cable)"},  // src/ui/ui_settings.cpp:1961
+{"Ersetzt die Box: RS232-Wandler an einer seriellen Schnittstelle", "Sustituye la caja: convertidor RS232 en una interfaz serie"},  // src/ui/ui_settings.cpp:1961
+{"UART%d", "UART%d"},  // src/ui/ui_settings.cpp:1966
+{"Schnittstelle", "Interfaz"},  // src/ui/ui_settings.cpp:1967
+{"GPIO ", "GPIO "},  // src/ui/ui_settings.cpp:1968
+{"RX-Pin", "Pin RX"},  // src/ui/ui_settings.cpp:1970
+{"TX-Pin", "Pin TX"},  // src/ui/ui_settings.cpp:1971
+{"Das LSG spricht RS232 (±12 V): nur über einen RS232-TTL-Wandler (z. B. MAX3232, 3,3 V) anschließen, 115200 Baud. Waveshare 7\": UART-Stiftleiste (GPIO 15/16). Die Nummern der Werte holt das Panel selbst vom LSG.", "La centralita habla RS232 (±12 V): conéctela solo mediante un convertidor RS232-TTL (p. ej. MAX3232, 3,3 V), 115200 baudios. Waveshare 7\": regleta UART (GPIO 15/16). Los números de los valores los obtiene el panel de la centralita."},  // src/ui/ui_settings.cpp:1973
+{"Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen.", "Atención: UART%d lo usa el módulo Zigbee – elija otro."},  // src/ui/ui_settings.cpp:1982
+{"Kacheln anlegen", "Crear mosaicos"},  // src/ui/ui_settings.cpp:1998
+{"Schalter und Lichter: Zeile antippen. Im Editor stehen die Werte in der Geräteliste unter „Hobby“, die Bordbatterie als Batteriewächter.", "Interruptores y luces: toque la línea. En el editor los valores están en la lista de dispositivos bajo «Hobby», la batería de servicio como monitor de batería."},  // src/ui/ui_settings.cpp:1999
+{"S-BC gewählt – verbinde und kopple …", "S-BC elegido – conectando y emparejando …"},  // src/ui/ui_settings.cpp:2103
+{"Anderen S-BC wählen", "Elegir otro S-BC"},  // src/ui/ui_settings.cpp:2107
+{"Den gemerkten Bluetooth Connector vergessen und neu suchen?", "¿Olvidar el Bluetooth Connector guardado y buscar de nuevo?"},  // src/ui/ui_settings.cpp:2107
+{"Adresse des S-BC", "Dirección del S-BC"},  // src/ui/ui_settings.cpp:2113
+{"Bluetooth-Adresse, z. B. aa:bb:cc:dd:ee:ff – wenn die Suche den S-BC nicht findet", "Dirección Bluetooth, p. ej. aa:bb:cc:dd:ee:ff – si la búsqueda no encuentra el S-BC"},  // src/ui/ui_settings.cpp:2114
+{"Adresse im Format aa:bb:cc:dd:ee:ff eingeben.", "Introduzca la dirección en el formato aa:bb:cc:dd:ee:ff."},  // src/ui/ui_settings.cpp:2121
+{"Kopplungs-PIN", "PIN de emparejamiento"},  // src/ui/ui_settings.cpp:2134
+{"PIN des S-BC (ab Werk 173928); leer = Standard", "PIN del S-BC (de fábrica 173928); vacío = estándar"},  // src/ui/ui_settings.cpp:2135
+{"GPIO, an dem die Sendeleitung (TXD, RJ11 Pin 1) des Votronic-Geräts hängt; leer = keiner", "GPIO al que va la línea de envío (TXD, RJ11 pin 1) del aparato Votronic; vacío = ninguno"},  // src/ui/ui_settings.cpp:2154
+{"Batteriecomputer und Smart Shunt, Solarregler (SR/MPP), Ladegeräte (VBCS, VAC) und Ladebooster (VCC) von Votronic – per Bluetooth über den Bluetooth Connector S-BC oder per Kabel an der Display-Buchse eines Geräts. Nur Anzeige, das Panel stellt an den Geräten nichts ein. Noch nicht an echten Geräten getestet.", "Ordenador de batería y Smart Shunt, reguladores solares (SR/MPP), cargadores (VBCS, VAC) y cargadores DC-DC (VCC) de Votronic – por Bluetooth mediante el Bluetooth Connector S-BC o por cable en la toma de display de un aparato. Solo lectura, el panel no ajusta nada en los aparatos. Aún no probado con aparatos reales."},  // src/ui/ui_settings.cpp:2187
+{"Bluetooth Connector S-BC", "Bluetooth Connector S-BC"},  // src/ui/ui_settings.cpp:2190
+{"Batteriecomputer und Solarregler per Bluetooth", "Ordenador de batería y regulador solar por Bluetooth"},  // src/ui/ui_settings.cpp:2190
+{"von Hand eingeben", "introducir a mano"},  // src/ui/ui_settings.cpp:2199
+{"Suche läuft … Der S-BC muss Strom haben und in Reichweite sein; die Votronic-App auf dem Handy vorher trennen.", "Búsqueda en curso … El S-BC debe tener corriente y estar al alcance; desconecte antes la app Votronic del móvil."},  // src/ui/ui_settings.cpp:2204
+{"Erstes Koppeln: am S-BC die Taste kurz drücken, dann verbindet sich das Panel – leuchten beide LEDs, hat es geklappt. Die PIN ist ab Werk 173928.", "Primer emparejamiento: pulse brevemente la tecla del S-BC, luego el panel se conecta – si se encienden ambos LED, ha funcionado. El PIN de fábrica es 173928."},  // src/ui/ui_settings.cpp:2216
+{"Display-Link (Kabel)", "Display-Link (cable)"},  // src/ui/ui_settings.cpp:2219
+{"Display-Buchse eines Votronic-Geräts an einer seriellen Schnittstelle", "Toma de display de un aparato Votronic en una interfaz serie"},  // src/ui/ui_settings.cpp:2219
+{"Westernstecker RJ11 (6-polig): Pin 1 TXD an den RX-Pin, Pin 6 GND an GND. Pin 3 frei lassen, Pin 2 (VBAT+) nicht zur Versorgung nutzen. 1000 Baud, nur Empfang. Pegel vorher messen – über 3,3 V einen Spannungsteiler davor.", "Conector RJ11 (6 polos): pin 1 TXD al pin RX, pin 6 GND a GND. Deje libre el pin 3, no use el pin 2 (VBAT+) para alimentar. 1000 baudios, solo recepción. Mida antes el nivel – por encima de 3,3 V ponga un divisor de tensión."},  // src/ui/ui_settings.cpp:2228
+{"Achtung: diese Schnittstelle benutzt schon Hobby (CI-BUS).", "Atención: esta interfaz ya la usa Hobby (CI-BUS)."},  // src/ui/ui_settings.cpp:2241
+{"Im Editor stehen die Geräte in der Geräteliste wie Victron-Geräte (Batteriewächter, Solarregler …).", "En el editor los aparatos aparecen en la lista de dispositivos como los de Victron (monitor de batería, regulador solar …)."},  // src/ui/ui_settings.cpp:2261
+{"nicht gestartet", "no iniciado"},  // src/ui/ui_settings.cpp:2289
+{"nicht gefunden – Modul gesteckt und aufgespielt?", "no encontrado – ¿módulo insertado y flasheado?"},  // src/ui/ui_settings.cpp:2290
+{" · Firmware ", " · Firmware "},  // src/ui/ui_settings.cpp:2291
+{"wird gebildet …", "formándose …"},  // src/ui/ui_settings.cpp:2295
+{"PAN 0x%04X · %s %d", "PAN 0x%04X · %s %d"},  // src/ui/ui_settings.cpp:2297
+{"geschlossen", "cerrado"},  // src/ui/ui_settings.cpp:2301
+{"offen, noch %d s", "abierto, quedan %d s"},  // src/ui/ui_settings.cpp:2303
+{"Noch keine Meldungen.", "Aún no hay mensajes."},  // src/ui/ui_settings.cpp:2311
+{"wird abgefragt …", "consultando …"},  // src/ui/ui_settings.cpp:2314
+{"noch keine Werte", "aún no hay valores"},  // src/ui/ui_settings.cpp:2315
+{"Ausgeschaltet – wirkt nach dem nächsten Neustart des Panels.", "Desactivado – surte efecto tras el próximo reinicio del panel."},  // src/ui/ui_settings.cpp:2324
+{"Anlernen beendet.", "Emparejamiento finalizado."},  // src/ui/ui_settings.cpp:2330
+{"Anlernen 3 Minuten offen – jetzt das Gerät in den Kopplungsmodus bringen.", "Emparejamiento abierto 3 minutos – ponga ahora el dispositivo en modo de emparejamiento."},  // src/ui/ui_settings.cpp:2333
+{"' && json.back() == '", "' && json.back() == '"},  // src/ui/ui_settings.cpp:2355
+{"Änderungen verwerfen?", "¿Descartar los cambios?"},  // src/ui/ui_settings.cpp:2386
+{"Die geänderten Einstellungen wurden noch nicht gespeichert.", "Los ajustes modificados aún no se han guardado."},  // src/ui/ui_settings.cpp:2386
+{"Verwerfen", "Descartar"},  // src/ui/ui_settings.cpp:2386
+{"Zigbee-Modul nicht verbunden.", "Módulo Zigbee no conectado."},  // src/ui/ui_settings.cpp:2402
+{"Gesendet – das Gerät übernimmt die Einstellungen.", "Enviado – el dispositivo aplica los ajustes."},  // src/ui/ui_settings.cpp:2406
+{"Name des Geräts", "Nombre del dispositivo"},  // src/ui/ui_settings.cpp:2420
+{"z. B. „Bewegung Flur“ oder „Taster Bett“. Leer lassen = Modellname.", "p. ej. «Movimiento pasillo» o «Pulsador cama». Vacío = nombre del modelo."},  // src/ui/ui_settings.cpp:2421
+{"Das Gerät ", "El dispositivo "},  // src/ui/ui_settings.cpp:2432
+{" wird abgemeldet und vergessen. Zum erneuten Verwenden neu anlernen.", " se da de baja y se olvida. Para volver a usarlo, emparéjelo de nuevo."},  // src/ui/ui_settings.cpp:2432
+{"Gerät entfernen?", "¿Quitar dispositivo?"},  // src/ui/ui_settings.cpp:2433
+{"Gerät entfernt.", "Dispositivo eliminado."},  // src/ui/ui_settings.cpp:2436
+{"Wert von %g bis %g%s%s", "Valor de %g a %g%s%s"},  // src/ui/ui_settings.cpp:2454
+{"Wert außerhalb des erlaubten Bereichs.", "Valor fuera del rango permitido."},  // src/ui/ui_settings.cpp:2465
+{"Zurück zur Liste", "Volver a la lista"},  // src/ui/ui_settings.cpp:2503
+{"Aktuelle Werte", "Valores actuales"},  // src/ui/ui_settings.cpp:2510
+{"Noch keine Werte – das Gerät meldet sich bei der nächsten Änderung.", "Aún no hay valores – el dispositivo informa en el próximo cambio."},  // src/ui/ui_settings.cpp:2513
+{"Einstellungen", "Ajustes"},  // src/ui/ui_settings.cpp:2519
+{"Werden vom Funkmodul geladen …", "Cargando desde el módulo de radio …"},  // src/ui/ui_settings.cpp:2522
+{"Dieses Gerät hat keine Einstellungen.", "Este dispositivo no tiene ajustes."},  // src/ui/ui_settings.cpp:2524
+{"Mit * markiert: geändert, noch nicht gespeichert.", "Marcado con *: cambiado, aún sin guardar."},  // src/ui/ui_settings.cpp:2546
+{"Speichern", "Guardar"},  // src/ui/ui_settings.cpp:2551
+{"Gerät entfernen", "Eliminar dispositivo"},  // src/ui/ui_settings.cpp:2553
+{"Zigbee-Netz neu bilden?", "¿Formar de nuevo la red Zigbee?"},  // src/ui/ui_settings.cpp:2556
+{"Alle Geräte verlieren die Verbindung und müssen neu angelernt werden. Nur bei Störungen nötig.", "Todos los dispositivos pierden la conexión y hay que emparejarlos de nuevo. Solo necesario en caso de fallos."},  // src/ui/ui_settings.cpp:2557
+{"Neu bilden", "Formar de nuevo"},  // src/ui/ui_settings.cpp:2557
+{"Netz wird neu gebildet …", "Formando la red de nuevo …"},  // src/ui/ui_settings.cpp:2560
+{"Zigbee", "Zigbee"},  // src/ui/ui_settings.cpp:2575
+{"Zigbee-Geräte (Lampen, Steckdosen, Sensoren) direkt am Panel – über das Funkmodul ESP32-H2 im Steckplatz auf der Rückseite, ohne Zigbee2MQTT und ohne Broker.", "Dispositivos Zigbee (lámparas, enchufes, sensores) directamente en el panel – mediante el módulo de radio ESP32-H2 en la ranura trasera, sin Zigbee2MQTT y sin broker."},  // src/ui/ui_settings.cpp:2575
+{"Zigbee-Modul", "Módulo Zigbee"},  // src/ui/ui_settings.cpp:2584
+{"Funkmodul im Steckplatz verwenden", "Usar el módulo de radio de la ranura"},  // src/ui/ui_settings.cpp:2585
+{"Funkmodul", "Módulo de radio"},  // src/ui/ui_settings.cpp:2595
+{"Modul", "Módulo"},  // src/ui/ui_settings.cpp:2597
+{"Zigbee-Netz", "Red Zigbee"},  // src/ui/ui_settings.cpp:2598
+{"Anlernen", "Emparejar"},  // src/ui/ui_settings.cpp:2599
+{"Anlernen beenden", "Finalizar emparejamiento"},  // src/ui/ui_settings.cpp:2602
+{"Gerät anlernen", "Emparejar dispositivo"},  // src/ui/ui_settings.cpp:2602
+{"„Gerät anlernen“ öffnet das Netz für 3 Minuten. Dann das Gerät in den Kopplungsmodus bringen (meist Taste lange drücken oder Lampe mehrmals aus- und einschalten). Das Modul fragt neue Geräte selbst ab und richtet die Meldungen ein.", "«Emparejar dispositivo» abre la red durante 3 minutos. Luego ponga el dispositivo en modo de emparejamiento (normalmente mantener pulsada la tecla o apagar y encender la lámpara varias veces). El módulo consulta los dispositivos nuevos y configura los avisos."},  // src/ui/ui_settings.cpp:2605
+{"Noch keine Geräte angelernt.", "Aún no hay dispositivos emparejados."},  // src/ui/ui_settings.cpp:2615
+{"Ohne Funkmodul keine Geräte.", "Sin módulo de radio no hay dispositivos."},  // src/ui/ui_settings.cpp:2615
+{"Gerät antippen: Werte, Einstellungen, Name, Entfernen.", "Toque un dispositivo: valores, ajustes, nombre, eliminar."},  // src/ui/ui_settings.cpp:2626
+{"Meldungen des Moduls", "Mensajes del módulo"},  // src/ui/ui_settings.cpp:2631
+{"Netz neu bilden", "Formar de nuevo la red"},  // src/ui/ui_settings.cpp:2637
+{"Füllstand per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Nivel de llenado por Bluetooth. Elija qué dispositivos debe evaluar el panel – lo que está apagado no se busca y no carga la radio ni el WiFi."},  // src/ui/ui_settings.cpp:2681
+{"Gas und Heizung", "Gas y calefacción"},  // src/ui/ui_settings.cpp:2684
+{"Füllstand und Heizung per Bluetooth. Wähle, welche Geräte das Panel auswerten soll – was aus ist, wird nicht gesucht und belastet Funk und WLAN nicht.", "Niveles y calefacción por Bluetooth. Elija qué dispositivos debe leer el panel – los desactivados no se buscan y no cargan la radio ni el Wi-Fi."},  // src/ui/ui_settings.cpp:2684
+{"Gasflaschen, bis zu vier", "Bombonas de gas, hasta cuatro"},  // src/ui/ui_settings.cpp:2687
+{"Gas- und Tanksensoren, bis zu vier", "Sensores de gas y depósito, hasta cuatro"},  // src/ui/ui_settings.cpp:2688
+{"Heizung, Boiler und Klima über das Bedienteil", "Calefacción, calentador y climatización mediante el panel de control"},  // src/ui/ui_settings.cpp:2689
+{"Kachel anlegen?", "¿Crear mosaico?"},  // src/ui/ui_settings.cpp:2728
+{"Soll „", "¿Debe «"},  // src/ui/ui_settings.cpp:2728
+{"“ als Kachel auf den Hauptbildschirm?", "» ir como mosaico a la pantalla principal?"},  // src/ui/ui_settings.cpp:2728
+{"Kachel anlegen", "Crear mosaico"},  // src/ui/ui_settings.cpp:2729
+{"Kachel angelegt. Position und Größe änderst du im Editor.", "Mosaico creado. La posición y el tamaño se cambian en el editor."},  // src/ui/ui_settings.cpp:2734
+{"Dieses Gerät ist schon eingerichtet.", "Este dispositivo ya está configurado."},  // src/ui/ui_settings.cpp:2776
+{"Schlüssel für ", "Clave para"},  // src/ui/ui_settings.cpp:2780
+{"32 Zeichen aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "32 caracteres de VictronConnect: Ajustes > Información del producto > Instant Readout > Mostrar detalles."},  // src/ui/ui_settings.cpp:2781
+{"Eingerichtet. Die Werte erscheinen in wenigen Sekunden.", "Configurado. Los valores aparecen en pocos segundos."},  // src/ui/ui_settings.cpp:2785
+{"Es sind schon sechs Victron-Geräte eingerichtet.", "Ya hay seis dispositivos Victron configurados."},  // src/ui/ui_settings.cpp:2795
+{"Suche läuft. Victron-Geräte erscheinen meist nach wenigen Sekunden.", "Buscando. Los dispositivos Victron suelen aparecer en pocos segundos."},  // src/ui/ui_settings.cpp:2799
+{"Super B verlangt beim Koppeln eine PIN – sie steht auf dem Akku bzw. in der Anleitung.", "Super B pide un PIN al emparejar – está en la batería o en el manual."},  // src/ui/ui_settings.cpp:2846
+{"Nur nötig, wenn der Akku beim Koppeln eine PIN verlangt (steht auf dem Akku bzw. in der Anleitung). Meist leer lassen. Später änderbar: Akku antippen > PIN.", "Solo necesario si la batería pide un PIN al emparejar (está en la batería o en el manual). Normalmente déjelo vacío. Se puede cambiar después: tocar la batería > PIN."},  // src/ui/ui_settings.cpp:2847
+{"Eingerichtet – das Panel verbindet sich gleich.", "Configurado – el panel se conecta en seguida."},  // src/ui/ui_settings.cpp:2854
+{"Eingerichtet – das Panel koppelt gleich mit PIN.", "Configurado – el panel se empareja en seguida con PIN."},  // src/ui/ui_settings.cpp:2855
+{"Name der Power Station", "Nombre de la Power Station"},  // src/ui/ui_settings.cpp:2872
+{"Name des Sensors", "Nombre del sensor"},  // src/ui/ui_settings.cpp:2872
+{"Name des Akkus", "Nombre de la batería"},  // src/ui/ui_settings.cpp:2873
+{"Zum Beispiel „Kühlschrank“ oder „Frischwasser“.", "Por ejemplo «Nevera» o «Agua limpia»."},  // src/ui/ui_settings.cpp:2874
+{"Zum Beispiel „Standheizung“. Die App des Herstellers vorher schließen – das Gerät spricht nur mit einem Gerät.", "Por ejemplo «Calefactor estacionario». Cierre antes la app del fabricante – el dispositivo solo habla con un aparato."},  // src/ui/ui_settings.cpp:2875
+{"Zum Beispiel „Bordbatterie“. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät.", "Por ejemplo «Batería de servicio». Cierre antes la app del fabricante – la batería solo habla con un aparato."},  // src/ui/ui_settings.cpp:2876
+{"Kein Platz mehr – es sind schon so viele Bluetooth-Geräte eingerichtet, wie möglich sind.", "No queda espacio – ya están configurados todos los dispositivos Bluetooth posibles."},  // src/ui/ui_settings.cpp:2895
+{"Suche läuft (1 Minute). Die App des Herstellers vorher schließen.", "Búsqueda en curso (1 minuto). Cierre antes la app del fabricante."},  // src/ui/ui_settings.cpp:2899
+{"EcoFlow-Benutzer-ID", "ID de usuario de EcoFlow"},  // src/ui/ui_settings.cpp:2904
+{"Die Benutzer-ID des EcoFlow-Kontos, an das die Power Station gebunden ist. Bequemer: im Editor unter „Power Stations“ mit E-Mail und Passwort anmelden – dann wird sie automatisch eingetragen. Leer = löschen.", "El ID de usuario de la cuenta EcoFlow a la que está vinculada la Power Station. Más cómodo: inicie sesión en el editor en «Power Stations» con correo y contraseña – se introduce automáticamente. Vacío = borrar."},  // src/ui/ui_settings.cpp:2905
+{"Benutzer-ID gelöscht.", "ID de usuario borrado."},  // src/ui/ui_settings.cpp:2911
+{"Benutzer-ID gespeichert.", "ID de usuario guardado."},  // src/ui/ui_settings.cpp:2911
+{"Power Stations", "Power Stations"},  // src/ui/ui_settings.cpp:2922
+{"Bluetti, Allpowers, Anker SOLIX und EcoFlow per Bluetooth – ungetestet. Die App des Herstellers vorher schließen; Anker: beim ersten Verbinden ggf. die Taste an der Power Station drücken. Antippen zeigt alle Werte; dort lassen sich AC- und DC-Ausgang ein- und ausschalten.", "Bluetti, Allpowers, Anker SOLIX y EcoFlow por Bluetooth – sin probar. Cierre antes la app del fabricante; Anker: al conectar por primera vez quizá haya que pulsar la tecla de la Power Station. Tocar muestra todos los valores; allí se pueden encender y apagar las salidas AC y DC."},  // src/ui/ui_settings.cpp:2922
+{"Sensoren", "Sensores"},  // src/ui/ui_settings.cpp:2926
+{"Bluetooth-Sensoren – ungetestet: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi mit pvvx-Firmware …), Simarine STRx und SuperSense-Tankmodul. Sie senden nur, das Panel hört zu. Verschlüsselte BTHome- und Simarine-Sensoren brauchen den Schlüssel (32 Zeichen) als PIN.", "Sensores Bluetooth – sin probar: Ruuvi, SwitchBot (Meter, Meter Plus, Outdoor), BTHome (Shelly BLU, Xiaomi con firmware pvvx …), Simarine STRx y módulo de depósito SuperSense. Solo emiten, el panel escucha. Los sensores BTHome y Simarine cifrados necesitan la clave (32 caracteres) como PIN."},  // src/ui/ui_settings.cpp:2926
+{"Dieselheizung und Kühlbox", "Calefactor diésel y nevera portátil"},  // src/ui/ui_settings.cpp:2930
+{"Akkus (BMS)", "Baterías (BMS)"},  // src/ui/ui_settings.cpp:2932
+{"Akkus mit eigenem Bluetooth-BMS. Die App des Herstellers vorher schließen – der Akku spricht nur mit einem Gerät. Das Panel liest nur Werte und schaltet am Akku nichts.", "Baterías con BMS Bluetooth propio. Cierre antes la app del fabricante – la batería solo habla con un aparato. El panel solo lee valores y no conmuta nada en la batería."},  // src/ui/ui_settings.cpp:2932
+{"China-Dieselheizungen (Vevor, Hcalory, HeaterCC/AirHeater) und Kompressor-Kühlboxen (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – ungetestet. Bedienen im Fenster der Kachel.", "Calefactores diésel chinos (Vevor, Hcalory, HeaterCC/AirHeater) y neveras de compresor (Alpicool, IceCube/Plug-in Festivals, Bodega, Brass Monkey) – sin probar. Manejo en la ventana del mosaico."},  // src/ui/ui_settings.cpp:2935
+{"Akkus auswerten", "Evaluar baterías"},  // src/ui/ui_settings.cpp:2941
+{"Bluetooth-Geräte auswerten", "Evaluar dispositivos Bluetooth"},  // src/ui/ui_settings.cpp:2941
+{"Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (auch Laderegler, DC-DC-Lader, Wechselrichter, Shunt), Eco-Worthy, ANT, Vatrer – nur lesen", "Super B, Power Quarry, Daly, JBD, JK, LiTime, Renogy (también reguladores de carga, cargadores DC-DC, inversores, shunt), Eco-Worthy, ANT, Vatrer – solo lectura"},  // src/ui/ui_settings.cpp:2942
+{"Ein Schalter für Akkus, Power Stations, Sensoren, Heizung und Kühlbox", "Un interruptor para baterías, Power Stations, sensores, calefacción y nevera"},  // src/ui/ui_settings.cpp:2944
+{"Noch keine Power Station eingerichtet.", "Aún no hay ninguna Power Station configurada."},  // src/ui/ui_settings.cpp:2962
+{"Noch kein Sensor eingerichtet.", "Aún no hay ningún sensor configurado."},  // src/ui/ui_settings.cpp:2962
+{"Noch keine Heizung oder Kühlbox eingerichtet.", "Aún no hay calefactor ni nevera configurados."},  // src/ui/ui_settings.cpp:2963
+{"Noch kein Akku eingerichtet.", "Aún no hay ninguna batería configurada."},  // src/ui/ui_settings.cpp:2963
+{"gespeichert ", "guardado "},  // src/ui/ui_settings.cpp:2967
+{"nicht eingetragen", "no introducido"},  // src/ui/ui_settings.cpp:2967
+{"Power Stations suchen", "Buscar Power Stations"},  // src/ui/ui_settings.cpp:2973
+{"Sensoren suchen", "Buscar sensores"},  // src/ui/ui_settings.cpp:2973
+{"Heizung/Kühlbox suchen", "Buscar calefacción/nevera"},  // src/ui/ui_settings.cpp:2974
+{"Akkus suchen", "Buscar baterías"},  // src/ui/ui_settings.cpp:2974
+{"Gefunden (Suche läuft …)", "Encontrado (búsqueda en curso …)"},  // src/ui/ui_settings.cpp:2980
+{"Gefunden", "Encontrado"},  // src/ui/ui_settings.cpp:2980
+{"Noch nichts gefunden. Power Station eingeschaltet, Bluetooth an, in der Nähe?", "Aún no se ha encontrado nada. ¿Power Station encendida, Bluetooth activado, cerca?"},  // src/ui/ui_settings.cpp:2983
+{"Noch nichts gefunden. Sensor in der Nähe? Manche senden nur alle paar Sekunden.", "Aún no se ha encontrado nada. ¿Sensor cerca? Algunos solo emiten cada pocos segundos."},  // src/ui/ui_settings.cpp:2984
+{"Noch nichts gefunden. Gerät eingeschaltet und in der Nähe? App des Herstellers geschlossen?", "Aún no se ha encontrado nada. ¿Dispositivo encendido y cerca? ¿App del fabricante cerrada?"},  // src/ui/ui_settings.cpp:2985
+{"Noch nichts gefunden. Akku eingeschaltet und in der Nähe?", "Aún no se ha encontrado nada. ¿Batería encendida y cerca?"},  // src/ui/ui_settings.cpp:2986
+{"Suche den Cerbo GX im Netz … (bis etwa 20 Sekunden)", "Buscando el Cerbo GX en la red … (hasta unos 20 segundos)"},  // src/ui/ui_settings.cpp:3007
+{"Suche läuft schon.", "La búsqueda ya está en curso."},  // src/ui/ui_settings.cpp:3008
+{"Adresse des Cerbo GX", "Dirección del Cerbo GX"},  // src/ui/ui_settings.cpp:3013
+{"IP-Adresse oder Name, z. B. 192.168.1.50. Leer = Cerbo GX aus. Am GX: Einstellungen > Dienste > MQTT einschalten.", "Dirección IP o nombre, p. ej. 192.168.1.50. Vacío = Cerbo GX desactivado. En el GX: Ajustes > Servicios > activar MQTT."},  // src/ui/ui_settings.cpp:3014
+{"Cerbo GX ausgeschaltet.", "Cerbo GX desactivado."},  // src/ui/ui_settings.cpp:3023
+{"Gespeichert, verbinde …", "Guardado, conectando …"},  // src/ui/ui_settings.cpp:3023
+{"Passwort des Cerbo GX", "Contraseña del Cerbo GX"},  // src/ui/ui_settings.cpp:3031
+{"Nur nötig, wenn am GX ein Passwort für das lokale Netz gesetzt ist. Leer = kein Passwort.", "Solo es necesario si el GX tiene una contraseña para la red local. Vacío = sin contraseña."},  // src/ui/ui_settings.cpp:3032
+{"Gespeichert, verbinde neu …", "Guardado, reconectando …"},  // src/ui/ui_settings.cpp:3039
+{"Cerbo GX (MQTT)", "Cerbo GX (MQTT)"},  // src/ui/ui_settings.cpp:3052
+{"im Netz suchen und eintragen", "buscar en la red e introducir"},  // src/ui/ui_settings.cpp:3057
+{"Automatisch suchen", "Buscar automáticamente"},  // src/ui/ui_settings.cpp:3058
+{"Solar, Netz, Ladegerät, Batterie und DC-System vom Cerbo GX (Venus OS). Am GX unter Einstellungen > Dienste > MQTT einschalten, dann „Automatisch suchen“ oder die IP-Adresse von Hand eintragen. Die Kacheln setzt du danach im Editor.", "Solar, red, cargador, batería y sistema DC del Cerbo GX (Venus OS). En el GX active Ajustes > Servicios > MQTT, luego «Buscar automáticamente» o introduzca la IP a mano. Los mosaicos se colocan después en el editor."},  // src/ui/ui_settings.cpp:3068
+{"SmartSolar, SmartShunt, BMV und Orion per Bluetooth („Instant Readout“). Das Panel hört nur mit – VictronConnect und ein GX bleiben ungestört. Pro Gerät brauchst du den Schlüssel aus VictronConnect: Einstellungen > Produktinfo > Instant Readout > Details anzeigen.", "SmartSolar, SmartShunt, BMV y Orion por Bluetooth («Instant Readout»). El panel solo escucha – VictronConnect y un GX no se ven afectados. Para cada dispositivo necesita la clave de VictronConnect: Ajustes > Información del producto > Instant Readout > Mostrar detalles."},  // src/ui/ui_settings.cpp:3080
+{"Bluetooth (Instant Readout)", "Bluetooth (Instant Readout)"},  // src/ui/ui_settings.cpp:3085
+{"Victron auswerten", "Leer Victron"},  // src/ui/ui_settings.cpp:3087
+{"Aus = das Panel sucht und lauscht nicht nach Victron-Geräten", "Apagado = el panel no busca ni escucha dispositivos Victron"},  // src/ui/ui_settings.cpp:3087
+{"Noch kein Victron-Gerät eingerichtet.", "Aún no hay ningún dispositivo Victron configurado."},  // src/ui/ui_settings.cpp:3095
+{"Geräte suchen", "Buscar dispositivos"},  // src/ui/ui_settings.cpp:3100
+{"Gefundene Geräte (Suche läuft …)", "Dispositivos encontrados (buscando …)"},  // src/ui/ui_settings.cpp:3104
+{"Noch nichts gefunden. Ist Bluetooth am Gerät eingeschaltet?", "Nada encontrado todavía. ¿Está activado el Bluetooth en el dispositivo?"},  // src/ui/ui_settings.cpp:3106
+{"Firmware", "Firmware"},  // src/ui/ui_settings.cpp:3160
+{"IP-Adresse", "Dirección IP"},  // src/ui/ui_settings.cpp:3160
+{"WLAN-Signal", "Señal Wi-Fi"},  // src/ui/ui_settings.cpp:3160
+{"Geräteliste", "Lista de dispositivos"},  // src/ui/ui_settings.cpp:3160
+{"Touch", "Táctil"},  // src/ui/ui_settings.cpp:3161
+{"Freier Speicher", "Memoria libre"},  // src/ui/ui_settings.cpp:3161
+{"Laufzeit", "Tiempo activo"},  // src/ui/ui_settings.cpp:3161
+{"Aus – zum Einschalten antippen. Ab Werk aus.", "Apagado – tocar para encender. Apagado de fábrica."},  // src/ui/ui_settings.cpp:3168
+{"Schreibt auf die SD-Karte: ", "Escribe en la tarjeta SD: "},  // src/ui/ui_settings.cpp:3169
+{"An – SD-Karte wird eingebunden …", "Encendido – montando la tarjeta SD …"},  // src/ui/ui_settings.cpp:3170
+{"An – keine SD-Karte, nur die letzten 64 KB im Arbeitsspeicher (im Editor unter Info ansehen).", "Encendido – sin tarjeta SD, solo los últimos 64 KB en la memoria de trabajo (ver en el editor en Info)."},  // src/ui/ui_settings.cpp:3171
+{"Debug-Log läuft – alle Meldungen werden mitgeschrieben.", "Registro de depuración activo – se registran todos los mensajes."},  // src/ui/ui_settings.cpp:3177
+{"Debug-Log ist aus.", "El registro de depuración está apagado."},  // src/ui/ui_settings.cpp:3177
+{"aus (einschalten im Editor unter Netzwerk)", "apagado (activar en el editor en Red)"},  // src/ui/ui_settings.cpp:3186
+{"oder http://%s.local/", "o http://%s.local/"},  // src/ui/ui_settings.cpp:3197
+{" (Bridge offline)", " (Bridge offline)"},  // src/ui/ui_settings.cpp:3205
+{"Zustände werden neu abgefragt.", "Se vuelven a consultar los estados."},  // src/ui/ui_settings.cpp:3226
+{"Panel neu starten?", "¿Reiniciar el panel?"},  // src/ui/ui_settings.cpp:3230
+{"Das dauert etwa zehn Sekunden.", "Tarda unos diez segundos."},  // src/ui/ui_settings.cpp:3230
+{"Neu starten", "Reiniciar"},  // src/ui/ui_settings.cpp:3230
+{"Info", "Info"},  // src/ui/ui_settings.cpp:3237
+{"Layout-Editor im Browser", "Editor de diseño en el navegador"},  // src/ui/ui_settings.cpp:3244
+{"Zustände neu abfragen", "Volver a consultar estados"},  // src/ui/ui_settings.cpp:3253
+{"Fehlersuche (Debug-Log)", "Diagnóstico (registro de depuración)"},  // src/ui/ui_settings.cpp:3256
+{"Debug-Log auf die SD-Karte schreiben", "Escribir el registro de depuración en la tarjeta SD"},  // src/ui/ui_settings.cpp:3261
+{"Alle Meldungen mit Uhrzeit, alle 60 s Speicher, WLAN und Verbindungen. Dateien je bis 1 MB, die letzten 10. Ansehen und herunterladen im Editor unter Einstellungen → Info.", "Todos los mensajes con hora, cada 60 s memoria, WiFi y conexiones. Archivos de hasta 1 MB cada uno, los 10 últimos. Ver y descargar en el editor en Ajustes → Info."},  // src/ui/ui_settings.cpp:3272
+{"Projekt auf GitHub", "Proyecto en GitHub"},  // src/ui/ui_settings.cpp:3285
+{"Unterstütze das Projekt", "Apoya el proyecto"},  // src/ui/ui_settings.cpp:3286
+{"Gefällt dir das Panel? Über eine kleine Spende freue ich mich:", "¿Te gusta el panel? Me alegraría una pequeña donación:"},  // src/ui/ui_settings.cpp:3293
+{"Suche läuft (2 Minuten). Bluetooth muss am Shelly an sein (Shelly-App > Einstellungen > Bluetooth).", "Búsqueda en curso (2 minutos). El Bluetooth debe estar activado en el Shelly (app Shelly > Ajustes > Bluetooth)."},  // src/ui/ui_settings.cpp:3322
+{"Noch keine Kanäle – die erste Verbindung zum Shelly steht noch aus.", "Aún no hay canales – falta la primera conexión con el Shelly."},  // src/ui/ui_settings.cpp:3331
+{"Kacheln angelegt.", "Mosaicos creados."},  // src/ui/ui_settings.cpp:3335
+{"Passwort des Shelly", "Contraseña del Shelly"},  // src/ui/ui_settings.cpp:3349
+{"Nur nötig, wenn am Shelly ein Passwort gesetzt ist (Shelly-App > Einstellungen > Authentifizierung). Meist leer lassen. Später änderbar: Shelly antippen.", "Solo necesario si el Shelly tiene contraseña (app Shelly > Ajustes > Autenticación). Normalmente déjelo vacío. Se puede cambiar después: tocar el Shelly."},  // src/ui/ui_settings.cpp:3350
+{"Eingerichtet – das Panel verbindet sich gleich. Danach „Kacheln anlegen“.", "Configurado – el panel se conecta en seguida. Después «Crear mosaicos»."},  // src/ui/ui_settings.cpp:3356
+{"Dieser Shelly ist schon eingerichtet.", "Este Shelly ya está configurado."},  // src/ui/ui_settings.cpp:3367
+{"Name des Shelly", "Nombre del Shelly"},  // src/ui/ui_settings.cpp:3371
+{"Zum Beispiel „Außenlicht“ oder „Wasserpumpe“.", "Por ejemplo «Luz exterior» o «Bomba de agua»."},  // src/ui/ui_settings.cpp:3372
+{"Shelly umbenennen", "Renombrar Shelly"},  // src/ui/ui_settings.cpp:3385
+{"Diesen Shelly entfernen", "Eliminar este Shelly"},  // src/ui/ui_settings.cpp:3388
+{"Entfernt.", "Eliminado."},  // src/ui/ui_settings.cpp:3392
+{"Wie in der Shelly-App unter Authentifizierung. Leer = kein Passwort.", "Como en la app Shelly en Autenticación. Vacío = sin contraseña."},  // src/ui/ui_settings.cpp:3404
+{"Gespeichert – das Panel meldet sich gleich neu an.", "Guardado – el panel vuelve a iniciar sesión en seguida."},  // src/ui/ui_settings.cpp:3409
+{"noch nicht verbunden", "aún no conectado"},  // src/ui/ui_settings.cpp:3416
+{" %.0f W", " %.0f W"},  // src/ui/ui_settings.cpp:3425
+{"keine Kanäle", "sin canales"},  // src/ui/ui_settings.cpp:3429
+{"Shelly per Bluetooth (Beta)", "Shelly por Bluetooth (Beta)"},  // src/ui/ui_settings.cpp:3433
+{"Shelly Gen2, Gen3 und Gen4 (Plus, Pro, Mini …) ohne WLAN schalten – das Panel verbindet sich kurz per Bluetooth (Stand alle 30 s, Schalten sofort, dauert 1–2 s). Gen1 hat kein Bluetooth: dafür Shelly über MQTT.", "Conmutar Shelly Gen2, Gen3 y Gen4 (Plus, Pro, Mini …) sin WiFi – el panel se conecta brevemente por Bluetooth (estado cada 30 s, conmutación inmediata, tarda 1–2 s). Gen1 no tiene Bluetooth: para ellos, Shelly por MQTT."},  // src/ui/ui_settings.cpp:3434
+{"Shellys per Bluetooth", "Shellys por Bluetooth"},  // src/ui/ui_settings.cpp:3440
+{"Shellys suchen", "Buscar Shellys"},  // src/ui/ui_settings.cpp:3452
+{"Eingerichtet", "Configurado"},  // src/ui/ui_settings.cpp:3456
+{"gesetzt – antippen zum Ändern", "establecida – tocar para cambiar"},  // src/ui/ui_settings.cpp:3463
+{"VERLANGT – antippen zum Eintragen", "REQUERIDA – tocar para introducir"},  // src/ui/ui_settings.cpp:3463
+{"Gefundene Shellys (Suche läuft)", "Shellys encontrados (búsqueda en curso)"},  // src/ui/ui_settings.cpp:3469
+{"Gefundene Shellys", "Shellys encontrados"},  // src/ui/ui_settings.cpp:3469
+{"Noch keiner gefunden … Shelly in der Nähe und Bluetooth an?", "Aún no se ha encontrado ninguno … ¿Shelly cerca y Bluetooth activado?"},  // src/ui/ui_settings.cpp:3471
+{" · schon eingerichtet", " · ya configurado"},  // src/ui/ui_settings.cpp:3475
+{"Sicherung läuft …", "Copia de seguridad en curso …"},  // src/ui/ui_settings.cpp:3517
+{"Sicherung liegt auf der SD-Karte.", "La copia de seguridad está en la tarjeta SD."},  // src/ui/ui_settings.cpp:3520
+{"Diese Sicherung ist unvollständig.", "Esta copia de seguridad está incompleta."},  // src/ui/ui_settings.cpp:3530
+{"Layout, Einstellungen und Hintergründe werden durch den Stand vom ", "El diseño, los ajustes y los fondos se sustituyen por el estado del"},  // src/ui/ui_settings.cpp:3534
+{" ersetzt. Danach startet das Panel neu.", ". Después el panel se reinicia."},  // src/ui/ui_settings.cpp:3535
+{"Sicherung einspielen?", "¿Restaurar copia de seguridad?"},  // src/ui/ui_settings.cpp:3536
+{"Einspielen", "Restaurar"},  // src/ui/ui_settings.cpp:3536
+{"Sicherung wird eingespielt …", "Restaurando copia de seguridad …"},  // src/ui/ui_settings.cpp:3537
+{"Die Sicherung vom ", "La copia de seguridad del"},  // src/ui/ui_settings.cpp:3554
+{" wird von der SD-Karte entfernt.", " se borrará de la tarjeta SD."},  // src/ui/ui_settings.cpp:3554
+{"Sicherung löschen?", "¿Borrar copia de seguridad?"},  // src/ui/ui_settings.cpp:3555
+{"Löschen", "Borrar"},  // src/ui/ui_settings.cpp:3555
+{"Sicherung", "Copia de seguridad"},  // src/ui/ui_settings.cpp:3563
+{"Sichert Layout, Namen, alle Einstellungen, Gasflaschen, Victron-Geräte, Logo und Hintergründe auf die microSD-Karte. Achtung: WLAN- und MQTT-Passwörter stehen dort lesbar.", "Guarda el diseño, los nombres, todos los ajustes, las bombonas, los dispositivos Victron, el logo y los fondos en la tarjeta microSD. Atención: las contraseñas de Wi-Fi y MQTT quedan legibles allí."},  // src/ui/ui_settings.cpp:3564
+{"SD-Karte", "Tarjeta SD"},  // src/ui/ui_settings.cpp:3568
+{"Karte (FAT32 oder exFAT) einstecken und das Panel neu starten.", "Inserte una tarjeta (FAT32 o exFAT) y reinicie el panel."},  // src/ui/ui_settings.cpp:3569
+{" frei von ", " libres de"},  // src/ui/ui_settings.cpp:3575
+{"Jetzt sichern", "Hacer copia ahora"},  // src/ui/ui_settings.cpp:3578
+{"Tippen zum Einspielen", "Toque para restaurar"},  // src/ui/ui_settings.cpp:3580
+{"Noch keine Sicherung auf der Karte.", "Aún no hay ninguna copia en la tarjeta."},  // src/ui/ui_settings.cpp:3584
+{"%d Hintergrund", "%d fondo"},  // src/ui/ui_settings.cpp:3590
+{"%d Hintergründe", "%d fondos"},  // src/ui/ui_settings.cpp:3590
+{"unvollständig", "incompleta"},  // src/ui/ui_settings.cpp:3591
+{"Regel „%s“ ausgeführt", "Regla «%s» ejecutada"},  // src/ui/ui_settings.cpp:3613
+{"Regeln", "Reglas"},  // src/ui/ui_settings.cpp:3619
+{"Automatisch schalten: wenn etwas passiert (Taster, Bewegungsmelder, Gerät, Uhrzeit), und falls eine Bedingung stimmt, dann Aktionen ausführen. Angelegt und bearbeitet werden Regeln im Web-Editor (Einstellungen > Regeln) mit Bausteinen.", "Conmutar automáticamente: cuando ocurre algo (pulsador, detector de movimiento, dispositivo, hora) y se cumple una condición, se ejecutan acciones. Las reglas se crean y editan con bloques en el editor web (Ajustes > Reglas)."},  // src/ui/ui_settings.cpp:3619
+{"Noch keine Regel angelegt.", "Aún no hay ninguna regla."},  // src/ui/ui_settings.cpp:3623
+{"Pfeil: Regel sofort ausführen (ohne Auslöser und Bedingung). Schalter: Regel an/aus.", "Flecha: ejecutar la regla ahora (sin disparador ni condición). Interruptor: regla activada/desactivada."},  // src/ui/ui_settings.cpp:3650
+{"Fahrzeug", "Vehículo"},  // src/ui/ui_settings.cpp:3675
+{"Shelly (BT)", "Shelly (BT)"},  // src/ui/ui_settings.cpp:3675
+{"Zurück", "Atrás"},  // src/ui/ui_settings.cpp:3768
+{"IP-Adresse ", "Dirección IP"},  // src/ui/ui_settings.cpp:3843
+{"Panel-WLAN 192.168.4.1", "Wi-Fi del panel 192.168.4.1"},  // src/ui/ui_settings.cpp:3844
+{"über 10 Tage", "más de 10 días"},  // src/ui/ui_victron.cpp:59
+{"  ·  heute ", "  ·  hoy"},  // src/ui/ui_victron.cpp:110
+{"Batteriefühler", "Sensor de batería"},  // src/ui/ui_victron.cpp:117
+{"  ·  Eingang ", "  ·  entrada"},  // src/ui/ui_victron.cpp:139
+{"  ·  max. ", "  ·  máx. "},  // src/ui/ui_victron.cpp:149
+{"  ·  AC ein", "  ·  AC encendido"},  // src/ui/ui_victron.cpp:176
+{"  ·  AC aus", "  ·  AC apagado"},  // src/ui/ui_victron.cpp:176
+{"  ·  Zellen ", "  ·  Celdas "},  // src/ui/ui_victron.cpp:189
+{"Fehler – Heizung prüfen", "Error – compruebe la calefacción"},  // src/ui/ui_victron.cpp:196
+{"Eingang ", "Entrada "},  // src/ui/ui_victron.cpp:250
+{"  ·  Ausgang ", "  ·  Salida "},  // src/ui/ui_victron.cpp:251
+{"kein Empfang", "sin recepción"},  // src/ui/ui_victron.cpp:265
+{"Ausgang an", "Salida encendida"},  // src/ui/ui_victron.cpp:294
+{"Ausgang aus", "Salida apagada"},  // src/ui/ui_victron.cpp:294
+{", rein ", ", entrada "},  // src/ui/ui_victron.cpp:301
+{", raus ", ", salida "},  // src/ui/ui_victron.cpp:301
+{"Der GX nimmt die Begrenzung gerade nicht an.", "El GX no acepta ahora el límite."},  // src/ui/ui_victron.cpp:372
+{"Gerade nicht möglich – bitte gleich noch einmal.", "Ahora no es posible – inténtelo de nuevo enseguida."},  // src/ui/ui_victron.cpp:372
+{"Der GX nimmt den Schalter gerade nicht an.", "El GX no acepta ahora el interruptor."},  // src/ui/ui_victron.cpp:394
+{"Ladestrom (max.)", "Corriente de carga (máx.)"},  // src/ui/ui_victron.cpp:420
+{"Netzstrom-Begrenzung", "Límite de corriente de red"},  // src/ui/ui_victron.cpp:420
+{"Wird geschaltet – die Power Station meldet den neuen Zustand gleich.", "Conmutando – la Power Station informará en seguida del nuevo estado."},  // src/ui/ui_victron.cpp:474
+{"Dieses Gerät lässt sich nicht schalten.", "Este dispositivo no se puede conmutar."},  // src/ui/ui_victron.cpp:476
+{"Soll rechts", "Consigna derecha"},  // src/ui/ui_victron.cpp:558
+{"Soll links", "Consigna izquierda"},  // src/ui/ui_victron.cpp:558
+{"Der Name gilt nur für dieses Panel. Leer lassen für den Standardnamen.", "El nombre solo se aplica a este panel. Déjalo vacío para el nombre predeterminado."},  // src/ui/ui_victron.cpp:594
+{"Victron-Gerät umbenennen", "Renombrar dispositivo Victron"},  // src/ui/ui_victron.cpp:606
+{"Zum Beispiel „Solar Dach“ oder „Bordbatterie“.", "Por ejemplo «Solar techo» o «Batería de servicio»."},  // src/ui/ui_victron.cpp:607
+{"Schlüssel ändern", "Cambiar clave"},  // src/ui/ui_victron.cpp:629
+{"Schlüssel gespeichert.", "Clave guardada."},  // src/ui/ui_victron.cpp:634
+{"PIN zum Schalten", "PIN para conmutar"},  // src/ui/ui_victron.cpp:646
+{"Die PIN aus VictronConnect (ab Werk 000000, bei neueren Geräten steht sie auf dem Aufkleber). Nur zum Schalten nötig.", "El PIN de VictronConnect (de fábrica 000000; en aparatos más nuevos está en la etiqueta). Solo necesario para conmutar."},  // src/ui/ui_victron.cpp:647
+{"PIN gespeichert.", "PIN guardado."},  // src/ui/ui_victron.cpp:653
+{"Das Panel wertet dieses Gerät dann nicht mehr aus. Die Kachel bleibt leer, bis du sie im Editor entfernst.", "El panel deja de evaluar este dispositivo. El mosaico queda vacío hasta que lo elimine en el editor."},  // src/ui/ui_victron.cpp:664
+{"Ertrag heute", "Rendimiento hoy"},  // src/ui/ui_victron.cpp:681
+{"Laststrom", "Corriente de carga externa"},  // src/ui/ui_victron.cpp:681
+{"Verbraucht", "Consumido"},  // src/ui/ui_victron.cpp:686
+{"Restlaufzeit", "Tiempo restante"},  // src/ui/ui_victron.cpp:686
+{"Zusatzeingang", "Entrada auxiliar"},  // src/ui/ui_victron.cpp:686
+{"Eingang Spannung", "Tensión de entrada"},  // src/ui/ui_victron.cpp:691
+{"Eingang Strom", "Corriente de entrada"},  // src/ui/ui_victron.cpp:691
+{"Ausgang Spannung", "Tensión de salida"},  // src/ui/ui_victron.cpp:691
+{"Ausgang Strom", "Corriente de salida"},  // src/ui/ui_victron.cpp:691
+{"Strombegrenzung", "Límite de corriente"},  // src/ui/ui_victron.cpp:696
+{"Netzstrom (230 V)", "Corriente de red (230 V)"},  // src/ui/ui_victron.cpp:702
+{"Schalter", "Interruptor"},  // src/ui/ui_victron.cpp:706
+{"Eingang gesamt", "Entrada total"},  // src/ui/ui_victron.cpp:716
+{"Ausgang gesamt", "Salida total"},  // src/ui/ui_victron.cpp:716
+{"AC-Eingang (Netz)", "Entrada AC (red)"},  // src/ui/ui_victron.cpp:717
+{"DC-Eingang (Solar/Auto)", "Entrada DC (solar/vehículo)"},  // src/ui/ui_victron.cpp:717
+{"Balancer", "Balanceador"},  // src/ui/ui_victron.cpp:722
+{"Art", "Tipo"},  // src/ui/ui_victron.cpp:743
+{"noch nichts empfangen", "todavía no se ha recibido nada"},  // src/ui/ui_victron.cpp:761
+{"vor %d s", "hace %d s"},  // src/ui/ui_victron.cpp:763
+{"Cerbo GX verbunden", "Cerbo GX conectado"},  // src/ui/ui_victron.cpp:767
+{", Signal ", ", señal"},  // src/ui/ui_victron.cpp:775
+{"Starterbatterie ", "Batería de arranque"},  // src/ui/ui_victron.cpp:795
+{"Mittelpunkt ", "Punto medio"},  // src/ui/ui_victron.cpp:796
+{"nicht belegt", "sin usar"},  // src/ui/ui_victron.cpp:798
+{"  ·  ein", "  ·  encendido"},  // src/ui/ui_victron.cpp:845
+{"  ·  aus", "  ·  apagado"},  // src/ui/ui_victron.cpp:845
+{"gleicht aus", "equilibrando"},  // src/ui/ui_victron.cpp:863
+{"ja", "sí"},  // src/ui/ui_victron.cpp:865
+{"nein", "no"},  // src/ui/ui_victron.cpp:865
+{"|Empfang", "|Recepción"},  // src/ui/ui_victron.cpp:965
+{"Gerät meldet Fehler ", "El dispositivo informa del fallo"},  // src/ui/ui_victron.cpp:992
+{" – Details in VictronConnect.", " – detalles en VictronConnect."},  // src/ui/ui_victron.cpp:992
+{"Dieses Victron-Gerät ist nicht mehr eingerichtet.", "Este dispositivo Victron ya no está configurado."},  // src/ui/ui_victron.cpp:1007
+{"PIN", "PIN"},  // src/ui/ui_victron.cpp:1146
 // --- nicht mehr im Quelltext gefunden ---
 {"MQTT-Broker eintragen", "Introducir bróker MQTT"},
 {"Das Panel spricht direkt mit Zigbee2MQTT. Dafür braucht es die Adresse deines MQTT-Brokers.", "El panel habla directamente con Zigbee2MQTT. Para ello necesita la dirección de su bróker MQTT."},

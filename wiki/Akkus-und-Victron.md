@@ -1,4 +1,4 @@
-# Akkus, Power Stations und Victron
+# Akkus, Power Stations, Victron und Votronic
 
 ### 🔋 Akkus und Power Stations
 
@@ -19,7 +19,16 @@
 
 - In VictronConnect **Instant Readout** aktivieren (**Einstellungen → Produktinfo → Instant Readout**).
 - Pro Gerät den Schlüssel aus **Details anzeigen** im Editor einfügen oder am Panel eintippen.
-- Nur Anzeige – Schalten geht über Instant Readout nicht.
+- Nur Anzeige – Schalten geht über Instant Readout nicht. Ausnahme *(Beta)*: **Orion XS / Orion Smart** lassen sich im
+  Kachelfenster **ein- und ausschalten** und der **Ladestrom (max.)** einstellen – das Panel verbindet sich dafür kurz
+  per Bluetooth (PIN aus VictronConnect, ab Werk 000000, Knopf „PIN“). Über den Cerbo GX geht Ein/Aus ebenso.
+- **Schlüssel und PIN sind zwei verschiedene Dinge:**
+  - **Schlüssel** (Instant Readout, 32 Zeichen): nur zum **Lesen** der Werte aus den Funkpaketen, ohne Verbindung.
+    Für jedes Victron-Gerät nötig.
+  - **PIN** (6 Ziffern, Bluetooth-Kopplung): nur zum **Schalten** des Orion, weil Victron Befehle nur über eine echte
+    Verbindung annimmt. Ab Werk `000000` – die nimmt das Panel von selbst. Nur eintragen, wenn in VictronConnect eine
+    eigene PIN vergeben wurde (**Produktinfo → Bluetooth → PIN**). VictronConnect dabei trennen, der Orion spricht nur
+    mit einem Gerät.
 
 ### 🔋 Victron Cerbo GX
 
@@ -39,6 +48,22 @@
   „Manuell“ gewählt ist), **Tanks** (Füllstand, Inhalt in Litern), **Temperatursensoren** (auch Luftfeuchte, z. B.
   Ruuvi) und **Digitaleingänge** (Tür, Bilge, Alarm, Generator). Sie erscheinen im Editor wie die Anschlüsse eines
   Satelliten namens **„GX“** und lassen sich aufs Panel ziehen.
+
+### ⚡ Votronic (S-BC per Bluetooth oder Display-Link per Kabel) *(Beta, ungetestet)*
+
+- **Batteriecomputer und Smart Shunt** (Ladezustand, Spannung, Strom, Rest- und Nennkapazität, Starterbatterie),
+  **Solarregler SR/MPP** (PV-Leistung, -Spannung, -Strom, Ladephase, Temperatur), **Ladegeräte VBCS/VAC** und
+  **Ladebooster VCC** (Spannungen, Ladestrom, Auslastung, Ladephase) – nur Anzeige.
+- **Zwei Wege**, einzeln schaltbar und **ab Werk aus** – unter **Einstellungen → Votronic** (Panel und Editor):
+  - **Bluetooth Connector S-BC:** einschalten, den gefundenen S-BC antippen (oder die Adresse von Hand eintragen). Erstes
+    Koppeln: am S-BC die **Taste kurz drücken**, das Panel koppelt mit der PIN (ab Werk **173928**) – leuchten beide LEDs,
+    hat es geklappt. Liefert Batteriecomputer und Solarregler. Die Votronic-App vorher trennen.
+  - **Display-Link per Kabel:** die Display-Buchse (RJ11, 6-polig) eines Geräts an eine freie serielle Schnittstelle:
+    **Pin 1 TXD → RX-Pin**, **Pin 6 GND → GND**, Pin 3 frei lassen, Pin 2 (VBAT+) nicht zur Versorgung nutzen.
+    1000 Baud, nur Empfang. Pegel vorher messen – über 3,3 V einen Spannungsteiler davor.
+- Kacheln wie bei Victron: **Votronic Batterie** (Batteriewächter), **Votronic Solar**, **Votronic Ladegerät**,
+  **Votronic Ladebooster** – am Panel legt **„Kacheln anlegen“** alles auf einmal an. Serieller Befehl `votronic`.
+- Protokoll: [`docs/protokolle/votronic.md`](https://github.com/cyclemat/simple-open-camper/blob/main/docs/protokolle/votronic.md).
 
 ---
 *Diese Seite wird aus der [README](https://github.com/cyclemat/simple-open-camper) erzeugt (`tools/make_wiki.py`) – Änderungen bitte dort.*

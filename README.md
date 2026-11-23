@@ -84,6 +84,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 🛢️ **Mopeka** per Bluetooth – bis zu vier Gas- und Tanksensoren
 - ⚖️ **Senso4s** *(Beta)* – Gasflaschen-Waage Basic/Plus per Bluetooth, Füllstand in % und kg
 - ☀️ **Victron** per Bluetooth („Instant Readout“) – Solarregler, Batteriemonitor, Ladebooster
+- ⚡ **Votronic** *(Beta)* – Batteriecomputer/Smart Shunt, Solarregler, Ladegeräte und Ladebooster per Bluetooth (S-BC) oder Kabel (Display-Link)
 - 🔋 **Victron Cerbo GX** (Venus OS) per MQTT – Solar, Netz/Landstrom, Ladegerät, Batterie (SOC) und DC-System
 - 🔥 **Truma-Heizung** (Combi/VarioHeat) – über **CP Plus** (LIN-Bus) oder **iNet X** (Bluetooth)
 - ♨️ **Alde-Warmwasserheizung** (Compact 3020, 3030, 3030 Plus) über den LIN-Bus
@@ -454,7 +455,16 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 
 - In VictronConnect **Instant Readout** aktivieren (**Einstellungen → Produktinfo → Instant Readout**).
 - Pro Gerät den Schlüssel aus **Details anzeigen** im Editor einfügen oder am Panel eintippen.
-- Nur Anzeige – Schalten geht über Instant Readout nicht.
+- Nur Anzeige – Schalten geht über Instant Readout nicht. Ausnahme *(Beta)*: **Orion XS / Orion Smart** lassen sich im
+  Kachelfenster **ein- und ausschalten** und der **Ladestrom (max.)** einstellen – das Panel verbindet sich dafür kurz
+  per Bluetooth (PIN aus VictronConnect, ab Werk 000000, Knopf „PIN“). Über den Cerbo GX geht Ein/Aus ebenso.
+- **Schlüssel und PIN sind zwei verschiedene Dinge:**
+  - **Schlüssel** (Instant Readout, 32 Zeichen): nur zum **Lesen** der Werte aus den Funkpaketen, ohne Verbindung.
+    Für jedes Victron-Gerät nötig.
+  - **PIN** (6 Ziffern, Bluetooth-Kopplung): nur zum **Schalten** des Orion, weil Victron Befehle nur über eine echte
+    Verbindung annimmt. Ab Werk `000000` – die nimmt das Panel von selbst. Nur eintragen, wenn in VictronConnect eine
+    eigene PIN vergeben wurde (**Produktinfo → Bluetooth → PIN**). VictronConnect dabei trennen, der Orion spricht nur
+    mit einem Gerät.
 
 ### 🔋 Victron Cerbo GX
 
@@ -503,6 +513,22 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
 - Nur Bluetooth – ein Kabelanschluss an die SCU ist nicht vorgesehen.
 - Noch **nicht an einer echten SCU getestet** – Rückmeldungen sehr willkommen.
 
+### ⚡ Votronic (S-BC per Bluetooth oder Display-Link per Kabel) *(Beta, ungetestet)*
+
+- **Batteriecomputer und Smart Shunt** (Ladezustand, Spannung, Strom, Rest- und Nennkapazität, Starterbatterie),
+  **Solarregler SR/MPP** (PV-Leistung, -Spannung, -Strom, Ladephase, Temperatur), **Ladegeräte VBCS/VAC** und
+  **Ladebooster VCC** (Spannungen, Ladestrom, Auslastung, Ladephase) – nur Anzeige.
+- **Zwei Wege**, einzeln schaltbar und **ab Werk aus** – unter **Einstellungen → Votronic** (Panel und Editor):
+  - **Bluetooth Connector S-BC:** einschalten, den gefundenen S-BC antippen (oder die Adresse von Hand eintragen). Erstes
+    Koppeln: am S-BC die **Taste kurz drücken**, das Panel koppelt mit der PIN (ab Werk **173928**) – leuchten beide LEDs,
+    hat es geklappt. Liefert Batteriecomputer und Solarregler. Die Votronic-App vorher trennen.
+  - **Display-Link per Kabel:** die Display-Buchse (RJ11, 6-polig) eines Geräts an eine freie serielle Schnittstelle:
+    **Pin 1 TXD → RX-Pin**, **Pin 6 GND → GND**, Pin 3 frei lassen, Pin 2 (VBAT+) nicht zur Versorgung nutzen.
+    1000 Baud, nur Empfang. Pegel vorher messen – über 3,3 V einen Spannungsteiler davor.
+- Kacheln wie bei Victron: **Votronic Batterie** (Batteriewächter), **Votronic Solar**, **Votronic Ladegerät**,
+  **Votronic Ladebooster** – am Panel legt **„Kacheln anlegen“** alles auf einmal an. Serieller Befehl `votronic`.
+- Protokoll: [`docs/protokolle/votronic.md`](docs/protokolle/votronic.md).
+
 ### 🏕️ Hobby (HobbyConnect-Box oder CI-BUS) *(Beta, ungetestet)*
 
 - Für Wohnwagen und Reisemobile von **Hobby**: Lichter (schaltbar), Bordbatterie (Spannung, Strom, Ladezustand,
@@ -543,6 +569,7 @@ läuft nur per Bluetooth zur SCU (siehe oben).
 | Alde 3020/3030 | LIN, **gelbe** RJ12-Buchse: **Pin 4 = LIN, Pin 2 = Masse** | LIN-Transceiver + Master-Widerstand | 19200 | **Panel** | `platformio.ini` → `[alde]` |
 | Hobby (CI-BUS) | RS232 am LSG, Kabelsatz „Bluetooth-Modul“ von Hobby | RS232-TTL-Wandler (MAX3232) | 115200 | LSG | am Panel: **Einstellungen → Fahrzeug** |
 | Hymer Connect | – (Bluetooth) | – | – | – | Einstellungen → Fahrzeug |
+| Votronic (Display-Link) | RJ11 6-polig: **Pin 1 = TXD, Pin 6 = Masse** (Pin 3 frei) | Spannungsteiler, falls über 3,3 V | 1000 | Votronic-Gerät | am Panel: **Einstellungen → Votronic** |
 
 **LIN-Transceiver** (TJA1020/TJA1021, fertiges Modul; MCP2025 sinngemäß):
 
@@ -902,12 +929,14 @@ Damit kein Wert im Kreis läuft (Panel → HA → Panel → HA …), gelten fest
 
 ---
 
-## 📟 Victron-Display (eigene kleine Firmware)
+## 📟 Victron Edition (eigene schlanke Firmware)
 
-Für alle, die nur **Victron und den Gasvorrat** sehen wollen, gibt es eine schlanke Firmware für das 2,8"-Display
+Für alle, die nur **Victron, Gas und Akkus** sehen wollen, gibt es die **Simple Open Camper – Victron Edition**,
+eine schlanke Firmware für das 2,8"-Display
 ESP32-2432S028R („Cheap Yellow Display“, CYD-ESP32-2.8, rund 15 €): Cerbo GX per WLAN, Victron-Geräte, Truma LevelControl, Mopeka,
 Akkus mit Bluetooth-BMS und Power Stations, dazu als Beta SuperSense, Simarine STRx, Ruuvi und SwitchBot – als Kacheln, ohne großes
 Panel. **Deutsch oder Englisch.** Dieselbe Firmware gibt es auch für das Waveshare 7" mit Einstellungen am Bildschirm.
+MultiPlus und Orion XS/Smart lassen sich dort auch bedienen (Orion: Ein/Aus und Ladestrom, Beta).
 
 - **⚡ [Web-Flasher](https://cyclemat.github.io/simply-open-camper-victron-beta/)** – im Browser (Chrome/Edge) aufspielen,
   Sprache dort wählen
@@ -980,6 +1009,7 @@ gekennzeichnet. Vielen Dank an die Autorinnen und Autoren!
 | Tailscale (`src/tailscale.cpp`, `src/third_party/microlink/`) | [CamM2325/microlink](https://github.com/CamM2325/microlink) (enthält wireguard-lwip, BSD-3-Clause) | MIT | Tailscale-kompatibler Client, unverändert übernommen (nur Einstellungen statt Kconfig) |
 | Hobby (`src/hobby.cpp`) | [AndreasKirsten79/hobby-caravan-pi](https://github.com/AndreasKirsten79/hobby-caravan-pi) (mit [paveltresnak/hobby-caravan-esphome-ble](https://github.com/paveltresnak/hobby-caravan-esphome-ble)) | keine Angabe | nur Protokollwissen: BLE-Dienst, Anmeldung, Teilstücke, Befehle |
 | | [BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity](https://github.com/BastyJuice/Hobby_Caravan_Serial_2_CI-BUS_Connectivity) | MIT | CI-BUS seriell: Anmeldung, Befehle, Variablentabelle |
+| Votronic (`src/votronic.cpp`) | [syssi/esphome-votronic](https://github.com/syssi/esphome-votronic) | Apache-2.0 | Protokollwissen: S-BC-Dienste, Kopplungs-PIN, Rahmen des Display-Links; eigener Code |
 | WLED (`src/wled.cpp`) | [WLED – MQTT-Schnittstelle](https://kno.wled.ge/interfaces/mqtt/) | EUPL-1.2 (WLED) | Topics und Befehle |
 | Cerbo GX (`src/cerbo.cpp`) | [victronenergy/dbus-flashmq](https://github.com/victronenergy/dbus-flashmq), [dbus-API im Victron-Wiki](https://github.com/victronenergy/venus/wiki/dbus) | siehe Projekt | Topics, Keepalive, Pfade der Werte |
 | Victron Smart Lithium, Smart BatteryProtect (`src/victron.cpp`) | [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble) | Unlicense | Aufbau der Datensätze 0x05 und 0x09 |

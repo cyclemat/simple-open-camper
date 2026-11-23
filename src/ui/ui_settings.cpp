@@ -22,6 +22,7 @@ static std::string lower_mac(std::string s);
 #include "../truma_inetx.h"
 #include "../hymer.h"
 #include "../hobby.h"
+#include "../votronic.h"
 #include "../web_server.h"
 #include "../alde.h"
 #include "../power.h"
@@ -2020,6 +2021,263 @@ void ui_settings_tick_hobby() {
 static void build_hobby() {}
 void ui_settings_tick_hobby() {}
 #endif
+#if WITH_VOTRONIC
+// ---------------------------------------------------------------- Votronic (S-BC per Bluetooth, Display-Link per Kabel)
+static lv_obj_t *s_vt_ble_val = nullptr, *s_vt_ser_val = nullptr;
+static std::vector<lv_obj_t *> s_vt_rows;
+static std::vector<VotronicCand> s_vt_cands;
+static uint32_t s_vt_sig = 0;
+
+static uint32_t votronic_structure_sig() {
+  VotronicCfg c = votronic_cfg();
+  uint32_t sig = 11 + c.ble_on * 2 + c.uart_on * 4 + c.uart * 8 + (c.rx + 2) * 64;
+  for (char ch : c.mac) sig = sig * 31 + (uint8_t)ch;
+  for (char ch : c.pin) sig = sig * 31 + (uint8_t)ch;
+  for (auto &r : votronic_rows()) {
+    for (char ch : r.dev) sig = sig * 31 + (uint8_t)ch;
+    for (char ch : r.name) sig = sig * 31 + (uint8_t)ch;
+  }
+  if (c.ble_on && c.mac.empty())
+    for (auto &x : votronic_candidates())
+      for (char ch : x.mac) sig = sig * 31 + (uint8_t)ch;
+  return sig;
+}
+
+static void vt_rebuild(void *) {
+  if (!s_scr || s_sec != SEC_VOTRONIC) return;
+  lv_coord_t y = lv_obj_get_scroll_y(s_content);
+  show_section(SEC_VOTRONIC);
+  lv_obj_update_layout(s_content);
+  lv_obj_scroll_to_y(s_content, y, LV_ANIM_OFF);
+}
+
+static void vt_cfg_change(const std::function<void(VotronicCfg &)> &f) {
+  VotronicCfg c = votronic_cfg();
+  f(c);
+  votronic_set_cfg(c);
+  lv_async_call(vt_rebuild, nullptr);
+}
+
+static void vt_sw_cb(lv_event_t *e) {
+  int which = (int)(intptr_t)lv_event_get_user_data(e);
+  bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+  vt_cfg_change([&](VotronicCfg &c) {
+    if (which == 0) c.ble_on = on;
+    else c.uart_on = on;
+  });
+}
+
+static void vt_switch_row(const char *title, const char *hint, bool on, int which) {
+  lv_obj_t *r = lv_obj_create(s_content);
+  ui_plain(r);
+  lv_obj_set_size(r, lv_pct(100), 64);
+  lv_obj_set_style_border_side(r, LV_BORDER_SIDE_BOTTOM, 0);
+  lv_obj_set_style_border_width(r, 1, 0);
+  lv_obj_set_style_border_color(r, C_LINE, 0);
+  lv_obj_t *t = ui_label(r, title, F_BODY, C_TEXT);
+  lv_obj_align(t, LV_ALIGN_TOP_LEFT, 8, 8);
+  lv_obj_t *h = ui_label(r, hint, F_SMALL, C_TEXT2);
+  lv_obj_align(h, LV_ALIGN_TOP_LEFT, 8, 36);
+  lv_obj_t *sw = lv_switch_create(r);
+  lv_obj_set_size(sw, 64, 34);
+  lv_obj_set_style_bg_color(sw, C_AMBER, (lv_style_selector_t)LV_PART_INDICATOR | LV_STATE_CHECKED);
+  if (on) lv_obj_add_state(sw, LV_STATE_CHECKED);
+  lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -4, 0);
+  lv_obj_add_event_cb(sw, vt_sw_cb, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)which);
+}
+
+static void vt_hint(const char *txt) {
+  lv_obj_t *h = ui_label(s_content, txt, F_SMALL, C_TEXT2);
+  lv_label_set_long_mode(h, LV_LABEL_LONG_WRAP);
+  lv_obj_set_width(h, lv_pct(100));
+}
+
+static void vt_cand_cb(lv_event_t *e) {
+  size_t i = (size_t)(intptr_t)lv_event_get_user_data(e);
+  if (i >= s_vt_cands.size()) return;
+  VotronicCand x = s_vt_cands[i];
+  vt_cfg_change([&](VotronicCfg &c) {
+    c.mac = x.mac;
+    c.mac_type = x.type;
+  });
+  ui_toast("S-BC gewählt – verbinde und kopple …");
+}
+
+static void vt_forget_cb(lv_event_t *) {
+  ui_confirm("Anderen S-BC wählen", "Den gemerkten Bluetooth Connector vergessen und neu suchen?", "Vergessen", false,
+             [] { vt_cfg_change([](VotronicCfg &c) { c.mac.clear(); }); });
+}
+
+static void vt_mac_cb(lv_event_t *) {
+  InputOptions o;
+  o.title = "Adresse des S-BC";
+  o.hint = "Bluetooth-Adresse, z. B. aa:bb:cc:dd:ee:ff – wenn die Suche den S-BC nicht findet";
+  o.initial = votronic_cfg().mac;
+  o.max_len = 17;
+  o.on_ok = [](const std::string &t, bool) {
+    std::string m = t;
+    for (auto &ch : m) ch = (char)tolower((unsigned char)ch);
+    if (m.size() != 17 || m[2] != ':' || m[5] != ':') {
+      ui_toast("Adresse im Format aa:bb:cc:dd:ee:ff eingeben.");
+      return;
+    }
+    vt_cfg_change([&](VotronicCfg &c) {
+      c.mac = m;
+      c.mac_type = 0;
+    });
+  };
+  ui_input_open(o);
+}
+
+static void vt_pin_cb(lv_event_t *) {
+  InputOptions o;
+  o.title = "Kopplungs-PIN";
+  o.hint = "PIN des S-BC (ab Werk 173928); leer = Standard";
+  o.initial = votronic_cfg().pin;
+  o.numeric = true;
+  o.max_len = 6;
+  o.on_ok = [](const std::string &t, bool) { vt_cfg_change([&](VotronicCfg &c) { c.pin = t.empty() ? VOTRONIC_PIN_DEFAULT : t; }); };
+  ui_input_open(o);
+}
+
+static void vt_uart_cb(lv_event_t *) {
+  vt_cfg_change([](VotronicCfg &c) {
+    int n = votronic_uart_count();
+    c.uart = c.uart + 1 >= n ? 1 : c.uart + 1;   // UART0 = Konsole/USB, nicht anbieten
+  });
+}
+
+static void vt_rx_cb(lv_event_t *) {
+  VotronicCfg c = votronic_cfg();
+  InputOptions o;
+  o.title = "RX-Pin (GPIO)";
+  o.hint = "GPIO, an dem die Sendeleitung (TXD, RJ11 Pin 1) des Votronic-Geräts hängt; leer = keiner";
+  o.initial = c.rx >= 0 ? std::to_string(c.rx) : "";
+  o.numeric = true;
+  o.max_len = 2;
+  o.on_ok = [](const std::string &t, bool) {
+    int v = t.empty() ? -1 : atoi(t.c_str());
+    if (v < -1 || v > 54) v = -1;
+    vt_cfg_change([&](VotronicCfg &c) { c.rx = (int8_t)v; });
+  };
+  ui_input_open(o);
+}
+
+static void vt_tiles_cb(lv_event_t *) {
+  std::vector<ControlView> add;
+  for (auto &v : votronic_list()) {
+    ControlView cv;
+    cv.key = v.key;
+    cv.name = v.name;
+    add.push_back(cv);
+  }
+  if (add.empty()) {
+    ui_toast("Noch keine Werte – erst verbinden.");
+    return;
+  }
+  layout_auto_arrange(add, true);
+  ui_toast("Kacheln angelegt (vorhandene bleiben).");
+}
+
+static void build_votronic() {
+  s_vt_ble_val = s_vt_ser_val = nullptr;
+  s_vt_rows.clear();
+  s_vt_sig = votronic_structure_sig();
+  VotronicCfg c = votronic_cfg();
+  heading("Votronic", "Batteriecomputer und Smart Shunt, Solarregler (SR/MPP), Ladegeräte (VBCS, VAC) und Ladebooster (VCC) "
+                      "von Votronic – per Bluetooth über den Bluetooth Connector S-BC oder per Kabel an der Display-Buchse "
+                      "eines Geräts. Nur Anzeige, das Panel stellt an den Geräten nichts ein. Noch nicht an echten Geräten getestet.");
+  vt_switch_row("Bluetooth Connector S-BC", "Batteriecomputer und Solarregler per Bluetooth", c.ble_on, 0);
+  if (c.ble_on) {
+    lv_obj_t *g = group();
+    s_vt_ble_val = ui_row(g, "Status", votronic_status().c_str(), nullptr, nullptr, false);
+    if (!c.mac.empty()) {
+      ui_row(g, "Adresse", c.mac.c_str(), vt_forget_cb, nullptr);
+    } else {
+      votronic_search(60000);
+      s_vt_cands = votronic_candidates();
+      ui_row(g, "Adresse", tr("von Hand eingeben"), vt_mac_cb, nullptr);
+    }
+    ui_row(g, "Kopplungs-PIN", c.pin.c_str(), vt_pin_cb, nullptr);
+    if (c.mac.empty()) {
+      if (s_vt_cands.empty()) {
+        vt_hint("Suche läuft … Der S-BC muss Strom haben und in Reichweite sein; die Votronic-App auf dem Handy vorher trennen.");
+      } else {
+        lv_obj_t *cg = group();
+        for (size_t i = 0; i < s_vt_cands.size(); i++) {
+          auto &x = s_vt_cands[i];
+          char val[24];
+          snprintf(val, sizeof(val), "%d dBm", x.rssi);
+          std::string t = (x.name.empty() ? std::string("Votronic") : x.name) + "  (" + x.mac + ")";
+          ui_row(cg, t.c_str(), val, vt_cand_cb, (void *)(intptr_t)i);
+        }
+      }
+    }
+    vt_hint("Erstes Koppeln: am S-BC die Taste kurz drücken, dann verbindet sich das Panel – leuchten beide LEDs, hat es "
+            "geklappt. Die PIN ist ab Werk 173928.");
+  }
+  vt_switch_row("Display-Link (Kabel)", "Display-Buchse eines Votronic-Geräts an einer seriellen Schnittstelle", c.uart_on, 1);
+  if (c.uart_on) {
+    lv_obj_t *g = group();
+    s_vt_ser_val = ui_row(g, "Status", votronic_uart_status().c_str(), nullptr, nullptr, false);
+    char b[16];
+    snprintf(b, sizeof(b), "UART%d", c.uart);
+    ui_row(g, "Schnittstelle", b, vt_uart_cb, nullptr);
+    std::string rx = c.rx >= 0 ? "GPIO " + std::to_string(c.rx) : std::string(tr("nicht gesetzt"));
+    ui_row(g, "RX-Pin", rx.c_str(), vt_rx_cb, nullptr);
+    vt_hint("Westernstecker RJ11 (6-polig): Pin 1 TXD an den RX-Pin, Pin 6 GND an GND. Pin 3 frei lassen, Pin 2 (VBAT+) nicht "
+            "zur Versorgung nutzen. 1000 Baud, nur Empfang. Pegel vorher messen – über 3,3 V einen Spannungsteiler davor.");
+#if WITH_ZB_DIRECT
+    if (c.uart == (int)ZBD_UART && zbd_enabled()) {
+      char w[96];
+      snprintf(w, sizeof(w), tr("Achtung: UART%d benutzt das Zigbee-Modul – bitte eine andere wählen."), (int)ZBD_UART);
+      lv_obj_t *wl = ui_label(s_content, "", F_SMALL, C_RED);
+      (lv_label_set_text)(wl, w);
+    }
+#endif
+#if WITH_HOBBY
+    HobbyCfg hc = hobby_cfg();
+    if (hc.uart_on && hc.uart == c.uart) {
+      lv_obj_t *wl = ui_label(s_content, "Achtung: diese Schnittstelle benutzt schon Hobby (CI-BUS).", F_SMALL, C_RED);
+      lv_label_set_long_mode(wl, LV_LABEL_LONG_WRAP);
+      lv_obj_set_width(wl, lv_pct(100));
+    }
+#endif
+  }
+  auto rows = votronic_rows();
+  if (rows.empty()) return;
+  std::string dev;
+  lv_obj_t *vg = nullptr;
+  for (auto &r : rows) {
+    if (r.dev != dev || !vg) {
+      dev = r.dev;
+      subheading(dev.c_str());
+      vg = group();
+    }
+    s_vt_rows.push_back(ui_row(vg, r.name.c_str(), r.value.c_str(), nullptr, nullptr, false));
+  }
+  lv_obj_t *row = button_row();
+  ui_button(row, ICON_PLUS, "Kacheln anlegen", true, vt_tiles_cb, nullptr);
+  vt_hint("Im Editor stehen die Geräte in der Geräteliste wie Victron-Geräte (Batteriewächter, Solarregler …).");
+}
+
+void ui_settings_tick_votronic() {
+  if (!s_scr || s_sec != SEC_VOTRONIC || ui_input_is_open()) return;
+  if (votronic_structure_sig() != s_vt_sig) {
+    vt_rebuild(nullptr);
+    return;
+  }
+  VotronicCfg c = votronic_cfg();
+  if (c.ble_on && c.mac.empty()) votronic_search(60000);   // solange die Seite offen ist, weiter suchen
+  if (s_vt_ble_val) lv_label_set_text(s_vt_ble_val, votronic_status().c_str());
+  if (s_vt_ser_val) lv_label_set_text(s_vt_ser_val, votronic_uart_status().c_str());
+  auto rows = votronic_rows();
+  for (size_t i = 0; i < s_vt_rows.size() && i < rows.size(); i++) lv_label_set_text(s_vt_rows[i], rows[i].value.c_str());
+}
+#else
+static void build_votronic() {}
+void ui_settings_tick_votronic() {}
+#endif
 #if WITH_ZB_DIRECT
 // ---------------------------------------------------------------- Zigbee-Modul (ESP32-H2 im Steckplatz)
 static uint32_t s_zb_sig = 0;
@@ -3412,11 +3670,11 @@ static void ui_settings_tick_rules() {
 #endif
 
 // ---------------------------------------------------------------- Rahmen
-static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_BATTERY, ICON_POWER, ICON_THERMO, ICON_HOUSE, ICON_PLUG, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
+static const char *NAV_ICONS[SEC_COUNT] = {ICON_WIFI, ICON_LINK, ICON_MONITOR, ICON_LIST, ICON_GAS, ICON_SUN, ICON_LIGHTNING, ICON_BATTERY, ICON_POWER, ICON_THERMO, ICON_HOUSE, ICON_PLUG, ICON_BULB, ICON_WAND, ICON_LOCK, ICON_INFO};
 #if SOC_VICTRON_EDITION
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "", "", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "Shelly", "Anzeige", "Geräte", "Gas", "Victron", "", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "", "", "Sicherung", "Info"};
 #else
-static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "Zigbee", "Regeln", "Sicherung", "Info"};
+static const char *NAV_TITLES[SEC_COUNT] = {"Netzwerk", "MQTT", "Anzeige", "Geräte", "Gas/Heizung", "Victron", "Votronic", "Akkus (BMS)", "Power Stations", "Sensoren", "Fahrzeug", "Shelly (BT)", "Zigbee", "Regeln", "Sicherung", "Info"};
 #endif
 
 static void show_section(int sec) {
@@ -3444,6 +3702,7 @@ static void show_section(int sec) {
     case SEC_DEVICES: build_devices(); break;
     case SEC_GAS: build_gas(); break;
     case SEC_VICTRON: build_victron(); break;
+    case SEC_VOTRONIC: build_votronic(); break;
 #if WITH_BMS
     case SEC_BMS: build_bms(BMS_CAT_BAT); break;
     case SEC_PSTATION: build_bms(BMS_CAT_PS); break;
@@ -3519,6 +3778,7 @@ void ui_settings_open(int section) {
     if (i == SEC_HYMER && !hymer_enabled() && !WITH_HOBBY) return false;
     if ((i == SEC_BMS || i == SEC_PSTATION || i == SEC_SENSOR) && !WITH_BMS) return false;
     if (i == SEC_SHELLY_BT && !WITH_SHELLY_BLE) return false;
+    if (i == SEC_VOTRONIC && !WITH_VOTRONIC) return false;
     if (i == SEC_ZIGBEE && !WITH_ZB_DIRECT) return false;
     if (i == SEC_RULES && !WITH_RULES) return false;
     return true;

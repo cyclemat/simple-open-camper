@@ -10,7 +10,7 @@
 
 **Geräte**
 - [Gas und Tanks](Gas-und-Tanks)
-- [Akkus, Power Stations und Victron](Akkus-und-Victron)
+- [Akkus, Power Stations, Victron und Votronic](Akkus-und-Victron)
 - [Sensoren (BTHome, Ruuvi, SwitchBot)](Sensoren)
 - [Heizung und Kühlbox](Heizung-und-Kuehlbox)
 - [Fahrzeug: Hymer und Hobby](Fahrzeug)
@@ -18,7 +18,7 @@
 
 **Satelliten und Displays**
 - [Satelliten](Satelliten)
-- [Victron-Display (eigene Firmware)](Victron-Display)
+- [Victron Edition (eigene Firmware)](Victron-Display)
 
 **Bedienen und Fernzugriff**
 - [App „S.O.C. Live“ (Android)](App)

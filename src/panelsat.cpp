@@ -5,6 +5,7 @@
 #include "sat_proto.h"
 #include "hymer.h"
 #include "hobby.h"
+#include "votronic.h"
 #include "cerbo.h"
 #include "net.h"
 #include "settings.h"
@@ -865,6 +866,9 @@ static SatPoint hb_local(SatPoint p) {
 
 bool panelsat_victron_get(const std::string &key, VictronInfo &out) {
   if (key == HOBBY_BAT_KEY) return hobby_battery(out);
+#if WITH_VOTRONIC
+  if (key.rfind("vot:", 0) == 0) return votronic_get(key, out);
+#endif
   return sat_victron_get_raw(key, out);
 }
 
@@ -872,12 +876,13 @@ std::vector<VictronInfo> panelsat_victron_list() {
   std::vector<VictronInfo> r = sat_victron_list_raw();
   VictronInfo v;
   if (hobby_battery(v)) r.push_back(v);
+  for (auto &x : votronic_list()) r.push_back(x);
   return r;
 }
 
 uint32_t panelsat_version() {
   return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0) +
-         hobby_version() * 7919 + mqd_version() * 104729 + ha_link_version() * 1299709;
+         hobby_version() * 7919 + votronic_version() * 15485863u + mqd_version() * 104729 + ha_link_version() * 1299709;
 }
 
 std::vector<SatPoint> panelsat_point_list() {

@@ -20,6 +20,7 @@ läuft nur per Bluetooth zur SCU (siehe oben).
 | Alde 3020/3030 | LIN, **gelbe** RJ12-Buchse: **Pin 4 = LIN, Pin 2 = Masse** | LIN-Transceiver + Master-Widerstand | 19200 | **Panel** | `platformio.ini` → `[alde]` |
 | Hobby (CI-BUS) | RS232 am LSG, Kabelsatz „Bluetooth-Modul“ von Hobby | RS232-TTL-Wandler (MAX3232) | 115200 | LSG | am Panel: **Einstellungen → Fahrzeug** |
 | Hymer Connect | – (Bluetooth) | – | – | – | Einstellungen → Fahrzeug |
+| Votronic (Display-Link) | RJ11 6-polig: **Pin 1 = TXD, Pin 6 = Masse** (Pin 3 frei) | Spannungsteiler, falls über 3,3 V | 1000 | Votronic-Gerät | am Panel: **Einstellungen → Votronic** |
 
 **LIN-Transceiver** (TJA1020/TJA1021, fertiges Modul; MCP2025 sinngemäß):
 

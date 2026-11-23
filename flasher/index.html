@@ -34,6 +34,8 @@ h1{font-size:24px;margin:0 0 4px}
 .hint{color:var(--tx3);font-size:12px;margin:0}
 .err{color:var(--err)}
 @media (max-width:520px){.grid{grid-template-columns:1fr}}
+h2.sec{font-size:20px;margin:28px 0 2px;display:flex;align-items:center;gap:8px}
+h2.sec .cnt{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--line,#2B3138);color:inherit}
 </style>
 </head>
 <body>
@@ -48,10 +50,10 @@ h1{font-size:24px;margin:0 0 4px}
     Gerät per USB anschließen, Knopf drücken, Anschluss wählen. Hängt es bei „Connecting…“: BOOT-Taste halten und kurz RESET drücken.
   </div>
   <div class="tabs" id="tabs">
-    <button data-sec="panel" class="act">Panels</button>
+    <button data-sec="panel">Panels</button>
     <button data-sec="sat">Satelliten und Zubehör</button>
   </div>
-  <div class="grid" id="grid"><p class="none">Lade Geräteliste …</p></div>
+  <div id="grid"><p class="none">Lade Geräteliste …</p></div>
 </div>
 <script>
 'use strict';
@@ -60,9 +62,11 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 // Online (GitHub Pages): feste Liste aus flasher/online/ (nur veroeffentlichte Dateien); lokal: flasher/gen/ (flasher.bat)
 const ONLINE = /\.github\.io$/.test(location.hostname);
 const BASE = ONLINE ? 'online/' : 'gen/';
-let DEV = [], SEC = 'panel';
+let DEV = [];
 const pick = {};   // Geraet -> gewaehlte Quelle
-try { SEC = localStorage.getItem('socflash.sec') || 'panel'; } catch (e) {}
+// Beide Bereiche untereinander auf einer Seite; die Knoepfe oben springen nur hin
+const SECS = [['panel', 'Panels', 'Die Bedienteile: CrowPanel 7" (ESP32-P4), Waveshare 7", rundes CrowPanel 1,46"'],
+  ['sat', 'Satelliten und Zubehör', 'Satelliten (Tanksonden, Temperaturen, Relais, Sensoren), Zusatzdisplays und das Zigbee-Funkmodul ESP32-H2']];
 
 function btn(manifest, label, primary) {
   if (!manifest) return '';
@@ -73,10 +77,8 @@ function btn(manifest, label, primary) {
   </esp-web-install-button>`;
 }
 
-function render() {
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('act', b.dataset.sec === SEC));
-  const list = DEV.filter(d => d.sec === SEC);
-  $('#grid').innerHTML = list.map(d => {
+function card(d) {
+  {
     if (!d.src.length) return `<div class="card"><h2>${esc(d.name)}<span class="chip">${esc(d.chip)}</span></h2><p class="d">${esc(d.desc)}</p>
       <p class="none">Noch keine Firmware-Datei – im GitHub-Release fehlt sie und hier wurde sie nicht gebaut.</p></div>`;
     // Vorgabe: lokal gebaut, wenn vorhanden (neuester Stand), sonst aktuelle Version (nie von selbst die Testfassung)
@@ -88,15 +90,21 @@ function render() {
     return `<div class="card" data-id="${esc(d.id)}"><h2>${esc(d.name)}<span class="chip">${esc(d.chip)}</span></h2><p class="d">${esc(d.desc)}</p>
       ${srcs}
       <div class="btns">${btn(s.update, 'Nur Firmware (Update)', true)}${btn(s.komplett, 'Komplett (neu einrichten)', !s.update)}</div></div>`;
-  }).join('') || '<p class="none">Keine Geräte in diesem Bereich.</p>';
+  }
+}
+
+function render() {
+  $('#grid').innerHTML = SECS.map(([sec, title, hint]) => {
+    const list = DEV.filter(d => d.sec === sec);
+    return `<h2 class="sec" id="sec-${sec}">${esc(title)} <span class="cnt">${list.length}</span></h2><p class="sub">${esc(hint)}</p>
+      <div class="grid">${list.map(card).join('') || '<p class="none">Keine Geräte in diesem Bereich.</p>'}</div>`;
+  }).join('');
 }
 
 $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-sec]');
-  if (!b) return;
-  SEC = b.dataset.sec;
-  try { localStorage.setItem('socflash.sec', SEC); } catch (er) {}
-  render();
+  const h = b && document.getElementById('sec-' + b.dataset.sec);
+  if (h) h.scrollIntoView({behavior: 'smooth', block: 'start'});
 });
 $('#grid').addEventListener('change', e => {
   const r = e.target.closest('input[type=radio]');

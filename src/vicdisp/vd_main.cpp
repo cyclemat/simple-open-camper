@@ -21,6 +21,7 @@
 #include "../i18n/i18n.h"
 #include "../cerbo.h"
 #include "../victron.h"
+#include "../victron_ctl.h"
 #include "../truma.h"
 #include "../mopeka.h"
 #include "../tpms.h"
@@ -503,6 +504,7 @@ void h_state() {
     o["mac"] = v.mac;
     o["name"] = v.name;
     o["kind_text"] = tr(victron_kind_text(v.kind));
+    if (vctl_supported(v.record)) o["pin"] = vctl_pin(v.mac);   // Orion: per Bluetooth schaltbar
     o["has"] = v.has;
     o["age"] = v.age_s;
     o["status"] = tr_parts(v.status);
@@ -641,6 +643,13 @@ void h_victron() {
   }
   if (d["remove"].is<const char *>()) victron_remove(d["remove"].as<const char *>());
   if (!d["rename"].isNull()) victron_rename(d["rename"]["mac"] | "", d["rename"]["name"] | "");
+  if (!d["pin"].isNull()) {   // {"pin":{mac,pin}}: PIN aus VictronConnect zum Schalten (Orion)
+    std::string pin = d["pin"]["pin"] | "";
+    for (char ch : pin)
+      if (ch < '0' || ch > '9') return send_err(tr("Die PIN besteht nur aus Ziffern"));
+    if (pin.size() > 6) return send_err(tr("Die PIN hat höchstens 6 Ziffern"));
+    vctl_set_pin(d["pin"]["mac"] | "", pin);
+  }
   send_ok();
 }
 

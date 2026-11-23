@@ -3,6 +3,22 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
+## In Arbeit (nächste Version)
+
+**Neu**
+- ⚡ **Votronic** *(Beta, ungetestet)* – eigener Menüpunkt **Einstellungen → Votronic** (Panel und Editor), zwei Wege,
+  ab Werk aus: **Bluetooth Connector S-BC** (Batteriecomputer/Smart Shunt und Solarregler, Kopplung mit PIN 173928) und
+  **Display-Link per Kabel** (RJ11, 1000 Baud: Solarregler, Ladegeräte VBCS/VAC, Ladebooster VCC, Batteriecomputer).
+  Kacheln wie Victron (`vot:bat`, `vot:solar`, `vot:charger`, `vot:booster`), „Kacheln anlegen“, serieller Befehl
+  `votronic`, `/api/votronic`. P4, rundes Panel, Waveshare (nicht in der Victron-Edition). Protokollwissen aus
+  syssi/esphome-votronic (Apache-2.0), [`docs/protokolle/votronic.md`](docs/protokolle/votronic.md).
+- 🔌 **Orion XS / Orion Smart bedienen** *(Beta, ungetestet)* – Kachelfenster wie beim MultiPlus: **Ein/Aus** und
+  **Ladestrom (max.)** mit −/+. Zwei Wege: **per Bluetooth direkt** (kurze Verbindung mit der PIN aus VictronConnect,
+  ab Werk 000000 – Knopf „PIN“ im Fenster; Register 0x0200 Gerätemodus und 0xEDF0 maximaler Ladestrom wie im
+  offiziellen Orion-XS-HEX-Dokument) oder **über den Cerbo GX** (Ein/Aus über `dcdc/<n>/Mode`, wenn der GX einen Schalter
+  meldet). Auch auf Zusatzdisplays. Die Notfall-Rückladung lässt sich (noch) nicht starten – Victron hat dafür keinen
+  Befehl veröffentlicht. Serieller Befehl `vctl`.
+
 ## 0.2.7 – 2026-11-22
 
 **Neu**

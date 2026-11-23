@@ -16,6 +16,8 @@
 #include "settings.h"
 #include "hymer.h"
 #include "hobby.h"
+#include "votronic.h"
+#include "victron_ctl.h"
 #include "truma.h"
 #include "cerbo.h"
 #include "web_server.h"
@@ -280,6 +282,14 @@ static void run(const char *cmd) {
     print_tasks();
   } else if (!strcmp(cmd, "boot")) {
     print_boot();
+#if WITH_VICTRON_CTL
+  } else if (!strcmp(cmd, "vctl")) {
+    vctl_print_debug();
+#endif
+#if WITH_VOTRONIC
+  } else if (!strcmp(cmd, "votronic")) {
+    votronic_print_debug();
+#endif
   } else if (!strcmp(cmd, "ble")) {
     log_printf("Zaehle Bluetooth-Geraete 20 s lang ...\n");
     truma_ble_census(20);
@@ -326,8 +336,8 @@ static void run(const char *cmd) {
     delay(200);
     ESP.restart();
   } else if (!strcmp(cmd, "help") || !strcmp(cmd, "?") || !strcmp(cmd, "hilfe")) {
-    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s%s\n",
-               WITH_HYMER ? ", hymer" : "", WITH_HOBBY ? ", hobby" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
+    log_printf("Befehle: debug (bzw. info/ram/status), tasks, boot, ble%s, webpw (Web-Passwort zuruecksetzen), reboot, help%s%s%s%s\n",
+               WITH_VOTRONIC ? ", votronic" : "", WITH_HYMER ? ", hymer" : "", WITH_HOBBY ? ", hobby" : "", DISPLAY_TESTING ? ", screenshot (tools/screenshot.py)" : "",
                HAS_C6 ? ", c6update (Funkchip aus dem Internet), c6datei (Funkchip aus /sd/c6.bin)" : "");
 #if WITH_ZB_DIRECT
     log_printf("Zigbee-Modul: zb (Stand), zb list, zb permit [Sekunden], zb refresh, zb trace, zb diag, zb raw {\"c\":\"info\"}\n");
