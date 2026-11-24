@@ -11,7 +11,7 @@
 **Geräte**
 - [Gas und Tanks](Gas-und-Tanks)
 - [Akkus, Power Stations, Victron und Votronic](Akkus-und-Victron)
-- [Sensoren (BTHome, Ruuvi, SwitchBot)](Sensoren)
+- [Sensoren (BTHome, Ruuvi, SwitchBot) und Wasserwaage](Sensoren)
 - [Heizung und Kühlbox](Heizung-und-Kuehlbox)
 - [Fahrzeug: Hymer und Hobby](Fahrzeug)
 - [Shelly, ESPHome, Tasmota und WLED](Shelly-ESPHome-WLED)
@@ -23,6 +23,7 @@
 **Bedienen und Fernzugriff**
 - [App „S.O.C. Live“ (Android)](App)
 - [Live-Ansicht](Live-Ansicht)
+- [Ton & Musik (P4)](Ton-und-Musik)
 - [Tailscale – Fernzugriff](Tailscale)
 - [Home Assistant](Home-Assistant)
 

@@ -26,6 +26,8 @@ enum VicKind : uint8_t {
   VIC_CLIMATE = 12,  // Klima-Sensor (bms.cpp: Ruuvi) – Beta
   VIC_HEATER = 13,   // Dieselheizung (bms.cpp) – Beta
   VIC_FRIDGE = 14,   // Kompressor-Kuehlbox (bms.cpp) – Beta
+  VIC_LEVEL = 15,    // Wasserwaage (level.cpp) – Beta
+  VIC_AUDIO = 16,    // Musik/Ton am Panel (audio.cpp) – Beta
 };
 
 struct VictronInfo {
@@ -85,6 +87,15 @@ struct VictronInfo {
   float ht_case = NAN;
   int fr_on = -1, fr_eco = -1, fr_zones = 0, fr_set[2] = {-128, -128}, fr_cur[2] = {-128, -128}, fr_min = -20, fr_max = 20;
   int co2 = -1;
+  // Wasserwaage (VIC_LEVEL): Neigung in Grad (laengs + = Front tiefer, quer + = rechte Seite hoeher); note = was zu tun ist.
+  // Wohnwagen: lv_side cm (+ rechts / - links anheben), lv_jack cm (+ Stuetzrad hoch / - runter).
+  // Reisemobil: Keilhoehe je Rad in cm (vorne rechts, vorne links, hinten rechts, hinten links).
+  float lv_pitch = NAN, lv_roll = NAN, lv_side = NAN, lv_jack = NAN, lv_tol = 0.3f;
+  float lv_wheel[4] = {NAN, NAN, NAN, NAN};
+  uint8_t lv_type = 0, lv_state = 0;   // 0 Wohnwagen / 1 Reisemobil; 0 gerade, 1 fast, 2 schief bzw. Keile zu klein
+  int16_t lv_ramp = 0;
+  // Musik (VIC_AUDIO): state 0 aus / 1 spielt / 2 Pause, note = Titel bzw. Hinweis, soc = Lautstaerke %
+  int au_idx = -1, au_count = 0;
 };
 
 // Smart Battery Sense meldet sich als Batteriemonitor (0x02), aber ohne Ladezustand und Strom
@@ -109,7 +120,8 @@ bool victron_has_devices();
 #define SATSHUNT_KEY_PREFIX "satshunt:"
 static inline bool victron_is_key(const std::string &k) {
   return k.rfind(VICTRON_KEY_PREFIX, 0) == 0 || k.rfind("cerbo:", 0) == 0 || k.rfind("bms:", 0) == 0 ||
-         k.rfind(SATSHUNT_KEY_PREFIX, 0) == 0 || k == "hobby:bat";   // Hobby-Bordbatterie (hobby.cpp)
+         k.rfind(SATSHUNT_KEY_PREFIX, 0) == 0 || k == "hobby:bat" ||   // Hobby-Bordbatterie (hobby.cpp)
+         k.rfind("vot:", 0) == 0 || k == "level:1" || k == "audio:player";   // Votronic, Wasserwaage, Musik (eigene Module)
 }
 
 // Vom Bluetooth-Scan (truma.cpp) fuer jedes Paket mit Hersteller-ID 0x02E1 aufgerufen.

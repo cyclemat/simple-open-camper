@@ -141,5 +141,8 @@ Satellit in mehreren Stufen – alles im Web-IF einstellbar:
 Den **Nullpunkt** setzt du per Knopf, wenn das Fahrzeug gerade steht. Achsen tauschen und umkehren geht ebenfalls,
 falls die Platine anders herum eingebaut ist.
 
+Auf dem Panel wird daraus die **[Wasserwaage](Sensoren)** *(Beta)*:
+Kachel mit Zentimetern je Seite/Rad, Einrichten im Editor mit eigenem Nullpunkt und Assistent für die Einbaulage.
+
 ---
 *Diese Seite wird aus der [README](https://github.com/cyclemat/simple-open-camper) erzeugt (`tools/make_wiki.py`) – Änderungen bitte dort.*

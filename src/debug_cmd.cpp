@@ -17,6 +17,8 @@
 #include "hymer.h"
 #include "hobby.h"
 #include "votronic.h"
+#include <lwip/sockets.h>
+#include "dbglog.h"
 #include "victron_ctl.h"
 #include "truma.h"
 #include "cerbo.h"
@@ -213,6 +215,7 @@ static void print_info() {
 #else
              ble_proto_on(BLE_P_SAT) ? " Satelliten" : "", ble_proto_on(BLE_P_HYMER) ? " Hymer" : "");
 #endif
+  log_printf("Bluetooth-Scan: %s\n", truma_scan_status().c_str());
   if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) log_printf("Hymer: %s\n", hymer_status().c_str());   // nur wenn eingeschaltet
   if (cerbo_configured()) log_printf("Cerbo GX: %s – %s\n", cerbo_status().c_str(), cerbo_debug_text().c_str());
 #if HAS_C6
@@ -275,6 +278,39 @@ static void sm_selftest() {
 }
 #endif
 
+// Belegte lwIP-Sockets zaehlen und (list) je Zeile mit Art, lokalem Port und Gegenstelle beschreiben
+std::string debug_sockets(int *used, int *tcp, int *udp, bool list) {
+  int n = 0, nt = 0, nu = 0;
+  std::string out;
+  for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + CONFIG_LWIP_MAX_SOCKETS; fd++) {
+    int type = 0;
+    socklen_t tl = sizeof(type);
+    if (lwip_getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &tl) != 0) continue;
+    n++;
+    if (type == SOCK_STREAM) nt++;
+    if (type == SOCK_DGRAM) nu++;
+    if (!list) continue;
+    struct sockaddr_storage la = {}, ra = {};
+    socklen_t ll = sizeof(la), rl = sizeof(ra);
+    char ls[32] = "-", rs[32] = "-", line[120];
+    if (lwip_getsockname(fd, (struct sockaddr *)&la, &ll) == 0 && la.ss_family == AF_INET) {
+      struct sockaddr_in *x = (struct sockaddr_in *)&la;
+      snprintf(ls, sizeof(ls), "%s:%u", inet_ntoa(x->sin_addr), ntohs(x->sin_port));
+    }
+    if (lwip_getpeername(fd, (struct sockaddr *)&ra, &rl) == 0 && ra.ss_family == AF_INET) {
+      struct sockaddr_in *x = (struct sockaddr_in *)&ra;
+      snprintf(rs, sizeof(rs), "%s:%u", inet_ntoa(x->sin_addr), ntohs(x->sin_port));
+    }
+    snprintf(line, sizeof(line), "  fd %2d  %s  lokal %-21s  Gegenstelle %s\n", fd,
+             type == SOCK_STREAM ? "TCP" : type == SOCK_DGRAM ? "UDP" : "RAW", ls, rs);
+    out += line;
+  }
+  if (used) *used = n;
+  if (tcp) *tcp = nt;
+  if (udp) *udp = nu;
+  return out;
+}
+
 static void run(const char *cmd) {
   if (!strcmp(cmd, "debug") || !strcmp(cmd, "info") || !strcmp(cmd, "ram") || !strcmp(cmd, "status")) {
     print_info();
@@ -290,6 +326,29 @@ static void run(const char *cmd) {
   } else if (!strcmp(cmd, "votronic")) {
     votronic_print_debug();
 #endif
+  } else if (!strcmp(cmd, "sockets")) {   // belegte lwIP-Sockets (Vorrat ist klein, z. B. 16 fuer alles)
+    int used = 0;
+    std::string t = debug_sockets(&used, nullptr, nullptr, true);
+    log_printf("%s%d von %d Sockets belegt\n", t.c_str(), used, CONFIG_LWIP_MAX_SOCKETS);
+  } else if (!strcmp(cmd, "log on") || !strcmp(cmd, "log an")) {   // Debug-Log (SD-Karte) seriell schalten
+    dbglog_set(true);
+    log_printf("Debug-Log an%s\n", dbglog_dir().empty() ? " (noch keine SD-Karte/Ordner – nur Ringpuffer)" : "");
+  } else if (!strcmp(cmd, "log off") || !strcmp(cmd, "log aus")) {
+    dbglog_set(false);
+    log_printf("Debug-Log aus\n");
+  } else if (!strcmp(cmd, "log")) {
+    log_printf("Debug-Log %s, Ordner %s, Datei %s, %lu Zeichen verloren\n", dbglog_on() ? "an" : "aus",
+               dbglog_dir().empty() ? "-" : dbglog_dir().c_str(), dbglog_current().empty() ? "-" : dbglog_current().c_str(),
+               (unsigned long)dbglog_lost());
+    for (auto &f : dbglog_files()) log_printf("  %s  %ld Byte\n", f.name.c_str(), f.size);
+  } else if (!strcmp(cmd, "log zeigen") || !strcmp(cmd, "log show")) {   // letzte 8 KB des Ringpuffers
+    std::string r = dbglog_ring();
+    if (r.size() > 8192) r = r.substr(r.size() - 8192);
+    for (size_t i = 0; i < r.size(); i += 256) {   // in Stuecken, damit die Ausgabe nicht abreisst
+      log_printf("%s", r.substr(i, 256).c_str());
+      delay(2);
+    }
+    log_printf("\n----- Ende (%u Zeichen) -----\n", (unsigned)r.size());
   } else if (!strcmp(cmd, "ble")) {
     log_printf("Zaehle Bluetooth-Geraete 20 s lang ...\n");
     truma_ble_census(20);

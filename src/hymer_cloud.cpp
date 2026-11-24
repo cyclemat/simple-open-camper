@@ -1,5 +1,6 @@
 // Hymer Connect – Anmeldung beim Hymer-Server, siehe hymer_cloud.h
 #include "hymer_cloud.h"
+#include "app_config.h"
 #include "hymer.h"
 
 #if WITH_HYMER
@@ -53,7 +54,8 @@ void hymer_mbedtls_psram(bool on) {
   if (on) {
     if (s_psram_users++ == 0) mbedtls_platform_set_calloc_free(psram_calloc, free);
   } else if (s_psram_users > 0 && --s_psram_users == 0) {
-    mbedtls_platform_set_calloc_free(internal_calloc, free);
+    // zurueck zum Standard der Firmware (P4: TLS bleibt im PSRAM, siehe app_config.h APP_MBEDTLS_PSRAM)
+    mbedtls_platform_set_calloc_free(APP_MBEDTLS_PSRAM ? psram_calloc : internal_calloc, free);
   }
 }
 

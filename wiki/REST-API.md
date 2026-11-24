@@ -8,7 +8,6 @@ Vom Editor genutzt, auch für eigene Skripte:
 |---|---|
 | `GET /api/info`, `GET /api/devices` | Zustand des Panels, Geräteliste |
 | `GET\|POST /api/layout` | Layout (`?force=1` bei Konflikt) |
-| `POST /api/rename` | `{ieee, name}` in Zigbee2MQTT umbenennen |
 | `GET\|POST /api/bg?page=<id>&fmt=jpg` | Hintergrund (JPEG 1024 × 600, `&delete=1`) |
 | `GET\|POST /api/backup` | `{"create":true}`, `{"restore":"<name>"}`, `{"delete":"<name>"}` |
 | `GET\|POST /api/settings` | Einstellungen, inkl. `{"ble":{"truma","mopeka","victron","inetx"}}` |

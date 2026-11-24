@@ -9,6 +9,7 @@
 #include "app_config.h"
 #include "esp_heap_caps.h"
 #include "esp_task_wdt.h"
+#include "mbedtls/platform.h"
 #include "board.h"
 #include "layout.h"
 #include "net.h"
@@ -31,6 +32,8 @@
 #include "hymer.h"
 #include "hobby.h"
 #include "votronic.h"
+#include "level.h"
+#include "audio.h"
 #include "shelly_ble.h"
 #include "alde.h"
 #include "sdcard.h"
@@ -118,11 +121,41 @@ static std::string dbg_status() {
   std::string ts = ts_status_line();
   if (!ts.empty()) s += " · " + ts;
   if (net_ap_active()) s += " · Panel-WLAN " + std::to_string(net_ap_clients()) + " Teilnehmer";
+  int used = 0, tcp = 0, udp = 0;
+  debug_sockets(&used, &tcp, &udp, false);
+  s += " · Sockets " + std::to_string(used) + "/" + std::to_string(CONFIG_LWIP_MAX_SOCKETS) + " (TCP " + std::to_string(tcp) +
+       ", UDP " + std::to_string(udp) + ")";
   return s;
 }
 
+// Debug-Log an: sind die Sockets fast aufgebraucht, alle mit Gegenstelle ins Log schreiben (hoechstens einmal je Minute).
+// Dann weist der Webserver neue Verbindungen ab ("error in accept (23)") – so steht der Verursacher in der Datei.
+static void sockets_watch() {
+  static uint32_t t_check = 0, t_dump = 0;
+  if (!dbglog_on() || millis() - t_check < 5000) return;
+  t_check = millis();
+  int used = 0;
+  debug_sockets(&used, nullptr, nullptr, false);
+  if (used < CONFIG_LWIP_MAX_SOCKETS - 1 || (t_dump && millis() - t_dump < 60000)) return;
+  t_dump = millis();
+  std::string t = "Sockets fast voll (" + std::to_string(used) + "/" + std::to_string(CONFIG_LWIP_MAX_SOCKETS) + "):\n" +
+                  debug_sockets(nullptr, nullptr, nullptr, true);
+  dbglog_note(t.c_str());
+}
+
+#if APP_MBEDTLS_PSRAM
+// TLS-Puffer ins PSRAM (app_config.h); reicht das PSRAM nicht, wie bisher intern
+static void *tls_calloc(size_t n, size_t size) {
+  void *p = heap_caps_calloc(n, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p ? p : heap_caps_calloc(n, size, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+}
+#endif
+
 void setup() {
   heap_caps_malloc_extmem_enable(APP_EXTMEM_MIN);   // kleine Speicherstuecke ins PSRAM (app_config.h)
+#if APP_MBEDTLS_PSRAM
+  mbedtls_platform_set_calloc_free(tls_calloc, free);
+#endif
   Serial.begin(115200);
   delay(50);
   log_i("%s %s startet", FW_NAME, FW_VERSION);
@@ -192,6 +225,8 @@ void setup() {
   alde_begin();        // Alde Compact 3020/3030 (LIN-Bus) – nur mit WITH_ALDE, sonst leer
   hobby_begin();
   votronic_begin();    // Votronic (S-BC per Bluetooth / Display-Link per Kabel) – ab Werk aus
+  level_begin();       // Wasserwaage (Satellit mit MPU-6050 oder Ruuvi Tag) – ab Werk aus
+  audio_begin();       // Ton/Musik (nur P4, Verstaerker bleibt aus, bis etwas spielt) – ab Werk aus
   shb_begin();         // Shelly per Bluetooth (Gen2+, ab Werk aus)       // Hobby (HobbyConnect-Box / CI-BUS) – ab Werk aus, nur Einstellungen laden
   bms_begin();         // Akkus mit BMS (nur gespeicherte Geraete laden; verbunden wird im Bluetooth-Task)
   truma_begin();       // Gasflaschen per Bluetooth (startet BLE erst, wenn ein Sensor eingerichtet ist)
@@ -216,6 +251,7 @@ void loop() {
   handle_events();
   net_loop();
   web_loop();         // Webinterface "bei Bedarf": nach 15 min ohne Zugriff beenden
+  sockets_watch();    // nur mit Debug-Log: volle Sockets protokollieren
   ui_loop();
   rules_loop();
   static uint32_t gx_ms = 0;

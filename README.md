@@ -29,8 +29,9 @@
 Das Panel läuft im Alltag mit Zigbee2MQTT (getestet mit **131 Geräten / 73 Kacheln**). Einige Module sind nach
 offenen Protokollbeschreibungen gebaut, aber **noch nicht an echter Hardware getestet**:
 Mopeka mit echtem Sensor, Truma CP Plus, Truma iNet X, Alde, WLED und Cerbo GX, die meisten Akku-Typen und
-Power Stations sowie die neuen Sensoren **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** und Akkus von
-**CS-BATTERIES**.
+Power Stations sowie die neuen Sensoren **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot**, Akkus von
+**CS-BATTERIES**, die neue **[Wasserwaage](#-wasserwaage-wohnwagen-und-reisemobil-beta-ungetestet)** *(Beta)* für
+Wohnwagen und Reisemobil und **[Ton & Musik](#-ton--musik-nur-p4-beta)** *(Beta)* am P4.
 
 Wer eines davon hat und testen mag: Rückmeldungen, Logs und Ideen sind sehr willkommen!
 
@@ -94,6 +95,10 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - ⚡ **Power Stations** per Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: Ladestand, Leistung, AC-/DC-Ausgang schalten
 - 💧 **SuperSense-Tankmodul** *(Beta)* – bis zu vier Tanksensoren per Bluetooth
 - 💧 **Simarine STRx** *(Beta)* – Tanksensoren STR1/STR2/STR3 per Bluetooth-Broadcast, offen oder verschlüsselt
+- 📐 **Wasserwaage** *(Beta)* – Wohnwagen (Seite und Stützrad in cm) oder Reisemobil (Keilhöhe je Rad), Sensor: Satellit
+  mit MPU-6050 oder Ruuvi Tag; Nullpunkt und Einbaulage nur im Editor, mit Assistent
+- 🔊 **Ton & Musik** *(Beta, nur P4)* – Warn- und Hinweistöne und Ansagen per Regel über den Lautsprecher-Anschluss;
+  MP3-Musik von der SD-Karte gibt es als **Gimmick** obendrauf
 - 🌡️ **Klima-Sensoren** *(Beta)* – **Ruuvi** Tag/Air und **SwitchBot** Meter/Meter Plus/Outdoor Meter: Temperatur,
   Luftfeuchte, Luftdruck, beim Ruuvi Air auch CO₂ und Feinstaub; das Panel hört nur mit, keine Kopplung
 - 🔥 **Dieselheizung** *(Beta)* – Vevor/Hcalory, HeaterCC/AirHeater: anzeigen und bedienen (ein/aus, Stufe, Temperatur)
@@ -246,6 +251,21 @@ eingerichtetes Gerät (Einstellungen behalten) `esptool --port COM11 write-flash
 - `tools/embed_web.py` packt bei jedem Build den Editor gzip-komprimiert in die Firmware.
 - `tools/upload_wait.py` wartet vor dem Hochladen auf Enter (`PANEL_UPLOAD_NOWAIT=1` schaltet es ab).
 - `pio run -e check-all` baut zur Probe eine Variante mit **allen** Modulen (nicht zum Hochladen gedacht).
+- **32 statt 16 Netzwerk-Sockets (P4 und rundes Panel)**: Die veröffentlichten Firmware-Dateien kommen seit 0.2.8 aus den
+  Umgebungen `crowpanel-p4-sock32` und `crowpanel-146-sock32` (eigene Projektordner `p4-sock32/` und
+  `crowpanel146-sock32/`). Webserver, eingebauter MQTT-Broker, Tailscale, Home Assistant und UDP teilen sich den
+  Socket-Vorrat; mit 16 hing der Webserver bei vielen Diensten gleichzeitig. Die Socket-Zahl steckt in den fertig
+  übersetzten Framework-Bibliotheken, darum übersetzt der **erste Build** sie neu (**1–2 Stunden**, eigener Paketordner,
+  die normalen Umgebungen bleiben unberührt). Beim P4 werden dabei die Versionen der Funkchip-Bausteine festgehalten
+  (`tools/pin_components.py`, sonst kein WLAN). Außerdem liegen dort der Bluetooth-Host-Speicher und (P4) die
+  Netzwerkpuffer im PSRAM, der Bluetooth-Host-Task hat mehr Stapel, das runde Panel erlaubt 5 statt 3 gleichzeitige
+  Bluetooth-Verbindungen. Die Umgebungen `crowpanel-p4` und `crowpanel-146` (16 Sockets, 3–4 Minuten Build) bleiben als
+  Rückfall. Am P4 getestet, am runden Panel noch nicht *(Beta)* – macht es Probleme, gehen wir auf 16 zurück.
+- **Bluetooth und WLAN teilen sich die Antenne.** Der Dauerscan (Victron, Mopeka, Ruuvi …) lauscht deshalb nur 12–15 %
+  der Zeit; neue Werte kommen etwa alle 5–10 s, die Kachel zeigt das Alter. Läuft keine Suche, hört das Panel nur noch
+  auf die eingerichteten Geräte (Whitelist im Controller, bis 12 Geräte) – fremde Geräte auf dem Platz belasten es dann
+  nicht mehr. Nach dem Start und alle 10 Minuten (falls ein Gerät fehlt) lauscht es eine Minute offen. Während der
+  Editor oder die App benutzt wird, scannt der P4 sparsam weiter (5 %), die S3-Panels pausieren den Scan. *(Beta)*
 - Nur nötig, wenn du Schriften, Icons oder den Editor änderst:
 
 ```sh
@@ -450,6 +470,64 @@ der Simarine-App neu erzeugt, den neuen eintragen. Nicht als einzige Messung fü
   Keine Kopplung, kein Passwort, die Hersteller-App darf offen bleiben, ein SwitchBot-Hub ist nicht nötig.
 - Einrichten unter **Sensoren → Sensoren suchen** (Editor: Reiter Sensoren) – der Sensor erscheint als „Ruuvi“ bzw. „SwitchBot Meter“.
 - Kachel: Temperatur groß, Luftfeuchte darunter (Ruuvi Air: CO₂). Im Detail Luftdruck, Feinstaub und Batterie.
+
+### 📐 Wasserwaage (Wohnwagen und Reisemobil) *(Beta, ungetestet)*
+
+Zeigt auf dem Panel, wie schief das Fahrzeug steht und **was zu tun ist**:
+
+- **Wohnwagen:** welche Seite wie viele Zentimeter anheben (Spurweite) und das **Stützrad** wie viele Zentimeter
+  hoch- oder runterkurbeln (Abstand Achse–Stützrad).
+- **Reisemobil:** die **Keilhöhe je Rad** in Zentimetern (Radstand, Spurweite). Ist die nötige Höhe größer als die
+  höchste Stufe der Auffahrkeile, wird es rot („Keile zu klein“). Ein Rad bleibt immer bei 0 – das ist der höchste Punkt.
+- Kachel: größte Neigung in Grad, darunter der nächste Schritt („Vorne rechts 6,5 cm auffahren“). Grün = gerade
+  (ab Werk bis 0,3°), Bernstein = fast gerade (bis 1,5°), Rot = schief bzw. Keile zu klein. Kachel antippen =
+  Draufsicht mit Zentimetern an den Rädern und Libelle.
+
+**Sensor:** ein **Satellit mit MPU-6050** (siehe [Satelliten](#️-satelliten)) oder ein **Ruuvi Tag** (unter
+Sensoren hinzufügen; die Wasserwaage nutzt dessen Beschleunigungssensor, Datenformat 5).
+
+**Wo** der Sensor sitzt, ist egal – das Fahrzeug ist starr, die Neigung ist überall gleich. Die Zentimeter rechnet das
+Panel nur aus dem Winkel und den Fahrzeugmaßen. Wichtig ist nur, **wie herum** er eingebaut ist.
+
+**Einrichten – nur im Editor** (Einstellungen → **Wasserwaage**), absichtlich nicht am Panel, damit niemand den
+Nullpunkt aus Versehen verstellt:
+
+1. Einschalten, **Sensor** und **Fahrzeug** (Wohnwagen/Reisemobil) wählen, **Maße** eintragen (Spurweite; Wohnwagen:
+   Achse bis Stützrad; Reisemobil: Radstand und höchste Keilstufe).
+2. Fahrzeug auf einem ebenen Platz gerade hinstellen (mit einer echten Wasserwaage prüfen) und **Nullpunkt setzen**.
+   Danach muss der Sensor nicht genau gerade eingebaut sein – auch schräg oder (Ruuvi) senkrecht an der Wand geht.
+3. **Einbaulage:** angeben, wohin die Kante/der Pfeil des Sensors zeigt (vorne, rechts, hinten, links) und ob links/
+   rechts vertauscht ist – **oder den Assistenten nehmen**: „Assistent starten“, dann die Front anheben (Reisemobil:
+   mit beiden Vorderrädern auf die Keile fahren; Wohnwagen: Stützrad hochkurbeln) und „Weiter“. Optional danach die
+   rechte Seite anheben und „Weiter“ – damit prüft er auch links/rechts. Der Assistent stellt die Einbaulage selbst
+   ein, auch wenn der Sensor schräg zur Fahrtrichtung sitzt.
+
+Vorzeichen in der Weboberfläche: längs + = Front tiefer, quer + = rechte Seite höher. API: `/api/level`.
+
+### 🔊 Ton & Musik (nur P4) *(Beta)*
+
+Der P4 hat einen Lautsprecher-Anschluss (I2S-Verstärker). Das Panel spielt darüber **MP3-Dateien von seiner SD-Karte**
+– ganz ohne Internet und ohne Handy.
+
+> ℹ️ **Kern der Funktion sind Warn- und Hinweistöne** (z. B. eine Ansage, wenn die Gasflasche fast leer ist). Die
+> **Musikwiedergabe ist nur ein Gimmick**: Sie ist ein Teil der Warnton-Abspielfunktion und nutzt denselben
+> Abspieler – kein vollwertiger Musikplayer.
+
+- **Musik:** MP3s in den Ordner **`music`** der SD-Karte legen. Kachel „Musik“ (Geräteliste → Musik): **kurz tippen =
+  Abspielen/Pause**, **lang drücken** = Player-Fenster mit Titel, Bedienung und Lautstärke. Die Titel laufen der Reihe
+  nach (alphabetisch), am Ende wieder von vorn.
+- **Hinweistöne und Ansagen:** eingebaute Töne **Gong, Piepton, Alarm** oder eigene MP3s im Ordner **`sounds`**
+  (z. B. „Gas fast leer.mp3“). Läuft gerade Musik, wird sie dafür kurz angehalten und läuft danach weiter.
+- **In den Regeln:** Aktionen **„Ton abspielen“** (Ton oder Ansage) und **„Musik“** (abspielen, Pause, stoppen,
+  nächster/voriger Titel, Lautstärke). Damit gehen z. B. ein **Wecker** (Auslöser „täglich um 7:00“ → Musik abspielen),
+  eine **Gas-Warnung** (Kachel Gas unter 15 % → Ansage) oder eine **Klingel** (Zigbee-Taster → Gong).
+- **Einstellungen nur im Editor** (Einstellungen → **Ton & Musik**): ein/aus (ab Werk aus), Lautstärke für Musik und
+  für Hinweistöne getrennt, Titelliste zum Antippen, Töne zum Probehören.
+- Sparsam: Der MP3-Decoder ist [minimp3](https://github.com/lieff/minimp3) (gemeinfrei, rund 30 KB). Der Audio-Teil
+  liegt im PSRAM (Puffer und Arbeitsspeicher des Decoders), braucht vom knappen internen Speicher nur wenige KB und
+  gibt seine Puffer 20 s nach dem Abspielen wieder frei. Der Verstärker ist aus, solange nichts spielt (kein Rauschen).
+- Anschluss: Lautsprecher (z. B. 4–8 Ω, 2–3 W) an die Lautsprecher-Buchse des CrowPanel. Pins laut Elecrow-Beispielen:
+  BCLK GPIO 22, LRCK GPIO 21, Daten GPIO 23, Verstärker an GPIO 30 (Low = an) – am P4 V1.2 mit Lautsprecher geprüft.
 
 ### ☀️ Victron
 
@@ -880,6 +958,9 @@ Satellit in mehreren Stufen – alles im Web-IF einstellbar:
 Den **Nullpunkt** setzt du per Knopf, wenn das Fahrzeug gerade steht. Achsen tauschen und umkehren geht ebenfalls,
 falls die Platine anders herum eingebaut ist.
 
+Auf dem Panel wird daraus die **[Wasserwaage](#-wasserwaage-wohnwagen-und-reisemobil-beta-ungetestet)** *(Beta)*:
+Kachel mit Zentimetern je Seite/Rad, Einrichten im Editor mit eigenem Nullpunkt und Assistent für die Einbaulage.
+
 ---
 
 ## 🏠 Home Assistant
@@ -972,7 +1053,6 @@ Vom Editor genutzt, auch für eigene Skripte:
 |---|---|
 | `GET /api/info`, `GET /api/devices` | Zustand des Panels, Geräteliste |
 | `GET\|POST /api/layout` | Layout (`?force=1` bei Konflikt) |
-| `POST /api/rename` | `{ieee, name}` in Zigbee2MQTT umbenennen |
 | `GET\|POST /api/bg?page=<id>&fmt=jpg` | Hintergrund (JPEG 1024 × 600, `&delete=1`) |
 | `GET\|POST /api/backup` | `{"create":true}`, `{"restore":"<name>"}`, `{"delete":"<name>"}` |
 | `GET\|POST /api/settings` | Einstellungen, inkl. `{"ble":{"truma","mopeka","victron","inetx"}}` |
@@ -1045,6 +1125,7 @@ der ursprünglichen Protokoll-Analyse ohne Lizenz. Das ist keine Rechtsberatung.
 | NimBLE-Arduino | [h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) | Apache-2.0 | Bluetooth (Waveshare, rundes Panel, Satelliten, Victron-Display) |
 | esp-nimble-cpp | [h2zero/esp-nimble-cpp](https://github.com/h2zero/esp-nimble-cpp) | Apache-2.0 | Bluetooth am P4 (über den Funkchip C6) |
 | LovyanGFX | [lovyan03/LovyanGFX](https://github.com/lovyan03/LovyanGFX) | FreeBSD (BSD-2-Clause) | Display-Treiber rundes Panel und CYD |
+| minimp3 | [lieff/minimp3](https://github.com/lieff/minimp3) | CC0 (gemeinfrei) | **eingebunden** in `src/third_party/minimp3/`: MP3-Wiedergabe am P4 |
 | micro-ecc | [kmackay/micro-ecc](https://github.com/kmackay/micro-ecc) | BSD-2-Clause | **eingebunden** in `src/third_party/`: EcoFlow-Schlüsseltausch, Bluetooth-Kopplung am P4 |
 | Arduino-ESP32 | [espressif/arduino-esp32](https://github.com/espressif/arduino-esp32) | LGPL-2.1 | Framework |
 | ESP-IDF | [espressif/esp-idf](https://github.com/espressif/esp-idf) | Apache-2.0 | Framework, u. a. MQTT, HTTP-Server, NimBLE-Stack |

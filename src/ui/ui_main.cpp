@@ -31,6 +31,7 @@
 #include "../ha_link.h"
 #include "../tailscale.h"
 #include "../mqtt_broker.h"   // WITH_BROKER
+#include "../audio.h"         // WITH_AUDIO
 // Victron-Edition: kein Zigbee-Text im Programm (Funktion dort nicht eingebaut)
 #if WITH_ZB_DIRECT
 #define ZBD_OFFLINE_TXT tr("Zigbee-Modul nicht verbunden")
@@ -490,6 +491,12 @@ static void tile_event(lv_event_t *e) {
   }
   if (s_tiles[idx].gas || s_tiles[idx].vic || s_tiles[idx].heat) {
     if (millis() - s_last_gesture < 500) return;
+#if WITH_AUDIO
+    if (key == AUDIO_KEY && code == LV_EVENT_SHORT_CLICKED) {   // Musik: kurz = Abspielen/Pause, lang = Fenster
+      audio_toggle();
+      return;
+    }
+#endif
 #if UI_ROUND
     // Detailfenster sind fuer 1024x600 gebaut. Rund: Heizung, Kuehlbox und Power Station bekommen eine eigene
     // Bedienseite, alles andere zeigt seine Werte ueber die Datenseiten (hoch/runter wischen).

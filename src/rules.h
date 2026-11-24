@@ -17,7 +17,9 @@
 //             {"k":"dimstep","key":"…","step":20,"min":10}           je Ausloesung dunkler, unter min wieder 100 %
 //             {"k":"rule","name":"…","do":"toggle|on|off"}           andere Regel ein-/ausschalten
 //             {"k":"wait","s":120}                                   warten (neuer Ausloeser startet die Regel neu)
-//             {"k":"msg","text":"…"} ]}                              Hinweis auf dem Panel
+//             {"k":"msg","text":"…"}                                 Hinweis auf dem Panel
+//             {"k":"sound","tone":0|1|2} | {"k":"sound","file":"…"}  Hinweiston (Gong/Piep/Alarm) bzw. Ansage aus /sounds
+//             {"k":"music","do":"play|pause|toggle|stop|next|prev"} | {"k":"music","vol":40} ]}   Musik (nur P4)
 // Ausdruck: {"op":"and|or","a":[…]} | {"op":"not","a":[x]} | {"op":"cmp","l":W,"c":"=|!=|<|>|<=|>=","r":W}
 //           | {"op":"time","from":"20:00","to":"06:00"}
 // Wert W:   {"n":Zahl} | {"s":"Text"} | {"b":true} | {"zb":"0x…","p":"temperature"} | {"tile":"…","p":"lit|fill|value"}

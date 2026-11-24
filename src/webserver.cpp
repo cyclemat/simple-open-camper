@@ -28,6 +28,8 @@
 #include "hymer_cloud.h"
 #include "hobby.h"
 #include "votronic.h"
+#include "level.h"
+#include "audio.h"
 #include "victron_ctl.h"
 #include "shelly_ble.h"
 #include "dbglog.h"
@@ -196,6 +198,12 @@ static esp_err_t h_info(httpd_req_t *req) {
 #if WITH_VOTRONIC
   d["feat"]["votronic"] = true;
 #endif
+#if WITH_LEVEL
+  d["feat"]["level"] = true;
+#endif
+#if WITH_AUDIO
+  d["feat"]["audio"] = true;
+#endif
   d["feat"]["bms"] = (bool)WITH_BMS;
   d["feat"]["sats"] = (bool)WITH_SATELLITES;
   d["feat"]["ts"] = (bool)WITH_TAILSCALE;
@@ -211,7 +219,7 @@ static const char *vic_type(VicKind k) {
        : k == VIC_CHARGER ? "charger" : k == VIC_DCSYS ? "dcsys" : k == VIC_INVERTER ? "inverter"
        : k == VIC_PSTATION ? "pstation" : k == VIC_PROTECT ? "protect" : k == VIC_LITHIUM ? "lithium"
        : k == VIC_TANK ? "tank" : k == VIC_CLIMATE ? "climate" : k == VIC_HEATER ? "heater"
-       : k == VIC_FRIDGE ? "fridge" : "other";
+       : k == VIC_FRIDGE ? "fridge" : k == VIC_LEVEL ? "level" : "other";
 }
 
 static void put(JsonObject o, const char *k, float v, float scale = 100) {
@@ -550,7 +558,7 @@ static esp_err_t h_devices(httpd_req_t *req) {
       o["label"] = it != lay.names.end() && !it->second.empty() ? it->second : v.name;
       o["model"] = victron_kind_text(v.kind);
 #if WITH_VOTRONIC
-      o["vendor"] = v.key.rfind("vot:", 0) == 0 ? "Votronic" : "Victron";
+      o["vendor"] = v.key.rfind("vot:", 0) == 0 ? "Votronic" : v.key == LEVEL_KEY ? "Wasserwaage" : v.key == AUDIO_KEY ? "Musik" : "Victron";
 #else
       o["vendor"] = "Victron";
 #endif
@@ -626,18 +634,6 @@ static esp_err_t h_layout_post(httpd_req_t *req) {
   return send_json(req, "{\"ok\":true,\"rev\":" + std::to_string(layout_get().rev) + "}");
 }
 
-static esp_err_t h_rename(httpd_req_t *req) {
-  size_t len;
-  char *body = read_body(req, 2048, len);
-  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
-  JsonDocument d(&s_ps);
-  DeserializationError e = deserializeJson(d, body, len);
-  heap_caps_free(body);
-  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
-  std::string err = z2m_rename(d["ieee"] | "", d["name"] | "");
-  if (!err.empty()) return send_err(req, "400 Bad Request", err);
-  return send_ok(req);
-}
 
 // ---------------------------------------------------------------- Hintergruende
 static bool valid_page(const std::string &p) {
@@ -1866,6 +1862,156 @@ static esp_err_t h_votronic_post(httpd_req_t *req) {
 }
 #endif
 
+#if WITH_AUDIO
+// Ton/Musik: Einstellungen, Zustand, Titel- und Ansagenliste
+static esp_err_t h_audio_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  AudioCfg c = audio_cfg();
+  AudioState st = audio_state();
+  d["on"] = c.on;
+  d["vol"] = c.vol;
+  d["alert_vol"] = c.alert_vol;
+  d["sd"] = sd_ok();
+  d["playing"] = st.playing;
+  d["paused"] = st.paused;
+  d["title"] = st.title;
+  d["idx"] = st.idx;
+  d["status"] = st.status;
+  if (c.on && sd_ok()) {
+    JsonArray fa = d["files"].to<JsonArray>();
+    for (auto &f : audio_files()) fa.add(f);
+    JsonArray sa = d["sounds"].to<JsonArray>();
+    for (auto &f : audio_sounds()) sa.add(f);
+  }
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"on","vol","alert_vol"} | {"cmd":"play|toggle|stop|next|prev","idx"} | {"tone":0..2} | {"sound":"datei.mp3"}
+static esp_err_t h_audio_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 512, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  if (d["on"].is<bool>() || !d["vol"].isNull() || !d["alert_vol"].isNull()) {
+    AudioCfg c = audio_cfg();
+    if (d["on"].is<bool>()) c.on = d["on"];
+    if (!d["vol"].isNull()) c.vol = d["vol"] | c.vol;
+    if (!d["alert_vol"].isNull()) c.alert_vol = d["alert_vol"] | c.alert_vol;
+    audio_set_cfg(c);
+  }
+  if (!audio_cfg().on && (d["cmd"].is<const char *>() || !d["tone"].isNull() || d["sound"].is<const char *>()))
+    return send_err(req, "409 Conflict", "Ton ist ausgeschaltet.");
+  std::string cmd = d["cmd"] | "";
+  if (cmd == "play") audio_play(d["idx"] | -1);
+  else if (cmd == "toggle") audio_toggle();
+  else if (cmd == "stop") audio_stop();
+  else if (cmd == "next") audio_next();
+  else if (cmd == "prev") audio_prev();
+  if (!d["tone"].isNull()) audio_tone((AudioTone)constrain((int)(d["tone"] | 0), 0, 2));
+  if (d["sound"].is<const char *>()) {
+    std::string f = d["sound"] | "";
+    if (f.find('/') != std::string::npos || f.find("..") != std::string::npos) return send_err(req, "400 Bad Request", "Ungültiger Dateiname");
+    audio_sound(f);
+  }
+  return send_ok(req);
+}
+#endif
+
+#if WITH_LEVEL
+// Wasserwaage: Einstellungen, Quellen, aktuelle Neigung, Assistent
+static void level_state_json(JsonObject o) {
+  VictronInfo v;
+  float a, b;
+  o["raw_ok"] = level_raw(a, b);
+  if (level_get(LEVEL_KEY, v)) {
+    o["has"] = v.has;
+    o["status"] = v.has ? std::string() : v.status;
+    if (v.has) {
+      put(o, "pitch", v.lv_pitch);
+      put(o, "roll", v.lv_roll);
+      o["note"] = v.note;
+      o["state"] = v.lv_state;
+      if (v.lv_type == 0) {
+        put(o, "side", v.lv_side);
+        put(o, "jack", v.lv_jack);
+      } else {
+        JsonArray w = o["wheels"].to<JsonArray>();
+        for (float x : v.lv_wheel) w.add(roundf(x * 10) / 10);
+      }
+    }
+  }
+  o["wiz"] = level_wizard_step();
+}
+
+static esp_err_t h_level_get(httpd_req_t *req) {
+  JsonDocument d(&s_ps);
+  LevelCfg c = level_cfg();
+  d["on"] = c.on;
+  d["src"] = c.src;
+  d["type"] = c.type;
+  d["yaw"] = roundf(c.yaw * 10) / 10;
+  d["mirror"] = c.mirror;
+  d["track"] = c.track_cm;
+  d["hitch"] = c.hitch_cm;
+  d["wb"] = c.wb_cm;
+  d["ramp"] = c.ramp_cm;
+  d["tol"] = c.tol;
+  JsonArray sa = d["sources"].to<JsonArray>();
+  for (auto &x : level_sources()) {
+    JsonObject o = sa.add<JsonObject>();
+    o["key"] = x.key;
+    o["name"] = x.name;
+  }
+  level_state_json(d["now"].to<JsonObject>());
+  std::string s;
+  serializeJson(d, s);
+  return send_json(req, s);
+}
+
+// {"on","src","type","yaw","mirror","track","hitch","wb","ramp","tol"} | {"zero":true} | {"wiz":"start|front|right|done|cancel"}
+static esp_err_t h_level_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 1024, len);
+  if (!body) return send_err(req, "400 Bad Request", "Leere Anfrage");
+  JsonDocument d(&s_ps);
+  DeserializationError e = deserializeJson(d, body, len);
+  heap_caps_free(body);
+  if (e) return send_err(req, "400 Bad Request", "Ungültiges JSON");
+  JsonDocument r(&s_ps);
+  r["ok"] = true;
+  if (d["zero"] | false) {
+    std::string err = level_zero();
+    if (!err.empty()) return send_err(req, "409 Conflict", err.c_str());
+  } else if (d["wiz"].is<const char *>()) {
+    bool ok = false;
+    r["msg"] = level_wizard(d["wiz"] | "", ok);
+    r["ok"] = ok;
+  } else {
+    LevelCfg c = level_cfg();
+    if (d["on"].is<bool>()) c.on = d["on"];
+    if (d["src"].is<const char *>()) c.src = d["src"] | "";
+    if (d["type"].is<int>()) c.type = (int)d["type"] ? 1 : 0;
+    if (!d["yaw"].isNull()) c.yaw = d["yaw"] | 0.0f;
+    if (d["mirror"].is<bool>()) c.mirror = d["mirror"];
+    if (!d["track"].isNull()) c.track_cm = d["track"] | c.track_cm;
+    if (!d["hitch"].isNull()) c.hitch_cm = d["hitch"] | c.hitch_cm;
+    if (!d["wb"].isNull()) c.wb_cm = d["wb"] | c.wb_cm;
+    if (!d["ramp"].isNull()) c.ramp_cm = d["ramp"] | c.ramp_cm;
+    if (!d["tol"].isNull()) c.tol = d["tol"] | c.tol;
+    level_set_cfg(c);
+  }
+  level_state_json(r["now"].to<JsonObject>());
+  std::string s;
+  serializeJson(r, s);
+  return send_json(req, s);
+}
+#endif
+
 #if WITH_RULES
 // Regel-Engine: Regeln + Blockly-Arbeitsbereich, Zustand, Auswahl (Zigbee-Geraete, Kacheln)
 static esp_err_t h_rules_get(httpd_req_t *req) {
@@ -2407,7 +2553,10 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 66;
+  cfg.max_uri_handlers = 72;
+  // Hoechstens 3 Besucher gleichzeitig (Editor/Live-Ansicht, HA-Integration, App); eine vierte Verbindung schliesst die
+  // aelteste. So kann der Webserver den kleinen Socket-Vorrat (P4: 16 fuer alles) nicht mehr leeren.
+  cfg.max_open_sockets = 3;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 20;
   cfg.send_wait_timeout = 20;
@@ -2435,7 +2584,6 @@ void web_start() {
   reg("/api/devices", HTTP_GET, h_devices);
   reg("/api/layout", HTTP_GET, h_layout_get);
   reg("/api/layout", HTTP_POST, h_layout_post);
-  reg("/api/rename", HTTP_POST, h_rename);
   reg("/api/bg", HTTP_GET, h_bg_get);
   reg("/api/bg", HTTP_POST, h_bg_post);
   reg("/api/settings", HTTP_GET, h_settings_get);
@@ -2487,6 +2635,14 @@ void web_start() {
 #if WITH_VOTRONIC
   reg("/api/votronic", HTTP_GET, h_votronic_get);
   reg("/api/votronic", HTTP_POST, h_votronic_post);
+#endif
+#if WITH_LEVEL
+  reg("/api/level", HTTP_GET, h_level_get);
+  reg("/api/level", HTTP_POST, h_level_post);
+#endif
+#if WITH_AUDIO
+  reg("/api/audio", HTTP_GET, h_audio_get);
+  reg("/api/audio", HTTP_POST, h_audio_post);
 #endif
   reg("/api/mopeka", HTTP_GET, h_mopeka_get);
   reg("/api/mopeka", HTTP_POST, h_mopeka_post);

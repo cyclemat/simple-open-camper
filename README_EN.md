@@ -29,8 +29,9 @@
 The panel runs day to day with Zigbee2MQTT (tested with **131 devices / 73 tiles**). Some modules are built from
 open protocol descriptions but have **not been tested on real hardware yet**:
 Mopeka with a real sensor, Truma CP Plus, Truma iNet X, Alde, WLED and Cerbo GX, most battery types and power
-stations as well as the new **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** sensors and **CS-BATTERIES**
-batteries.
+stations as well as the new **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** sensors, **CS-BATTERIES**
+batteries, the new **[spirit level](#-spirit-level-caravan-and-motorhome-beta-untested)** *(beta)* for caravans and
+motorhomes and **[sound & music](#-sound--music-p4-only-beta)** *(beta)* on the P4.
 
 If you own one of them and want to help: feedback, logs and ideas are very welcome!
 
@@ -95,6 +96,10 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - ⚡ **Power stations** over Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: charge level, power, switch AC/DC output
 - 💧 **SuperSense tank module** *(beta)* – up to four tank sensors over Bluetooth
 - 💧 **Simarine STRx** *(beta)* – tank sensors STR1/STR2/STR3 via Bluetooth broadcast, open or encrypted
+- 📐 **Spirit level** *(beta)* – caravan (side and jockey wheel in cm) or motorhome (ramp height per wheel), sensor:
+  satellite with MPU-6050 or Ruuvi Tag; zero point and orientation in the editor only, with a wizard
+- 🔊 **Sound & music** *(beta, P4 only)* – warning and alert tones and announcements via rules through the speaker
+  connector; MP3 music from the SD card comes on top as a **gimmick**
 - 🌡️ **Climate sensors** *(beta)* – **Ruuvi** Tag/Air and **SwitchBot** Meter/Meter Plus/Outdoor Meter: temperature,
   humidity, pressure, CO₂ and particulate matter on the Ruuvi Air; the panel only listens, no pairing
 - 🔥 **Diesel heater** *(beta)* – Vevor/Hcalory, HeaterCC/AirHeater: show and control (on/off, level, temperature)
@@ -229,6 +234,21 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
 - `tools/embed_web.py` packs the editor gzip-compressed into the firmware on every build.
 - `tools/upload_wait.py` waits for Enter before uploading (`PANEL_UPLOAD_NOWAIT=1` disables it).
 - `pio run -e check-all` builds a test variant with **all** modules (not meant for uploading).
+- **32 instead of 16 network sockets (P4 and round panel)**: since 0.2.8 the published firmware files come from the
+  environments `crowpanel-p4-sock32` and `crowpanel-146-sock32` (own project folders `p4-sock32/` and
+  `crowpanel146-sock32/`). The web server, built-in MQTT broker, Tailscale, Home Assistant and UDP share the socket pool;
+  with 16 the web server hung when many services ran at once. The socket count is baked into the precompiled framework
+  libraries, so the **first build** recompiles them (**1–2 hours**, own package folder, the normal environments stay
+  untouched). On the P4 the versions of the radio-chip components are pinned (`tools/pin_components.py`, otherwise no
+  Wi-Fi). These environments also keep the Bluetooth host memory and (P4) the network buffers in PSRAM, give the
+  Bluetooth host task a larger stack, and the round panel allows 5 instead of 3 simultaneous Bluetooth connections. The
+  environments `crowpanel-p4` and `crowpanel-146` (16 sockets, 3–4 minute build) remain as a fallback. Tested on the P4,
+  not yet on the round panel *(beta)* – if it causes problems, we go back to 16.
+- **Bluetooth and Wi-Fi share the antenna.** The continuous scan (Victron, Mopeka, Ruuvi …) therefore listens only
+  12–15 % of the time; new values arrive roughly every 5–10 s, the tile shows their age. When no search is running, the
+  panel listens only to the configured devices (controller whitelist, up to 12 devices) – other devices on the campsite
+  no longer load it. After start-up and every 10 minutes (if a device is missing) it listens openly for one minute. While
+  the editor or the app is in use, the P4 keeps scanning sparingly (5 %), the S3 panels pause the scan. *(Beta)*
 - Only needed if you change fonts, icons or the editor:
 
 ```sh
@@ -429,6 +449,63 @@ in the Simarine app, enter the new one. Do not use it as the only measurement fo
   Bluetooth. No pairing, no password, the manufacturer's app may stay open, no SwitchBot hub needed.
 - Set up like a battery: **Batteries (BMS) → Search** – the sensor shows up as "Ruuvi" or "SwitchBot Meter".
 - Tile: temperature large, humidity below (Ruuvi Air: CO₂). Details show pressure, particulate matter and battery.
+
+### 📐 Spirit level (caravan and motorhome) *(beta, untested)*
+
+Shows how unlevel the vehicle stands and **what to do**:
+
+- **Caravan:** which side to raise by how many centimetres (track width) and how far to wind the **jockey wheel** up or
+  down (distance axle–jockey wheel).
+- **Motorhome:** the **ramp height per wheel** in centimetres (wheelbase, track width). If more than the highest step of
+  your levelling ramps is needed, it turns red ("ramps too small"). One wheel always stays at 0 – that is the highest point.
+- Tile: largest tilt in degrees and the next step ("Front right: drive up 6.5 cm"). Green = level (default up to 0.3°),
+  amber = almost level (up to 1.5°), red = unlevel or ramps too small. Tap the tile for a top view with centimetres at
+  the wheels and a bubble level.
+
+**Sensor:** a **satellite with an MPU-6050** or a **Ruuvi Tag** (add it under sensors; uses its accelerometer, data
+format 5).
+
+**Where** the sensor sits does not matter – the vehicle is rigid, the tilt is the same everywhere. The centimetres come
+from the angle and the vehicle dimensions only. What matters is **which way round** it is mounted.
+
+**Setup – in the editor only** (Settings → **Spirit level** / „Wasserwaage“), on purpose not on the panel so nobody
+changes the zero point by accident:
+
+1. Switch on, pick the **sensor** and **vehicle** (caravan/motorhome), enter the **dimensions** (track width; caravan:
+   axle to jockey wheel; motorhome: wheelbase and highest ramp step).
+2. Park on level ground (check with a real spirit level) and **set the zero point**. After that the sensor does not
+   have to be mounted level – tilted or (Ruuvi) upright on a wall works too.
+3. **Orientation:** choose where the edge/arrow of the sensor points (front, right, back, left) and whether left/right
+   is swapped – **or use the wizard**: "Start wizard", raise the front (motorhome: both front wheels onto the ramps;
+   caravan: wind up the jockey wheel) and "Next". Optionally raise the right side and "Next" to check left/right too.
+   The wizard sets the orientation itself, even if the sensor sits at an angle to the direction of travel.
+
+Signs in the web UI: longitudinal + = front lower, lateral + = right side higher. API: `/api/level`.
+
+### 🔊 Sound & music (P4 only) *(beta)*
+
+The P4 has a speaker connector (I2S amplifier). The panel plays **MP3 files from its SD card** through it – no internet,
+no phone needed.
+
+> ℹ️ **The core of this feature is warning and alert tones** (e.g. an announcement when the gas bottle is almost
+> empty). **Music playback is just a gimmick**: it is part of the warning-tone playback function and uses the same
+> player – not a full music player.
+
+- **Music:** put MP3s into the **`music`** folder of the SD card. "Music" tile (device list → Musik): **short tap =
+  play/pause**, **long press** = player window with title, controls and volume. Tracks play in alphabetical order and
+  start over at the end.
+- **Alert tones and announcements:** built-in **gong, beep, alarm** or your own MP3s in the **`sounds`** folder (e.g.
+  "gas low.mp3"). If music is playing it pauses briefly and then continues.
+- **In rules:** actions **"Play sound"** (tone or announcement) and **"Music"** (play, pause, stop, next/previous,
+  volume) – e.g. an **alarm clock** (trigger "daily at 7:00" → play music), a **gas warning** (gas tile below 15 % →
+  announcement) or a **doorbell** (Zigbee button → gong).
+- **Settings in the editor only** (Settings → **Ton & Musik**): on/off (off by default), separate volume for music and
+  alerts, track list, test tones.
+- Lean: the MP3 decoder is [minimp3](https://github.com/lieff/minimp3) (public domain, about 30 KB). The audio part
+  lives in PSRAM (buffers and the decoder's working memory), needs only a few KB of the scarce internal RAM and frees
+  its buffers 20 s after playback. The amplifier is off while silent (no hiss).
+- Wiring: speaker (e.g. 4–8 Ω, 2–3 W) on the CrowPanel's speaker connector. Pins per Elecrow's examples: BCLK GPIO 22,
+  LRCK GPIO 21, data GPIO 23, amplifier enable GPIO 30 (low = on) – checked on a P4 V1.2 with a speaker.
 
 ### ☀️ Victron
 
@@ -804,6 +881,9 @@ satellite smooths in several stages – all adjustable in the web UI:
 Set the **zero point** with a button while the vehicle is level. Axes can be swapped and inverted if the board is
 mounted the other way round.
 
+On the panel this becomes the **[spirit level](#-spirit-level-caravan-and-motorhome-beta-untested)** *(beta)*: a tile
+with centimetres per side/wheel, set up in the editor with its own zero point and an orientation wizard.
+
 ---
 
 ## 🏠 Home Assistant
@@ -895,7 +975,6 @@ Used by the editor, also handy for your own scripts:
 |---|---|
 | `GET /api/info`, `GET /api/devices` | Panel state, device list |
 | `GET\|POST /api/layout` | Layout (`?force=1` on conflict) |
-| `POST /api/rename` | `{ieee, name}` rename in Zigbee2MQTT |
 | `GET\|POST /api/bg?page=<id>&fmt=jpg` | Background (JPEG 1024 × 600, `&delete=1`) |
 | `GET\|POST /api/backup` | `{"create":true}`, `{"restore":"<name>"}`, `{"delete":"<name>"}` |
 | `GET\|POST /api/settings` | Settings, incl. `{"ble":{"truma","mopeka","victron","inetx"}}` |
@@ -969,6 +1048,7 @@ protocol analysis has no licence. This is not legal advice.
 | NimBLE-Arduino | [h2zero/NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) | Apache-2.0 | Bluetooth (Waveshare, round panel, satellites, Victron display) |
 | esp-nimble-cpp | [h2zero/esp-nimble-cpp](https://github.com/h2zero/esp-nimble-cpp) | Apache-2.0 | Bluetooth on the P4 (via the C6 radio chip) |
 | LovyanGFX | [lovyan03/LovyanGFX](https://github.com/lovyan03/LovyanGFX) | FreeBSD (BSD-2-Clause) | Display driver for round panel and CYD |
+| minimp3 | [lieff/minimp3](https://github.com/lieff/minimp3) | CC0 (public domain) | **included** in `src/third_party/minimp3/`: MP3 playback on the P4 |
 | micro-ecc | [kmackay/micro-ecc](https://github.com/kmackay/micro-ecc) | BSD-2-Clause | **included** in `src/third_party/`: EcoFlow key exchange, Bluetooth pairing on the P4 |
 | Arduino-ESP32 | [espressif/arduino-esp32](https://github.com/espressif/arduino-esp32) | LGPL-2.1 | Framework |
 | ESP-IDF | [espressif/esp-idf](https://github.com/espressif/esp-idf) | Apache-2.0 | Framework, incl. MQTT, HTTP server, NimBLE stack |

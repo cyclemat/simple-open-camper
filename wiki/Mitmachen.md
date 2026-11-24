@@ -5,8 +5,9 @@
 Das Panel läuft im Alltag mit Zigbee2MQTT (getestet mit **131 Geräten / 73 Kacheln**). Einige Module sind nach
 offenen Protokollbeschreibungen gebaut, aber **noch nicht an echter Hardware getestet**:
 Mopeka mit echtem Sensor, Truma CP Plus, Truma iNet X, Alde, WLED und Cerbo GX, die meisten Akku-Typen und
-Power Stations sowie die neuen Sensoren **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot** und Akkus von
-**CS-BATTERIES**.
+Power Stations sowie die neuen Sensoren **SuperSense**, **Simarine STRx**, **Ruuvi**, **SwitchBot**, Akkus von
+**CS-BATTERIES**, die neue **[Wasserwaage](Sensoren)** *(Beta)* für
+Wohnwagen und Reisemobil und **[Ton & Musik](Ton-und-Musik)** *(Beta)* am P4.
 
 Wer eines davon hat und testen mag: Rückmeldungen, Logs und Ideen sind sehr willkommen!
 

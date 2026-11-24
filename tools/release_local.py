@@ -28,12 +28,14 @@ NO_PREV = '--ohne-vorher' in sys.argv
 # Umgebung -> (Teilprojekt, Dateiname in release/) – Namen wie in build.yml
 ENVS = [
     ('waveshare-7b', '.', 'panel-waveshare-7b'),
-    ('crowpanel-p4', 'p4', 'panel-crowpanel-p4'),
-    ('crowpanel-p4-es', 'p4', 'panel-crowpanel-p4-es'),
-    ('crowpanel-p4-fr', 'p4', 'panel-crowpanel-p4-fr'),
-    ('crowpanel-146', 'crowpanel146', 'panel-crowpanel-146'),
-    ('crowpanel-146-es', 'crowpanel146', 'panel-crowpanel-146-es'),
-    ('crowpanel-146-fr', 'crowpanel146', 'panel-crowpanel-146-fr'),
+    # P4 und rundes Panel seit 0.2.8 aus den 32-Socket-Projekten (p4-sock32/, crowpanel146-sock32/); die Umgebungen
+    # crowpanel-p4 / crowpanel-146 (16 Sockets) bleiben als Rueckfall baubar, werden aber nicht veroeffentlicht
+    ('crowpanel-p4-sock32', 'p4-sock32', 'panel-crowpanel-p4'),
+    ('crowpanel-p4-sock32-es', 'p4-sock32', 'panel-crowpanel-p4-es'),
+    ('crowpanel-p4-sock32-fr', 'p4-sock32', 'panel-crowpanel-p4-fr'),
+    ('crowpanel-146-sock32', 'crowpanel146-sock32', 'panel-crowpanel-146'),
+    ('crowpanel-146-sock32-es', 'crowpanel146-sock32', 'panel-crowpanel-146-es'),
+    ('crowpanel-146-sock32-fr', 'crowpanel146-sock32', 'panel-crowpanel-146-fr'),
     ('crowpanel-146-remote', 'crowpanel146', 'zusatzdisplay-146'),
     # Victron-Display (esp32-cyd-victron/-en) bewusst nicht: liegt nur im Beta-Repo
     ('esp32', 'satellite', 'satellit-esp32'),
@@ -86,7 +88,7 @@ def read_versions(p):
 def main():
     ver = re.search(r'SOC_VERSION\s+"([^"]+)"', open(os.path.join(ROOT, 'src', 'soc_version.h'), encoding='utf-8').read()).group(1)
     sha = run('git', 'rev-parse', '--short=7', 'HEAD')
-    if run('git', 'status', '--porcelain', '--', 'src', 'web', 'platformio.ini', 'p4', 'crowpanel146', 'satellite', 'shunt', 'h2'):
+    if run('git', 'status', '--porcelain', '--', 'src', 'web', 'platformio.ini', 'p4', 'p4-sock32', 'crowpanel146', 'crowpanel146-sock32', 'satellite', 'shunt', 'h2'):
         print('WARNUNG: Quelltext hat nicht committete Aenderungen – Version/Commit passt dann nicht genau.')
     print(f'Version {ver} ({sha})')
     tmp = tempfile.mkdtemp()
@@ -117,7 +119,7 @@ def main():
         shutil.copyfile(upd, os.path.join(new, 'ota', 'updater-esp32.bin'))
     # P4 (eigene Aufteilung seit 0.2.7): Bootloader + Partitionstabelle fuer den Umstieg ohne Einstellungsverlust
     # (Online-Flasher "Nur Firmware": 0x2000 Bootloader, 0x8000 Partitionen, 0xe000 boot_app0, 0x10000 App)
-    d = os.path.join(ROOT, 'p4', '.pio', 'build', 'crowpanel-p4')
+    d = os.path.join(ROOT, 'p4-sock32', '.pio', 'build', 'crowpanel-p4-sock32')
     for src, dst in (('bootloader.bin', P4_BOOT), ('partitions.bin', P4_PART)):
         if os.path.exists(os.path.join(d, src)):
             shutil.copyfile(os.path.join(d, src), os.path.join(new, 'ota', dst))

@@ -6,11 +6,17 @@
 //   ble                  20 s lang alle Bluetooth-Geraete in Reichweite zaehlen (Pakete/s, Hersteller)
 //   hymer                Hymer-Verbindung: Kopplung, Status, gesehene SCU-Kandidaten
 //   screenshot           nur Display-Tests: Bildspeicher roh senden (tools/screenshot.py)
+//   sockets              belegte Netzwerk-Sockets mit Port und Gegenstelle (Vorrat am P4: 16 fuer alles)
+//   log on|off           Debug-Log (SD-Karte) ein-/ausschalten, "log" = Stand und Dateien, "log zeigen" = letzte 8 KB
 //   reboot               Panel neu starten
 //   help | ?             Befehle auflisten
 // Kostet nichts: kein Task, kein Puffer auf dem Heap – nur 32 Byte Zeilenpuffer, abgefragt in loop().
 #pragma once
 
+#include <string>
+
 void debug_poll();
+// Sockets zaehlen (TCP/UDP); list = zusaetzlich eine Zeile je Socket (Diagnose, Debug-Log)
+std::string debug_sockets(int *used, int *tcp, int *udp, bool list);
 // Startschritt merken (nur Zahlen in einer festen Tabelle, Ausgabe erst mit "boot"). name muss konstant sein.
 void debug_mark(const char *name);

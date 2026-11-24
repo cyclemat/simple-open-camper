@@ -35,6 +35,10 @@
 - ⚡ **Power Stations** per Bluetooth – Bluetti, Allpowers, Anker SOLIX, EcoFlow: Ladestand, Leistung, AC-/DC-Ausgang schalten
 - 💧 **SuperSense-Tankmodul** *(Beta)* – bis zu vier Tanksensoren per Bluetooth
 - 💧 **Simarine STRx** *(Beta)* – Tanksensoren STR1/STR2/STR3 per Bluetooth-Broadcast, offen oder verschlüsselt
+- 📐 **Wasserwaage** *(Beta)* – Wohnwagen (Seite und Stützrad in cm) oder Reisemobil (Keilhöhe je Rad), Sensor: Satellit
+  mit MPU-6050 oder Ruuvi Tag; Nullpunkt und Einbaulage nur im Editor, mit Assistent
+- 🔊 **Ton & Musik** *(Beta, nur P4)* – Warn- und Hinweistöne und Ansagen per Regel über den Lautsprecher-Anschluss;
+  MP3-Musik von der SD-Karte gibt es als **Gimmick** obendrauf
 - 🌡️ **Klima-Sensoren** *(Beta)* – **Ruuvi** Tag/Air und **SwitchBot** Meter/Meter Plus/Outdoor Meter: Temperatur,
   Luftfeuchte, Luftdruck, beim Ruuvi Air auch CO₂ und Feinstaub; das Panel hört nur mit, keine Kopplung
 - 🔥 **Dieselheizung** *(Beta)* – Vevor/Hcalory, HeaterCC/AirHeater: anzeigen und bedienen (ein/aus, Stufe, Temperatur)

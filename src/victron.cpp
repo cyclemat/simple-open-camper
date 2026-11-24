@@ -519,7 +519,7 @@ bool victron_get(const std::string &key, VictronInfo &out) {
     BmsInfo b;
     return bms_get(key, b) && victron_from_bms(b, out);
   }
-  if (!victron_is_key(key)) return false;
+  if (key.rfind(VICTRON_KEY_PREFIX, 0) != 0) return false;   // nur eigene Bluetooth-Geraete (Rest: ui_vic_get -> panelsat)
   std::string mac = key.substr(strlen(VICTRON_KEY_PREFIX));
   Lock l;
   for (auto &d : s_devs)
@@ -660,6 +660,8 @@ const char *victron_kind_text(VicKind k) {
     case VIC_PSTATION: return "Power Station";
     case VIC_PROTECT: return "BatteryProtect";
     case VIC_LITHIUM: return "Lithium-Akku";
+    case VIC_LEVEL: return "Wasserwaage";
+    case VIC_AUDIO: return "Musik";
     default: return "Victron-Gerät";
   }
 }

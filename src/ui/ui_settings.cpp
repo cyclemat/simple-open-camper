@@ -989,9 +989,7 @@ void ui_rename_device(const std::string &key) {
   InputOptions o;
   o.title = "Gerät umbenennen";
 #if !SOC_VICTRON_EDITION
-  o.hint = tr("Name in Zigbee2MQTT: ") + v.name +
-           (v.ep.empty() ? "" : tr(" (Kanal ") + v.ep + tr("). Das Umbenennen in Zigbee2MQTT betrifft das ganze Gerät."));
-  o.check_label = "Auch in Zigbee2MQTT umbenennen";
+  o.hint = tr("Name in Zigbee2MQTT: ") + v.name + tr(". Der Name gilt nur für dieses Panel.");
 #endif
   o.initial = layout_label(lay, v);
   o.max_len = 48;
@@ -1011,27 +1009,15 @@ void ui_rename_device(const std::string &key) {
     o.check_label.clear();
   }
 #endif
-  std::string ieee = v.ieee, ep = v.ep, z2m_name = v.name;
-  o.on_ok = [key, ieee, ep, z2m_name](const std::string &txt, bool also_z2m) {
+  // Umbenennen gilt immer nur fuer dieses Panel – Zigbee2MQTT/Home Assistant bleiben unberuehrt (Wunsch 2026-11-24)
+  std::string ep = v.ep, z2m_name = v.name;
+  o.on_ok = [key, ep, z2m_name](const std::string &txt, bool) {
     std::string t = txt;
     while (!t.empty() && t.back() == ' ') t.pop_back();
     while (!t.empty() && t.front() == ' ') t.erase(0, 1);
     std::string def = z2m_name + (ep.empty() ? "" : " " + ep);
-    if (also_z2m && !t.empty()) {
-      std::string err = z2m_rename(ieee, t);
-      if (!err.empty()) {
-        ui_toast(err.c_str());
-        return;
-      }
-      // Bei Geraeten ohne Kanaele genuegt danach der Zigbee2MQTT-Name
-      layout_set_name(key, ep.empty() ? "" : t);
-#if !SOC_VICTRON_EDITION
-      ui_toast("Umbenennung an Zigbee2MQTT gesendet.");
-#endif
-    } else {
-      layout_set_name(key, (t.empty() || t == def) ? "" : t);
-      ui_toast("Name gespeichert.");
-    }
+    layout_set_name(key, (t.empty() || t == def) ? "" : t);
+    ui_toast("Name gespeichert.");
     ui_settings_refresh();
   };
   ui_input_open(o);

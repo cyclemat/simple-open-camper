@@ -205,6 +205,7 @@ struct BmsInfo {
   // Klima-Sensor (BMS_DEV_CLIMATE): temp = Temperatur, volt = Batterie; NAN/-1 = nicht gemeldet
   float hum = NAN, press = NAN, pm25 = NAN;   // % rF, hPa, µg/m³
   int co2 = -1;                               // ppm (Ruuvi Air)
+  float acc[3] = {NAN, NAN, NAN};             // Ruuvi Tag (Format 5): Beschleunigung x/y/z in g, fuer die Wasserwaage
   // Simarine STRx: Inhalt in l (NAN = Kapazitaet unbekannt), Tankart 0 sonstige, 1 Frisch-, 2 Grau-, 3 Schwarzwasser,
   // 4 Kraftstoff (-1 unbekannt), Modus 1..3 verschluesselt / 4 offen (0 unbekannt)
   float tank_l = NAN, tank_cap_l = NAN;

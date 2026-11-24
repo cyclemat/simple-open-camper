@@ -9,6 +9,8 @@ display-testing/CMakeLists.txt
 display-testing/sdkconfig.*
 p4/CMakeLists.txt
 p4/sdkconfig.*
+p4-sock32/sdkconfig.*
+crowpanel146-sock32/sdkconfig.*
 sdkconfig.waveshare-7b
 sdkconfig.check-all
 sdkconfig.*.old
@@ -38,3 +40,4 @@ flasher/gen/
 # Private Arbeitsnotizen (eigenes privates Repo)
 /CLAUDE.md
 /docs/claude-notizen.md
+build_summary.txt

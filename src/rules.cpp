@@ -18,6 +18,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "ui/ui_internal.h"
+#include "audio.h"
 
 namespace {
 
@@ -335,6 +336,24 @@ void run_steps(int i) {
       app_toast(on ? "Regel „%s“ an" : "Regel „%s“ aus", name.c_str());
     } else if (k == "msg") {
       app_toast("%s", (const char *)(a["text"] | ""));
+#if WITH_AUDIO
+    } else if (k == "sound") {   // Hinweiston bzw. Ansage (unterbricht Musik kurz)
+      std::string f = a["file"] | "";
+      if (!f.empty()) audio_sound(f);
+      else audio_tone((AudioTone)constrain((int)(a["tone"] | 0), 0, 2));
+    } else if (k == "music") {
+      std::string d = a["do"] | "";
+      if (!a["vol"].isNull()) audio_set_volume(a["vol"] | 40);
+      if (d == "play") {
+        AudioState st = audio_state();
+        if (!st.playing) st.paused ? audio_toggle() : audio_play(-1);
+      } else if (d == "pause") {
+        if (audio_state().playing) audio_toggle();
+      } else if (d == "toggle") audio_toggle();
+      else if (d == "stop") audio_stop();
+      else if (d == "next") audio_next();
+      else if (d == "prev") audio_prev();
+#endif
     }
   }
   s.running = false;

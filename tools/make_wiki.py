@@ -24,7 +24,7 @@ PAGES = [
                                                             'SMHUB Nano']),
     ('Gas-und-Tanks', 'Gas und Tanks', ['Truma LevelControl', 'Mopeka', 'Senso4s', 'Simarine STRx-Tanksensoren']),
     ('Akkus-und-Victron', 'Akkus, Power Stations, Victron und Votronic', ['Akkus und Power Stations', 'Victron', 'Victron Cerbo GX', 'Votronic']),
-    ('Sensoren', 'Sensoren (BTHome, Ruuvi, SwitchBot)', ['BTHome', 'Ruuvi und SwitchBot']),
+    ('Sensoren', 'Sensoren (BTHome, Ruuvi, SwitchBot) und Wasserwaage', ['BTHome', 'Ruuvi und SwitchBot', 'Wasserwaage']),
     ('Heizung-und-Kuehlbox', 'Heizung und Kühlbox', ['Truma-Heizung', 'Alde', 'Dieselheizung', 'Kühlbox']),
     ('Fahrzeug', 'Fahrzeug: Hymer und Hobby', ['Hymer Connect', 'Hobby']),
     ('Kabelanschluesse', 'Kabelanschlüsse (LIN, CI-BUS, Zigbee-Modul)', ['Kabelanschlüsse']),
@@ -33,6 +33,7 @@ PAGES = [
     ('Tailscale', 'Tailscale – Fernzugriff', ['Tailscale']),
     ('Shelly-ESPHome-WLED', 'Shelly, ESPHome, Tasmota und WLED', ['Shelly per Bluetooth', 'ESPHome, Tasmota & Co.', 'WLED']),
     ('Startbild', 'Startbild', ['Startbild']),
+    ('Ton-und-Musik', 'Ton & Musik (P4)', ['Ton & Musik']),
     ('Satelliten', 'Satelliten', ['Satelliten', 'Einrichten', 'Tanksonden', 'Neigung beruhigen']),
     ('Home-Assistant', 'Home Assistant', ['Home Assistant', 'Kein Daten-Kreislauf']),
     ('Victron-Display', 'Victron Edition (eigene Firmware)', ['Victron Edition']),
@@ -45,7 +46,7 @@ PAGES = [
 GROUPS = [('Start', ['Funktionen', 'Panels-und-Voraussetzungen', 'Installation', 'Konfiguration']),
           ('Geräte', ['Gas-und-Tanks', 'Akkus-und-Victron', 'Sensoren', 'Heizung-und-Kuehlbox', 'Fahrzeug', 'Shelly-ESPHome-WLED']),
           ('Satelliten und Displays', ['Satelliten', 'Victron-Display']),
-          ('Bedienen und Fernzugriff', ['App', 'Live-Ansicht', 'Tailscale', 'Home-Assistant']),
+          ('Bedienen und Fernzugriff', ['App', 'Live-Ansicht', 'Ton-und-Musik', 'Tailscale', 'Home-Assistant']),
           ('Technik', ['Kabelanschluesse', 'Startbild', 'Fehlersuche', 'REST-API']),
           ('Projekt', ['Quellen-und-Lizenzen', 'Mitmachen'])]
 

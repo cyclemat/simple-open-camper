@@ -72,6 +72,36 @@ static volatile int s_adv_hit = -1;
 static volatile uint8_t s_adv_type = 0;
 static bool s_ble_ready = false;
 static bool s_scan_passive = false;   // laufender Scan ist der passive (Messen/Victron)
+static bool s_scan_busy = false;      // laufender Scan ist die sparsame Fassung (Webinterface/App in Benutzung)
+
+// ---------------------------------------------------------------- Nur bekannte Geraete hoeren (2026-11-24)
+// Laeuft keine Suche/Kopplung, kennen wir alle Adressen, die uns interessieren (eingerichtete Geraete). Dann bekommt der
+// Controller eine Whitelist und verwirft alle anderen Werbepakete, bevor sie den Host erreichen – beim P4 schon im C6,
+// vor dem SDIO-Draht. Auf vollen Plaetzen sind das leicht 100 Pakete/s, die sonst jedes Mal den NimBLE-Host-Task
+// wecken und hier durch alle Module laufen. Den Adresstyp (oeffentlich/zufaellig) lernt der Scan aus dem ersten
+// gesehenen Paket; nur gesehene Geraete kommen in die Liste. Fehlt eines, hoert der Scan alle WL_PERIOD_MS fuer
+// WL_OPEN_MS wieder offen (ebenso die ersten WL_LEARN_MS nach dem Bluetooth-Start). Mehr Geraete als Plaetze -> offen.
+namespace {
+struct WlDev {
+  uint8_t a[6];          // wie ble_addr_t.val (umgekehrt zur Schreibweise aa:bb:…)
+  uint8_t type = 0xFF;   // 0xFF = noch nicht gesehen
+  uint32_t seen = 0;
+};
+}  // namespace
+static const size_t WL_MAX = 12;   // CONFIG_BT_NIMBLE_WHITELIST_SIZE
+static const uint32_t WL_LEARN_MS = 90000, WL_PERIOD_MS = 10 * 60 * 1000, WL_OPEN_MS = 60000;
+static const uint32_t WL_LOST_MS = 10 * 60 * 1000;   // so lange kein Paket = Geraet gilt als fehlend
+static std::vector<WlDev> s_wl;                      // eingerichtete Geraete (Zugriff unter Lock)
+static bool s_wl_too_many = false;                   // mehr Geraete als Plaetze -> immer offen
+static uint32_t s_wl_built = 0, s_wl_open_until = 0, s_wl_last_open = 0;
+static bool s_wl_active = false;                     // laufender Scan nutzt die Whitelist
+static std::vector<NimBLEAddress> s_wl_cur;          // Inhalt der im Controller gesetzten Whitelist
+// Webinterface/App in Benutzung: passiv nur noch sparsam lauschen – WLAN und Bluetooth teilen sich die Antenne.
+#if BOARD_P4
+static const uint16_t SCAN_BUSY_WINDOW = 16;   // Funk im C6: 5 % reichen, die Werte laufen weiter (App offen)
+#else
+static const uint16_t SCAN_BUSY_WINDOW = 0;    // Antenne im Chip: Editor lud sonst zaeh oder gar nicht -> aus (wie bisher)
+#endif
 
 enum CmdType : uint8_t { CMD_MEASURE = 1, CMD_SCAN, CMD_RELOAD };
 struct Cmd { CmdType t; char mac[18]; };
@@ -389,8 +419,11 @@ __attribute__((weak)) bool satpair_on_adv(const NimBLEAdvertisedDevice *) { retu
 __attribute__((weak)) bool satpair_want_connect() { return false; }
 __attribute__((weak)) void satpair_connect_now() {}
 
+static void wl_note(const NimBLEAdvertisedDevice *dev);   // Whitelist: Adresstyp eingerichteter Geraete lernen (unten)
+
 class ScanCB : public NimBLEScanCallbacks {
   void onResult(const NimBLEAdvertisedDevice *dev) override {
+    wl_note(dev);
     if (s_cen_until) {
       Lock l;
       census_add(dev);
@@ -413,8 +446,9 @@ class ScanCB : public NimBLEScanCallbacks {
     if (votronic_ble_needed() && votronic_on_adv(dev)) return;
   if (shb_ble_needed() && shb_on_adv(dev)) return;   // HobbyConnect-Box
     bool truma = false;
-    std::string mac = lower(dev->getAddress().toString());
+    std::string mac;   // erst bilden, wenn ein Modul sie braucht (spart Heap-Arbeit im Host-Task fuer fremde Pakete)
     if (dev->haveManufacturerData()) {
+      mac = lower(dev->getAddress().toString());
       std::string md = dev->getManufacturerData();
       uint16_t mid = md.size() >= 2 ? ((uint8_t)md[0] | ((uint8_t)md[1] << 8)) : 0;
       if (mid == SAT_ADV_COMPANY) {   // Satellit sendet Werte per Bluetooth
@@ -435,6 +469,7 @@ class ScanCB : public NimBLEScanCallbacks {
     if (!truma && dev->isAdvertisingService(NimBLEUUID(UUID_SERVICE))) truma = true;
     // Neuere LevelControl: keine feste Hersteller-Kennung, wirbt mit dem kurzen Dienst 0x0A00 (Name "T…<Flaschenart>")
     if (!truma && dev->isAdvertisingService(NimBLEUUID((uint16_t)0x0A00))) truma = true;
+    if (mac.empty()) mac = lower(dev->getAddress().toString());
     Lock l;
     if (s_setup_scan && truma) {
       bool known = false;
@@ -482,20 +517,143 @@ static void ble_init() {
   sc->setScanCallbacks(&s_scan_cb, true);  // Duplikate: jede Aussendung zaehlt
   sc->setMaxResults(0);                     // nichts speichern, nur Rueckrufe
   s_ble_ready = true;
+  s_wl_open_until = millis() + WL_LEARN_MS;   // erst offen hoeren: Adresstypen der eingerichteten Geraete lernen
 }
 
-static void scan_start(bool setup) {
+// ---- Whitelist: Hilfsfunktionen
+static bool mac_to_val(const std::string &mac, uint8_t out[6]) {
+  if (mac.size() != 17) return false;
+  for (int i = 0; i < 6; i++) {
+    char *e;
+    long v = strtol(mac.c_str() + i * 3, &e, 16);
+    if (e != mac.c_str() + i * 3 + 2 || v < 0 || v > 255) return false;
+    out[5 - i] = (uint8_t)v;
+  }
+  return true;
+}
+
+static void wl_add(std::vector<WlDev> &v, const std::string &mac) {
+  WlDev d;
+  if (!mac_to_val(lower(mac), d.a)) return;
+  for (auto &o : v)
+    if (!memcmp(o.a, d.a, 6)) return;
+  v.push_back(d);
+}
+
+// Liste der eingerichteten Geraete neu aufbauen (alle 30 s); Gelerntes (Adresstyp, zuletzt gesehen) bleibt erhalten.
+// Fremde Listen ohne eigenen Lock abholen (die Module haben eigene Mutexe).
+static void wl_rebuild() {
+  std::vector<WlDev> v;
+  {
+    Lock l;
+    for (auto &s : s_sensors) wl_add(v, s.mac);
+  }
+  if (ble_proto_on(BLE_P_VICTRON))
+    for (auto &d : victron_list()) wl_add(v, d.mac);
+  if (ble_proto_on(BLE_P_MOPEKA))
+    for (auto &d : mopeka_list()) wl_add(v, d.mac);
+  if (ble_proto_on(BLE_P_BMS))
+    for (auto &d : bms_list()) wl_add(v, d.mac);
+  for (auto &d : shb_list()) wl_add(v, d.mac);
+  Lock l;
+  for (auto &d : v)
+    for (auto &o : s_wl)
+      if (!memcmp(o.a, d.a, 6)) {
+        d.type = o.type;
+        d.seen = o.seen;
+        break;
+      }
+  s_wl.swap(v);
+  s_wl_too_many = s_wl.size() > WL_MAX;
+  s_wl_built = millis() | 1;
+}
+
+// Im Scan-Rueckruf: eingerichtetes Geraet gesehen -> Adresstyp und Zeit merken (Byte-Vergleich, keine Textarbeit)
+static void wl_note(const NimBLEAdvertisedDevice *dev) {
+  if (s_wl.empty()) return;
+  const ble_addr_t *b = dev->getAddress().getBase();
+  Lock l;
+  for (auto &d : s_wl)
+    if (!memcmp(d.a, b->val, 6)) {
+      d.type = b->type;
+      d.seen = millis() | 1;
+      return;
+    }
+}
+
+// Darf der passive Scan mit Whitelist laufen? out = Adressen dafuer. open_needed: ein Modul sucht ein Geraet, dessen
+// Adresse wir (noch) nicht kennen (Kopplung iNet X/Hymer, Satelliten, Reifendruck mit wechselnder Funkadresse).
+static bool wl_decide(bool open_needed, std::vector<NimBLEAddress> &out) {
+  uint32_t now = millis();
+  if (!s_wl_built || now - s_wl_built > 30000) wl_rebuild();
+  out.clear();
+  if (open_needed || s_wl_too_many || s_wl.empty()) return false;
+  if (s_wl_open_until) {   // offenes Fenster (Lernen nach dem Start, fehlende Geraete)
+    if ((int32_t)(now - s_wl_open_until) < 0) return false;
+    s_wl_open_until = 0;
+    s_wl_last_open = now;
+  }
+  bool missing = false;
+  {
+    Lock l;
+    for (auto &d : s_wl) {
+      if (!d.seen || now - d.seen > WL_LOST_MS) missing = true;
+      else if (d.type <= BLE_ADDR_RANDOM) out.push_back(NimBLEAddress(d.a, d.type));
+      else return false;   // aufgeloeste Zufallsadresse: dafuer taugt die Whitelist nicht
+    }
+  }
+  if (missing && now - s_wl_last_open > WL_PERIOD_MS) {
+    s_wl_open_until = now + WL_OPEN_MS;
+    return false;
+  }
+  return !out.empty();
+}
+
+static bool wl_same(const std::vector<NimBLEAddress> &a, const std::vector<NimBLEAddress> &b) {
+  if (a.size() != b.size()) return false;
+  for (auto &x : a)
+    if (std::find(b.begin(), b.end(), x) == b.end()) return false;
+  return true;
+}
+
+// Whitelist im Controller setzen (Scan muss stehen). Direkt per ble_gap_wl_set – immer die ganze Liste, nie leer.
+static void wl_apply(const std::vector<NimBLEAddress> &wl) {
+  if (wl.empty() || wl.size() > WL_MAX) return;
+  if (wl_same(wl, s_wl_cur)) return;
+  ble_addr_t arr[WL_MAX];
+  for (size_t i = 0; i < wl.size(); i++) arr[i] = *wl[i].getBase();
+  int rc = ble_gap_wl_set(arr, (uint8_t)wl.size());
+  if (rc) {
+    log_w("Bluetooth-Whitelist nicht gesetzt (rc %d)", rc);
+    s_wl_cur.clear();
+    return;
+  }
+  s_wl_cur = wl;
+  log_i("Bluetooth: nur %u bekannte Geraete hoeren", (unsigned)wl.size());
+}
+
+// setup: aktive Suche (Einrichten). busy: Webinterface/App in Benutzung -> sparsam. wl: nur diese Geraete hoeren.
+static void scan_start(bool setup, bool busy, const std::vector<NimBLEAddress> *wl) {
   ble_init();
   NimBLEScan *sc = NimBLEDevice::getScan();
   if (sc->isScanning()) sc->stop();
+  bool use_wl = !setup && wl && !wl->empty();
+  if (use_wl) {
+    wl_apply(*wl);
+    use_wl = !s_wl_cur.empty();
+  }
+  sc->setFilterPolicy(use_wl ? BLE_HCI_SCAN_FILT_USE_WL : BLE_HCI_SCAN_FILT_NO_WL);
   // Passiv mit geringer Last, damit WLAN und Display ungestoert bleiben; beim Einrichten aktiv.
-  // Victron sendet laufend neue Werte – dafuer etwas haeufiger hinhoeren (ca. 30 % statt 12 %).
+  // Victron sendet etwa jede Sekunde neue Werte: 15 % Lauschzeit = alle ~7 s ein Wert (die Kachel zeigt das Alter).
+  // Mehr kostet WLAN-Durchsatz, denn beide teilen sich die Antenne (bis 2026-11-24 waren es 30 %).
   // Mopeka sendet etwa jede Sekunde ein Paket, ein Treffer pro Minute genuegt – dafuer reicht die geringe Last.
   bool vic = victron_has_devices();
   sc->setActiveScan(setup);
-  sc->setInterval(setup ? 100 : (vic ? 160 : 320));
-  sc->setWindow(setup ? 90 : (vic ? 48 : 40));
+  sc->setInterval(setup ? 100 : ((busy || !vic) ? 320 : 160));
+  sc->setWindow(setup ? 90 : (busy ? SCAN_BUSY_WINDOW : (vic ? 24 : 40)));
   sc->start(0, false, true);
+  s_scan_busy = busy;
+  s_wl_active = use_wl;
 }
 
 static void scan_stop() {
@@ -591,8 +749,13 @@ static void worker(void *) {
     bool want_passive = (p_truma && any_due) || (p_vic && victron_has_devices()) || (p_mop && mopeka_has_devices()) ||
                         (ble_proto_on(BLE_P_TPMS) && tpms_has_devices()) ||
                         ble_proto_on(BLE_P_SAT) || satpair_searching();   // Panel: "Neuen Satelliten hinzufuegen"
+    // Whitelist nur, wenn kein Modul ein Geraet mit unbekannter Adresse sucht
+    bool open_needed = ble_proto_on(BLE_P_SAT) || satpair_searching() ||
+                       (ble_proto_on(BLE_P_TPMS) && tpms_has_devices());   // Reifendruck: Funkadresse wechselt
     if (inetx_enabled() && ble_proto_on(BLE_P_INETX)) {
+      bool p0 = want_passive;
       inetx_scan_wanted(want_passive, want_active);
+      open_needed |= want_passive && !p0;   // gekoppelt, aber getrennt: sucht sein Geraet
       // iNet X gefunden: Verbindung hier im Scan-Task aufbauen, solange der Scan pausiert
       if (inetx_want_connect()) {
         scan_stop();
@@ -600,7 +763,9 @@ static void worker(void *) {
       }
     }
     if (hymer_enabled() && ble_proto_on(BLE_P_HYMER)) {
+      bool p0 = want_passive;
       hymer_scan_wanted(want_passive, want_active);
+      open_needed |= want_passive && !p0;
       // SCU gefunden: Verbindung (Kopplung, Dienste) hier aufbauen, solange der Scan pausiert; TLS laeuft im Hymer-Task
       if (hymer_want_connect()) {
         scan_stop();
@@ -666,17 +831,22 @@ static void worker(void *) {
       if (bms_want_poll()) bms_poll_now();   // Akkus, die abgefragt werden (Power Quarry)
     }
 #endif
-    // Waehrend das Webinterface benutzt wird, das Dauer-Lauschen pausieren: WLAN und Bluetooth teilen sich die
-    // Funkeinheit, der Editor laedt sonst zaeh oder gar nicht. Einrichten (aktive Suche) laeuft weiter.
-    if (want_passive && !want_active && web_busy()) want_passive = false;
+    // Waehrend das Webinterface/die App benutzt wird, das Dauer-Lauschen zuruecknehmen: WLAN und Bluetooth teilen sich
+    // die Antenne, der Editor laedt sonst zaeh. S3: aus (wie bisher); P4: sparsam weiter, damit die Werte in der App
+    // nicht stehen bleiben. Einrichten (aktive Suche) laeuft immer weiter.
+    bool busy = want_passive && !want_active && web_busy();
+    if (busy && !SCAN_BUSY_WINDOW) want_passive = false;
     if (want_active) {
       if (!scanning || s_scan_passive) {
-        scan_start(true);
+        scan_start(true, false, nullptr);
         s_scan_passive = false;
       }
     } else if (want_passive) {
-      if (!scanning || !s_scan_passive) {
-        scan_start(false);
+      std::vector<NimBLEAddress> wl;
+      bool use_wl = wl_decide(open_needed, wl);
+      if (!scanning || !s_scan_passive || busy != s_scan_busy || use_wl != s_wl_active ||
+          (use_wl && !wl_same(wl, s_wl_cur))) {
+        scan_start(false, busy, use_wl ? &wl : nullptr);
         s_scan_passive = true;
       }
     } else if (scanning) {
@@ -702,6 +872,33 @@ static void worker(void *) {
 
 // ---------------------------------------------------------------- oeffentliche API
 void truma_ble_init() { ble_init(); }
+
+std::string truma_scan_status() {
+  if (!s_ble_ready) return "Bluetooth aus";
+  NimBLEScan *sc = NimBLEDevice::getScan();
+  if (!sc->isScanning()) return "kein Scan";
+  char b[160];
+  if (!s_scan_passive) {
+    snprintf(b, sizeof(b), "aktive Suche (90 %%)");
+    return b;
+  }
+  bool vic = victron_has_devices();
+  int pct = s_scan_busy ? SCAN_BUSY_WINDOW * 100 / 320 : (vic ? 15 : 12);
+  size_t seen = 0, n;
+  {
+    Lock l;
+    n = s_wl.size();
+    for (auto &d : s_wl) seen += d.seen != 0;
+  }
+  const char *why = s_wl_active       ? "Whitelist"
+                    : s_wl_too_many   ? "offen (mehr als 12 Geraete)"
+                    : s_wl_open_until ? "offen (Lernfenster)"
+                    : n == 0          ? "offen (keine eingerichteten Geraete)"
+                                      : "offen (Suche/Kopplung oder nichts gesehen)";
+  snprintf(b, sizeof(b), "passiv %d %%%s, %s, %u von %u eingerichteten Geraeten gehoert, Whitelist %u", pct,
+           s_scan_busy ? " (Web/App in Benutzung)" : "", why, (unsigned)seen, (unsigned)n, (unsigned)s_wl_cur.size());
+  return b;
+}
 
 void truma_begin() {
   s_mtx = xSemaphoreCreateRecursiveMutex();

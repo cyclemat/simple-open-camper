@@ -73,6 +73,15 @@
 #else
 #define APP_EXTMEM_MIN 16
 #endif
+// Verschluesselung (mbedTLS) ins PSRAM: Das Framework erlaubt ihr nur internes RAM (CONFIG_MBEDTLS_INTERNAL_MEM_ALLOC),
+// jede TLS-Verbindung (Tailscale, HTTPS, Hymer-Konto) braucht dort einige 10 KB – mit Tailscale blieben am P4 nur
+// ~15 KB intern frei, Bluetooth und Funkchip fielen aus (2026-11-24). P4 (32 MB) und rundes Panel (8 MB, wenig internes
+// RAM, ebenfalls Tailscale) -> ab dem Start ins PSRAM.
+#if BOARD_P4 || BOARD_CROWPANEL146
+#define APP_MBEDTLS_PSRAM 1
+#else
+#define APP_MBEDTLS_PSRAM 0
+#endif
 // LVGL-Zeichenpuffer in Zeilen (liegt bevorzugt im internen RAM)
 #ifndef LVGL_BUF_LINES
 #if BOARD_P4 || BOARD_CROWPANEL146

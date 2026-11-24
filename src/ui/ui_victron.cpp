@@ -8,6 +8,8 @@
 #include "../bms.h"
 #include "../panelsat.h"
 #include "../victron_ctl.h"
+#include "../level.h"
+#include "../audio.h"
 #include <Arduino.h>
 #include <math.h>
 
@@ -20,7 +22,7 @@ bool ui_vic_get(const std::string &key, VictronInfo &out) {
 
 // Nicht am Panel eingerichtet (Cerbo GX, Satellit): kein Schluessel/Entfernen, Name nur fuer das Panel
 static bool remote(const std::string &key, const VictronInfo &v) {
-  return v.gx || key == "hobby:bat" || key.rfind("vot:", 0) == 0 || !panelsat_sat_of(key).empty();   // Hobby/Votronic: eigene Module
+  return v.gx || key == "hobby:bat" || key.rfind("vot:", 0) == 0 || key == LEVEL_KEY || key == AUDIO_KEY || !panelsat_sat_of(key).empty();   // Hobby/Votronic: eigene Module
 }
 
 // Schalter/Begrenzung senden: ueber den Cerbo GX oder per Bluetooth direkt (Orion, victron_ctl.cpp)
@@ -78,6 +80,8 @@ const char *ui_vic_icon(VicKind k) {
     case VIC_CLIMATE: return ICON_THERMO;
     case VIC_HEATER: return ICON_FLAME;
     case VIC_FRIDGE: return ICON_KITCHEN;
+    case VIC_LEVEL: return ICON_GRID;
+    case VIC_AUDIO: return ICON_SPEAKER;
     default: return ICON_BLUETOOTH;
   }
 }
@@ -91,6 +95,26 @@ std::string ui_vic_label(const Layout &lay, const VictronInfo &v) {
 static bool charging_state(int s) { return s == 3 || s == 4 || s == 5 || s == 6 || s == 7 || s == 246 || s == 247; }
 
 static std::string watt(float w) { return isnan(w) ? "–" : std::to_string((int)lroundf(w)) + "\xE2\x80\xAFW"; }
+
+// Wasserwaage: Grad mit Vorzeichen ("+0,6°", "−0,8°"), Zustandsfarbe
+static std::string deg_text(float v, bool sign) {
+  if (isnan(v)) return "–";
+  char b[24];
+  snprintf(b, sizeof(b), "%.1f", (double)fabsf(v));
+  for (char *p = b; *p; p++)
+    if (*p == '.') *p = ',';
+  std::string s = b;
+  if (sign && fabsf(v) >= 0.05f) s = (v > 0 ? "+" : "â") + s;
+  return s + "Â°";
+}
+static lv_color_t lv_state_color(uint8_t st) { return st == 0 ? C_GREEN : st == 1 ? C_AMBER : C_RED; }
+static std::string cm_bare(float v) {
+  char b[16];
+  snprintf(b, sizeof(b), "%.1f", (double)v);
+  for (char *p = b; *p; p++)
+    if (*p == '.') *p = ',';
+  return b;
+}
 
 VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
   VicTileText t;
@@ -225,6 +249,18 @@ VicTileText ui_vic_tile_text(const VictronInfo &v, bool small, bool big) {
       if (v.co2 >= 0) t.sub += (t.sub.empty() ? "" : "  ·  ") + std::to_string(v.co2) + " ppm";
       else if (!small && !isnan(v.press)) t.sub += (t.sub.empty() ? "" : "  ·  ") + ui_num(v.press, 0, "hPa");
       break;
+    case VIC_AUDIO:   // Musik: Zustand gross, Titel darunter
+      t.value = v.state == 1 ? tr("läuft") : v.state == 2 ? tr("Pause") : tr("aus");
+      t.accent = v.state == 1 ? C_AMBER : C_TEXT2;
+      t.sub = !v.note.empty() ? v.note : std::string(tr("Antippen: abspielen"));
+      if (big) t.sub += tr("  ·  Lautstärke ") + std::to_string((int)v.soc) + "\xE2\x80\xAF%";
+      break;
+    case VIC_LEVEL:   // Wasserwaage: groesste Neigung gross, darunter was zu tun ist
+      t.value = deg_text(std::max(fabsf(v.lv_pitch), fabsf(v.lv_roll)), false);
+      t.accent = lv_state_color(v.lv_state);
+      t.sub = v.note;
+      if (big && v.lv_state) t.sub += tr("  ·  längs ") + deg_text(v.lv_pitch, true) + tr(", quer ") + deg_text(v.lv_roll, true);
+      break;
     case VIC_TANK: {   // erster Tank gross, weitere darunter
       int first = -1;
       std::string rest;
@@ -279,6 +315,8 @@ std::string ui_vic_summary(const VictronInfo &v) {
       if (victron_is_sense(v)) return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 1, "°C");
       return ui_num(v.soc, 0, "%") + ", " + ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.bat_i, 1, "A");
     case VIC_LITHIUM: return ui_num(v.bat_v, 2, "V") + ", " + ui_num(v.aux, 0, "°C");
+    case VIC_AUDIO: return std::string(v.state == 1 ? tr("läuft") : v.state == 2 ? tr("Pause") : tr("aus")) + (v.note.empty() ? "" : ", " + v.note);
+    case VIC_LEVEL: return v.note + ", " + deg_text(v.lv_pitch, true) + " / " + deg_text(v.lv_roll, true);
     case VIC_CLIMATE: return ui_num(v.aux, 1, "°C") + (isnan(v.hum) ? std::string() : ", " + ui_num(v.hum, 0, "%"));
     case VIC_HEATER:
       return v.ht_err ? "E" + std::to_string(v.ht_err) : std::string(v.ht_on == 1 ? tr("an") : tr("aus")) + ", " + ui_num(v.aux, 0, "°C");
@@ -331,6 +369,10 @@ struct VicDlg {
   std::string sig;
   int ncells = 0;
   lv_obj_t *cell_box[MAX_CELLS] = {nullptr}, *cell_val[MAX_CELLS] = {nullptr};
+  // Wasserwaage: Draufsicht (Raeder bzw. Stuetzrad mit cm) und Libelle
+  int lv_type = -1;
+  lv_obj_t *lv_wheel[4] = {nullptr}, *lv_wlbl[4] = {nullptr};   // Wohnwagen: 0 rechts, 1 links, 2 Stuetzrad
+  lv_obj_t *lv_bubble = nullptr;
 };
 static VicDlg *s_v = nullptr;
 
@@ -568,6 +610,132 @@ static void hf_build(lv_obj_t *card, const VictronInfo &v) {
 }
 
 // einmal pro Aktualisierung: Werte vom GX uebernehmen, ausser direkt nach einer eigenen Eingabe
+// ---------------------------------------------------------------- Wasserwaage: Draufsicht und Libelle
+static const int LV_BR = 66;   // Ausschlag der Libelle bei 3 Grad (px)
+
+static lv_obj_t *lv_box(lv_obj_t *par, int x, int y, int w, int h, int r, lv_color_t c) {
+  lv_obj_t *o = lv_obj_create(par);
+  ui_plain(o);
+  lv_obj_set_pos(o, x, y);
+  lv_obj_set_size(o, w, h);
+  lv_obj_set_style_radius(o, r, 0);
+  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(o, c, 0);
+  lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
+  return o;
+}
+static lv_obj_t *lv_text(lv_obj_t *par, const char *t, int cx, int y, lv_color_t c) {   // waagerecht um cx zentriert
+  lv_obj_t *l = ui_label(par, t, F_SMALL, c);
+  lv_obj_set_width(l, 120);
+  lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_pos(l, cx - 60, y);
+  return l;
+}
+
+static void lvl_build(lv_obj_t *card, const VictronInfo &v) {
+  VicDlg *d = s_v;
+  d->lv_type = v.lv_type;
+  lv_obj_t *row = lv_obj_create(card);
+  ui_plain(row);
+  lv_obj_set_size(row, lv_pct(100), 210);
+  // Draufsicht, Front links (Fahrtrichtung nach links) – die rechte Fahrzeugseite liegt damit oben
+  lv_obj_t *top = lv_box(row, 0, 0, 380, 210, 16, C_BG);
+  lv_obj_set_style_border_width(top, 1, 0);
+  lv_obj_set_style_border_color(top, C_LINE, 0);
+  if (v.lv_type == 0) {   // Wohnwagen: Deichsel mit Stuetzrad links, eine Achse
+    static lv_point_t dp[] = {{96, 75}, {40, 105}, {96, 135}};
+    lv_obj_t *ln = lv_line_create(top);
+    lv_line_set_points(ln, dp, 3);
+    lv_obj_set_style_line_width(ln, 4, 0);
+    lv_obj_set_style_line_color(ln, C_TEXT3, 0);
+    lv_obj_set_style_line_rounded(ln, true, 0);
+    lv_box(top, 96, 45, 270, 120, 18, C_FIELD);
+    d->lv_wheel[0] = lv_box(top, 212, 31, 50, 14, 4, C_TEXT3);
+    d->lv_wheel[1] = lv_box(top, 212, 165, 50, 14, 4, C_TEXT3);
+    d->lv_wheel[2] = lv_box(top, 26, 91, 28, 28, 14, C_FIELD);
+    lv_obj_set_style_border_width(d->lv_wheel[2], 3, 0);
+    d->lv_wlbl[0] = lv_text(top, "", 237, 8, C_TEXT2);
+    d->lv_wlbl[1] = lv_text(top, "", 237, 182, C_TEXT2);
+    d->lv_wlbl[2] = lv_text(top, "", 60, 40, C_TEXT2);
+    lv_text(top, tr("Deichsel"), 60, 150, C_TEXT3);
+  } else {                // Reisemobil: Fahrerhaus links, vier Raeder
+    lv_box(top, 20, 45, 346, 120, 20, C_FIELD);
+    lv_box(top, 20, 45, 70, 120, 20, lv_color_hex(0x2A3138));
+    const int X[4] = {62, 62, 274, 274}, Y[4] = {31, 165, 31, 165};   // vorne rechts, vorne links, hinten rechts, hinten links
+    for (int k = 0; k < 4; k++) {
+      d->lv_wheel[k] = lv_box(top, X[k], Y[k], 54, 14, 4, C_TEXT3);
+      d->lv_wlbl[k] = lv_text(top, "", X[k] + 27, Y[k] == 31 ? 8 : 182, C_TEXT2);
+    }
+  }
+  lv_text(top, tr("Front"), v.lv_type == 0 ? 140 : 55, 96, C_TEXT3);
+  lv_text(top, tr("rechts"), 330, 8, C_TEXT3);
+  lv_text(top, tr("links"), 330, 182, C_TEXT3);
+  // Libelle: Ring bei 2 Grad, gruener Bereich in der Mitte, die Blase wandert zur hoeheren Seite
+  lv_obj_t *lib = lv_box(row, 410, 5, 180, 180, LV_RADIUS_CIRCLE, C_BG);
+  lv_obj_set_style_border_width(lib, 2, 0);
+  lv_obj_set_style_border_color(lib, lv_color_hex(0x2E3740), 0);
+  lv_obj_t *r1 = lv_box(lib, 0, 0, 2 * LV_BR * 2 / 3, 2 * LV_BR * 2 / 3, LV_RADIUS_CIRCLE, C_BG);
+  lv_obj_set_style_border_width(r1, 1, 0);
+  lv_obj_set_style_border_color(r1, C_LINE, 0);
+  lv_obj_center(r1);
+  lv_obj_t *hl = lv_box(lib, 0, 0, 160, 1, 0, C_LINE);
+  lv_obj_center(hl);
+  lv_obj_t *vl = lv_box(lib, 0, 0, 1, 160, 0, C_LINE);
+  lv_obj_center(vl);
+  lv_obj_t *gz = lv_box(lib, 0, 0, 32, 32, LV_RADIUS_CIRCLE, C_BG);
+  lv_obj_set_style_bg_opa(gz, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(gz, 2, 0);
+  lv_obj_set_style_border_color(gz, C_GREEN, 0);
+  lv_obj_center(gz);
+  lv_obj_t *f = ui_label(lib, v.lv_type == 0 ? tr("Deichsel") : tr("Front"), F_SMALL, C_TEXT3);
+  lv_obj_align(f, LV_ALIGN_TOP_MID, 0, 6);
+  lv_obj_t *h = ui_label(lib, tr("Heck"), F_SMALL, C_TEXT3);
+  lv_obj_align(h, LV_ALIGN_BOTTOM_MID, 0, -6);
+  d->lv_bubble = lv_box(lib, 0, 0, 26, 26, LV_RADIUS_CIRCLE, C_GREEN);
+  lv_obj_set_style_shadow_width(d->lv_bubble, 14, 0);
+  lv_obj_set_style_shadow_opa(d->lv_bubble, LV_OPA_60, 0);
+  lv_obj_center(d->lv_bubble);
+}
+
+static void lvl_show(const VictronInfo &v) {
+  VicDlg *d = s_v;
+  if (!d || !d->lv_bubble) return;
+  lv_color_t sc = lv_state_color(v.lv_state);
+  auto wheel = [&](int k, float cm, lv_color_t on, const std::string &txt) {
+    if (!d->lv_wheel[k]) return;
+    bool act = v.has && !isnan(cm) && fabsf(cm) >= 0.5f;
+    lv_obj_set_style_bg_color(d->lv_wheel[k], act ? on : C_TEXT3, 0);
+    lv_label_set_text(d->lv_wlbl[k], txt.c_str());
+    lv_obj_set_style_text_color(d->lv_wlbl[k], act ? on : C_TEXT3, 0);
+  };
+  if (v.lv_type == 0) {
+    float sd = v.has ? v.lv_side : NAN;
+    bool r = !isnan(sd) && sd >= 0.5f, l = !isnan(sd) && sd <= -0.5f;
+    wheel(0, r ? sd : NAN, sc, r ? "+" + cm_bare(sd) + " cm" : std::string(""));
+    wheel(1, l ? -sd : NAN, sc, l ? "+" + cm_bare(-sd) + " cm" : std::string(""));
+    float j = v.has ? v.lv_jack : NAN;
+    bool ja = !isnan(j) && fabsf(j) >= 0.5f;
+    std::string jt = ja ? std::string(j > 0 ? "+" : "\xE2\x88\x92") + cm_bare(fabsf(j)) + " cm" : std::string(tr("Stützrad"));
+    lv_obj_set_style_border_color(d->lv_wheel[2], ja ? sc : C_TEXT3, 0);
+    lv_label_set_text(d->lv_wlbl[2], jt.c_str());
+    lv_obj_set_style_text_color(d->lv_wlbl[2], ja ? sc : C_TEXT3, 0);
+  } else {
+    for (int k = 0; k < 4; k++) {
+      float cm = v.has ? v.lv_wheel[k] : NAN;
+      lv_color_t c = !isnan(cm) && cm > v.lv_ramp ? C_RED : C_AMBER;
+      wheel(k, cm, c, !isnan(cm) && cm >= 0.5f ? "+" + cm_bare(cm) + " cm" : std::string("0"));
+    }
+  }
+  int bx = 0, by = 0;
+  if (v.has) {
+    bx = (int)lroundf(std::max(-1.0f, std::min(1.0f, v.lv_roll / 3.0f)) * LV_BR);
+    by = (int)lroundf(std::max(-1.0f, std::min(1.0f, v.lv_pitch / 3.0f)) * LV_BR);
+  }
+  lv_obj_align(d->lv_bubble, LV_ALIGN_CENTER, bx, by);
+  lv_obj_set_style_bg_color(d->lv_bubble, v.has ? sc : C_TEXT3, 0);
+  lv_obj_set_style_shadow_color(d->lv_bubble, v.has ? sc : C_TEXT3, 0);
+}
+
 static void ctl_sync(const VictronInfo &v) {
   if (!s_v || (!s_v->lim_lbl && !s_v->nmode)) return;
   if (s_v->lim_timer || (s_v->edit_ms && lv_tick_elaps(s_v->edit_ms) < 3000)) return;
@@ -728,6 +896,16 @@ static int row_titles(const VictronInfo &v, const char **t) {
       memcpy(t, a, sizeof(a));
       return 7;
     }
+    case VIC_AUDIO: {
+      static const char *a[] = {"Titel", "Nummer", "Lautstärke"};
+      memcpy(t, a, sizeof(a));
+      return 3;
+    }
+    case VIC_LEVEL: {
+      static const char *a[] = {"Als Nächstes", "Längs (Front/Heck)", "Quer (links/rechts)", "Sensor"};
+      memcpy(t, a, sizeof(a));
+      return 4;
+    }
     case VIC_TANK: {
       static const char *a[] = {"Tank 1", "Tank 2", "Tank 3", "Tank 4", "Empfang"};
       memcpy(t, a, sizeof(a));
@@ -757,7 +935,7 @@ static int row_titles(const VictronInfo &v, const char **t) {
 }
 
 static std::string reception(const VictronInfo &v) {
-  if (v.bms) {   // Akku mit BMS: Zustand der Verbindung aus bms.cpp
+  if (v.bms || v.kind == VIC_LEVEL) {   // Akku mit BMS: Zustand der Verbindung aus bms.cpp
     if (v.age_s < 0) return v.status.empty() ? std::string("noch nichts empfangen") : v.status;
     char ago[32];
     snprintf(ago, sizeof(ago), tr("vor %d s"), (int)v.age_s);
@@ -875,6 +1053,17 @@ static void row_values(const VictronInfo &v, std::string *val, int n) {
       val[5] = isnan(v.bat_v) ? ui_num(v.soc, 0, "%") : ui_num(v.bat_v, 2, "V");
       val[6] = reception(v);
       break;
+    case VIC_AUDIO:
+      val[0] = v.note.empty() ? std::string("–") : v.note;
+      val[1] = v.au_idx >= 0 && v.au_count > 0 ? std::to_string(v.au_idx + 1) + tr(" von ") + std::to_string(v.au_count) : std::string("–");
+      val[2] = std::to_string((int)v.soc) + " %";
+      break;
+    case VIC_LEVEL:
+      val[0] = v.note;
+      val[1] = deg_text(v.lv_pitch, true) + (v.lv_pitch > v.lv_tol ? tr("  ·  Front tiefer") : v.lv_pitch < -v.lv_tol ? tr("  ·  Heck tiefer") : "");
+      val[2] = deg_text(v.lv_roll, true) + (v.lv_roll > v.lv_tol ? tr("  ·  links tiefer") : v.lv_roll < -v.lv_tol ? tr("  ·  rechts tiefer") : "");
+      val[3] = reception(v);
+      break;
     case VIC_TANK:
       for (int k = 0; k < 4; k++)
         val[k] = v.tank_pct[k] < 0 ? std::string("–")
@@ -929,7 +1118,7 @@ void ui_vic_update() {
     ui_vic_close();
     return;
   }
-  if (v.kind != s_v->kind) {  // Geraeteart erst jetzt bekannt: neu aufbauen
+  if (v.kind != s_v->kind || (v.kind == VIC_LEVEL && v.lv_type != s_v->lv_type)) {  // Art neu bekannt bzw. gewechselt: neu aufbauen
     std::string key = s_v->key;
     lv_obj_del(s_v->ov);
     ui_vic_open(key);
@@ -999,9 +1188,16 @@ void ui_vic_update() {
   if (v.kind == VIC_HEATER || v.kind == VIC_FRIDGE) {
     hf_show(v);
   }
+  if (v.kind == VIC_LEVEL) lvl_show(v);
 }
 
 void ui_vic_open(const std::string &key) {
+#if WITH_AUDIO
+  if (key == AUDIO_KEY) {   // Musik: eigenes Fenster (ui_campamp.cpp)
+    ui_campamp_open();
+    return;
+  }
+#endif
   VictronInfo v;
   if (!ui_vic_get(key, v)) {
     ui_toast("Dieses Victron-Gerät ist nicht mehr eingerichtet.");
@@ -1072,6 +1268,8 @@ void ui_vic_open(const std::string &key) {
     lv_obj_set_style_radius(d->bar, 7, LV_PART_INDICATOR);
   }
 
+  if (v.kind == VIC_LEVEL) lvl_build(card, v);   // Wasserwaage: Draufsicht und Libelle ueber den Zeilen
+
   lv_obj_t *grp = lv_obj_create(card);
   ui_plain(grp);
   lv_obj_set_size(grp, lv_pct(100), LV_SIZE_CONTENT);
@@ -1132,6 +1330,7 @@ void ui_vic_open(const std::string &key) {
   if (v.can_limit || v.can_mode) ctl_build(card, v);   // MultiPlus/Ladegeraet/Orion ueber den GX oder per Bluetooth bedienen
   if (v.bms && v.kind == VIC_PSTATION && (v.can_ac || v.can_dc)) ps_build(card, v);   // Power Station: Ausgaenge
   if (v.bms && (v.kind == VIC_HEATER || v.kind == VIC_FRIDGE)) hf_build(card, v);   // Heizung/Kuehlbox bedienen
+
 
   lv_obj_t *row = lv_obj_create(card);
   ui_plain(row);

@@ -215,6 +215,7 @@ struct Bat {
   int cycles = -1;
   std::vector<uint16_t> cell_mv;
   float hum = NAN, press = NAN, pm25 = NAN;   // Klima-Sensor (Ruuvi)
+  float acc[3] = {NAN, NAN, NAN};             // Ruuvi Format 5: Beschleunigung in g (Wasserwaage)
   int co2 = -1;
   // Simarine STRx: letzte Metadaten (Scan-Antwort) und Schutz gegen wiederholte Pakete
   bool sm_meta = false, sm_secure = false, sm_seen = false;
@@ -1375,6 +1376,7 @@ static BmsModel renogy_detect(const std::string &un, uint16_t mid) {
 namespace {   // dateilokal (ODR)
 struct RuuviVals {
   float t = NAN, h = NAN, p = NAN, bat = NAN, pm = NAN;
+  float acc[3] = {NAN, NAN, NAN};   // g (Format 5, Byte 7-12, mg int16)
   int co2 = -1;
 };
 }  // namespace
@@ -1393,6 +1395,8 @@ static bool ruuvi_parse(const std::string &md, RuuviVals &r) {
       if (d[0] == 5) {
         uint16_t mv = u16(13) >> 5;
         if (mv != 2047) r.bat = (mv + 1600) / 1000.0f;
+        for (int k = 0; k < 3; k++)
+          if (u16(7 + 2 * k) != 0x8000) r.acc[k] = (int16_t)u16(7 + 2 * k) / 1000.0f;
       } else {
         if (u16(7) != 0xFFFF) r.pm = u16(7) * 0.1f;
         if (u16(9) != 0xFFFF) r.co2 = u16(9);
@@ -1460,7 +1464,8 @@ static bool sbot_parse(const NimBLEAdvertisedDevice *dev, RuuviVals &r, int &bat
 static void ruuvi_take(Bat &b, const RuuviVals &v, int rssi) {
   auto moved = [](float a, float b, float d) { return isfinite(a) != isfinite(b) || (isfinite(a) && fabsf(a - b) >= d); };
   bool ch = !b.has || moved(v.t, b.temp, 0.05f) || moved(v.h, b.hum, 0.5f) || moved(v.p, b.press, 0.5f) ||
-            moved(v.pm, b.pm25, 0.5f) || v.co2 != b.co2 || !b.last_ms || millis() - b.last_ms > 60000;
+            moved(v.pm, b.pm25, 0.5f) || v.co2 != b.co2 ||
+            moved(v.acc[0], b.acc[0], 0.004f) || moved(v.acc[1], b.acc[1], 0.004f) || moved(v.acc[2], b.acc[2], 0.004f) || !b.last_ms || millis() - b.last_ms > 60000;
   if (!b.has) logf("%s: %.1f °C, %.0f %%, %.0f hPa", b.name.c_str(), v.t, v.h, v.p);
   b.temp = v.t;
   b.hum = v.h;
@@ -1468,6 +1473,7 @@ static void ruuvi_take(Bat &b, const RuuviVals &v, int rssi) {
   b.volt = v.bat;
   b.pm25 = v.pm;
   b.co2 = v.co2;
+  for (int k = 0; k < 3; k++) b.acc[k] = v.acc[k];
   b.rssi = rssi;
   b.has = true;
   b.flags = 0x01;
@@ -3803,6 +3809,7 @@ static BmsInfo info_of(const Bat &b) {
   i.hum = b.hum;
   i.press = b.press;
   i.pm25 = b.pm25;
+  for (int k = 0; k < 3; k++) i.acc[k] = b.acc[k];
   i.co2 = b.co2;
   if (b.model == BMS_SIMARINE) {
     if (b.has) i.tank_pct[0] = (int)lroundf(b.sm_permille / 10.0f);

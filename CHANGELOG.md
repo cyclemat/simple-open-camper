@@ -3,7 +3,7 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
-## In Arbeit (nächste Version)
+## 0.2.8 – 2026-11-24
 
 **Neu**
 - ⚡ **Votronic** *(Beta, ungetestet)* – eigener Menüpunkt **Einstellungen → Votronic** (Panel und Editor), zwei Wege,
@@ -18,6 +18,54 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   offiziellen Orion-XS-HEX-Dokument) oder **über den Cerbo GX** (Ein/Aus über `dcdc/<n>/Mode`, wenn der GX einen Schalter
   meldet). Auch auf Zusatzdisplays. Die Notfall-Rückladung lässt sich (noch) nicht starten – Victron hat dafür keinen
   Befehl veröffentlicht. Serieller Befehl `vctl`.
+- 📐 **Wasserwaage** *(Beta, ungetestet)* – Kachel „Wasserwaage“ für **Wohnwagen** (welche Seite wie viele cm anheben,
+  Stützrad hoch/runter) oder **Reisemobil** (Keilhöhe je Rad, rot wenn höher als die Auffahrkeile). Sensor: Satellit mit
+  MPU-6050 oder Ruuvi Tag (Beschleunigung aus Datenformat 5, jetzt ausgewertet). Detailfenster mit Draufsicht und Libelle.
+  Einrichten nur im Editor (Einstellungen → Wasserwaage): Fahrzeugmaße, Nullpunkt, Einbaulage (Kante nach vorne/rechts/
+  hinten/links, links/rechts vertauscht) und ein **Assistent**, der die Einbaulage selbst bestimmt (Front anheben, optional
+  rechte Seite). Wo der Sensor sitzt, ist egal. P4, rundes Panel, Waveshare. `/api/level`.
+- 🔊 **Ton & Musik** *(Beta, nur P4; Musik am P4 V1.2 mit Lautsprecher getestet)* – Kern sind **Warn- und Hinweistöne**,
+  die Musikwiedergabe ist nur ein **Gimmick** (Teil der Warnton-Abspielfunktion). MP3-Wiedergabe von der SD-Karte (Ordner `music`) über den
+  Lautsprecher-Anschluss des CrowPanel, Kachel „Musik“ (kurz tippen = Abspielen/Pause, lang = Player-Fenster; *Test:* „CampAmp“
+  im Retro-Stil mit Laufzeit, Spektrum-Balken, Lauftext, kbps/kHz, Lautstärke, Spulen, Zufall, Wiederholen, Titelliste). Hinweistöne (Gong, Piepton, Alarm) und eigene Ansagen (Ordner `sounds`), Musik wird
+  dafür kurz angehalten. Neue Regel-Aktionen „Ton abspielen“ und „Musik“ (z. B. Wecker, Gas-Warnung, Klingel).
+  Editor: Einstellungen → Ton & Musik (ab Werk aus). Decoder minimp3 (CC0). Audio-Task mit Stapel im PSRAM, Puffer
+  nur während der Wiedergabe. `/api/audio`.
+- 🔌 **32 statt 16 Netzwerk-Sockets** (P4 und rundes Panel) – die veröffentlichten Firmware-Dateien kommen jetzt aus den
+  Umgebungen `crowpanel-p4-sock32` und `crowpanel-146-sock32` (eigene Projektordner `p4-sock32/`, `crowpanel146-sock32/`).
+  Webserver, Broker, Tailscale, Home Assistant und UDP teilen sich den Vorrat; mit 16 hing der Webserver nach einer
+  Minute („error in accept (23)“). Der erste Build übersetzt die Framework-Bibliotheken neu (1–2 h); beim P4 hält
+  `tools/pin_components.py` die Versionen der Funkchip-Bausteine fest (esp_hosted 2.12.13, esp_wifi_remote 1.6.4).
+  Dazu Bluetooth-Host-Speicher und (P4) lwIP-Netzwerkpuffer im PSRAM, größerer Host-Stapel, rundes Panel 5 statt 3
+  Bluetooth-Verbindungen. **P4 getestet** (ein Abend mit Tailscale, Musik, App, Editor); **rundes Panel ungetestet**
+  *(Beta)*. Die 16-Socket-Umgebungen `crowpanel-p4` / `crowpanel-146` bleiben als Rückfall baubar. Macht es Probleme,
+  gehen wir dorthin zurück.
+
+**Verbessert**
+- ✏️ **Umbenennen gilt nur noch für das Panel** – Editor und Panel schicken keine neuen Namen mehr an Zigbee2MQTT
+  (der Bereich „In Zigbee2MQTT umbenennen“, das Häkchen am Panel und `/api/rename` sind entfernt). Zigbee2MQTT und Home
+  Assistant behalten ihre Namen.
+- 📖 README: Unterschied zwischen Instant-Readout-Schlüssel (lesen) und Bluetooth-PIN (Orion schalten) erklärt.
+- 🧠 **Verschlüsselung (TLS) im PSRAM** (P4 und rundes Panel) – mit verbundenem Tailscale blieben am P4 nur ~15 KB
+  interner Speicher, Bluetooth und Funkchip fielen aus. Jetzt mit Tailscale, Musik, App und Editor gleichzeitig
+  ~110 KB intern frei.
+- 🌐 **Webserver hängt nicht mehr bei vielen Anfragen** – der Editor schickt seine Anfragen nacheinander (eine
+  Verbindung statt bis zu sechs), der Webserver hält höchstens 3 Verbindungen und schließt bei einer vierten die älteste.
+- 🔍 Diagnose: serielle Befehle `sockets` (belegte Netzwerk-Sockets mit Gegenstelle) und `log`/`log zeigen`, Zustandszeile
+  des Debug-Logs mit „Sockets n/16“, bei fast vollem Vorrat Liste ins Log.
+- 📡 **Bluetooth und WLAN kommen sich weniger in die Quere** *(Beta)* – beide teilen sich die Antenne. Der Dauerscan für
+  Victron lauscht nur noch 15 % statt 30 % der Zeit (ein Wert alle ~7 statt ~3 s, die Kachel zeigt das Alter), das bringt
+  WLAN-Durchsatz für Editor und App. Beim P4 läuft der Scan während Editor/App-Zugriffen sparsam weiter (5 %) statt zu
+  pausieren – die Werte in der App bleiben nicht mehr stehen.
+- 🎯 **Nur bekannte Geräte hören** *(Beta)* – läuft keine Suche oder Kopplung, bekommt der Bluetooth-Controller eine
+  Liste der eingerichteten Geräte (bis 12) und verwirft alle anderen Werbepakete, bevor sie den Prozessor erreichen
+  (beim P4 schon im Funkchip). Auf vollen Plätzen sind das leicht 100 Pakete pro Sekunde weniger. Nach dem Start und
+  alle 10 Minuten (wenn ein Gerät fehlt) hört das Panel eine Minute offen. Mit mehr als 12 Geräten wie bisher.
+- 🧠 Bluetooth-Host-Speicher (~25 KB) und beim P4 die lwIP-Netzwerkpuffer (bis 64 KB je Verbindung) im PSRAM, größerer
+  Host-Stapel – siehe „32 Sockets“ oben (nur in diesen Umgebungen, weil es einen Framework-Neubau braucht).
+
+**Behoben**
+- Kacheln **Musik**, **Wasserwaage** und **Votronic** zeigten am Panel „nicht verfügbar“ (Kachelart wurde nicht erkannt).
 
 ## 0.2.7 – 2026-11-22
 

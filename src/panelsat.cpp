@@ -6,6 +6,8 @@
 #include "hymer.h"
 #include "hobby.h"
 #include "votronic.h"
+#include "level.h"
+#include "audio.h"
 #include "cerbo.h"
 #include "net.h"
 #include "settings.h"
@@ -869,6 +871,12 @@ bool panelsat_victron_get(const std::string &key, VictronInfo &out) {
 #if WITH_VOTRONIC
   if (key.rfind("vot:", 0) == 0) return votronic_get(key, out);
 #endif
+#if WITH_LEVEL
+  if (key == LEVEL_KEY) return level_get(key, out);
+#endif
+#if WITH_AUDIO
+  if (key == AUDIO_KEY) return audio_get(key, out);
+#endif
   return sat_victron_get_raw(key, out);
 }
 
@@ -877,12 +885,14 @@ std::vector<VictronInfo> panelsat_victron_list() {
   VictronInfo v;
   if (hobby_battery(v)) r.push_back(v);
   for (auto &x : votronic_list()) r.push_back(x);
+  for (auto &x : level_list()) r.push_back(x);
+  for (auto &x : audio_list()) r.push_back(x);
   return r;
 }
 
 uint32_t panelsat_version() {
   return sat_version_raw() + (hy_on() ? hymer_version() * 131 : 0) + (gx_on() ? cerbo_version() * 977 : 0) +
-         hobby_version() * 7919 + votronic_version() * 15485863u + mqd_version() * 104729 + ha_link_version() * 1299709;
+         hobby_version() * 7919 + votronic_version() * 15485863u + level_version() * 7727 + audio_version() * 6007 + mqd_version() * 104729 + ha_link_version() * 1299709;
 }
 
 std::vector<SatPoint> panelsat_point_list() {

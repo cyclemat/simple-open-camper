@@ -91,6 +91,7 @@ struct VicTileText {
   bool stale = false;       // lange kein Paket empfangen
 };
 void ui_vic_open(const std::string &key);
+void ui_campamp_open();   // Musikfenster CampAmp (nur mit WITH_AUDIO)
 bool ui_vic_set_mode(const std::string &key, int mode);       // GX oder Bluetooth (Orion)
 bool ui_vic_set_limit(const std::string &key, float amps);
 bool ui_vic_get(const std::string &key, VictronInfo &out);   // Panel-Bluetooth, Cerbo GX oder Satellit
