@@ -147,7 +147,14 @@
 
 /*====================  Sonstiges  ====================*/
 #define LV_USE_FS_STDIO 0
+#ifdef WITH_USER_ICONS
+// PNG-Dekoder (lodepng) nur fuer eigene Kachel-Symbole (src/user_icons.cpp) – Build-Schalter der Panels
+#define LV_USE_PNG 1
+#define LODEPNG_NO_COMPILE_ENCODER
+#define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
+#else
 #define LV_USE_PNG 0
+#endif
 #define LV_USE_BMP 0
 #define LV_USE_SJPG 0
 #define LV_USE_GIF 0

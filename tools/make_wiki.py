@@ -33,6 +33,7 @@ PAGES = [
     ('Tailscale', 'Tailscale – Fernzugriff', ['Tailscale']),
     ('Shelly-ESPHome-WLED', 'Shelly, ESPHome, Tasmota und WLED', ['Shelly per Bluetooth', 'ESPHome, Tasmota & Co.', 'WLED']),
     ('Startbild', 'Startbild', ['Startbild']),
+    ('Symbole', 'Symbole für Kacheln (eingebaute und eigene)', ['Symbole für Kacheln']),
     ('Ton-und-Musik', 'Ton & Musik (P4)', ['Ton & Musik']),
     ('Satelliten', 'Satelliten', ['Satelliten', 'Einrichten', 'Tanksonden', 'Neigung beruhigen']),
     ('Home-Assistant', 'Home Assistant', ['Home Assistant', 'Kein Daten-Kreislauf']),
@@ -47,7 +48,7 @@ GROUPS = [('Start', ['Funktionen', 'Panels-und-Voraussetzungen', 'Installation',
           ('Geräte', ['Gas-und-Tanks', 'Akkus-und-Victron', 'Sensoren', 'Heizung-und-Kuehlbox', 'Fahrzeug', 'Shelly-ESPHome-WLED']),
           ('Satelliten und Displays', ['Satelliten', 'Victron-Display']),
           ('Bedienen und Fernzugriff', ['App', 'Live-Ansicht', 'Ton-und-Musik', 'Tailscale', 'Home-Assistant']),
-          ('Technik', ['Kabelanschluesse', 'Startbild', 'Fehlersuche', 'REST-API']),
+          ('Technik', ['Kabelanschluesse', 'Startbild', 'Symbole', 'Fehlersuche', 'REST-API']),
           ('Projekt', ['Quellen-und-Lizenzen', 'Mitmachen'])]
 
 

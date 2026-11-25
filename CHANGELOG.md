@@ -3,6 +3,30 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
+## 0.2.9 – in Arbeit
+
+**Neu**
+- ⚓ **Symbole für Boote und Technik** (Wunsch eines Nutzers) – 22 neue Kachel-Symbole im Editor, eigene Gruppe „Boot und
+  Technik“ unter den Wohn-Symbolen: Anker, Boot, Segelboot, Motor, Kraftstoff, Wellen (Bilgepumpe), Wasser, Dusche, WC,
+  Rohr/Ventil, Kompass, Leuchtturm, Rettungsring, Sirene, Funk, Wind, Markise, Leiter, Fisch, Taschenlampe, Solar, Kühlen.
+  Radar und Propeller gibt es im Phosphor-Satz nicht (Ersatz: Funk bzw. Motor). Alle Panels und Zusatzdisplays
+  (Symbolschriften neu erzeugt, ~45 KB mehr Flash je Panel).
+- 🖼️ **Eigene Symbole** *(Beta)* – PNG-Dateien als Kachel-Symbole: Hochladen im Editor (Symbolauswahl **+** oder Einstellungen →
+  Anzeige → Eigene Symbole, der Browser bringt das Bild auf 96 × 96 Pixel) oder Dateien im Ordner `icons` auf der SD-Karte
+  (P4, Waveshare). Durchsichtiger Hintergrund oder schwarz auf weiß; das Panel zeigt sie in der Kachelfarbe wie die
+  eingebauten. Je Symbol 3,5 KB PSRAM, kein interner RAM; bis zu 32. Technik: PNG-Dekoder (lodepng aus LVGL, nur
+  Dekoder) und eine Laufzeit-Schrift mit Rückfall auf die eingebaute Symbolschrift. `/api/icons`, `/api/icon?name=`.
+  Zusatzdisplays und App zeigen stattdessen das automatische Symbol. Wiki-Seite „Symbole für Kacheln“.
+- 📶 **Funkmodul-Update am P4 per Knopf** *(Beta)* – der Funkchip ESP32-C6 (WLAN/Bluetooth, ESP-Hosted) hat eine eigene
+  Firmware. Passt sie nicht zur Panel-Firmware, zeigen Editor → Einstellungen → Info und das Panel unter Info den Stand
+  („2.12.3 – passend wäre 2.12.13“) und den Knopf **Funkmodul aktualisieren**: Das Panel lädt die Datei aus dem Internet und
+  schreibt sie selbst in einem eigenen Task (etwa eine Minute), danach Neustart. Ohne Internet: `c6.bin` auf der SD-Karte,
+  Knopf „Aus SD-Datei“. Keine Automatik. `POST /api/c6`, Stand in `/api/info` „c6“. Der Online-Flasher kann den Funkchip
+  nicht erreichen (er hängt per SDIO hinter dem P4), darum macht es das Panel. Serielle Befehle `c6update`/`c6datei`
+  blockieren nicht mehr.
+- 🛠️ **Symbol-Generator ohne Node:** `python tools/gen_icons.py` lädt die Phosphor-SVGs, rendert sie mit Chrome headless und
+  baut Schriften und Editor-Pfade (Ersatz für `tools/gen_icons.js`).
+
 ## 0.2.8 – 2026-11-24
 
 **Neu**

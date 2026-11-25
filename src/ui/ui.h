@@ -6,6 +6,7 @@ void ui_bg_changed(const char *page);    // Hintergrundbild einer Seite wurde er
 void ui_settings_changed();              // Einstellungen wurden extern (Web) geaendert
 void ui_saver_start();                   // Bildschirmschoner sofort zeigen (auch Vorschau)
 void ui_saver_logo_changed();            // eigenes Logo neu laden
+void ui_icons_changed();                 // eigene Kachel-Symbole (Flash/SD) neu einlesen und Kacheln neu aufbauen
 #include <string>
 // Live-Ansicht (Browser/App unter /live): Schaltbefehl in den UI-Task geben. a: 't' umschalten (wie Antippen),
 // 'b' Helligkeit %, 'h' hue*1000+sat, 'c' Mired, 'm' MultiPlus-Schalter, 'l' Begrenzung 0,1 A. Nur Kacheln, die auf

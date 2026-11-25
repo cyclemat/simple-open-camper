@@ -8,6 +8,11 @@
   Neustarts (Absturz, Watchdog, Spannungseinbruch). Mit SD-Karte (P4, Waveshare, CYD mit Kartenslot) als Dateien
   `log-NNNNN.txt` (je bis 1 MB, die letzten 10; Panel: `panel/logs`, CYD: `logs`), sonst die letzten 8–64 KB im
   Arbeitsspeicher. Ansehen, herunterladen und löschen direkt im Browser. Ausgeschaltet belegt er keinen Speicher.
+- **Funkmodul (P4):** Der Funkchip ESP32-C6 (WLAN/Bluetooth, ESP-Hosted) hat eine eigene Firmware. Passt sie nicht zur
+  Panel-Firmware, zeigen Editor → Einstellungen → Info und das Panel unter Info den Stand und den Knopf **Funkmodul
+  aktualisieren**: Das Panel lädt die passende Datei aus dem Internet und schreibt sie selbst (etwa eine Minute), danach
+  Neustart. Ohne Internet: Datei als `c6.bin` auf die SD-Karte, Knopf „Aus SD-Datei“. Keine Automatik. Der Online-Flasher
+  kann den Funkchip nicht erreichen (er hängt hinter dem P4 am SDIO-Bus).
 - `tools/embed_web.py` packt bei jedem Build den Editor gzip-komprimiert in die Firmware.
 - `tools/upload_wait.py` wartet vor dem Hochladen auf Enter (`PANEL_UPLOAD_NOWAIT=1` schaltet es ab).
 - `pio run -e check-all` baut zur Probe eine Variante mit **allen** Modulen (nicht zum Hochladen gedacht).
@@ -29,7 +34,7 @@
 - Nur nötig, wenn du Schriften, Icons oder den Editor änderst:
 
 ```sh
-node tools/gen_icons.js        # Icons (react-icons + sharp nötig)
+python3 tools/gen_icons.py     # Icons: lädt Phosphor-SVGs, rendert mit Chrome headless (oder node tools/gen_icons.js mit react-icons + sharp)
 python3 tools/gen_fonts.py     # LVGL-Schriften aus Inter + Icons
 python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
 ```

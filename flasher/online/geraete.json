@@ -4,7 +4,7 @@
    "id": "p4",
    "sec": "panel",
    "name": "CrowPanel Advanced 7\"",
-   "desc": "ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale, Home Assistant Beta). Ab 0.2.7 neue Speicheraufteilung: einmal „Nur Firmware“ – Einstellungen bleiben, Kachel-Anordnung und Regeln vorher auf SD sichern",
+   "desc": "ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale, Home Assistant Beta). Ab 0.2.7 neue Speicheraufteilung: einmal „Nur Firmware“ – Einstellungen bleiben, Kachel-Anordnung und Regeln vorher auf SD sichern. Funkchip ESP32-C6: Das Panel prüft dessen Firmware selbst und bietet das Update im Editor unter Einstellungen → Info an (Internet nötig)",
    "chip": "ESP32-P4",
    "src": [
     {

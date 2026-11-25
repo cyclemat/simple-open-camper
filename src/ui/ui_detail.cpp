@@ -251,7 +251,7 @@ void ui_detail_open(const std::string &key) {
     for (auto &t : p.tiles)
       if (t.key == key && !t.icon.empty()) icon_id = t.icon;
   if (icon_id.empty()) icon_id = v.kind == CTL_SWITCH ? "plug" : "bulb";
-  d->hdr_icon = ui_icon(d->hdr_bg, icon_utf8(icon_id.c_str()), F_ICON_M, C_TEXT2);
+  d->hdr_icon = ui_icon(d->hdr_bg, icon_any(icon_id.c_str()), F_ICON_M, C_TEXT2);
   lv_obj_center(d->hdr_icon);
   d->title = ui_label(hdr, "", F_TITLE, C_TEXT);
   lv_label_set_long_mode(d->title, LV_LABEL_LONG_DOT);

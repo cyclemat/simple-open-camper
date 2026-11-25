@@ -3,6 +3,7 @@
 #include <lvgl.h>
 #include "../fonts/fonts.h"
 #include "../fonts/icons.h"
+#include "../user_icons.h"
 #include "../i18n/i18n.h"
 
 // Uebersetzung: jeder Label-Text laeuft durch tr() (Texte ohne Uebersetzung bleiben unveraendert).
@@ -32,9 +33,16 @@
 #define F_BODY   (&font_ui_20)
 #define F_TITLE  (&font_ui_26)
 #define F_BIG    (&font_ui_40)
+#if WITH_USER_ICONS
+// Laufzeit-Schrift mit eigenen Symbolen (PNG aus Flash/SD), faellt fuer alle eingebauten Zeichen auf font_icons_* zurueck
+#define F_ICON_S (&user_icon_font_24)
+#define F_ICON_M (&user_icon_font_32)
+#define F_ICON_L (&user_icon_font_44)
+#else
 #define F_ICON_S (&font_icons_24)
 #define F_ICON_M (&font_icons_32)
 #define F_ICON_L (&font_icons_44)
+#endif
 
 void theme_init();
 

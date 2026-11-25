@@ -1,5 +1,5 @@
 {
- "tile_icon_count": 26,
+ "tile_icon_count": 48,
  "icons": [
   {
    "id": "bulb",
@@ -295,6 +295,116 @@
    "id": "search",
    "cp": 57402,
    "tile": false
+  },
+  {
+   "id": "anchor",
+   "cp": 57403,
+   "tile": true
+  },
+  {
+   "id": "boat",
+   "cp": 57404,
+   "tile": true
+  },
+  {
+   "id": "sailboat",
+   "cp": 57405,
+   "tile": true
+  },
+  {
+   "id": "engine",
+   "cp": 57406,
+   "tile": true
+  },
+  {
+   "id": "fuel",
+   "cp": 57407,
+   "tile": true
+  },
+  {
+   "id": "waves",
+   "cp": 57408,
+   "tile": true
+  },
+  {
+   "id": "drop",
+   "cp": 57409,
+   "tile": true
+  },
+  {
+   "id": "shower",
+   "cp": 57410,
+   "tile": true
+  },
+  {
+   "id": "toilet",
+   "cp": 57411,
+   "tile": true
+  },
+  {
+   "id": "pipe",
+   "cp": 57412,
+   "tile": true
+  },
+  {
+   "id": "compass",
+   "cp": 57413,
+   "tile": true
+  },
+  {
+   "id": "lighthouse",
+   "cp": 57414,
+   "tile": true
+  },
+  {
+   "id": "lifebuoy",
+   "cp": 57415,
+   "tile": true
+  },
+  {
+   "id": "siren",
+   "cp": 57416,
+   "tile": true
+  },
+  {
+   "id": "broadcast",
+   "cp": 57417,
+   "tile": true
+  },
+  {
+   "id": "wind",
+   "cp": 57418,
+   "tile": true
+  },
+  {
+   "id": "umbrella",
+   "cp": 57419,
+   "tile": true
+  },
+  {
+   "id": "ladder",
+   "cp": 57420,
+   "tile": true
+  },
+  {
+   "id": "fish",
+   "cp": 57421,
+   "tile": true
+  },
+  {
+   "id": "flashlight",
+   "cp": 57422,
+   "tile": true
+  },
+  {
+   "id": "solar",
+   "cp": 57423,
+   "tile": true
+  },
+  {
+   "id": "snowflake",
+   "cp": 57424,
+   "tile": true
   }
  ]
 }

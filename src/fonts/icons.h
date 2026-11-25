@@ -61,6 +61,28 @@
 #define ICON_CLOCK "\xEE\x80\xB8"
 #define ICON_FLAME "\xEE\x80\xB9"
 #define ICON_SEARCH "\xEE\x80\xBA"
+#define ICON_ANCHOR "\xEE\x80\xBB"
+#define ICON_BOAT "\xEE\x80\xBC"
+#define ICON_SAILBOAT "\xEE\x80\xBD"
+#define ICON_ENGINE "\xEE\x80\xBE"
+#define ICON_FUEL "\xEE\x80\xBF"
+#define ICON_WAVES "\xEE\x81\x80"
+#define ICON_DROP "\xEE\x81\x81"
+#define ICON_SHOWER "\xEE\x81\x82"
+#define ICON_TOILET "\xEE\x81\x83"
+#define ICON_PIPE "\xEE\x81\x84"
+#define ICON_COMPASS "\xEE\x81\x85"
+#define ICON_LIGHTHOUSE "\xEE\x81\x86"
+#define ICON_LIFEBUOY "\xEE\x81\x87"
+#define ICON_SIREN "\xEE\x81\x88"
+#define ICON_BROADCAST "\xEE\x81\x89"
+#define ICON_WIND "\xEE\x81\x8A"
+#define ICON_UMBRELLA "\xEE\x81\x8B"
+#define ICON_LADDER "\xEE\x81\x8C"
+#define ICON_FISH "\xEE\x81\x8D"
+#define ICON_FLASHLIGHT "\xEE\x81\x8E"
+#define ICON_SOLAR "\xEE\x81\x8F"
+#define ICON_SNOWFLAKE "\xEE\x81\x90"
 
 struct IconEntry { const char *id; const char *utf8; };
 static const IconEntry ICON_TABLE[] = {
@@ -122,10 +144,32 @@ static const IconEntry ICON_TABLE[] = {
     {"bluetooth", ICON_BLUETOOTH},
     {"clock", ICON_CLOCK},
     {"flame", ICON_FLAME},
-    {"search", ICON_SEARCH}
+    {"search", ICON_SEARCH},
+    {"anchor", ICON_ANCHOR},
+    {"boat", ICON_BOAT},
+    {"sailboat", ICON_SAILBOAT},
+    {"engine", ICON_ENGINE},
+    {"fuel", ICON_FUEL},
+    {"waves", ICON_WAVES},
+    {"drop", ICON_DROP},
+    {"shower", ICON_SHOWER},
+    {"toilet", ICON_TOILET},
+    {"pipe", ICON_PIPE},
+    {"compass", ICON_COMPASS},
+    {"lighthouse", ICON_LIGHTHOUSE},
+    {"lifebuoy", ICON_LIFEBUOY},
+    {"siren", ICON_SIREN},
+    {"broadcast", ICON_BROADCAST},
+    {"wind", ICON_WIND},
+    {"umbrella", ICON_UMBRELLA},
+    {"ladder", ICON_LADDER},
+    {"fish", ICON_FISH},
+    {"flashlight", ICON_FLASHLIGHT},
+    {"solar", ICON_SOLAR},
+    {"snowflake", ICON_SNOWFLAKE}
 };
-static const int ICON_TABLE_LEN = 59;
-static const int TILE_ICON_COUNT = 26;
+static const int ICON_TABLE_LEN = 81;
+static const int TILE_ICON_COUNT = 48;
 
 // Liefert das UTF-8-Zeichen eines Icons anhand seiner ID (z. B. "bulb"); Fallback: Gluehbirne
 static inline const char *icon_utf8(const char *id) {

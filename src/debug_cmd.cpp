@@ -28,7 +28,7 @@
 // P4: WLAN und Bluetooth laufen im ESP32-C6 (ESP-Hosted). Dessen Firmware laesst sich vom P4 aus aktualisieren:
 // Befehl "c6update" laedt sie von espressif.github.io (WLAN mit Internet noetig) und schreibt sie in den C6.
 #include "esp32-hal-hosted.h"
-#include "ESP_HostedOTA.h"
+#include "c6_update.h"
 #define HAS_C6 1
 #else
 #define HAS_C6 0
@@ -127,51 +127,6 @@ static void send_screenshot() {
 #if HAS_C6
 // Funkchip (ESP32-C6) aus einer Datei auf der SD-Karte aktualisieren – z. B. zurueck auf Elecrows Original
 // (network_adapter.bin, V2.12.3) als /sd/c6.bin. Prueft vorher, ob es wirklich eine C6-Firmware ist.
-static void c6_from_file(const char *path) {
-  FILE *f = fopen(path, "rb");
-  if (!f) {
-    log_printf("Datei %s nicht gefunden (SD-Karte eingesteckt?)\n", path);
-    return;
-  }
-  uint8_t hdr[16] = {0};
-  fread(hdr, 1, sizeof(hdr), f);
-  fseek(f, 0, SEEK_END);
-  long size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-  // Abbild-Kopf: 0xE9, Chip-Kennung bei Byte 12 (13 = ESP32-C6)
-  if (hdr[0] != 0xE9 || (hdr[12] | hdr[13] << 8) != 13) {
-    log_printf("%s ist keine Firmware fuer den ESP32-C6 – abgebrochen\n", path);
-    fclose(f);
-    return;
-  }
-  if (!hostedIsInitialized()) {
-    log_printf("Funkchip nicht bereit\n");
-    fclose(f);
-    return;
-  }
-  log_printf("Funkchip-Update aus %s (%ld Byte) ...\n", path, size);
-  uint8_t *buf = (uint8_t *)heap_caps_malloc(1500, MALLOC_CAP_SPIRAM);
-  bool ok = buf && hostedBeginUpdate();
-  long done = 0, next = 0;
-  while (ok) {
-    size_t n = fread(buf, 1, 1500, f);
-    if (!n) break;
-    ok = hostedWriteUpdate(buf, n);
-    done += n;
-    if (done >= next) {
-      log_printf("  %ld %%\n", done * 100 / (size ? size : 1));
-      next += size / 10 + 1;
-    }
-  }
-  fclose(f);
-  heap_caps_free(buf);
-  ok = ok && done == size && hostedEndUpdate() && hostedActivateUpdate();
-  log_printf(ok ? "Funkchip-Update fertig – Panel startet neu.\n" : "Funkchip-Update fehlgeschlagen.\n");
-  if (ok) {
-    delay(1500);
-    ESP.restart();
-  }
-}
 #endif
 
 // ---------------------------------------------------------------- Status
@@ -369,17 +324,15 @@ static void run(const char *cmd) {
 #endif
 #if HAS_C6
   } else if (!strcmp(cmd, "c6update")) {
-    log_printf("Funkchip-Update: lade %s ...\n", hostedGetUpdateURL());
-    bool ok = updateEspHostedSlave();   // braucht WLAN mit Internet; danach startet der C6 neu
-    log_printf(ok ? "Funkchip-Update fertig – Panel startet neu.\n" : "Funkchip-Update nicht moeglich (siehe oben).\n");
-    if (ok) {
-      delay(1500);
-      ESP.restart();
-    }
+    std::string err;   // eigener Task (c6_update.cpp), blockiert die Konsole nicht mehr
+    if (c6_update_start(false, err)) log_printf("Funkchip-Update: lade %s ... Panel startet danach neu.\n", hostedGetUpdateURL());
+    else log_printf("Funkchip-Update nicht moeglich: %s\n", err.c_str());
   } else if (!strcmp(cmd, "smtest")) {
     sm_selftest();
   } else if (!strcmp(cmd, "c6datei")) {
-    c6_from_file("/sd/c6.bin");
+    std::string err;
+    if (c6_update_start(true, err)) log_printf("Funkchip-Update aus /sd/c6.bin laeuft – Panel startet danach neu.\n");
+    else log_printf("Nicht moeglich: %s\n", err.c_str());
 #endif
 #if WITH_ZB_DIRECT
   } else if (!strncmp(cmd, "zb", 2) && (cmd[2] == 0 || cmd[2] == ' ')) {

@@ -37,6 +37,7 @@
 #include "shelly_ble.h"
 #include "alde.h"
 #include "sdcard.h"
+#include "user_icons.h"
 #include "splash.h"
 #include "debug_cmd.h"
 #include "zb_direct.h"
@@ -76,6 +77,7 @@ static void handle_events() {
     switch (ev.type) {
       case EV_LAYOUT_CHANGED: break;  // Layout-Version wird von der Oberflaeche selbst beobachtet
       case EV_BG_CHANGED: ui_bg_changed(ev.s); break;
+      case EV_ICONS_CHANGED: ui_icons_changed(); break;
       case EV_SETTINGS_CHANGED: {
         Settings *st = (Settings *)ev.ptr;
         apply_settings_event(st);
@@ -204,6 +206,10 @@ void setup() {
   dbglog_set_status(dbg_status);
   bg_migrate();        // Hintergruende auf die SD-Karte verschieben bzw. alte Rohbilder entfernen
   debug_mark("sd");
+#if WITH_USER_ICONS
+  user_icons_begin();  // eigene Kachel-Symbole aus Flash und SD-Karte (vor der Oberflaeche)
+  debug_mark("symbole");
+#endif
   net_begin();         // WLAN/Netzwerk-Stack zuerst – MQTT setzt darauf auf
   debug_mark("wlan");
   panelsat_begin();    // Satelliten (MQTT/UDP/Bluetooth) – vor z2m und Bluetooth-Scan, die hineinliefern

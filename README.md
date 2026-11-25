@@ -66,7 +66,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 - 💡 **Kacheln** zeigen die echte Lichtfarbe (Farbe, Weißton, Helligkeitsbalken). Tippen schaltet, langes Drücken
   öffnet Helligkeit, Farbtemperatur, Sättigung und Farbrad – jeweils nur, wenn das Gerät es kann.
 - 🗂️ **Mehrere Seiten** (Wischen oder Reiter), jede auf Wunsch mit eigenem Hintergrundbild (z. B. Grundriss).
-- ✏️ **Web-Editor** unter `http://<panel>/`: Geräte per Drag & Drop anordnen, Größen, Symbole, Seiten,
+- ✏️ **Web-Editor** unter `http://<panel>/`: Geräte per Drag & Drop anordnen, Größen, Symbole (Wohnen sowie Boot und Technik), Seiten,
   Hintergründe, Namen, Einstellungen, Firmware-Update übers WLAN. Ohne Panel-Verbindung startet er mit Demo-Daten.
 - 🔒 **Zugangspasswort** für Editor und Weboberfläche – beim ersten Öffnen wird ein eigenes festgelegt.
 - ⌨️ **Einstellungen am Panel** mit deutscher Bildschirmtastatur (QWERTZ, ä ö ü ß).
@@ -175,7 +175,7 @@ Der Unterschied liegt im Chip – und damit darin, wie viel gleichzeitig laufen 
 **P4 – Vorteile:** viel Reserve, alle Module gleichzeitig möglich; eingebauter MQTT-Broker (P4 und rundes Panel); Funk auf eigenem
 Chip; ruhiges Bild ohne PSRAM-Engpass beim Bildaufbau; geplant: Zigbee direkt über das ESP32-H2-Funkmodul.
 **P4 – Nachteile:** teurer; Akku nicht ab Werk messbar; der Funkchip C6 braucht ggf. ein Firmware-Update
-(serieller Befehl `c6update`); frühe Chips (Revision v1.x) rechnen Bluetooth-Kopplungen mit dem Hardware-ECC falsch –
+(Editor → Einstellungen → Info, Knopf „Funkmodul aktualisieren“, oder serieller Befehl `c6update`); frühe Chips (Revision v1.x) rechnen Bluetooth-Kopplungen mit dem Hardware-ECC falsch –
 die Firmware rechnet diese Schlüssel deshalb automatisch in Software.
 
 **Waveshare – Vorteile:** günstig und verbreitet; alles auf einem Chip; Akkuanschluss mit Messung, SD-Karte, Uhrenchip.
@@ -248,6 +248,11 @@ eingerichtetes Gerät (Einstellungen behalten) `esptool --port COM11 write-flash
   Neustarts (Absturz, Watchdog, Spannungseinbruch). Mit SD-Karte (P4, Waveshare, CYD mit Kartenslot) als Dateien
   `log-NNNNN.txt` (je bis 1 MB, die letzten 10; Panel: `panel/logs`, CYD: `logs`), sonst die letzten 8–64 KB im
   Arbeitsspeicher. Ansehen, herunterladen und löschen direkt im Browser. Ausgeschaltet belegt er keinen Speicher.
+- **Funkmodul (P4):** Der Funkchip ESP32-C6 (WLAN/Bluetooth, ESP-Hosted) hat eine eigene Firmware. Passt sie nicht zur
+  Panel-Firmware, zeigen Editor → Einstellungen → Info und das Panel unter Info den Stand und den Knopf **Funkmodul
+  aktualisieren**: Das Panel lädt die passende Datei aus dem Internet und schreibt sie selbst (etwa eine Minute), danach
+  Neustart. Ohne Internet: Datei als `c6.bin` auf die SD-Karte, Knopf „Aus SD-Datei“. Keine Automatik. Der Online-Flasher
+  kann den Funkchip nicht erreichen (er hängt hinter dem P4 am SDIO-Bus).
 - `tools/embed_web.py` packt bei jedem Build den Editor gzip-komprimiert in die Firmware.
 - `tools/upload_wait.py` wartet vor dem Hochladen auf Enter (`PANEL_UPLOAD_NOWAIT=1` schaltet es ab).
 - `pio run -e check-all` baut zur Probe eine Variante mit **allen** Modulen (nicht zum Hochladen gedacht).
@@ -269,7 +274,7 @@ eingerichtetes Gerät (Einstellungen behalten) `esptool --port COM11 write-flash
 - Nur nötig, wenn du Schriften, Icons oder den Editor änderst:
 
 ```sh
-node tools/gen_icons.js        # Icons (react-icons + sharp nötig)
+python3 tools/gen_icons.py     # Icons: lädt Phosphor-SVGs, rendert mit Chrome headless (oder node tools/gen_icons.js mit react-icons + sharp)
 python3 tools/gen_fonts.py     # LVGL-Schriften aus Inter + Icons
 python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
 ```
@@ -772,6 +777,26 @@ Beim Start zeigt das Panel 6 Sekunden lang ein Startbild und gibt den Speicher d
 Banner (`assets/splash.jpg`); eine eigene **`splash.jpg`** im Projektordner hat beim Bauen Vorrang. Das Bild als JPEG „baseline“ speichern (nicht „progressive“), am besten 1024×600 –
 größere Bilder werden um 1/2, 1/4 oder 1/8 verkleinert.
 
+### 🎨 Symbole für Kacheln
+
+Jede Kachel bekommt im Editor ein Symbol (Eigenschaften → Symbol): **Auto** wählt nach Gerätetyp, darunter die
+eingebauten Gruppen **Wohnen** (Lampen, Steckdose, Ventilator, Heizung, Räume …) und **Boot und Technik** (Anker, Boot,
+Segelboot, Motor, Kraftstoff, Wellen für die Bilgepumpe, Wasser, Dusche, WC, Rohr, Kompass, Leuchtturm, Rettungsring,
+Sirene, Funk, Wind, Markise, Leiter, Fisch, Taschenlampe, Solar, Kühlen). Die Symbole stammen aus dem Phosphor-Satz (MIT).
+
+**Eigene Symbole** (Gruppe „Eigene“, bis zu 32 je Panel):
+- **Hochladen im Editor:** in der Symbolauswahl auf **+** oder unter Einstellungen → Anzeige → Eigene Symbole
+  „PNG hochladen“. Der Browser bringt das Bild auf 96 × 96 Pixel und schickt es ins Panel (Flash). Name = Dateiname
+  ohne Endung (klein, a–z, 0–9, - und _).
+- **SD-Karte** (P4 und Waveshare): PNG-Dateien in den Ordner `icons` legen, Dateiname = Name des Symbols. Nach dem
+  Einstecken unter Einstellungen → Anzeige „SD-Karte neu einlesen“ oder das Panel neu starten.
+- **Bildvorgabe:** durchsichtiger Hintergrund, Zeichnung in einer Farbe (weiß oder schwarz), quadratisch, 96 bis
+  512 Pixel, höchstens 300 KB. Ohne Durchsichtigkeit gilt „dunkel = Symbol“ (schwarze Zeichnung auf weißem Grund). Das
+  Panel zeigt das Symbol in der jeweiligen Kachelfarbe, genau wie die eingebauten.
+- **Speicher:** je Symbol etwa 3,5 KB PSRAM, kein interner RAM. Zusatzdisplays und die App zeigen für eigene Symbole
+  das automatische Symbol der Kachel.
+- **Entfernen:** Einstellungen → Anzeige → Eigene Symbole (nur Flash; Dateien auf der SD-Karte am PC löschen).
+
 ### 🔌 Shelly per Bluetooth *(Beta, ungetestet)*
 
 - Für **Shelly Gen2, Gen3 und Gen4** (Plus, Pro, Mini …) – ohne WLAN-Anbindung und ohne MQTT-Broker. P4, rundes Panel
@@ -1132,7 +1157,7 @@ der ursprünglichen Protokoll-Analyse ohne Lizenz. Das ist keine Rechtsberatung.
 | ESP-Hosted | [espressif/esp-hosted-mcu](https://github.com/espressif/esp-hosted-mcu) | siehe Projekt | WLAN/Bluetooth über den C6 (P4) |
 | pioarduino | [pioarduino/platform-espressif32](https://github.com/pioarduino/platform-espressif32) | Apache-2.0 | PlatformIO-Plattform |
 | Inter | [rsms/inter](https://github.com/rsms/inter) | SIL OFL 1.1 | Schrift (in `src/fonts/` umgewandelt) |
-| Phosphor Icons | [phosphor-icons/core](https://github.com/phosphor-icons/core) | MIT | Symbole (über react-icons, `tools/gen_icons.js`) |
+| Phosphor Icons | [phosphor-icons/core](https://github.com/phosphor-icons/core) | MIT | Symbole (`tools/gen_icons.py` bzw. `tools/gen_icons.js`) |
 
 ---
 

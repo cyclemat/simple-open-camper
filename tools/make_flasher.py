@@ -35,7 +35,8 @@ P4_UPD_EXTRA = [('p4-bootloader.bin', 0x2000), ('p4-partitionen.bin', 0x8000)]
 DEVICES = [
     ('p4', 'panel', 'CrowPanel Advanced 7"', 'ESP32-P4, 1024 × 600 – das große Panel mit allem (Zigbee-Modul, Regeln, Tailscale, '
      'Home Assistant Beta). Ab 0.2.7 neue Speicheraufteilung: einmal „Nur Firmware“ – Einstellungen bleiben, Kachel-Anordnung '
-     'und Regeln vorher auf SD sichern',
+     'und Regeln vorher auf SD sichern. Funkchip ESP32-C6: Das Panel prüft dessen Firmware selbst und bietet das Update im '
+     'Editor unter Einstellungen → Info an (Internet nötig)',
      'ESP32-P4', 'panel-crowpanel-p4.bin', 'crowpanel-p4', False),
     ('ws7', 'panel', 'Waveshare 7" (7B)', 'ESP32-S3, 1024 × 600', 'ESP32-S3', 'panel-waveshare-7b.bin', 'waveshare-7b', False),
     ('ws7v', 'panel', 'Waveshare 7" – Victron-Edition', 'ESP32-S3, nur Victron/Gas/Akkus/Shelly (Beta)', 'ESP32-S3', None,

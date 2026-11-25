@@ -100,7 +100,7 @@ static void tile_paint(TileUi &t, bool force) {
     label = it != s_lay.names.end() ? it->second : "Unbekanntes Gerät";
   }
   (lv_label_set_text)(t.name, label.c_str());   // Geraetename: nicht uebersetzen
-  lv_label_set_text(t.icon, icon_utf8(t.icon_id.empty() ? auto_icon(found ? &v : nullptr) : t.icon_id.c_str()));
+  lv_label_set_text(t.icon, icon_any(t.icon_id.empty() ? auto_icon(found ? &v : nullptr) : t.icon_id.c_str()));
 
   lv_obj_t *o = t.obj;
   bool on = found && v.online && v.known && v.on;
@@ -1663,7 +1663,8 @@ bool ui_tile_model(const std::string &key, TileModel &m) {
   for (auto &p : s_lay.pages)
     for (auto &t : p.tiles)
       if (t.key == key && !t.icon.empty()) icon_id = t.icon;
-  m.icon = icon_utf8(icon_id.empty() ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
+  // Eigene Symbole (my:…) kennen Zusatzdisplays nicht -> dort das automatische Symbol
+  m.icon = icon_utf8(icon_id.empty() || icon_is_user(icon_id.c_str()) ? auto_icon(found ? &v : nullptr) : icon_id.c_str());
   if (!found) {
     m.value = "–";
     m.sub = ui_dev_missing_text(key);
@@ -1886,6 +1887,13 @@ void ui_bg_changed(const char *page) {
 }
 
 void ui_settings_changed() { ui_settings_refresh(); }
+
+void ui_icons_changed() {
+#if WITH_USER_ICONS
+  user_icons_reload();   // im UI-Task: niemand zeichnet gerade mit den alten Masken
+  ui_main_rebuild();
+#endif
+}
 
 #if SOC_VICTRON_EDITION
 // Wie das kleine Victron-Display: Geraete, die Werte liefern und noch keine Kachel haben, bekommen automatisch eine

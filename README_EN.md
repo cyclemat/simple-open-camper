@@ -67,7 +67,7 @@ of your motorhome. You build the layout in the browser editor served by the pane
 - 💡 **Tiles** show the real light colour (colour, white tone, brightness bar). Tap to toggle, long-press for
   brightness, colour temperature, saturation and colour wheel – only where the device supports it.
 - 🗂️ **Multiple pages** (swipe or tabs), each with an optional background image (e.g. floor plan).
-- ✏️ **Web editor** at `http://<panel>/`: drag & drop devices, sizes, icons, pages, backgrounds, names, settings,
+- ✏️ **Web editor** at `http://<panel>/`: drag & drop devices, sizes, icons (home as well as boat and technology), pages, backgrounds, names, settings,
   firmware update over Wi-Fi. Without a panel connection it starts with demo data.
 - 🔒 **Access password** for the editor and web interface – you set your own on first opening.
 - ⌨️ **Settings on the panel** with an on-screen keyboard (QWERTZ, ä ö ü ß).
@@ -176,7 +176,7 @@ the chip – and therefore how much can run at the same time.
 **P4 – pros:** plenty of headroom, all modules at the same time; built-in MQTT broker (P4 and round panel); radio on its own chip;
 steady image without a PSRAM bottleneck; planned: Zigbee directly via the ESP32-H2 radio module.
 **P4 – cons:** more expensive; battery not measurable out of the box; the C6 radio chip may need a firmware update
-(serial command `c6update`); early chips (revision v1.x) compute Bluetooth pairing keys wrongly with the hardware
+(editor → Settings → Info, button “Update radio module”, or serial command `c6update`); early chips (revision v1.x) compute Bluetooth pairing keys wrongly with the hardware
 ECC – the firmware therefore computes them in software automatically.
 
 **Waveshare – pros:** cheap and widely available; everything on one chip; battery connector with measurement, SD card,
@@ -231,6 +231,11 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
   watchdog, brownout). With an SD card (P4, Waveshare, CYD with card slot) as files `log-NNNNN.txt` (up to 1 MB each,
   the last 10; panel: `panel/logs`, CYD: `logs`), otherwise the last 8–64 KB in memory. View, download and delete
   right in the browser. When off it uses no memory.
+- **Radio module (P4):** the ESP32-C6 radio chip (Wi-Fi/Bluetooth, ESP-Hosted) has its own firmware. If it does not match
+  the panel firmware, editor → Settings → Info and the panel's Info page show the versions and the button **Update radio
+  module**: the panel downloads the matching file from the internet and writes it itself (about a minute), then restarts.
+  Without internet: put the file as `c6.bin` on the SD card and use “From SD file”. No automatic update. The online
+  flasher cannot reach the radio chip (it sits behind the P4 on the SDIO bus).
 - `tools/embed_web.py` packs the editor gzip-compressed into the firmware on every build.
 - `tools/upload_wait.py` waits for Enter before uploading (`PANEL_UPLOAD_NOWAIT=1` disables it).
 - `pio run -e check-all` builds a test variant with **all** modules (not meant for uploading).
@@ -252,7 +257,7 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
 - Only needed if you change fonts, icons or the editor:
 
 ```sh
-node tools/gen_icons.js        # icons (needs react-icons + sharp)
+python3 tools/gen_icons.py     # icons: downloads Phosphor SVGs, renders with headless Chrome (or node tools/gen_icons.js with react-icons + sharp)
 python3 tools/gen_fonts.py     # LVGL fonts from Inter + icons
 python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
 ```
@@ -739,6 +744,26 @@ At start-up the panel shows a splash image for 3 seconds and frees the memory af
 (`assets/splash.jpg`); your own **`splash.jpg`** in the project folder takes precedence at build time. Save it as baseline JPEG (not progressive), ideally 1024×600 – larger images are scaled down
 by 1/2, 1/4 or 1/8.
 
+### 🎨 Tile icons
+
+Every tile gets an icon in the editor (Properties → Icon): **Auto** picks one by device type; below that are the
+built-in groups **Home** (lamps, socket, fan, heating, rooms …) and **Boat and technology** (anchor, boat, sailboat,
+engine, fuel, waves for the bilge pump, water, shower, toilet, pipe, compass, lighthouse, lifebuoy, siren, radio, wind,
+awning, ladder, fish, flashlight, solar, cooling). The icons come from the Phosphor set (MIT).
+
+**Custom icons** (group “Custom”, up to 32 per panel):
+- **Upload in the editor:** press **+** in the icon picker or use Settings → Display → Custom icons “Upload PNG”. The
+  browser scales the image to 96 × 96 pixels and sends it to the panel (flash). Name = file name without extension
+  (lower case, a–z, 0–9, - and _).
+- **SD card** (P4 and Waveshare): put PNG files into the folder `icons`, file name = icon name. After inserting the
+  card use Settings → Display “Rescan SD card” or restart the panel.
+- **Image guideline:** transparent background, drawing in one colour (white or black), square, 96 to 512 pixels, at
+  most 300 KB. Without transparency “dark = icon” applies (black drawing on white). The panel shows the icon in the
+  tile colour, exactly like the built-in ones.
+- **Memory:** about 3.5 KB of PSRAM per icon, no internal RAM. Remote displays and the app show the tile's automatic
+  icon instead of a custom one.
+- **Remove:** Settings → Display → Custom icons (flash only; delete SD card files on the PC).
+
 ### 🔌 Shelly via Bluetooth *(beta, untested)*
 
 - For **Shelly Gen2, Gen3 and Gen4** (Plus, Pro, Mini …) – no Wi-Fi connection and no MQTT broker needed. P4, round
@@ -1055,7 +1080,7 @@ protocol analysis has no licence. This is not legal advice.
 | ESP-Hosted | [espressif/esp-hosted-mcu](https://github.com/espressif/esp-hosted-mcu) | see project | Wi-Fi/Bluetooth via the C6 (P4) |
 | pioarduino | [pioarduino/platform-espressif32](https://github.com/pioarduino/platform-espressif32) | Apache-2.0 | PlatformIO platform |
 | Inter | [rsms/inter](https://github.com/rsms/inter) | SIL OFL 1.1 | Font (converted in `src/fonts/`) |
-| Phosphor Icons | [phosphor-icons/core](https://github.com/phosphor-icons/core) | MIT | Icons (via react-icons, `tools/gen_icons.js`) |
+| Phosphor Icons | [phosphor-icons/core](https://github.com/phosphor-icons/core) | MIT | Icons (`tools/gen_icons.py` or `tools/gen_icons.js`) |
 
 ---
 

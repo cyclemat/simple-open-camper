@@ -30,6 +30,7 @@
 **Technik**
 - [Kabelanschlüsse (LIN, CI-BUS, Zigbee-Modul)](Kabelanschluesse)
 - [Startbild](Startbild)
+- [Symbole für Kacheln (eingebaute und eigene)](Symbole)
 - [Fehlersuche und Wartung](Fehlersuche)
 - [REST-API](REST-API)
 

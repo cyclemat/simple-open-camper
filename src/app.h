@@ -11,6 +11,7 @@ enum AppEventType : uint8_t {
   EV_REBOOT,
   EV_SAVER_PREVIEW,        // Bildschirmschoner sofort zeigen
   EV_SAVER_LOGO,           // eigenes Logo wurde ersetzt/geloescht
+  EV_ICONS_CHANGED,        // eigene Kachel-Symbole hochgeladen/geloescht bzw. SD neu einlesen
 };
 
 struct AppEvent {

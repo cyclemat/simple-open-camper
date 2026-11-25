@@ -31,8 +31,18 @@ const PANEL_ICONS = [
   // Truma LevelControl
   ['gas', 'PiCylinderBold'], ['bluetooth', 'PiBluetoothBold'], ['clock', 'PiClockBold'], ['flame', 'PiFlameBold'],
   ['search', 'PiMagnifyingGlassBold'],
+  // Kachel-Symbole Boot und Technik (2026-11-25) – gleiche Liste wie tools/gen_icons.py (Python-Ersatz ohne Node)
+  ['anchor', 'PiAnchorBold'], ['boat', 'PiBoatBold'], ['sailboat', 'PiSailboatBold'], ['engine', 'PiEngineBold'],
+  ['fuel', 'PiGasPumpBold'], ['waves', 'PiWavesBold'], ['drop', 'PiDropBold'], ['shower', 'PiShowerBold'],
+  ['toilet', 'PiToiletBold'], ['pipe', 'PiPipeBold'], ['compass', 'PiCompassBold'], ['lighthouse', 'PiLighthouseBold'],
+  ['lifebuoy', 'PiLifebuoyBold'], ['siren', 'PiSirenBold'], ['broadcast', 'PiBroadcastBold'], ['wind', 'PiWindBold'],
+  ['umbrella', 'PiUmbrellaBold'], ['ladder', 'PiLadderBold'], ['fish', 'PiFishBold'], ['flashlight', 'PiFlashlightBold'],
+  ['solar', 'PiSolarPanelBold'], ['snowflake', 'PiSnowflakeBold'],
 ];
+// Kachel-Symbole: die ersten 26 (Wohnen) und alle ab "anchor" (Boot und Technik)
 const TILE_ICON_COUNT = 26;
+const TILE_FROM = PANEL_ICONS.findIndex(([id]) => id === 'anchor');
+const isTile = i => i < TILE_ICON_COUNT || i >= TILE_FROM;
 // Nur im Web-Editor benoetigt
 const EDITOR_EXTRA = [
   ['trash', 'PiTrashBold'], ['undo', 'PiArrowCounterClockwiseBold'], ['save', 'PiFloppyDiskBold'],
@@ -54,7 +64,7 @@ function innerPaths(comp) {
 (async () => {
   const outDir = path.join(__dirname, '..', 'assets', 'icons');
   fs.mkdirSync(outDir, { recursive: true });
-  const manifest = { tile_icon_count: TILE_ICON_COUNT, icons: [] };
+  const manifest = { tile_icon_count: PANEL_ICONS.filter((_, i) => isTile(i)).length, icons: [] };
   for (let i = 0; i < PANEL_ICONS.length; i++) {
     const [id, comp] = PANEL_ICONS[i];
     if (!pi[comp]) throw new Error('Icon fehlt: ' + comp);
@@ -63,7 +73,7 @@ function innerPaths(comp) {
       const s = svg.replace(/width="256"/, `width="${sz}"`).replace(/height="256"/, `height="${sz}"`);
       await sharp(Buffer.from(s)).png().toFile(path.join(outDir, `${id}_${sz}.png`));
     }
-    manifest.icons.push({ id, cp: 0xE000 + i, tile: i < TILE_ICON_COUNT });
+    manifest.icons.push({ id, cp: 0xE000 + i, tile: isTile(i) });
   }
   const editor = {};
   for (const [id, comp] of [...PANEL_ICONS, ...EDITOR_EXTRA]) editor[id] = innerPaths(comp);

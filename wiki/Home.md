@@ -56,6 +56,7 @@ Das Layout baust du im Browser-Editor, den das Panel selbst ausliefert.
 ### Technik
 - [Kabelanschlüsse (LIN, CI-BUS, Zigbee-Modul)](Kabelanschluesse)
 - [Startbild](Startbild)
+- [Symbole für Kacheln (eingebaute und eigene)](Symbole)
 - [Fehlersuche und Wartung](Fehlersuche)
 - [REST-API](REST-API)
 

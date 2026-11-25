@@ -38,6 +38,8 @@
 #include "i18n/i18n.h"
 #include "backup.h"
 #include "sdcard.h"
+#include "user_icons.h"
+#include "c6_update.h"
 #include "generated/editor_html_gz.h"
 
 #include <Arduino.h>
@@ -186,6 +188,18 @@ static esp_err_t h_info(httpd_req_t *req) {
   d["sd"]["status"] = sd_status();
   d["sd"]["total"] = (double)sd_total();
   d["sd"]["free"] = (double)sd_free();
+#if WITH_C6_UPDATE
+  {   // Funkchip ESP32-C6: Firmware-Stand, Update nur auf Knopfdruck (POST /api/c6)
+    C6Info ci = c6_info();
+    d["c6"]["fw"] = ci.fw;
+    d["c6"]["host"] = ci.host;
+    d["c6"]["ready"] = ci.ready;
+    d["c6"]["update"] = ci.update;
+    d["c6"]["file"] = ci.file;
+    d["c6"]["state"] = ci.state;
+    d["c6"]["msg"] = ci.msg;
+  }
+#endif
   d["screen"]["w"] = LCD_H_RES;
   d["screen"]["h"] = LCD_V_RES;
   d["screen"]["topbar"] = UI_TOPBAR_H;
@@ -692,6 +706,55 @@ static esp_err_t h_bg_post(httpd_req_t *req) {
   if (!ok) return send_err(req, "500 Internal Server Error", on_sd ? "Schreiben auf die SD-Karte fehlgeschlagen" : "Speichern im Flash fehlgeschlagen");
   return send_ok(req);
 }
+
+// ---------------------------------------------------------------- Eigene Kachel-Symbole (PNG)
+#if WITH_USER_ICONS
+static esp_err_t h_icons_get(httpd_req_t *req) { return send_json(req, user_icons_json()); }
+
+// POST /api/icons?name=<name>  Body = PNG (vom Editor auf 96 px gebracht) -> Flash; ?delete=1 loescht (nur Flash);
+// ?rescan=1 liest Flash und SD-Karte neu ein (nach Kartenwechsel)
+static esp_err_t h_icons_post(httpd_req_t *req) {
+  if (query(req, "rescan") == "1") {
+    app_post(EV_ICONS_CHANGED);
+    return send_ok(req);
+  }
+  std::string name = query(req, "name");
+  if (!user_icons_valid_name(name.c_str())) return send_err(req, "400 Bad Request", "Name: 1–20 Zeichen aus a–z, 0–9, - und _");
+  if (query(req, "delete") == "1") {
+    if (!user_icons_remove(name.c_str())) return send_err(req, "404 Not Found", "Symbol liegt nicht im Flash (SD-Karte am PC bearbeiten)");
+    app_post(EV_ICONS_CHANGED);
+    return send_ok(req);
+  }
+  size_t len = req->content_len;
+  if (len < 8 || len > USER_ICON_PNG_MAX) return send_err(req, "400 Bad Request", "PNG fehlt oder ist zu groß (höchstens 300 KB)");
+  size_t got;
+  char *buf = read_body(req, USER_ICON_PNG_MAX, got);
+  if (!buf) return send_err(req, "500 Internal Server Error", "Übertragung abgebrochen");
+  std::string err;
+  bool ok = user_icons_store(name.c_str(), (const uint8_t *)buf, got, err);
+  heap_caps_free(buf);
+  if (!ok) return send_err(req, "400 Bad Request", err);
+  app_post(EV_ICONS_CHANGED);
+  return send_ok(req);
+}
+
+// GET /api/icon?name=<name> -> die PNG-Datei (Vorschau im Editor und in der Live-Ansicht)
+static esp_err_t h_icon_file(httpd_req_t *req) {
+  std::string path;
+  if (!user_icons_path(query(req, "name").c_str(), path)) return send_err(req, "404 Not Found", "Unbekanntes Symbol");
+  FILE *f = fopen(path.c_str(), "rb");
+  if (!f) return send_err(req, "404 Not Found", "Datei fehlt");
+  httpd_resp_set_type(req, "image/png");
+  httpd_resp_set_hdr(req, "Cache-Control", "max-age=86400");   // der Editor haengt ?v= an, wenn sich etwas aendert
+  char *buf = (char *)malloc(4096);
+  size_t n;
+  while ((n = fread(buf, 1, 4096, f)) > 0)
+    if (httpd_resp_send_chunk(req, buf, n) != ESP_OK) break;
+  free(buf);
+  fclose(f);
+  return httpd_resp_send_chunk(req, nullptr, 0);
+}
+#endif
 
 // ---------------------------------------------------------------- Sicherung (SD-Karte)
 static esp_err_t h_backup_get(httpd_req_t *req) { return send_json(req, backup_list_json()); }
@@ -2318,6 +2381,24 @@ static esp_err_t h_logo_post(httpd_req_t *req) {
   return send_ok(req);
 }
 
+// ---------------------------------------------------------------- Funkchip ESP32-C6 (P4)
+#if WITH_C6_UPDATE
+// POST /api/c6 {"file":false} = Update aus dem Internet, {"file":true} = aus /sd/c6.bin; Stand in /api/info "c6"
+static esp_err_t h_c6_post(httpd_req_t *req) {
+  size_t len;
+  char *body = read_body(req, 512, len);
+  bool file = false;
+  if (body) {
+    JsonDocument d(&s_ps);
+    if (!deserializeJson(d, body, len)) file = d["file"] | false;
+    heap_caps_free(body);
+  }
+  std::string err;
+  if (!c6_update_start(file, err)) return send_err(req, "409 Conflict", err);
+  return send_ok(req);
+}
+#endif
+
 // ---------------------------------------------------------------- OTA
 static esp_err_t h_ota(httpd_req_t *req) {
   const esp_partition_t *part = esp_ota_get_next_update_partition(nullptr);
@@ -2553,7 +2634,7 @@ void web_start() {
   if (s_srv) return;
   httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
   cfg.stack_size = 10240;
-  cfg.max_uri_handlers = 72;
+  cfg.max_uri_handlers = 76;
   // Hoechstens 3 Besucher gleichzeitig (Editor/Live-Ansicht, HA-Integration, App); eine vierte Verbindung schliesst die
   // aelteste. So kann der Webserver den kleinen Socket-Vorrat (P4: 16 fuer alles) nicht mehr leeren.
   cfg.max_open_sockets = 3;
@@ -2586,6 +2667,11 @@ void web_start() {
   reg("/api/layout", HTTP_POST, h_layout_post);
   reg("/api/bg", HTTP_GET, h_bg_get);
   reg("/api/bg", HTTP_POST, h_bg_post);
+#if WITH_USER_ICONS
+  reg("/api/icons", HTTP_GET, h_icons_get);
+  reg("/api/icons", HTTP_POST, h_icons_post);
+  reg("/api/icon", HTTP_GET, h_icon_file);
+#endif
   reg("/api/settings", HTTP_GET, h_settings_get);
   reg("/api/settings", HTTP_POST, h_settings_post);
   reg("/api/wifi", HTTP_POST, h_wifi_post);
@@ -2672,6 +2758,9 @@ void web_start() {
 #endif
   reg("/api/saver_logo", HTTP_GET, h_logo_get);
   reg("/api/saver_logo", HTTP_POST, h_logo_post);
+#if WITH_C6_UPDATE
+  reg("/api/c6", HTTP_POST, h_c6_post);
+#endif
   reg("/api/backup", HTTP_GET, h_backup_get);
   reg("/api/backup", HTTP_POST, h_backup_post);
   httpd_register_err_handler(s_srv, HTTPD_404_NOT_FOUND, h_not_found);

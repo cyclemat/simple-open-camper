@@ -1,5 +1,6 @@
 // Einstellungen am Panel: WLAN, MQTT, Anzeige, Geraete (Umbenennen), Info
 #include "ui_internal.h"
+#include "../c6_update.h"
 #include "../i18n/i18n.h"
 #include "theme.h"
 #include "../app_config.h"
@@ -58,6 +59,9 @@ static lv_obj_t *s_mqtt_vals[5];
 static lv_obj_t *s_mqtt_status = nullptr;
 static lv_obj_t *s_bl_val = nullptr, *s_dim_val = nullptr;
 static lv_obj_t *s_info[10];
+#if WITH_C6_UPDATE
+static lv_obj_t *s_c6_val = nullptr;   // Info: Zeile "Firmware im Funkchip" (ESP32-C6)
+#endif
 static lv_obj_t *s_info_url = nullptr, *s_info_url2 = nullptr;
 static lv_obj_t *s_dbg_state = nullptr;   // Info: Stand des Debug-Logs
 static lv_obj_t *s_ts_val = nullptr;      // Info: Tailscale
@@ -3175,6 +3179,16 @@ static void info_fill() {
   }
 #endif
   if (!s_info[0]) return;
+#if WITH_C6_UPDATE
+  if (s_c6_val) {
+    C6Info ci = c6_info();
+    std::string v = !ci.ready ? std::string(tr("nicht bereit"))
+                    : ci.fw + (ci.update ? std::string(tr(" – passend wäre ")) + ci.host : std::string(tr(" (passend)")));
+    if (ci.state == 1) v += tr(" – Update läuft …");
+    else if (ci.state == 3) v += " – " + ci.msg;
+    (lv_label_set_text)(s_c6_val, v.c_str());
+  }
+#endif
   char b[96];
   String ip = net_editor_ip();
   if (s_info_url) {
@@ -3219,6 +3233,24 @@ static void reboot_cb(lv_event_t *) {
   });
 }
 
+#if WITH_C6_UPDATE
+// Funkchip (ESP32-C6): Stand anzeigen, Update nur auf Knopfdruck (keine Automatik – Wunsch des Nutzers)
+static void c6_start(bool file) {
+  std::string err;
+  if (!c6_update_start(file, err)) ui_toast(err.c_str());
+  else ui_toast("Funkmodul-Update läuft – bitte warten, das Panel startet danach neu.");
+}
+static void c6_update_cb(lv_event_t *) {
+  ui_confirm("Funkmodul aktualisieren?",
+             "Lädt die passende Firmware aus dem Internet und schreibt sie in den Funkchip (etwa eine Minute). Danach startet das Panel neu.",
+             "Aktualisieren", false, [] { c6_start(false); });
+}
+static void c6_file_cb(lv_event_t *) {
+  ui_confirm("Funkmodul aus SD-Datei aktualisieren?", "Schreibt die Datei c6.bin von der SD-Karte in den Funkchip. Danach startet das Panel neu.",
+             "Aktualisieren", false, [] { c6_start(true); });
+}
+#endif
+
 static void build_info() {
   heading("Info", nullptr);
   lv_obj_t *card = group();
@@ -3238,6 +3270,24 @@ static void build_info() {
   lv_obj_t *row = button_row();
   if (!SOC_VICTRON_EDITION) ui_button(row, ICON_REFRESH, "Zustände neu abfragen", false, refresh_cb, nullptr);
   ui_button(row, ICON_POWER, "Neu starten", false, reboot_cb, nullptr);
+#if WITH_C6_UPDATE
+  subheading("Funkmodul (ESP32-C6)");
+  {
+    lv_obj_t *cg = group();
+    s_c6_val = ui_row(cg, "Firmware im Funkchip", "", nullptr, nullptr, false);
+    C6Info ci = c6_info();
+    if (ci.update || ci.file) {
+      lv_obj_t *cr = button_row();
+      if (ci.update) ui_button(cr, ICON_REFRESH, "Funkmodul aktualisieren", true, c6_update_cb, nullptr);
+      if (ci.file) ui_button(cr, ICON_REFRESH, "Aus SD-Datei c6.bin", false, c6_file_cb, nullptr);
+    }
+    lv_obj_t *ch = ui_label(s_content, "Der Funkchip für WLAN und Bluetooth hat eine eigene Firmware. Passt sie nicht zur Panel-Firmware, "
+                                       "lädt das Panel die richtige aus dem Internet und schreibt sie selbst – nur auf Knopfdruck, danach Neustart.",
+                            F_SMALL, C_TEXT3);
+    lv_label_set_long_mode(ch, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ch, lv_pct(100));
+  }
+#endif
   // Debug-Log (Fehlersuche): auch am Bildschirm schaltbar, Dateien auf der SD-Karte
   subheading("Fehlersuche (Debug-Log)");
   {
