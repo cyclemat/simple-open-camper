@@ -37,7 +37,9 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   Minute („error in accept (23)“). Der erste Build übersetzt die Framework-Bibliotheken neu (1–2 h); beim P4 hält
   `tools/pin_components.py` die Versionen der Funkchip-Bausteine fest (esp_hosted 2.12.13, esp_wifi_remote 1.6.4).
   Dazu Bluetooth-Host-Speicher und (P4) lwIP-Netzwerkpuffer im PSRAM, größerer Host-Stapel, rundes Panel 5 statt 3
-  Bluetooth-Verbindungen. **P4 getestet** (ein Abend mit Tailscale, Musik, App, Editor); **rundes Panel ungetestet**
+  Bluetooth-Verbindungen; beim runden Panel ist BLE-Mesh abgeschaltet (ungenutzt, ließ den Neubau scheitern).
+  **P4 getestet** (ein Abend mit Tailscale, Musik, App, Editor; 0.2.8 danach 1 h stabil mit 150 KB internem RAM
+  frei statt 75 KB); **rundes Panel ungetestet**
   *(Beta)*. Die 16-Socket-Umgebungen `crowpanel-p4` / `crowpanel-146` bleiben als Rückfall baubar. Macht es Probleme,
   gehen wir dorthin zurück.
 
