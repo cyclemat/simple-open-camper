@@ -196,6 +196,65 @@ LED ring; environment `crowpanel-146`, folder `crowpanel146/`): small panel or a
 screen. No settings menu – set up in the browser (own Wi-Fi with captive portal). Where to buy:
 [on Amazon](https://link.amazon/B02xEzSrj).
 
+### 🔌 Connectors and free GPIOs on the CrowPanel P4
+
+Taken from Elecrow's Eagle schematic **V1.2**
+([schematic as PDF](https://github.com/Elecrow-RD/CrowPanel-Advanced-7inch-ESP32-P4-HMI-AI-Display-1024x600-IPS-Touch-Screen/blob/master/Eagle_SCH%26PCB/1.2/ESP32-P4%20Display%207.0%20inch%20V1.2.pdf) ·
+[folder with the Eagle files](https://github.com/Elecrow-RD/CrowPanel-Advanced-7inch-ESP32-P4-HMI-AI-Display-1024x600-IPS-Touch-Screen/tree/master/Eagle_SCH%26PCB/1.2)).
+For other board revisions compare with the silkscreen before soldering. All signals are **3.3 V** unless stated
+otherwise. The 5 V pins are for power only – **never connect them to a GPIO**.
+
+**GPIO header J7 (2 × 12 pins, top edge)** – eleven GPIOs **directly on the P4**, no series resistors or pull-ups:
+
+| Pin | Signal | Pin | Signal |
+|---|---|---|---|
+| 1 | 3V3 | 2 | 5 V |
+| 3 | 3V3 | 4 | 5 V |
+| 5 | 3V3 | 6 | 5 V |
+| 7 | GND | 8 | GND |
+| 9 | **GPIO 2** | 10 | GND |
+| 11 | **GPIO 3** | 12 | **GPIO 54** (ADC) |
+| 13 | **GPIO 4** | 14 | **GPIO 53** (ADC) |
+| 15 | **GPIO 5** | 16 | **GPIO 52** (ADC) |
+| 17 | **GPIO 25** | 18 | **GPIO 51** (ADC) |
+| 19 | **GPIO 49** (ADC) | 20 | **GPIO 50** (ADC) |
+| 21 | GND | 22 | GND |
+| 23 | GND | 24 | GND |
+
+Pin numbers as in the schematic (odd row / even row); the silkscreen on the board is what counts.
+
+- **GPIO 49–54:** ADC2 channels 0–5 (analog up to ~3.1 V). GPIO 49 is the intended pin for the battery voltage divider
+  (see the table above); the other five are free.
+- **GPIO 2–5:** low-power pins (deep-sleep wake-up, touch pads), digital only. **GPIO 25:** digital.
+- Any of these pins can take any peripheral via the GPIO matrix: UART, I²C, SPI, CAN (TWAI), PWM, 1-Wire. Free hardware
+  UARTs: **1, 2 and 4** (0 = USB console, 3 = Zigbee radio module). Load: a few mA per pin – relays and LEDs always
+  through a driver.
+
+**Usable in the firmware** (as of 0.2.9): LIN for CP Plus/Alde (pins in `p4/platformio.ini`, `[truma]`/`[alde]`),
+Hobby CI-BUS and Votronic Display Link (Settings → Vehicle or Votronic: choose UART and pins), battery measurement
+(GPIO 49). Your own sensors (DS18B20, tank probes …) still go on **satellites** – there is no setting for them directly
+on the panel yet.
+
+**Other sockets**
+
+| Socket | Pins | GPIO / notes |
+|---|---|---|
+| **UART1** (HY2.0-4P, J2) | 1 RX, 2 TX, 3 3V3, 4 GND | **GPIO 48 (RX) / 47 (TX)**, directly on the P4, 3.3 V – free, e.g. for Hobby, Votronic or a LIN transceiver |
+| **I2C** (HY2.0-4P, J13) | 1 SCL, 2 SDA, 3 3V3, 4 GND | I²C1 **GPIO 46 (SCL) / 45 (SDA)** through level shifters (BSS138), 3.3 V; same bus as the touch controller (0x5D) and the module slot – more devices with a free address are possible, but the firmware does not read anything there yet |
+| **UART3-IN** (XH2.54-4P, J10) | 1 TX, 2 RX, 3 5 V in, 4 GND | **GPIO 34 (TX) / 33 (RX)** through MOSFET level shifters with **5 V level**; also the panel's 5 V power input. GPIO 34 is a strapping pin – a device pulling the line low at power-up can disturb booting |
+| **Module slot** (2 × 7 pins, J9/J11) | SPI, UART, I²C, 3V3 (own regulator), 5 V | SPI2 **GPIO 8/7/6** (SCK/MISO/MOSI), **GPIO 9/10**, UART2 **GPIO 27 (TX) / 28 (RX)**, I²C1. Occupied by the Zigbee module (H2) when plugged in – without a module GPIO 6–10, 27 and 28 are free on the socket strips |
+| Speakers (2 × PH2.0, J4/J6) | left / right | I²S **GPIO 22/21/23**, amplifier enable **GPIO 30** – see [Sound & music](#-sound--music-p4-only-beta) |
+| Battery (PH2.0, J3) | +, – | TP4059 charger; only the STC8 auxiliary controller measures the voltage, not the P4 → voltage divider to GPIO 49 |
+| microSD (J5) | – | SDMMC **1 bit**: CLK 43, CMD 44, D0 39 (D1/D2 are not wired to the P4) |
+| USB-C "UART" (J1) / "USB" (J16) | – | CH340K → **GPIO 37/38** (UART0: console, flashing) / native USB of the P4 (not used by the firmware) |
+| Camera (24-pin FPC) | – | MIPI-CSI, I²C2 **GPIO 12/13**, reset **GPIO 11** – not used |
+| STC8 (1 × 4, J8) | TX, RX, 3V3, GND | Programming header of the STC8H1K08 auxiliary controller (battery, charging) – **not a GPIO port** |
+
+**Fixed** (do not use): 0/1 clock crystal · 6–10, 27/28 module slot · 11–13 camera · 14–19 SDIO to the C6 radio chip ·
+20 microphone · 21–24, 26 I²S · 29 backlight power · 30 amplifier · 31 backlight (PWM) · 32 C6 reset · 33/34 UART3
+socket · 35 BOOT button · 36 download strapping · 37/38 UART0 · 39/43/44 SD card · 40/42 touch · 41 LCD reset ·
+45/46 I²C1 · 47/48 UART1 socket.
+
 ---
 
 ## 📦 Installation
@@ -260,6 +319,7 @@ screen. No settings menu – set up in the browser (own Wi-Fi with captive porta
 python3 tools/gen_icons.py     # icons: downloads Phosphor SVGs, renders with headless Chrome (or node tools/gen_icons.js with react-icons + sharp)
 python3 tools/gen_fonts.py     # LVGL fonts from Inter + icons
 python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
+python3 tools/eagle_pins.py <schematic.sch>  # pin assignment from an Eagle schematic (e.g. a new CrowPanel revision)
 ```
 
 ---
@@ -658,7 +718,7 @@ the status shows whether the LSG answers.
 | Panel | Connection | Note |
 |---|---|---|
 | Waveshare 7B | UART header, **GPIO 15/16** (switch set to "UART", not RS485) | Free pins are scarce – the header serves **one** device (CP Plus, Alde **or** Hobby). Docs and wiki disagree on the direction: nothing arrives → swap RX/TX. |
-| CrowPanel P4 | free GPIOs on the headers | Enter pins in `p4/platformio.ini` or (Hobby) on the panel. **UART3 / GPIO 27/28** is used by the Zigbee radio module (H2) – don't use it while the module is plugged in. |
+| CrowPanel P4 | free GPIOs on the headers – list under [Connectors and free GPIOs](#-connectors-and-free-gpios-on-the-crowpanel-p4) (e.g. UART1 socket: GPIO 48/47, or J7) | Enter pins in `p4/platformio.ini` or (Hobby) on the panel. **UART3 / GPIO 27/28** is used by the Zigbee radio module (H2) – don't use it while the module is plugged in. |
 | Round panel 1.46" | UART socket on the back (1.25 mm, 4-pin): **1 = RX (GPIO 44), 2 = TX (GPIO 43), 3 = 5 V, 4 = GND** | This is where the **Zigbee radio module (H2)** goes, see below. The socket uses **5 V logic** (level shifters on the board). |
 
 **Zigbee radio module (ESP32-H2) on the round panel** *(beta, untested)*: the module is made for the P4's 3.3 V slot,

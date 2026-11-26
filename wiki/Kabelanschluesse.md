@@ -58,7 +58,7 @@ Kommt nichts an, RX und TX auf der RS232-Seite tauschen (Nullmodem). Schnittstel
 | Panel | Anschluss | Hinweis |
 |---|---|---|
 | Waveshare 7B | UART-Stiftleiste, **GPIO 15/16** (Umschalter auf „UART“, nicht RS485) | Freie Pins sind knapp – die Stiftleiste reicht für **ein** Gerät (CP Plus, Alde **oder** Hobby). Doku und Wiki widersprechen sich bei der Richtung: kommt nichts an, RX/TX tauschen. |
-| CrowPanel P4 | freie GPIOs der Steckleisten | Pins in `p4/platformio.ini` bzw. (Hobby) am Panel eintragen. **UART3 / GPIO 27/28** belegt das Zigbee-Funkmodul (H2) – nicht verwenden, wenn es gesteckt ist. |
+| CrowPanel P4 | freie GPIOs der Steckleisten – Liste unter [Anschlüsse und freie GPIOs](Panels-und-Voraussetzungen) (z. B. Buchse UART1: GPIO 48/47, oder J7) | Pins in `p4/platformio.ini` bzw. (Hobby) am Panel eintragen. **UART3 / GPIO 27/28** belegt das Zigbee-Funkmodul (H2) – nicht verwenden, wenn es gesteckt ist. |
 | Rundes Panel 1,46" | UART-Buchse hinten (1,25 mm, 4-polig): **1 = RX (GPIO 44), 2 = TX (GPIO 43), 3 = 5 V, 4 = GND** | Dort hängt das **Zigbee-Funkmodul (H2)**, siehe unten. Die Buchse hat **5-V-Pegel** (Pegelwandler auf der Platine). |
 
 **Zigbee-Funkmodul (ESP32-H2) am runden Panel** *(Beta, ungetestet)*: Das Modul ist für den 3,3-V-Steckplatz des P4

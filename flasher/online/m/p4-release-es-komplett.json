@@ -1,1 +1,1 @@
-{"name": "CrowPanel Advanced 7\"", "version": "0.2.8", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-P4", "parts": [{"path": "../../../release/panel-crowpanel-p4-es.bin", "offset": 0}]}]}
+{"name": "CrowPanel Advanced 7\"", "version": "0.2.9", "new_install_prompt_erase": true, "new_install_improv_wait_time": 0, "builds": [{"chipFamily": "ESP32-P4", "parts": [{"path": "../../../release/panel-crowpanel-p4-es.bin", "offset": 0}]}]}

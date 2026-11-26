@@ -70,5 +70,64 @@ Drehknopf, LED-Ring; Umgebung `crowpanel-146`, Ordner `crowpanel146/`): kleines 
 Kachel je Bildschirm. Ohne Einstellungsmenü – eingerichtet wird im Browser (eigenes WLAN mit Captive Portal).
 Bezugsquelle: [bei Amazon](https://link.amazon/B02xEzSrj).
 
+### 🔌 Anschlüsse und freie GPIOs am CrowPanel P4
+
+Ausgelesen aus dem Eagle-Schaltplan **V1.2** von Elecrow
+([Schaltplan als PDF](https://github.com/Elecrow-RD/CrowPanel-Advanced-7inch-ESP32-P4-HMI-AI-Display-1024x600-IPS-Touch-Screen/blob/master/Eagle_SCH%26PCB/1.2/ESP32-P4%20Display%207.0%20inch%20V1.2.pdf) ·
+[Ordner mit Eagle-Dateien](https://github.com/Elecrow-RD/CrowPanel-Advanced-7inch-ESP32-P4-HMI-AI-Display-1024x600-IPS-Touch-Screen/tree/master/Eagle_SCH%26PCB/1.2)).
+Andere Platinen-Revisionen vor dem Löten mit der Beschriftung auf der Platine vergleichen. Alle Signale **3,3 V** – außer
+wo es anders steht. Die 5-V-Pins sind nur zur Versorgung, **nie an einen GPIO**.
+
+**GPIO-Steckleiste J7 (2 × 12 Pins, oben)** – elf GPIOs **direkt am P4**, ohne Reihenwiderstände oder Pull-ups:
+
+| Pin | Signal | Pin | Signal |
+|---|---|---|---|
+| 1 | 3V3 | 2 | 5 V |
+| 3 | 3V3 | 4 | 5 V |
+| 5 | 3V3 | 6 | 5 V |
+| 7 | GND | 8 | GND |
+| 9 | **GPIO 2** | 10 | GND |
+| 11 | **GPIO 3** | 12 | **GPIO 54** (ADC) |
+| 13 | **GPIO 4** | 14 | **GPIO 53** (ADC) |
+| 15 | **GPIO 5** | 16 | **GPIO 52** (ADC) |
+| 17 | **GPIO 25** | 18 | **GPIO 51** (ADC) |
+| 19 | **GPIO 49** (ADC) | 20 | **GPIO 50** (ADC) |
+| 21 | GND | 22 | GND |
+| 23 | GND | 24 | GND |
+
+Pin-Nummern wie im Schaltplan (ungerade Reihe / gerade Reihe); maßgeblich ist die Beschriftung auf der Platine.
+
+- **GPIO 49–54:** ADC2 Kanal 0–5 (analog bis ~3,1 V). GPIO 49 ist der vorgesehene Pin für den Akku-Spannungsteiler
+  (siehe Tabelle oben), die anderen fünf sind frei.
+- **GPIO 2–5:** Low-Power-Pins (Aufwachen aus dem Tiefschlaf, Touch-Pads), nur digital. **GPIO 25:** digital.
+- Jeder dieser Pins kann über die GPIO-Matrix jede Schnittstelle bekommen: UART, I²C, SPI, CAN (TWAI), PWM, 1-Wire.
+  Freie Hardware-UARTs: **1, 2 und 4** (0 = USB-Konsole, 3 = Zigbee-Funkmodul). Belastung: wenige mA je Pin, Relais
+  und LEDs immer über Treiber.
+
+**In der Firmware nutzbar** (Stand 0.2.9): LIN für CP Plus/Alde (Pins in `p4/platformio.ini`, `[truma]`/`[alde]`),
+Hobby CI-BUS und Votronic Display-Link (Einstellungen → Fahrzeug bzw. Votronic: UART und Pins wählen), Akkumessung
+(GPIO 49). Eigene Sensoren (DS18B20, Tanksonden …) hängen weiterhin an **Satelliten** – direkt am Panel gibt es dafür
+noch keine Einstellung.
+
+**Weitere Buchsen**
+
+| Buchse | Pins | GPIO / Hinweis |
+|---|---|---|
+| **UART1** (HY2.0-4P, J2) | 1 RX, 2 TX, 3 3V3, 4 GND | **GPIO 48 (RX) / 47 (TX)**, direkt am P4, 3,3 V – frei, z. B. für Hobby, Votronic oder einen LIN-Transceiver |
+| **I2C** (HY2.0-4P, J13) | 1 SCL, 2 SDA, 3 3V3, 4 GND | I²C1 **GPIO 46 (SCL) / 45 (SDA)** über Pegelwandler (BSS138), 3,3 V; derselbe Bus wie Touch (0x5D) und Modul-Steckplatz – weitere Geräte mit freier Adresse möglich, die Firmware liest dort aber noch nichts aus |
+| **UART3-IN** (XH2.54-4P, J10) | 1 TX, 2 RX, 3 5 V ein, 4 GND | **GPIO 34 (TX) / 33 (RX)** über MOSFET-Pegelwandler mit **5-V-Pegel**; zugleich 5-V-Versorgung des Panels. GPIO 34 ist ein Strapping-Pin – ein Gerät, das die Leitung beim Start auf Low zieht, kann den Start stören |
+| **Modul-Steckplatz** (2 × 7 Pins, J9/J11) | SPI, UART, I²C, 3V3 (eigener Regler), 5 V | SPI2 **GPIO 8/7/6** (SCK/MISO/MOSI), **GPIO 9/10**, UART2 **GPIO 27 (TX) / 28 (RX)**, I²C1. Mit gestecktem Zigbee-Modul (H2) belegt – ohne Modul sind GPIO 6–10, 27 und 28 über die Buchsenleisten frei |
+| Lautsprecher (2 × PH2.0, J4/J6) | links / rechts | I²S **GPIO 22/21/23**, Verstärker-Enable **GPIO 30** – siehe [Ton & Musik](Ton-und-Musik) |
+| Akku (PH2.0, J3) | +, – | Lader TP4059; die Spannung misst nur der Hilfscontroller STC8, nicht der P4 → Spannungsteiler an GPIO 49 |
+| microSD (J5) | – | SDMMC **1 Bit**: CLK 43, CMD 44, D0 39 (D1/D2 sind nicht am P4) |
+| USB-C „UART“ (J1) / „USB“ (J16) | – | CH340K → **GPIO 37/38** (UART0: Konsole, Flashen) / USB des P4 (von der Firmware nicht genutzt) |
+| Kamera (FPC 24-polig) | – | MIPI-CSI, I²C2 **GPIO 12/13**, Reset **GPIO 11** – nicht genutzt |
+| STC8 (1 × 4, J8) | TX, RX, 3V3, GND | Programmierleiste des Hilfscontrollers STC8H1K08 (Akku, Laden) – **kein GPIO-Port** |
+
+**Fest belegt** (nicht verwenden): 0/1 Uhrenquarz · 6–10, 27/28 Modul-Steckplatz · 11–13 Kamera · 14–19 SDIO zum
+Funkchip C6 · 20 Mikrofon · 21–24, 26 I²S · 29 Hintergrundlicht-Versorgung · 30 Verstärker · 31 Hintergrundlicht (PWM) ·
+32 C6-Reset · 33/34 UART3-Buchse · 35 BOOT-Taste · 36 Download-Strapping · 37/38 UART0 · 39/43/44 SD-Karte ·
+40/42 Touch · 41 LCD-Reset · 45/46 I²C1 · 47/48 UART1-Buchse.
+
 ---
 *Diese Seite wird aus der [README](https://github.com/cyclemat/simple-open-camper) erzeugt (`tools/make_wiki.py`) – Änderungen bitte dort.*

@@ -37,6 +37,7 @@
 python3 tools/gen_icons.py     # Icons: lädt Phosphor-SVGs, rendert mit Chrome headless (oder node tools/gen_icons.js mit react-icons + sharp)
 python3 tools/gen_fonts.py     # LVGL-Schriften aus Inter + Icons
 python3 tools/build_editor.py  # web/editor.src.html -> web/editor.html
+python3 tools/eagle_pins.py <schaltplan.sch>  # Pinbelegung aus einem Eagle-Schaltplan (z. B. neue CrowPanel-Revision)
 ```
 
 ## ⚠ Bekannte Einschränkungen

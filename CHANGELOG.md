@@ -3,7 +3,7 @@
 Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen dieselbe Versionsnummer
 (`src/soc_version.h`). Neueste Version oben. *Beta* = eingebaut, aber noch nicht an echter Hardware getestet.
 
-## 0.2.9 – in Arbeit
+## 0.2.9 – 2026-11-26
 
 **Neu**
 - ⚓ **Symbole für Boote und Technik** (Wunsch eines Nutzers) – 22 neue Kachel-Symbole im Editor, eigene Gruppe „Boot und
@@ -26,6 +26,12 @@ Alle Firmwares (Panels, Satelliten, Victron-Display, Zigbee-Modul) tragen diesel
   blockieren nicht mehr.
 - 🛠️ **Symbol-Generator ohne Node:** `python tools/gen_icons.py` lädt die Phosphor-SVGs, rendert sie mit Chrome headless und
   baut Schriften und Editor-Pfade (Ersatz für `tools/gen_icons.js`).
+
+**Verbessert**
+- 📖 **README: Anschlüsse und freie GPIOs am CrowPanel P4** (Wunsch eines Nutzers) – aus dem Eagle-Schaltplan V1.2 ausgelesen:
+  GPIO-Steckleiste J7 (GPIO 2/3/4/5/25, 49–54 mit ADC, 3V3/5 V/GND), Buchsen UART1 (GPIO 48/47), I2C (46/45, Pegelwandler),
+  UART3-IN (34/33, 5-V-Pegel), Modul-Steckplatz, Lautsprecher, SD, USB, Kamera, STC8-Leiste; dazu alle fest belegten GPIOs
+  und was die Firmware davon schon nutzen kann. Deutsch und Englisch, Wiki-Seite „Panels und Voraussetzungen“.
 
 ## 0.2.8 – 2026-11-24
 
